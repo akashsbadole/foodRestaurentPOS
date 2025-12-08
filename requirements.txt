@@ -1,0 +1,10 @@
+# Core dependencies for Restaurant POS System
+Pillow>=9.0.0
+tkinter-page>=0.0.5
+ttkthemes>=3.2.2
+matplotlib>=3.5.0
+pandas>=1.3.0
+openpyxl>=3.0.9
+reportlab>=3.6.0
+qrcode[pil]>=7.3.0
+python-barcode>=0.15.0
