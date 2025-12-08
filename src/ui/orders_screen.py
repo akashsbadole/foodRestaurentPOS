@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from datetime import datetime
 from .base_ui import BaseUI
-from ..utils.helpers import format_datetime, generate_bill_content
+from utils.helpers import format_datetime, generate_bill_content
 
 class OrdersScreen(BaseUI):
     """Orders management screen UI component"""
@@ -80,34 +80,52 @@ class OrdersScreen(BaseUI):
         filter_value = self.order_filter_var.get()
         search_term = self.order_search_entry.get()
         
-        orders = self.app.order_model.get_orders(filter_value, search_term)
-        
-        # Clear tree
-        for item in self.orders_tree.get_children():
-            self.orders_tree.delete(item)
-        
-        # Add orders to tree
-        for order in orders:
-            order_id, order_number, created_at, order_type, table_number, total, status, customer_name = order
+        try:
+            orders = self.app.order_model.get_orders(filter_value, search_term)
             
-            # Format date
-            date_obj = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
-            formatted_date = date_obj.strftime('%d-%m-%Y %H:%M')
+            # Clear tree
+            for item in self.orders_tree.get_children():
+                self.orders_tree.delete(item)
             
-            # Format table/customer
-            if order_type == "Dine-in":
-                table_customer = table_number or "N/A"
-            else:  # Takeaway
-                table_customer = customer_name or "N/A"
+            # Track seen order IDs to prevent duplicates
+            seen_order_ids = set()
             
-            self.orders_tree.insert("", tk.END, values=(
-                order_number,
-                formatted_date,
-                order_type,
-                table_customer,
-                f"₹{total:.2f}",
-                status
-            ), tags=(order_id,))
+            # Add orders to tree
+            for order in orders:
+                order_id, order_number, created_at, order_type, table_number, total, status, customer_name = order
+                
+                # Skip if we've already seen this order ID
+                if order_id in seen_order_ids:
+                    print(f"Warning: Duplicate order ID {order_id} found in results")
+                    continue
+                    
+                seen_order_ids.add(order_id)
+                
+                # Format date
+                try:
+                    date_obj = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                    formatted_date = date_obj.strftime('%d-%m-%Y %H:%M')
+                except (ValueError, TypeError):
+                    formatted_date = str(created_at) if created_at else "N/A"
+                
+                # Format table/customer
+                if order_type == "Dine-in":
+                    table_customer = table_number or "N/A"
+                else:  # Takeaway
+                    table_customer = customer_name or "N/A"
+                
+                self.orders_tree.insert("", tk.END, values=(
+                    order_number,
+                    formatted_date,
+                    order_type,
+                    table_customer,
+                    f"₹{total:.2f}",
+                    status
+                ), tags=(order_id,))
+                
+        except Exception as e:
+            print(f"Error loading orders: {e}")
+            self.show_message("Error", f"Failed to load orders: {e}", "error")
     
     def view_order_details(self):
         """View details of selected order"""

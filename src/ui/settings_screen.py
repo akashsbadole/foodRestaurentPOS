@@ -87,14 +87,14 @@ class SettingsScreen(BaseUI):
         
         def save_settings():
             # Save general settings
-            self.app.settings.update('restaurant_name', restaurant_name_var.get())
-            self.app.settings.update('restaurant_address', address_var.get())
-            self.app.settings.update('currency_symbol', currency_var.get())
+            self.app.update_setting('restaurant_name', restaurant_name_var.get())
+            self.app.update_setting('restaurant_address', address_var.get())
+            self.app.update_setting('currency_symbol', currency_var.get())
             
             # Save tax settings
             try:
                 tax_rate = float(tax_rate_var.get())
-                self.app.settings.update('tax_rate', str(tax_rate))
+                self.app.update_setting('tax_rate', str(tax_rate))
             except ValueError:
                 self.show_message("Error", "Invalid tax rate", "error")
                 return

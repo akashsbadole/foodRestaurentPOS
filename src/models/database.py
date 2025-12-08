@@ -78,7 +78,7 @@ class User:
     
     def authenticate(self, username, password):
         """Authenticate user credentials"""
-        from ..utils.helpers import hash_password
+        from utils.helpers import hash_password
         hashed_password = hash_password(password)
         
         query = "SELECT id, username, role FROM users WHERE username = ? AND password = ?"
@@ -93,7 +93,7 @@ class User:
     
     def add(self, username, password, role):
         """Add new user"""
-        from ..utils.helpers import hash_password
+        from utils.helpers import hash_password
         hashed_password = hash_password(password)
         
         query = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)"
@@ -321,10 +321,21 @@ class Order:
     
     def create(self, order_data):
         """Create new order"""
+        order_number = order_data[0]
+        
+        # Check if order number already exists to prevent duplicates
+        check_query = "SELECT id FROM orders WHERE order_number = ?"
+        self.db.execute_query(check_query, (order_number,))
+        existing_order = self.db.fetch_one()
+        
+        if existing_order:
+            print(f"Warning: Order number {order_number} already exists!")
+            return None
+        
         query = """
         INSERT INTO orders (order_number, table_id, customer_name, customer_mobile, order_type, 
                            subtotal, tax, discount, total, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         self.db.execute_query(query, order_data)
         order_id = self.db.lastrowid()

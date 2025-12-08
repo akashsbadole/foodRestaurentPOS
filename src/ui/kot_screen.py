@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from datetime import datetime
 from .base_ui import BaseUI
-from ..utils.helpers import generate_kot_content
+from utils.helpers import generate_kot_content
 
 class KOTScreen(BaseUI):
     """Kitchen Order Ticket screen UI component"""

@@ -28,20 +28,21 @@ from io import StringIO
 import tempfile
 
 # Import our modular components
-from .models.database import DatabaseManager, User, Category, MenuItem, Table, Order, KOT, Report, Settings
-from .ui.login_screen import LoginScreen
-from .ui.dashboard_screen import DashboardScreen
-from .ui.order_screen import OrderScreen
-from .ui.menu_screen import MenuScreen
-from .ui.orders_screen import OrdersScreen
-from .ui.tables_screen import TablesScreen
-from .ui.inventory_screen import InventoryScreen
-from .ui.kot_screen import KOTScreen
-from .ui.reports_screen import ReportsScreen
-from .ui.settings_screen import SettingsScreen
-from .utils.keyboard_handler import KeyboardHandler
-from .utils.helpers import generate_order_number, format_currency, format_datetime, export_to_csv, generate_bill_content, generate_kot_content
-from .utils.constants import *
+from models.database import DatabaseManager, User, Category, MenuItem, Table, Order, KOT, Settings
+from models.report import Report
+from ui.login_screen import LoginScreen
+from ui.dashboard_screen import DashboardScreen
+from ui.order_screen import OrderScreen
+from ui.menu_screen import MenuScreen
+from ui.orders_screen import OrdersScreen
+from ui.tables_screen import TablesScreen
+from ui.inventory_screen import InventoryScreen
+from ui.kot_screen import KOTScreen
+from ui.reports_screen import ReportsScreen
+from ui.settings_screen import SettingsScreen
+from utils.keyboard_handler import KeyboardHandler
+from utils.helpers import generate_order_number, format_currency, format_datetime, export_to_csv, generate_bill_content, generate_kot_content
+from utils.constants import *
 
 class RestaurantPOSApp:
     """Main Restaurant POS Application Class"""
@@ -72,6 +73,9 @@ class RestaurantPOSApp:
         # Initialize keyboard handler
         self.keyboard_handler = KeyboardHandler(root, self)
         
+        # Track current OrderScreen instance
+        self.current_order_screen = None
+        
         # Initialize variables
         self.current_user = None
         self.settings = {}
@@ -83,7 +87,7 @@ class RestaurantPOSApp:
         
         # Check if database exists, if not create it
         if not os.path.exists('restaurant_pos.db'):
-            from . import database_setup
+            import database_setup
             database_setup.setup_database()
         
         # Show login screen
@@ -143,7 +147,7 @@ class RestaurantPOSApp:
         # Restaurant name
         restaurant_label = ttk.Label(top_bar, 
                                   text=self.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME), 
-                                  font=('Arial', 14, 'bold'))
+                                  font=('Arial',34, 'bold'))
         restaurant_label.pack(side=tk.LEFT, padx=10)
         
         # User info
@@ -207,8 +211,14 @@ class RestaurantPOSApp:
     def show_new_order(self):
         """Display the new order screen"""
         self.clear_content_frame()
-        order_screen = OrderScreen(self.root, self)
-        order_screen.setup_ui()
+        
+        # Clean up existing OrderScreen if it exists
+        if self.current_order_screen:
+            self.current_order_screen.cleanup()
+        
+        # Create new OrderScreen instance
+        self.current_order_screen = OrderScreen(self.root, self)
+        self.current_order_screen.setup_ui()
     
     def show_orders(self):
         """Display the orders screen"""

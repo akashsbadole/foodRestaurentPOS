@@ -7,7 +7,8 @@ class Category:
     def get_all(self):
         """Get all categories"""
         query = "SELECT id, name FROM categories ORDER BY name"
-        return self.db.fetch_all(query)
+        self.db.execute_query(query)
+        return self.db.fetch_all()
     
     def add(self, name):
         """Add a new category"""
@@ -38,5 +39,6 @@ class Category:
     def get_menu_item_count(self, category_id):
         """Get count of menu items in a category"""
         query = "SELECT COUNT(*) FROM menu_items WHERE category_id = ?"
-        result = self.db.fetch_one(query, (category_id,))
+        self.db.execute_query(query, (category_id,))
+        result = self.db.fetch_one()
         return result[0] if result else 0

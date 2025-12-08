@@ -27,7 +27,8 @@ class MenuItem:
         
         query += " ORDER BY c.name, mi.name"
         
-        return self.db.fetch_all(query, params)
+        self.db.execute_query(query, params)
+        return self.db.fetch_all()
     
     def add(self, name, price, category_id, stock_quantity, image_path=""):
         """Add a new menu item"""
@@ -70,7 +71,8 @@ class MenuItem:
         JOIN categories c ON mi.category_id = c.id
         WHERE mi.id = ?
         """
-        return self.db.fetch_one(query, (item_id,))
+        self.db.execute_query(query, (item_id,))
+        return self.db.fetch_one()
     
     def get_inventory_items(self, search_term="", filter_type="All"):
         """Get items for inventory management"""
@@ -93,7 +95,8 @@ class MenuItem:
         
         query += " ORDER BY mi.stock_quantity ASC, mi.name"
         
-        return self.db.fetch_all(query, params)
+        self.db.execute_query(query, params)
+        return self.db.fetch_all()
     
     def update_stock(self, item_id, new_stock):
         """Update stock quantity for an item"""

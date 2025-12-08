@@ -9,7 +9,8 @@ class Settings:
     def get_all(self):
         """Get all settings as dictionary"""
         query = "SELECT key, value FROM settings"
-        results = self.db.fetch_all(query)
+        self.db.execute_query(query)
+        results = self.db.fetch_all()
         
         settings = {}
         for row in results:
@@ -20,7 +21,8 @@ class Settings:
     def get(self, key, default=None):
         """Get a specific setting value"""
         query = "SELECT value FROM settings WHERE key = ?"
-        result = self.db.fetch_one(query, (key,))
+        self.db.execute_query(query, (key,))
+        result = self.db.fetch_one()
         
         return result[0] if result else default
     

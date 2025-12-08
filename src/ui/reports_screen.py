@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from datetime import datetime
 from .base_ui import BaseUI
-from ..utils.helpers import export_to_csv
+from utils.helpers import export_to_csv, export_report_to_csv, create_export_options_dialog
 
 class ReportsScreen(BaseUI):
     """Reports screen UI component"""
@@ -48,7 +48,7 @@ class ReportsScreen(BaseUI):
         
         self.create_button_frame(buttons_frame, [
             ("Generate Report", self.generate_report),
-            ("Export to CSV", self.export_report_to_csv)
+            ("Advanced Export", self.advanced_export_csv)
         ])
         
         # Report display
@@ -163,3 +163,35 @@ class ReportsScreen(BaseUI):
             self.show_message("Success", f"Report exported to {file_path}", "info")
         else:
             self.show_message("Error", "Failed to export report", "error")
+    
+    def advanced_export_csv(self):
+        """Show advanced export dialog"""
+        if not self.report_tree.get_children():
+            self.show_message("Warning", "No report data to export", "warning")
+            return
+        
+        # Create export options dialog
+        export_dialog = create_export_options_dialog(self.app.root, self.report_type_var.get())
+        
+        # Add custom export logic for the dialog
+        def do_export():
+            # Get report data
+            headers = [self.report_tree.heading(col)['text'] for col in self.report_tree['columns']]
+            data = []
+            for child in self.report_tree.get_children():
+                data.append(self.report_tree.item(child)['values'])
+            
+            # Use enhanced export functionality
+            success, file_path = export_report_to_csv(
+                self.report_tree, 
+                self.report_type_var.get()
+            )
+            
+            if success:
+                self.show_message("Success", f"Report exported to {file_path}", "info")
+                export_dialog.destroy()
+            else:
+                self.show_message("Error", "Failed to export report", "error")
+        
+        # Override the dialog's export function
+        export_dialog.children['!frame'].children['!frame'].children['!button'].config(command=do_export)

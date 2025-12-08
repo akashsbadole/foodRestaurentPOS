@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from ..utils.constants import *
+from utils.constants import *
 
 class BaseUI:
     """Base class for UI components"""

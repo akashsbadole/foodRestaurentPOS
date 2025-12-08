@@ -1,4 +1,4 @@
-from ..utils.helpers import generate_order_number
+from utils.helpers import generate_order_number
 from datetime import datetime
 
 class Order:

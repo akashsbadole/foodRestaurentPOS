@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from .base_ui import BaseUI
-from ..controllers.order_controller import OrderController
+from controllers.order_controller import OrderController
 
 class OrderScreen(BaseUI):
     """Order screen UI component"""
@@ -11,10 +11,12 @@ class OrderScreen(BaseUI):
         self.order_controller = OrderController(self.db)
         self.menu_tree = None
         self.cart_tree = None
-        self.setup_ui()
     
     def setup_ui(self):
         """Setup the order screen UI"""
+        # Reset the order controller to ensure clean state
+        self.order_controller.reset_order()
+        
         # Title
         title_label = ttk.Label(self.app.content_frame, text="New Order", font=('Arial', 18, 'bold'))
         title_label.pack(pady=10)
@@ -170,7 +172,13 @@ class OrderScreen(BaseUI):
         # Load initial data
         self.load_tables()
         self.load_categories()
-        self.load_menu_items()
+        
+        # Ensure menu tree is properly initialized before loading items
+        if self.menu_tree:
+            self.load_menu_items()
+        else:
+            # If menu tree is not initialized, wait a bit and try again
+            self.root.after(100, self.load_menu_items)
     
     def change_order_type(self):
         """Handle order type change"""
@@ -210,6 +218,10 @@ class OrderScreen(BaseUI):
     
     def load_menu_items(self, search_term="", category="All"):
         """Load menu items"""
+        # Check if menu tree exists
+        if not self.menu_tree:
+            return
+            
         items = self.order_controller.get_menu_items(search_term, category)
         
         # Clear tree
@@ -220,6 +232,9 @@ class OrderScreen(BaseUI):
         for item in items:
             item_id, name, category, price, stock = item
             self.menu_tree.insert("", tk.END, values=(name, f"₹{price:.2f}", stock), tags=(item_id,))
+            
+        # Ensure tree is properly selectable
+        self.menu_tree.configure(selectmode="extended")
     
     def search_menu(self, event=None):
         """Search menu items"""
@@ -235,33 +250,69 @@ class OrderScreen(BaseUI):
     
     def add_to_cart(self):
         """Add selected menu item to cart"""
+        # Check if menu tree exists and has items
+        if not self.menu_tree:
+            self.show_message("Error", "Menu not loaded. Please try again.", "error")
+            return
+            
         selection = self.menu_tree.selection()
         if not selection:
             self.show_message("Warning", "Please select an item to add to cart", "warning")
             return
         
-        # Get selected item
-        item = self.menu_tree.item(selection[0])
-        values = item['values']
-        item_name = values[0]
-        item_price = float(values[1].replace("₹", ""))
-        item_stock = int(values[2])
-        
-        # Get item ID from tags
-        item_id = int(self.menu_tree.item(selection[0])['tags'][0])
-        
-        # Ask for quantity
-        quantity = self.show_input_dialog("Quantity", f"Enter quantity for {item_name}:", minvalue=1, maxvalue=item_stock)
-        if not quantity:
-            return
-        
-        # Add to cart using controller
-        success, message = self.order_controller.add_to_cart(item_id, quantity)
-        
-        if success:
-            self.update_cart_display()
-        else:
-            self.show_message("Warning", message, "warning")
+        try:
+            # Get selected item
+            item = self.menu_tree.item(selection[0])
+            values = item['values']
+            
+            # Validate values structure
+            if len(values) < 3:
+                self.show_message("Error", "Invalid item data structure", "error")
+                return
+                
+            item_name = values[0]
+            item_price_str = values[1].replace("₹", "")
+            item_stock = values[2]
+            
+            # Validate and convert price
+            try:
+                item_price = float(item_price_str)
+            except ValueError:
+                self.show_message("Error", f"Invalid price format: {item_price_str}", "error")
+                return
+            
+            # Validate and convert stock
+            try:
+                item_stock = int(item_stock)
+            except ValueError:
+                self.show_message("Error", f"Invalid stock format: {item_stock}", "error")
+                return
+            
+            # Get item ID from tags
+            tags = item.get('tags', [])
+            if not tags:
+                self.show_message("Error", "Item ID not found", "error")
+                return
+                
+            item_id = int(tags[0])
+            
+            # Ask for quantity
+            quantity = self.show_input_dialog("Quantity", f"Enter quantity for {item_name}:", minvalue=1, maxvalue=item_stock)
+            if not quantity:
+                return
+            
+            # Add to cart using controller
+            success, message = self.order_controller.add_to_cart(item_id, quantity)
+            
+            if success:
+                self.update_cart_display()
+                # Clear selection after successful addition
+                self.menu_tree.selection_remove(selection[0])
+            else:
+                self.show_message("Warning", message, "warning")
+                
+        except Exception as e:
+            self.show_message("Error", f"Failed to add item to cart: {str(e)}", "error")
     
     def update_cart_display(self):
         """Update the cart display"""
@@ -404,3 +455,20 @@ class OrderScreen(BaseUI):
         if upi_id:
             self.show_message("Payment", f"UPI payment successful!\nUPI ID: {upi_id}", "info")
             self.process_payment("UPI")
+    
+    def cleanup(self):
+        """Clean up resources when the screen is being destroyed"""
+        # Reset the order controller state
+        self.order_controller.reset_order()
+        
+        # Clear any references to widgets
+        self.menu_tree = None
+        self.cart_tree = None
+        
+        # Clear any other resources
+        self.search_entry = None
+        self.category_combo = None
+        self.table_combo = None
+        self.customer_name_entry = None
+        self.customer_mobile_entry = None
+        self.discount_entry = None

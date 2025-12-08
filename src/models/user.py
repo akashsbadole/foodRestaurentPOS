@@ -11,14 +11,16 @@ class User:
         hashed_password = hashlib.md5(password.encode()).hexdigest()
         
         query = "SELECT id, username, role FROM users WHERE username = ? AND password = ?"
-        result = self.db.fetch_one(query, (username, hashed_password))
+        self.db.execute_query(query, (username, hashed_password))
+        result = self.db.fetch_one()
         
         return result
     
     def get_all(self):
         """Get all users"""
         query = "SELECT username, role FROM users ORDER BY username"
-        return self.db.fetch_all(query)
+        self.db.execute_query(query)
+        return self.db.fetch_all()
     
     def add(self, username, password, role):
         """Add a new user"""
@@ -26,7 +28,7 @@ class User:
         
         try:
             query = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)"
-            self.db.execute(query, (username, hashed_password, role))
+            self.db.execute_query(query, (username, hashed_password, role))
             self.db.commit()
             return True
         except Exception:
@@ -35,5 +37,5 @@ class User:
     def delete(self, username):
         """Delete a user"""
         query = "DELETE FROM users WHERE username = ?"
-        self.db.execute(query, (username,))
+        self.db.execute_query(query, (username,))
         self.db.commit()

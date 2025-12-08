@@ -585,7 +585,7 @@ class RestaurantPOSApp:
         sales_frame.grid(row=0, column=0, padx=10, pady=10, sticky=tk.W+tk.E)
         
         sales_label = ttk.Label(sales_frame, text=f"{self.settings.get('currency_symbol', '₹')}{today_sales:.2f}",
-                              font=('Arial', 24, 'bold'))
+                              font=('Arial', 30, 'bold'))
         sales_label.pack()
         
         # Total Orders

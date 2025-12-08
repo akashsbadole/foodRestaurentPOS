@@ -11,6 +11,7 @@ class LoginScreen(BaseUI):
         self.username_entry = None
         self.password_entry = None
         self.status_bar = None
+        self.key_bindings = []  # Track key bindings for cleanup
     
     def show(self):
         """Display the login screen"""
@@ -82,9 +83,23 @@ class LoginScreen(BaseUI):
                         self.app.keyboard_handler.show_keyboard_feedback("Previous Field")
                     return "break"  # Prevent default tab behavior
         
-        # Bind keyboard events
-        self.root.bind('<Return>', on_login_key_press)
-        self.root.bind('<Tab>', on_login_key_press)
+        # Clear any existing key bindings
+        self.cleanup_key_bindings()
+        
+        # Bind keyboard events and track them
+        return_binding = self.root.bind('<Return>', on_login_key_press)
+        tab_binding = self.root.bind('<Tab>', on_login_key_press)
+        self.key_bindings.extend([return_binding, tab_binding])
+    
+    def cleanup_key_bindings(self):
+        """Clean up keyboard bindings to prevent callback errors"""
+        for binding_id in self.key_bindings:
+            try:
+                self.root.unbind('<Return>', binding_id)
+                self.root.unbind('<Tab>', binding_id)
+            except:
+                pass  # Ignore errors during cleanup
+        self.key_bindings.clear()
     
     def login(self):
         """Authenticate user and show main application"""
@@ -99,6 +114,9 @@ class LoginScreen(BaseUI):
         user = self.app.user_model.authenticate(username, password)
         
         if user:
+            # Clean up key bindings before transitioning
+            self.cleanup_key_bindings()
+            
             self.app.current_user = {
                 'id': user[0],
                 'username': user[1],

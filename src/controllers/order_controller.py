@@ -1,5 +1,5 @@
-from ..models.database import Order, MenuItem, Table
-from ..utils.helpers import generate_order_number, format_currency
+from models.database import Order, MenuItem, Table
+from utils.helpers import generate_order_number, format_currency
 
 class OrderController:
     """Controller for order-related operations"""
@@ -31,11 +31,19 @@ class OrderController:
     
     def add_to_cart(self, item_id, quantity):
         """Add item to cart"""
+        # Validate inputs
+        if not item_id or quantity <= 0:
+            return False, "Invalid item ID or quantity"
+            
         # Get item details
         item_data = self.menu_item_model.get_by_id(item_id)
         if not item_data:
             return False, "Item not found"
         
+        # Ensure item_data has all expected fields
+        if len(item_data) < 6:
+            return False, "Invalid item data structure"
+            
         name, price, category_id, stock, image_path, category_name = item_data
         
         # Check stock
@@ -114,66 +122,76 @@ class OrderController:
             'total': total
         }
     
-    def process_payment(self, payment_mode, discount_value=0, discount_type="%", 
+    def process_payment(self, payment_mode, discount_value=0, discount_type="%",
                      customer_name=None, customer_mobile=None):
         """Process payment and create order"""
+        # Validate cart state
         if not self.cart_items:
             return False, "Cart is empty"
         
+        # Validate order type and table selection
         if self.order_type == "Dine-in" and not self.selected_table:
             return False, "Please select a table"
         
-        # Calculate totals
-        totals = self.calculate_totals(discount_value, discount_type)
+        # Validate payment mode
+        if not payment_mode:
+            return False, "Invalid payment mode"
         
-        # Generate order number
-        order_number = generate_order_number()
-        
-        # Create order data
-        order_data = (
-            order_number,
-            self.selected_table,
-            customer_name,
-            customer_mobile,
-            self.order_type,
-            totals['subtotal'],
-            totals['tax'],
-            totals['discount'],
-            totals['total'],
-            "Completed"
-        )
-        
-        # Create order
-        order_id = self.order_model.create(order_data)
-        
-        # Add order items
-        for cart_item in self.cart_items:
-            self.order_model.add_item(
-                order_id,
-                cart_item['id'],
-                cart_item['quantity'],
-                cart_item['price'],
-                cart_item['total'],
+        try:
+            # Calculate totals
+            totals = self.calculate_totals(discount_value, discount_type)
+            
+            # Generate order number
+            order_number = generate_order_number()
+            
+            # Create order data
+            order_data = (
+                order_number,
+                self.selected_table,
+                customer_name,
+                customer_mobile,
+                self.order_type,
+                totals['subtotal'],
+                totals['tax'],
+                totals['discount'],
+                totals['total'],
                 "Completed"
             )
             
-            # Update inventory
-            self.menu_item_model.update_stock(
-                cart_item['id'],
-                cart_item['quantity'] * -1  # Subtract from stock
-            )
-        
-        # Add payment record
-        self.order_model.add_payment(order_id, payment_mode, totals['total'])
-        
-        # Update table status if dine-in
-        if self.order_type == "Dine-in":
-            self.table_model.update_status(self.selected_table, "Occupied")
-        
-        # Reset order
-        self.reset_order()
-        
-        return True, order_number
+            # Create order
+            order_id = self.order_model.create(order_data)
+            
+            # Add order items
+            for cart_item in self.cart_items:
+                self.order_model.add_item(
+                    order_id,
+                    cart_item['id'],
+                    cart_item['quantity'],
+                    cart_item['price'],
+                    cart_item['total'],
+                    "Completed"
+                )
+                
+                # Update inventory
+                self.menu_item_model.update_stock(
+                    cart_item['id'],
+                    cart_item['quantity'] * -1  # Subtract from stock
+                )
+            
+            # Add payment record
+            self.order_model.add_payment(order_id, payment_mode, totals['total'])
+            
+            # Update table status if dine-in
+            if self.order_type == "Dine-in":
+                self.table_model.update_status(self.selected_table, "Occupied")
+            
+            # Reset order
+            self.reset_order()
+            
+            return True, order_number
+            
+        except Exception as e:
+            return False, f"Payment processing failed: {str(e)}"
     
     def get_menu_items(self, search_term="", category="All"):
         """Get menu items for display"""
@@ -185,6 +203,6 @@ class OrderController:
     
     def get_categories(self):
         """Get all categories"""
-        from ..models.database import Category
+        from models.database import Category
         category_model = Category(self.db)
         return category_model.get_all()
