@@ -48,6 +48,53 @@ TABLE_GRID_COLS = 4
 # Default capacity for tables
 DEFAULT_TABLE_CAPACITY = 4
 
+# Design System Colors (based on pos_design_system_specification.md)
+
+# Primary Colors
+COLOR_PRIMARY = "#3498db"        # Main actions, highlights, primary buttons
+COLOR_PRIMARY_DARK = "#2c3e50"   # Headings, important text, navigation
+COLOR_PRIMARY_LIGHT = "#2980b9"  # Hover state for primary elements
+
+# Secondary Colors
+COLOR_SECONDARY = "#7f8c8d"      # Secondary text, subtitles
+COLOR_SECONDARY_LIGHT = "#95a5a6" # Disabled text, placeholders
+COLOR_BACKGROUND_LIGHT = "#f0f0f0" # Main background
+COLOR_CARD_WHITE = "#e6e6e6"     # Card backgrounds, content areas
+
+# Status Colors
+COLOR_SUCCESS = "#27ae60"         # Successful operations, available tables
+COLOR_SUCCESS_LIGHT = "#ccffcc"   # Background for success states
+COLOR_WARNING = "#f39c12"         # Warnings, low stock
+COLOR_WARNING_LIGHT = "#ffffcc"   # Background for warning states
+COLOR_ERROR = "#e74c3c"           # Errors, out of stock
+COLOR_ERROR_LIGHT = "#ffcccc"     # Background for error states
+COLOR_INFO = "#3498db"            # Information messages
+
+# Neutral Colors
+COLOR_TEXT_PRIMARY = "#2c3e50"    # Main text content
+COLOR_TEXT_SECONDARY = "#7f8c8d"  # Secondary text
+COLOR_TEXT_DISABLED = "#bdc3c7"   # Disabled elements
+COLOR_BORDER_LIGHT = "#ecf0f1"    # Light borders
+COLOR_BORDER_MEDIUM = "#bdc3c7"   # Medium borders
+COLOR_SHADOW = "#d0d0d0"          # Shadow effects
+
+# Typography
+FONT_FAMILY_PRIMARY = "Segoe UI"
+FONT_FAMILY_FALLBACK = "Arial"
+
+# Spacing (based on 8px grid)
+SPACING_XS = 4     # Fine adjustments, tight spacing
+SPACING_S = 8      # Small gaps, related elements
+SPACING_M = 16     # Standard spacing, most common
+SPACING_L = 24     # Section separation, breathing room
+SPACING_XL = 32    # Major sections, screen divisions
+SPACING_XXL = 48   # Screen margins, large divisions
+
+# Border Radius
+BORDER_RADIUS_SMALL = 4
+BORDER_RADIUS_MEDIUM = 6
+BORDER_RADIUS_LARGE = 8
+
 # PIL import status placeholder
 PIL_AVAILABLE = None
 PIL_VERSION = None

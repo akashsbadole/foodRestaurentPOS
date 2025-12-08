@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 from .base_ui import BaseUI
+from utils.constants import *
 
 class MenuScreen(BaseUI):
     """Menu management screen UI component"""
@@ -10,79 +11,127 @@ class MenuScreen(BaseUI):
         self.setup_ui()
     
     def setup_ui(self):
-        """Setup menu management UI"""
-        # Title
-        title_label = ttk.Label(self.app.content_frame, text="Menu Management", font=('Arial', 18, 'bold'))
-        title_label.pack(pady=10)
+        """Setup modern menu management UI"""
+        # Configure modern styles
+        self.configure_styles()
         
-        # Create menu frame
-        menu_frame = ttk.Frame(self.app.content_frame)
-        menu_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Set main background - use style configuration for ttk.Frame
+        try:
+            self.app.content_frame.configure(background=COLOR_BACKGROUND_LIGHT)
+        except tk.TclError:
+            # If it's a ttk.Frame, use style configuration
+            style = ttk.Style()
+            style.configure("MenuScreen.TFrame", background=COLOR_BACKGROUND_LIGHT)
+            self.app.content_frame.configure(style="MenuScreen.TFrame")
         
-        # Left panel - Menu items
-        left_panel = ttk.Frame(menu_frame)
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        # Title with modern styling
+        title_frame = self.create_modern_frame(self.app.content_frame, style="Card.TFrame", padding=(SPACING_L, SPACING_M, SPACING_L, SPACING_M))
+        title_frame.pack(fill=tk.X, padx=SPACING_L, pady=(SPACING_L, SPACING_M))
         
-        # Search and filter
-        search_frame = ttk.Frame(left_panel)
-        search_frame.pack(fill=tk.X, pady=5)
+        title_label = self.create_modern_label(title_frame, "Menu Management", style="Title.TLabel")
+        title_label.pack()
         
-        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=5)
-        self.search_entry = ttk.Entry(search_frame)
-        self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        # Create main menu container with modern styling
+        menu_container = self.create_modern_frame(self.app.content_frame, style="Card.TFrame", padding=SPACING_L)
+        menu_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_L, pady=(0, SPACING_L))
+        
+        # Create two-panel layout with better visual separation
+        panels_frame = ttk.Frame(menu_container, style="Card.TFrame")
+        panels_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Left panel - Menu items with modern card design
+        left_panel = self.create_modern_frame(panels_frame, style="Panel.TFrame", padding=SPACING_M)
+        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, SPACING_S))
+        
+        # Section title for menu items
+        menu_title = self.create_modern_label(left_panel, "Menu Items", style="SectionTitle.TLabel")
+        menu_title.pack(anchor=tk.W, pady=(0, SPACING_M))
+        
+        # Modern search and filter section
+        search_frame = self.create_modern_frame(left_panel, style="Card.TFrame", padding=SPACING_M)
+        search_frame.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        # Search field with modern styling
+        search_label = self.create_modern_label(search_frame, "Search:", style="Body.TLabel")
+        search_label.grid(row=0, column=0, sticky=tk.W, padx=(0, SPACING_S), pady=SPACING_S)
+        
+        self.search_entry = self.create_modern_entry(search_frame, style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12))
+        self.search_entry.grid(row=0, column=1, sticky=tk.W+tk.E, padx=(0, SPACING_M), pady=SPACING_S)
         self.search_entry.bind("<KeyRelease>", self.search_menu_items)
         
-        ttk.Label(search_frame, text="Category:").pack(side=tk.LEFT, padx=5)
+        # Category filter with modern styling
+        category_label = self.create_modern_label(search_frame, "Category:", style="Body.TLabel")
+        category_label.grid(row=1, column=0, sticky=tk.W, padx=(0, SPACING_S), pady=SPACING_S)
+        
         self.category_var = tk.StringVar()
-        self.category_combo = ttk.Combobox(search_frame, textvariable=self.category_var, state="readonly")
-        self.category_combo.pack(side=tk.LEFT, padx=5)
+        self.category_combo = self.create_modern_combobox(
+            search_frame, 
+            self.category_var, 
+            [], 
+            style="Modern.TCombobox",
+            state="readonly",
+            font=(FONT_FAMILY_PRIMARY, 12)
+        )
+        self.category_combo.grid(row=1, column=1, sticky=tk.W+tk.E, padx=(0, SPACING_M), pady=SPACING_S)
         self.category_combo.bind("<<ComboboxSelected>>", self.filter_menu_items)
         
-        # Menu items treeview
-        self.menu_items_tree, menu_scrollbar = self.create_treeview(
-            left_panel, 
+        # Configure grid weights for responsive layout
+        search_frame.grid_columnconfigure(1, weight=1)
+        
+        # Modern menu items treeview with card design
+        items_card = self.create_modern_frame(left_panel, style="Card.TFrame", padding=SPACING_S)
+        items_card.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
+        
+        self.menu_items_tree, menu_scrollbar = self.create_modern_treeview(
+            items_card, 
             ("name", "category", "price", "stock"), 
             ("Name", "Category", "Price", "Stock"),
-            (200, 150, 100, 100)
+            (250, 150, 100, 80)
         )
-        self.menu_items_tree.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.menu_items_tree.pack(fill=tk.BOTH, expand=True)
         
-        # Buttons
-        buttons_frame = ttk.Frame(left_panel)
-        buttons_frame.pack(fill=tk.X, pady=5)
+        # Configure treeview tags for stock status
+        self.menu_items_tree.tag_configure("in_stock", background=COLOR_SUCCESS_LIGHT)
+        self.menu_items_tree.tag_configure("low_stock", background=COLOR_WARNING_LIGHT)
+        self.menu_items_tree.tag_configure("out_of_stock", background=COLOR_ERROR_LIGHT)
         
-        self.create_button_frame(buttons_frame, [
-            ("Add Item", self.add_menu_item),
-            ("Edit Item", self.edit_menu_item),
-            ("Delete Item", self.delete_menu_item)
-        ])
+        # Modern CRUD buttons with proper styling
+        self.create_button_group(left_panel, [
+            ("Add Item", self.add_menu_item, "Success.TButton"),
+            ("Edit Item", self.edit_menu_item, "Primary.TButton"),
+            ("Delete Item", self.delete_menu_item, "Danger.TButton")
+        ], spacing=SPACING_S)
         
-        # Right panel - Categories
-        right_panel = ttk.Frame(menu_frame)
-        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
+        # Right panel - Categories with modern design
+        right_panel = self.create_modern_frame(panels_frame, style="Panel.TFrame", padding=SPACING_M)
+        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(SPACING_S, 0))
         
-        # Categories frame
-        categories_frame = ttk.LabelFrame(right_panel, text="Categories", padding=10)
-        categories_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        # Section title for categories
+        categories_title = self.create_modern_label(right_panel, "Categories", style="SectionTitle.TLabel")
+        categories_title.pack(anchor=tk.W, pady=(0, SPACING_M))
         
-        # Categories tree
-        self.categories_tree, categories_scrollbar = self.create_treeview(
-            categories_frame,
+        # Modern categories container
+        categories_card = self.create_modern_frame(right_panel, style="Card.TFrame", padding=SPACING_M)
+        categories_card.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
+        
+        # Modern categories treeview
+        self.categories_tree, categories_scrollbar = self.create_modern_treeview(
+            categories_card,
             ("name",),
-            ("Name",),
+            ("Category Name",),
             (200,)
         )
-        self.categories_tree.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.categories_tree.pack(fill=tk.BOTH, expand=True)
         
-        # Category buttons
-        category_buttons_frame = ttk.Frame(categories_frame)
-        category_buttons_frame.pack(fill=tk.X, pady=5)
+        # Configure treeview tags for active categories
+        self.categories_tree.tag_configure("active", background=COLOR_PRIMARY_LIGHT)
         
-        self.create_button_frame(category_buttons_frame, [
-            ("Add Category", self.add_category),
-            ("Edit Category", self.edit_category),
-            ("Delete Category", self.delete_category)
-        ])
+        # Modern category management buttons
+        self.create_button_group(right_panel, [
+            ("Add Category", self.add_category, "Success.TButton"),
+            ("Edit Category", self.edit_category, "Primary.TButton"),
+            ("Delete Category", self.delete_category, "Danger.TButton")
+        ], spacing=SPACING_S)
         
         # Load initial data
         self.load_menu_categories()
@@ -113,15 +162,24 @@ class MenuScreen(BaseUI):
         for item in self.menu_items_tree.get_children():
             self.menu_items_tree.delete(item)
         
-        # Add items to tree
+        # Add items to tree with stock status tags
         for item in items:
             item_id, name, category, price, stock = item
+            
+            # Determine stock status tag
+            if stock <= 0:
+                stock_tag = "out_of_stock"
+            elif stock <= LOW_STOCK_THRESHOLD:
+                stock_tag = "low_stock"
+            else:
+                stock_tag = "in_stock"
+            
             self.menu_items_tree.insert("", tk.END, values=(
                 name,
                 category,
                 f"₹{price:.2f}",
-                stock
-            ), tags=(item_id,))
+                f"{stock} units"
+            ), tags=(item_id, stock_tag))
     
     def search_menu_items(self, event=None):
         """Search menu items"""
@@ -136,49 +194,76 @@ class MenuScreen(BaseUI):
         self.load_menu_items_management(search_term, category)
     
     def add_menu_item(self):
-        """Add a new menu item"""
-        # Create add item window
+        """Add a new menu item with modern dialog"""
+        # Create modern add item window
         add_window = tk.Toplevel(self.app.root)
         add_window.title("Add Menu Item")
-        add_window.geometry("400x400")
+        add_window.geometry("450x500")
+        add_window.configure(bg=COLOR_BACKGROUND_LIGHT)
         
-        # Create form
-        form_frame = ttk.Frame(add_window, padding="20")
+        # Apply modern styling to the window
+        self.configure_styles()
+        
+        # Create modern form container
+        form_container = self.create_modern_frame(add_window, style="Card.TFrame", padding=SPACING_L)
+        form_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_L, pady=SPACING_L)
+        
+        # Title
+        title_label = self.create_modern_label(form_container, "Add New Menu Item", style="SectionTitle.TLabel")
+        title_label.pack(anchor=tk.W, pady=(0, SPACING_M))
+        
+        # Form fields with modern styling
+        form_frame = ttk.Frame(form_container, style="Card.TFrame")
         form_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Name
-        ttk.Label(form_frame, text="Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        name_entry = ttk.Entry(form_frame, width=30)
-        name_entry.grid(row=0, column=1, sticky=tk.W+tk.E, pady=5)
+        # Name field
+        name_entry = self.create_form_field(
+            form_frame, "Item Name:", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         
-        # Category
-        ttk.Label(form_frame, text="Category:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        category_var = tk.StringVar()
-        category_combo = ttk.Combobox(form_frame, textvariable=category_var, state="readonly", width=28)
-        category_combo.grid(row=1, column=1, sticky=tk.W+tk.E, pady=5)
-        
-        # Load categories
+        # Category field
         categories = self.app.category_model.get_all()
         category_list = [category[1] for category in categories]
-        category_combo['values'] = category_list
+        category_var = tk.StringVar()
+        category_combo = self.create_form_field(
+            form_frame, "Category:", "combobox",
+            textvariable=category_var, values=category_list,
+            style="Modern.TCombobox", font=(FONT_FAMILY_PRIMARY, 12), width=28
+        )
         if category_list:
             category_combo.current(0)
         
-        # Price
-        ttk.Label(form_frame, text="Price:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        price_entry = ttk.Entry(form_frame, width=30)
-        price_entry.grid(row=2, column=1, sticky=tk.W+tk.E, pady=5)
+        # Price field
+        price_entry = self.create_form_field(
+            form_frame, "Price (₹):", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         
-        # Stock
-        ttk.Label(form_frame, text="Stock Quantity:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        stock_entry = ttk.Entry(form_frame, width=30)
-        stock_entry.grid(row=3, column=1, sticky=tk.W+tk.E, pady=5)
+        # Stock field
+        stock_entry = self.create_form_field(
+            form_frame, "Stock Quantity:", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         
-        # Image path
-        ttk.Label(form_frame, text="Image Path:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        # Image path field
         image_path_var = tk.StringVar()
-        image_path_entry = ttk.Entry(form_frame, textvariable=image_path_var, width=30)
-        image_path_entry.grid(row=4, column=1, sticky=tk.W+tk.E, pady=5)
+        image_frame = ttk.Frame(form_frame, style="Card.TFrame")
+        image_frame.pack(fill=tk.X, pady=SPACING_M)
+        
+        image_label = self.create_modern_label(image_frame, "Image Path:", style="Body.TLabel")
+        image_label.pack(anchor=tk.W, pady=(SPACING_S, SPACING_XS))
+        
+        image_path_frame = ttk.Frame(image_frame, style="Card.TFrame")
+        image_path_frame.pack(fill=tk.X)
+        
+        image_path_entry = self.create_modern_entry(
+            image_path_frame, 
+            textvariable=image_path_var,
+            style="Modern.TEntry", 
+            font=(FONT_FAMILY_PRIMARY, 12)
+        )
+        image_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, SPACING_S))
         
         def browse_image():
             file_path = filedialog.askopenfilename(
@@ -188,11 +273,18 @@ class MenuScreen(BaseUI):
             if file_path:
                 image_path_var.set(file_path)
         
-        ttk.Button(form_frame, text="Browse", command=browse_image).grid(row=5, column=1, sticky=tk.W, pady=5)
+        browse_button = self.create_modern_button(
+            image_path_frame, "Browse", browse_image, 
+            style="Secondary.TButton"
+        )
+        browse_button.pack(side=tk.RIGHT)
         
-        # Buttons
-        buttons_frame = ttk.Frame(form_frame)
-        buttons_frame.grid(row=6, column=0, columnspan=2, pady=10)
+        # Configure grid weights
+        form_frame.grid_columnconfigure(1, weight=1)
+        
+        # Modern buttons
+        button_frame = ttk.Frame(form_container, style="Card.TFrame")
+        button_frame.pack(fill=tk.X, pady=(SPACING_M, 0))
         
         def save_item():
             name = name_entry.get().strip()
@@ -231,13 +323,16 @@ class MenuScreen(BaseUI):
             add_window.destroy()
             self.load_menu_items_management()
         
-        self.create_button_frame(buttons_frame, [
-            ("Save", save_item),
-            ("Cancel", add_window.destroy)
-        ])
+        def cancel_add():
+            add_window.destroy()
+        
+        self.create_button_group(button_frame, [
+            ("Save Item", save_item, "Success.TButton"),
+            ("Cancel", cancel_add, "Secondary.TButton")
+        ], spacing=SPACING_S)
     
     def edit_menu_item(self):
-        """Edit selected menu item"""
+        """Edit selected menu item with modern dialog"""
         selection = self.menu_items_tree.selection()
         if not selection:
             self.show_message("Warning", "Please select an item to edit", "warning")
@@ -253,49 +348,76 @@ class MenuScreen(BaseUI):
         
         name, price, category_id, stock, image_path, category_name = item_details
         
-        # Create edit item window
+        # Create modern edit item window
         edit_window = tk.Toplevel(self.app.root)
         edit_window.title("Edit Menu Item")
-        edit_window.geometry("400x400")
+        edit_window.geometry("450x500")
+        edit_window.configure(bg=COLOR_BACKGROUND_LIGHT)
         
-        # Create form
-        form_frame = ttk.Frame(edit_window, padding="20")
+        # Apply modern styling to the window
+        self.configure_styles()
+        
+        # Create modern form container
+        form_container = self.create_modern_frame(edit_window, style="Card.TFrame", padding=SPACING_L)
+        form_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_L, pady=SPACING_L)
+        
+        # Title
+        title_label = self.create_modern_label(form_container, "Edit Menu Item", style="SectionTitle.TLabel")
+        title_label.pack(anchor=tk.W, pady=(0, SPACING_M))
+        
+        # Form fields with modern styling
+        form_frame = ttk.Frame(form_container, style="Card.TFrame")
         form_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Name
-        ttk.Label(form_frame, text="Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        name_entry = ttk.Entry(form_frame, width=30)
-        name_entry.grid(row=0, column=1, sticky=tk.W+tk.E, pady=5)
+        # Name field
+        name_entry = self.create_form_field(
+            form_frame, "Item Name:", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         name_entry.insert(0, name)
         
-        # Category
-        ttk.Label(form_frame, text="Category:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        category_var = tk.StringVar(value=category_name)
-        category_combo = ttk.Combobox(form_frame, textvariable=category_var, state="readonly", width=28)
-        category_combo.grid(row=1, column=1, sticky=tk.W+tk.E, pady=5)
-        
-        # Load categories
+        # Category field
         categories = self.app.category_model.get_all()
         category_list = [category[1] for category in categories]
-        category_combo['values'] = category_list
+        category_var = tk.StringVar(value=category_name)
+        category_combo = self.create_form_field(
+            form_frame, "Category:", "combobox",
+            textvariable=category_var, values=category_list,
+            style="Modern.TCombobox", font=(FONT_FAMILY_PRIMARY, 12), width=28
+        )
         
-        # Price
-        ttk.Label(form_frame, text="Price:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        price_entry = ttk.Entry(form_frame, width=30)
-        price_entry.grid(row=2, column=1, sticky=tk.W+tk.E, pady=5)
+        # Price field
+        price_entry = self.create_form_field(
+            form_frame, "Price (₹):", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         price_entry.insert(0, str(price))
         
-        # Stock
-        ttk.Label(form_frame, text="Stock Quantity:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        stock_entry = ttk.Entry(form_frame, width=30)
-        stock_entry.grid(row=3, column=1, sticky=tk.W+tk.E, pady=5)
+        # Stock field
+        stock_entry = self.create_form_field(
+            form_frame, "Stock Quantity:", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         stock_entry.insert(0, str(stock))
         
-        # Image path
-        ttk.Label(form_frame, text="Image Path:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        # Image path field
         image_path_var = tk.StringVar(value=image_path or "")
-        image_path_entry = ttk.Entry(form_frame, textvariable=image_path_var, width=30)
-        image_path_entry.grid(row=4, column=1, sticky=tk.W+tk.E, pady=5)
+        image_frame = ttk.Frame(form_frame, style="Card.TFrame")
+        image_frame.pack(fill=tk.X, pady=SPACING_M)
+        
+        image_label = self.create_modern_label(image_frame, "Image Path:", style="Body.TLabel")
+        image_label.pack(anchor=tk.W, pady=(SPACING_S, SPACING_XS))
+        
+        image_path_frame = ttk.Frame(image_frame, style="Card.TFrame")
+        image_path_frame.pack(fill=tk.X)
+        
+        image_path_entry = self.create_modern_entry(
+            image_path_frame, 
+            textvariable=image_path_var,
+            style="Modern.TEntry", 
+            font=(FONT_FAMILY_PRIMARY, 12)
+        )
+        image_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, SPACING_S))
         
         def browse_image():
             file_path = filedialog.askopenfilename(
@@ -305,11 +427,18 @@ class MenuScreen(BaseUI):
             if file_path:
                 image_path_var.set(file_path)
         
-        ttk.Button(form_frame, text="Browse", command=browse_image).grid(row=5, column=1, sticky=tk.W, pady=5)
+        browse_button = self.create_modern_button(
+            image_path_frame, "Browse", browse_image, 
+            style="Secondary.TButton"
+        )
+        browse_button.pack(side=tk.RIGHT)
         
-        # Buttons
-        buttons_frame = ttk.Frame(form_frame)
-        buttons_frame.grid(row=6, column=0, columnspan=2, pady=10)
+        # Configure grid weights
+        form_frame.grid_columnconfigure(1, weight=1)
+        
+        # Modern buttons
+        button_frame = ttk.Frame(form_container, style="Card.TFrame")
+        button_frame.pack(fill=tk.X, pady=(SPACING_M, 0))
         
         def update_item():
             name = name_entry.get().strip()
@@ -348,10 +477,13 @@ class MenuScreen(BaseUI):
             edit_window.destroy()
             self.load_menu_items_management()
         
-        self.create_button_frame(buttons_frame, [
-            ("Update", update_item),
-            ("Cancel", edit_window.destroy)
-        ])
+        def cancel_edit():
+            edit_window.destroy()
+        
+        self.create_button_group(button_frame, [
+            ("Update Item", update_item, "Primary.TButton"),
+            ("Cancel", cancel_edit, "Secondary.TButton")
+        ], spacing=SPACING_S)
     
     def delete_menu_item(self):
         """Delete selected menu item"""
@@ -376,24 +508,40 @@ class MenuScreen(BaseUI):
             self.load_menu_items_management()
     
     def add_category(self):
-        """Add a new category"""
-        # Create add category window
+        """Add a new category with modern dialog"""
+        # Create modern add category window
         add_window = tk.Toplevel(self.app.root)
         add_window.title("Add Category")
-        add_window.geometry("300x150")
+        add_window.geometry("350x200")
+        add_window.configure(bg=COLOR_BACKGROUND_LIGHT)
         
-        # Create form
-        form_frame = ttk.Frame(add_window, padding="20")
+        # Apply modern styling to the window
+        self.configure_styles()
+        
+        # Create modern form container
+        form_container = self.create_modern_frame(add_window, style="Card.TFrame", padding=SPACING_L)
+        form_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_L, pady=SPACING_L)
+        
+        # Title
+        title_label = self.create_modern_label(form_container, "Add New Category", style="SectionTitle.TLabel")
+        title_label.pack(anchor=tk.W, pady=(0, SPACING_M))
+        
+        # Form fields with modern styling
+        form_frame = ttk.Frame(form_container, style="Card.TFrame")
         form_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Name
-        ttk.Label(form_frame, text="Name:").grid(row=0, column=0, sticky=tk.W, pady=10)
-        name_entry = ttk.Entry(form_frame, width=30)
-        name_entry.grid(row=0, column=1, sticky=tk.W+tk.E, pady=10)
+        # Name field
+        name_entry = self.create_form_field(
+            form_frame, "Category Name:", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         
-        # Buttons
-        buttons_frame = ttk.Frame(form_frame)
-        buttons_frame.grid(row=1, column=0, columnspan=2, pady=10)
+        # Configure grid weights
+        form_frame.grid_columnconfigure(1, weight=1)
+        
+        # Modern buttons
+        button_frame = ttk.Frame(form_container, style="Card.TFrame")
+        button_frame.pack(fill=tk.X, pady=(SPACING_M, 0))
         
         def save_category():
             name = name_entry.get().strip()
@@ -413,13 +561,16 @@ class MenuScreen(BaseUI):
             else:
                 self.show_message("Error", "Category already exists", "error")
         
-        self.create_button_frame(buttons_frame, [
-            ("Save", save_category),
-            ("Cancel", add_window.destroy)
-        ])
+        def cancel_add():
+            add_window.destroy()
+        
+        self.create_button_group(button_frame, [
+            ("Save Category", save_category, "Success.TButton"),
+            ("Cancel", cancel_add, "Secondary.TButton")
+        ], spacing=SPACING_S)
     
     def edit_category(self):
-        """Edit selected category"""
+        """Edit selected category with modern dialog"""
         selection = self.categories_tree.selection()
         if not selection:
             self.show_message("Warning", "Please select a category to edit", "warning")
@@ -432,24 +583,40 @@ class MenuScreen(BaseUI):
         category = self.categories_tree.item(selection[0])
         category_name = category['values'][0]
         
-        # Create edit category window
+        # Create modern edit category window
         edit_window = tk.Toplevel(self.app.root)
         edit_window.title("Edit Category")
-        edit_window.geometry("300x150")
+        edit_window.geometry("350x200")
+        edit_window.configure(bg=COLOR_BACKGROUND_LIGHT)
         
-        # Create form
-        form_frame = ttk.Frame(edit_window, padding="20")
+        # Apply modern styling to the window
+        self.configure_styles()
+        
+        # Create modern form container
+        form_container = self.create_modern_frame(edit_window, style="Card.TFrame", padding=SPACING_L)
+        form_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_L, pady=SPACING_L)
+        
+        # Title
+        title_label = self.create_modern_label(form_container, "Edit Category", style="SectionTitle.TLabel")
+        title_label.pack(anchor=tk.W, pady=(0, SPACING_M))
+        
+        # Form fields with modern styling
+        form_frame = ttk.Frame(form_container, style="Card.TFrame")
         form_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Name
-        ttk.Label(form_frame, text="Name:").grid(row=0, column=0, sticky=tk.W, pady=10)
-        name_entry = ttk.Entry(form_frame, width=30)
-        name_entry.grid(row=0, column=1, sticky=tk.W+tk.E, pady=10)
+        # Name field
+        name_entry = self.create_form_field(
+            form_frame, "Category Name:", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
         name_entry.insert(0, category_name)
         
-        # Buttons
-        buttons_frame = ttk.Frame(form_frame)
-        buttons_frame.grid(row=1, column=0, columnspan=2, pady=10)
+        # Configure grid weights
+        form_frame.grid_columnconfigure(1, weight=1)
+        
+        # Modern buttons
+        button_frame = ttk.Frame(form_container, style="Card.TFrame")
+        button_frame.pack(fill=tk.X, pady=(SPACING_M, 0))
         
         def update_category():
             name = name_entry.get().strip()
@@ -469,10 +636,13 @@ class MenuScreen(BaseUI):
             else:
                 self.show_message("Error", "Category already exists", "error")
         
-        self.create_button_frame(buttons_frame, [
-            ("Update", update_category),
-            ("Cancel", edit_window.destroy)
-        ])
+        def cancel_edit():
+            edit_window.destroy()
+        
+        self.create_button_group(button_frame, [
+            ("Update Category", update_category, "Primary.TButton"),
+            ("Cancel", cancel_edit, "Secondary.TButton")
+        ], spacing=SPACING_S)
     
     def delete_category(self):
         """Delete selected category"""

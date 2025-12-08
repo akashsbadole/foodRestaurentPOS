@@ -300,7 +300,20 @@ class KeyboardHandler:
     def show_keyboard_feedback(self, action):
         """Show visual feedback for keyboard shortcut action"""
         if hasattr(self.app, 'status_bar') and self.app.status_bar:
-            # Update status bar with action
-            self.app.status_bar.config(text=f"Keyboard shortcut: {action}")
-            # Schedule clearing the status after 2 seconds
-            self.root.after(2000, lambda: self.app.status_bar.config(text="Ready"))
+            try:
+                # Update status bar with action
+                self.app.status_bar.config(text=f"Keyboard shortcut: {action}")
+                # Schedule clearing the status after 2 seconds
+                self.root.after(2000, lambda: self.safe_update_status_bar("Ready"))
+            except tk.TclError:
+                # Status bar widget may have been destroyed
+                pass
+    
+    def safe_update_status_bar(self, text):
+        """Safely update status bar, handling case where widget might be destroyed"""
+        try:
+            if hasattr(self.app, 'status_bar') and self.app.status_bar:
+                self.app.status_bar.config(text=text)
+        except tk.TclError:
+            # Status bar widget may have been destroyed
+            pass

@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from .base_ui import BaseUI
 from controllers.order_controller import OrderController
+from utils.constants import *
 
 class OrderScreen(BaseUI):
     """Order screen UI component"""
@@ -13,161 +14,225 @@ class OrderScreen(BaseUI):
         self.cart_tree = None
     
     def setup_ui(self):
-        """Setup the order screen UI"""
+        """Setup the modern order screen UI"""
         # Reset the order controller to ensure clean state
         self.order_controller.reset_order()
         
-        # Title
-        title_label = ttk.Label(self.app.content_frame, text="New Order", font=('Arial', 18, 'bold'))
-        title_label.pack(pady=10)
+        # Configure modern styles
+        self.configure_styles()
         
-        # Create order frame
-        order_frame = ttk.Frame(self.app.content_frame)
-        order_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Set main background - use style configuration for ttk.Frame
+        try:
+            self.app.content_frame.configure(background=COLOR_BACKGROUND_LIGHT)
+        except tk.TclError:
+            # If it's a ttk.Frame, use style configuration
+            style = ttk.Style()
+            style.configure("OrderScreen.TFrame", background=COLOR_BACKGROUND_LIGHT)
+            self.app.content_frame.configure(style="OrderScreen.TFrame")
         
-        # Left panel - Order details
-        left_panel = ttk.Frame(order_frame)
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        # Title with modern styling
+        title_frame = self.create_modern_frame(self.app.content_frame, padding=(SPACING_L, SPACING_M, SPACING_L, SPACING_S))
+        title_frame.pack(fill=tk.X)
         
-        # Order type
-        order_type_frame = ttk.LabelFrame(left_panel, text="Order Type", padding=10)
-        order_type_frame.pack(fill=tk.X, pady=5)
+        title_label = self.create_modern_label(title_frame, "New Order", style="Title.TLabel")
+        title_label.pack()
+        
+        # Create main order container with modern styling
+        order_container = self.create_modern_frame(self.app.content_frame, padding=SPACING_L)
+        order_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Create two-panel layout with proper spacing
+        panels_frame = ttk.Frame(order_container)
+        panels_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Left panel - Order details and menu
+        left_panel = self.create_modern_frame(panels_frame, padding=SPACING_M)
+        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, SPACING_S))
+        
+        # Right panel - Cart and payment
+        right_panel = self.create_modern_frame(panels_frame, padding=SPACING_M)
+        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(SPACING_S, 0))
+        
+        # === LEFT PANEL CONTENT ===
+        
+        # Order Type Section
+        order_type_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
+        order_type_frame.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        order_type_title = self.create_modern_label(order_type_frame, "Order Type", style="CardTitle.TLabel")
+        order_type_title.pack(anchor=tk.W, pady=(0, SPACING_S))
         
         self.order_type_var = tk.StringVar(value="Dine-in")
-        ttk.Radiobutton(order_type_frame, text="Dine-in", variable=self.order_type_var, 
-                       value="Dine-in", command=self.change_order_type).pack(side=tk.LEFT, padx=10)
-        ttk.Radiobutton(order_type_frame, text="Takeaway", variable=self.order_type_var, 
-                       value="Takeaway", command=self.change_order_type).pack(side=tk.LEFT, padx=10)
+        order_type_buttons_frame = ttk.Frame(order_type_frame)
+        order_type_buttons_frame.pack(fill=tk.X)
         
-        # Table selection (for dine-in)
-        self.table_frame = ttk.LabelFrame(left_panel, text="Table Selection", padding=10)
-        self.table_frame.pack(fill=tk.X, pady=5)
+        dine_in_radio = ttk.Radiobutton(order_type_buttons_frame, text="Dine-in",
+                                       variable=self.order_type_var, value="Dine-in",
+                                       command=self.change_order_type)
+        dine_in_radio.pack(side=tk.LEFT, padx=(0, SPACING_L))
+        
+        takeaway_radio = ttk.Radiobutton(order_type_buttons_frame, text="Takeaway",
+                                        variable=self.order_type_var, value="Takeaway",
+                                        command=self.change_order_type)
+        takeaway_radio.pack(side=tk.LEFT)
+        
+        # Table Selection Section (for dine-in)
+        self.table_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
+        self.table_frame.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        table_title = self.create_modern_label(self.table_frame, "Table Selection", style="CardTitle.TLabel")
+        table_title.pack(anchor=tk.W, pady=(0, SPACING_S))
         
         self.table_var = tk.StringVar()
-        self.table_combo = ttk.Combobox(self.table_frame, textvariable=self.table_var, state="readonly")
-        self.table_combo.pack(fill=tk.X, pady=5)
+        self.table_combo = self.create_modern_combobox(self.table_frame, self.table_var, [], state="readonly")
+        self.table_combo.pack(fill=tk.X)
         self.table_combo.bind("<<ComboboxSelected>>", self.select_table)
         
-        # Customer details (for takeaway)
-        self.customer_frame = ttk.LabelFrame(left_panel, text="Customer Details", padding=10)
-        self.customer_frame.pack(fill=tk.X, pady=5)
+        # Customer Details Section (for takeaway)
+        self.customer_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
         
-        ttk.Label(self.customer_frame, text="Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.customer_name_entry = ttk.Entry(self.customer_frame)
-        self.customer_name_entry.grid(row=0, column=1, sticky=tk.W+tk.E, pady=5)
+        customer_title = self.create_modern_label(self.customer_frame, "Customer Details", style="CardTitle.TLabel")
+        customer_title.pack(anchor=tk.W, pady=(0, SPACING_S))
         
-        ttk.Label(self.customer_frame, text="Mobile:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.customer_mobile_entry = ttk.Entry(self.customer_frame)
-        self.customer_mobile_entry.grid(row=1, column=1, sticky=tk.W+tk.E, pady=5)
+        # Customer name field
+        self.customer_name_entry = self.create_form_field(
+            self.customer_frame, "Name:", "entry"
+        )
         
-        self.customer_frame.columnconfigure(1, weight=1)
+        # Customer mobile field
+        self.customer_mobile_entry = self.create_form_field(
+            self.customer_frame, "Mobile:", "entry"
+        )
         
         # Initially hide customer frame
         self.customer_frame.pack_forget()
         
-        # Menu items
-        menu_frame = ttk.LabelFrame(left_panel, text="Menu Items", padding=10)
-        menu_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        # Menu Items Section
+        menu_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
+        menu_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Search bar
-        search_frame = ttk.Frame(menu_frame)
-        search_frame.pack(fill=tk.X, pady=5)
+        menu_title = self.create_modern_label(menu_frame, "Menu Items", style="CardTitle.TLabel")
+        menu_title.pack(anchor=tk.W, pady=(0, SPACING_S))
         
-        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=5)
-        self.search_entry = ttk.Entry(search_frame)
-        self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        # Search and Filter Section
+        search_filter_frame = ttk.Frame(menu_frame)
+        search_filter_frame.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        # Search field
+        search_label = self.create_modern_label(search_filter_frame, "Search:", style="Body.TLabel")
+        search_label.pack(side=tk.LEFT, padx=(0, SPACING_S))
+        
+        self.search_entry = self.create_modern_entry(search_filter_frame)
+        self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, SPACING_M))
         self.search_entry.bind("<KeyRelease>", self.search_menu)
         
         # Category filter
-        ttk.Label(search_frame, text="Category:").pack(side=tk.LEFT, padx=5)
+        category_label = self.create_modern_label(search_filter_frame, "Category:", style="Body.TLabel")
+        category_label.pack(side=tk.LEFT, padx=(0, SPACING_S))
+        
         self.category_var = tk.StringVar()
-        self.category_combo = ttk.Combobox(search_frame, textvariable=self.category_var, state="readonly")
-        self.category_combo.pack(side=tk.LEFT, padx=5)
+        self.category_combo = self.create_modern_combobox(search_filter_frame, self.category_var, [], state="readonly", width=15)
+        self.category_combo.pack(side=tk.LEFT)
         self.category_combo.bind("<<ComboboxSelected>>", self.filter_menu)
         
-        # Menu items treeview
-        self.menu_tree, menu_scrollbar = self.create_treeview(
-            menu_frame, 
-            ("name", "price", "stock"), 
+        # Menu items treeview with modern styling
+        self.menu_tree, menu_scrollbar = self.create_modern_treeview(
+            menu_frame,
+            ("name", "price", "stock"),
             ("Name", "Price", "Stock"),
-            (200, 100, 100)
+            (250, 100, 80)
         )
-        self.menu_tree.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.menu_tree.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
         
-        # Add to cart button
-        add_to_cart_button = ttk.Button(menu_frame, text="Add to Cart", command=self.add_to_cart)
-        add_to_cart_button.pack(pady=5)
+        # Add to cart button with modern styling
+        add_to_cart_button = self.create_modern_button(
+            menu_frame, "Add to Cart", self.add_to_cart, "Primary.TButton"
+        )
+        add_to_cart_button.pack(fill=tk.X)
         
-        # Right panel - Cart
-        right_panel = ttk.Frame(order_frame)
-        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
+        # === RIGHT PANEL CONTENT ===
         
-        # Cart items
-        cart_frame = ttk.LabelFrame(right_panel, text="Cart", padding=10)
-        cart_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        # Cart Section
+        cart_frame = self.create_modern_frame(right_panel, padding=SPACING_M)
+        cart_frame.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
         
-        # Cart treeview
-        self.cart_tree, cart_scrollbar = self.create_treeview(
+        cart_title = self.create_modern_label(cart_frame, "Cart", style="CardTitle.TLabel")
+        cart_title.pack(anchor=tk.W, pady=(0, SPACING_S))
+        
+        # Cart treeview with modern styling
+        self.cart_tree, cart_scrollbar = self.create_modern_treeview(
             cart_frame,
             ("name", "price", "quantity", "total"),
             ("Item", "Price", "Quantity", "Total"),
-            (200, 100, 100, 100)
+            (200, 80, 80, 80)
         )
-        self.cart_tree.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.cart_tree.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
         
-        # Cart buttons
-        cart_buttons_frame = ttk.Frame(cart_frame)
-        cart_buttons_frame.pack(fill=tk.X, pady=5)
+        # Cart action buttons
+        cart_buttons = [
+            ("Update Quantity", self.update_cart_quantity, "Secondary.TButton"),
+            ("Remove Item", self.remove_from_cart, "Danger.TButton"),
+            ("Clear Cart", self.clear_cart, "Danger.TButton")
+        ]
+        self.create_button_group(cart_frame, cart_buttons)
         
-        self.create_button_frame(cart_buttons_frame, [
-            ("Update Quantity", self.update_cart_quantity),
-            ("Remove Item", self.remove_from_cart),
-            ("Clear Cart", self.clear_cart)
-        ])
+        # Order Summary Section
+        summary_frame = self.create_modern_frame(right_panel, padding=SPACING_M)
+        summary_frame.pack(fill=tk.X, pady=(0, SPACING_M))
         
-        # Order summary
-        summary_frame = ttk.LabelFrame(right_panel, text="Order Summary", padding=10)
-        summary_frame.pack(fill=tk.X, pady=5)
+        summary_title = self.create_modern_label(summary_frame, "Order Summary", style="CardTitle.TLabel")
+        summary_title.pack(anchor=tk.W, pady=(0, SPACING_M))
         
-        # Subtotal
-        self.subtotal_label = ttk.Label(summary_frame, text="Subtotal: ₹0.00")
-        self.subtotal_label.pack(anchor=tk.W, pady=2)
+        # Summary labels with modern styling
+        self.subtotal_label = self.create_modern_label(summary_frame, "Subtotal: ₹0.00", style="Body.TLabel")
+        self.subtotal_label.pack(anchor=tk.W, pady=SPACING_XS)
         
-        # Tax
-        self.tax_label = ttk.Label(summary_frame, text=f"Tax (5%): ₹0.00")
-        self.tax_label.pack(anchor=tk.W, pady=2)
+        self.tax_label = self.create_modern_label(summary_frame, f"Tax (5%): ₹0.00", style="Body.TLabel")
+        self.tax_label.pack(anchor=tk.W, pady=SPACING_XS)
         
-        # Discount
+        # Discount section
         discount_frame = ttk.Frame(summary_frame)
-        discount_frame.pack(fill=tk.X, pady=2)
+        discount_frame.pack(fill=tk.X, pady=SPACING_XS)
         
-        ttk.Label(discount_frame, text="Discount:").pack(side=tk.LEFT)
+        discount_label = self.create_modern_label(discount_frame, "Discount:", style="Body.TLabel")
+        discount_label.pack(side=tk.LEFT)
+        
         self.discount_var = tk.StringVar(value="0")
-        self.discount_entry = ttk.Entry(discount_frame, textvariable=self.discount_var, width=10)
-        self.discount_entry.pack(side=tk.LEFT, padx=5)
+        self.discount_entry = self.create_modern_entry(discount_frame, textvariable=self.discount_var, width=8)
+        self.discount_entry.pack(side=tk.LEFT, padx=SPACING_S)
         
         self.discount_type_var = tk.StringVar(value="%")
-        ttk.Radiobutton(discount_frame, text="%", variable=self.discount_type_var, 
-                       value="%").pack(side=tk.LEFT)
-        ttk.Radiobutton(discount_frame, text="Flat", variable=self.discount_type_var, 
-                       value="Flat").pack(side=tk.LEFT)
+        percent_radio = ttk.Radiobutton(discount_frame, text="%", variable=self.discount_type_var, value="%")
+        percent_radio.pack(side=tk.LEFT, padx=(SPACING_S, 0))
+        
+        flat_radio = ttk.Radiobutton(discount_frame, text="Flat", variable=self.discount_type_var, value="Flat")
+        flat_radio.pack(side=tk.LEFT, padx=(SPACING_S, 0))
         
         self.discount_entry.bind("<KeyRelease>", self.calculate_totals)
         self.discount_type_var.trace("w", lambda *args: self.calculate_totals())
         
-        # Total
-        self.total_label = ttk.Label(summary_frame, text="Total: ₹0.00", font=('Arial', 12, 'bold'))
-        self.total_label.pack(anchor=tk.W, pady=2)
+        # Total with emphasis
+        self.total_label = self.create_modern_label(summary_frame, "Total: ₹0.00", style="CardTitle.TLabel")
+        self.total_label.pack(anchor=tk.W, pady=(SPACING_S, 0))
         
-        # Payment buttons
-        payment_frame = ttk.Frame(right_panel)
-        payment_frame.pack(fill=tk.X, pady=10)
+        # Payment Section
+        payment_frame = self.create_modern_frame(right_panel, padding=SPACING_M)
+        payment_frame.pack(fill=tk.X)
         
-        self.create_button_frame(payment_frame, [
-            ("Cash Payment", self.process_cash_payment),
-            ("Card Payment", self.process_card_payment),
-            ("UPI Payment", self.process_upi_payment)
-        ])
+        payment_title = self.create_modern_label(payment_frame, "Payment", style="CardTitle.TLabel")
+        payment_title.pack(anchor=tk.W, pady=(0, SPACING_M))
+        
+        # Payment buttons with modern styling
+        payment_buttons = [
+            ("Cash Payment", self.process_cash_payment, "Success.TButton"),
+            ("Card Payment", self.process_card_payment, "Primary.TButton"),
+            ("UPI Payment", self.process_upi_payment, "Primary.TButton")
+        ]
+        
+        # Create payment buttons in a vertical layout
+        for text, command, style in payment_buttons:
+            button = self.create_modern_button(payment_frame, text, command, style)
+            button.pack(fill=tk.X, pady=SPACING_XS)
         
         # Load initial data
         self.load_tables()
@@ -217,7 +282,7 @@ class OrderScreen(BaseUI):
         self.category_combo.current(0)
     
     def load_menu_items(self, search_term="", category="All"):
-        """Load menu items"""
+        """Load menu items with modern styling"""
         # Check if menu tree exists
         if not self.menu_tree:
             return
@@ -228,11 +293,21 @@ class OrderScreen(BaseUI):
         for item in self.menu_tree.get_children():
             self.menu_tree.delete(item)
         
-        # Add items to tree
+        # Add items to tree with modern styling
         for item in items:
             item_id, name, category, price, stock = item
-            self.menu_tree.insert("", tk.END, values=(name, f"₹{price:.2f}", stock), tags=(item_id,))
             
+            # Determine stock status for styling
+            stock_int = int(stock) if isinstance(stock, str) and stock.isdigit() else (stock if isinstance(stock, int) else 0)
+            tag = "low_stock" if stock_int < LOW_STOCK_THRESHOLD else "normal_stock"
+            
+            self.menu_tree.insert("", tk.END, values=(name, f"₹{price:.2f}", stock),
+                                 tags=(item_id, tag))
+            
+        # Configure tag styling
+        self.menu_tree.tag_configure("low_stock", foreground=COLOR_WARNING)
+        self.menu_tree.tag_configure("normal_stock", foreground=COLOR_TEXT_PRIMARY)
+        
         # Ensure tree is properly selectable
         self.menu_tree.configure(selectmode="extended")
     
@@ -315,19 +390,22 @@ class OrderScreen(BaseUI):
             self.show_message("Error", f"Failed to add item to cart: {str(e)}", "error")
     
     def update_cart_display(self):
-        """Update the cart display"""
+        """Update the cart display with modern styling"""
         # Clear cart tree
         for item in self.cart_tree.get_children():
             self.cart_tree.delete(item)
         
-        # Add items to cart tree
+        # Add items to cart tree with modern styling
         for cart_item in self.order_controller.cart_items:
             self.cart_tree.insert("", tk.END, values=(
                 cart_item['name'],
                 f"₹{cart_item['price']:.2f}",
                 cart_item['quantity'],
                 f"₹{cart_item['total']:.2f}"
-            ), tags=(cart_item['id'],))
+            ), tags=(cart_item['id'], 'cart_item'))
+        
+        # Configure cart item styling
+        self.cart_tree.tag_configure("cart_item", foreground=COLOR_TEXT_PRIMARY)
         
         # Calculate totals
         self.calculate_totals()
@@ -441,19 +519,19 @@ class OrderScreen(BaseUI):
         self.process_payment("Cash")
     
     def process_card_payment(self):
-        """Process card payment"""
+        """Process card payment with modern dialog"""
         # Ask for card details
         card_details = self.show_input_dialog("Card Payment", "Enter last 4 digits of card:")
         if card_details:
-            self.show_message("Payment", f"Card payment successful!\nCard ending in: {card_details}", "info")
+            self.show_message("Payment Successful", f"Card payment processed successfully!\nCard ending in: {card_details}", "info")
             self.process_payment("Card")
     
     def process_upi_payment(self):
-        """Process UPI payment"""
+        """Process UPI payment with modern dialog"""
         # Ask for UPI ID
         upi_id = self.show_input_dialog("UPI Payment", "Enter UPI ID:")
         if upi_id:
-            self.show_message("Payment", f"UPI payment successful!\nUPI ID: {upi_id}", "info")
+            self.show_message("Payment Successful", f"UPI payment processed successfully!\nUPI ID: {upi_id}", "info")
             self.process_payment("UPI")
     
     def cleanup(self):

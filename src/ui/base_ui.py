@@ -125,3 +125,236 @@ class BaseUI:
         # Configure treeview tags for inventory
         style.configure("Treeview", font=('Arial', 9))
         style.configure("Treeview.Heading", font=('Arial', 10, 'bold'))
+        
+        # Configure modern styles based on design system
+        self._configure_modern_styles(style)
+    
+    def _configure_modern_styles(self, style):
+        """Configure modern styling based on design system"""
+        
+        # Modern Button Styles
+        style.configure("Primary.TButton",
+                       background=COLOR_PRIMARY,
+                       foreground=COLOR_CARD_WHITE,
+                       borderwidth=0,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, 12, 'bold'),
+                       padding=(12, 8))
+        style.map("Primary.TButton",
+                 background=[('active', COLOR_PRIMARY_LIGHT),
+                           ('pressed', COLOR_PRIMARY_DARK)])
+        
+        style.configure("Secondary.TButton",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_PRIMARY,
+                       borderwidth=1,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, 12, 'bold'),
+                       padding=(12, 8))
+        style.map("Secondary.TButton",
+                 background=[('active', COLOR_PRIMARY),
+                           ('pressed', COLOR_PRIMARY_DARK)],
+                 foreground=[('active', COLOR_CARD_WHITE),
+                           ('pressed', COLOR_CARD_WHITE)])
+        
+        style.configure("Success.TButton",
+                       background=COLOR_SUCCESS,
+                       foreground=COLOR_CARD_WHITE,
+                       borderwidth=0,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, 12, 'bold'),
+                       padding=(12, 8))
+        style.map("Success.TButton",
+                 background=[('active', '#229954'),
+                           ('pressed', '#1e8449')])
+        
+        style.configure("Danger.TButton",
+                       background=COLOR_ERROR,
+                       foreground=COLOR_CARD_WHITE,
+                       borderwidth=0,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, 12, 'bold'),
+                       padding=(12, 8))
+        style.map("Danger.TButton",
+                 background=[('active', '#c0392b'),
+                           ('pressed', '#a93226')])
+        
+        # Modern Frame Styles
+        style.configure("Card.TFrame",
+                       background=COLOR_CARD_WHITE,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=COLOR_BORDER_LIGHT)
+        
+        style.configure("Panel.TFrame",
+                       background=COLOR_CARD_WHITE,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=COLOR_BORDER_MEDIUM)
+        
+        # Modern Label Styles
+        style.configure("Title.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_PRIMARY_DARK,
+                       font=(FONT_FAMILY_PRIMARY, 24, 'bold'))
+        
+        style.configure("SectionTitle.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_PRIMARY_DARK,
+                       font=(FONT_FAMILY_PRIMARY, 18, 'bold'))
+        
+        style.configure("CardTitle.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_PRIMARY_DARK,
+                       font=(FONT_FAMILY_PRIMARY, 16, 'bold'))
+        
+        style.configure("Subtitle.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_SECONDARY,
+                       font=(FONT_FAMILY_PRIMARY, 14, 'medium'))
+        
+        style.configure("Body.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_PRIMARY,
+                       font=(FONT_FAMILY_PRIMARY, 12, 'normal'))
+        
+        style.configure("Small.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_SECONDARY,
+                       font=(FONT_FAMILY_PRIMARY, 10, 'normal'))
+        
+        # Modern Entry Styles
+        style.configure("Modern.TEntry",
+                       fieldbackground=COLOR_CARD_WHITE,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=COLOR_BORDER_MEDIUM,
+                       font=(FONT_FAMILY_PRIMARY, 12))
+        style.map("Modern.TEntry",
+                 bordercolor=[('focus', COLOR_PRIMARY),
+                            ('!focus', COLOR_BORDER_MEDIUM)],
+                 borderwidth=[('focus', 2),
+                            ('!focus', 1)])
+        
+        # Modern Combobox Styles
+        style.configure("Modern.TCombobox",
+                       fieldbackground=COLOR_CARD_WHITE,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=COLOR_BORDER_MEDIUM,
+                       font=(FONT_FAMILY_PRIMARY, 12))
+        style.map("Modern.TCombobox",
+                 bordercolor=[('focus', COLOR_PRIMARY),
+                            ('!focus', COLOR_BORDER_MEDIUM)],
+                 borderwidth=[('focus', 2),
+                            ('!focus', 1)])
+        
+        # Modern Treeview Styles
+        style.configure("Modern.Treeview",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_PRIMARY,
+                       fieldbackground=COLOR_CARD_WHITE,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=COLOR_BORDER_LIGHT,
+                       font=(FONT_FAMILY_PRIMARY, 11))
+        
+        style.configure("Modern.Treeview.Heading",
+                       background=COLOR_BACKGROUND_LIGHT,
+                       foreground=COLOR_PRIMARY_DARK,
+                       font=(FONT_FAMILY_PRIMARY, 10, 'bold'))
+        
+        style.map("Modern.Treeview",
+                 background=[('selected', COLOR_PRIMARY_LIGHT)],
+                 foreground=[('selected', COLOR_CARD_WHITE)])
+        
+        # Table Card Shadow Effect
+        style.configure("Shadow.TFrame",
+                       background=COLOR_SHADOW,
+                       borderwidth=0,
+                       relief='flat')
+    
+    def create_modern_frame(self, parent, style="Card.TFrame", padding=SPACING_M):
+        """Create a modern styled frame"""
+        frame = ttk.Frame(parent, style=style, padding=padding)
+        return frame
+    
+    def create_modern_button(self, parent, text, command, style="Primary.TButton", width=None):
+        """Create a modern styled button"""
+        button = ttk.Button(parent, text=text, command=command, style=style)
+        if width:
+            button.configure(width=width)
+        return button
+    
+    def create_modern_label(self, parent, text, style="Body.TLabel", **kwargs):
+        """Create a modern styled label"""
+        label = ttk.Label(parent, text=text, style=style, **kwargs)
+        return label
+    
+    def create_modern_entry(self, parent, style="Modern.TEntry", **kwargs):
+        """Create a modern styled entry"""
+        entry = ttk.Entry(parent, style=style, **kwargs)
+        return entry
+    
+    def create_modern_combobox(self, parent, textvariable, values, style="Modern.TCombobox", **kwargs):
+        """Create a modern styled combobox"""
+        combo = ttk.Combobox(parent, textvariable=textvariable, values=values, style=style, **kwargs)
+        return combo
+    
+    def create_modern_treeview(self, parent, columns, headings, column_widths=None, style="Modern.Treeview"):
+        """Create a modern styled treeview with scrollbar"""
+        # Create treeview
+        tree = ttk.Treeview(parent, columns=columns, show="headings", style=style)
+        
+        # Set headings
+        for i, heading in enumerate(headings):
+            tree.heading(columns[i], text=heading)
+            if column_widths and i < len(column_widths):
+                tree.column(columns[i], width=column_widths[i])
+        
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        return tree, scrollbar
+    
+    def create_button_group(self, parent, buttons, spacing=SPACING_S):
+        """Create a group of modern styled buttons with proper spacing"""
+        button_frame = ttk.Frame(parent)
+        button_frame.pack(fill=tk.X, pady=SPACING_M)
+        
+        for i, (text, command, style) in enumerate(buttons):
+            button = self.create_modern_button(button_frame, text, command, style)
+            button.pack(side=tk.LEFT, padx=(0 if i == 0 else spacing, 0))
+        
+        return button_frame
+    
+    def create_form_field(self, parent, label_text, entry_type="entry", **kwargs):
+        """Create a modern form field with label"""
+        # Create a container frame for the form field
+        field_frame = ttk.Frame(parent)
+        field_frame.pack(fill=tk.X, pady=SPACING_S)
+        
+        # Label
+        label = self.create_modern_label(field_frame, label_text, style="Body.TLabel")
+        label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
+        
+        # Entry widget
+        if entry_type == "entry":
+            field = self.create_modern_entry(field_frame, **kwargs)
+        elif entry_type == "combobox":
+            field = self.create_modern_combobox(field_frame, **kwargs)
+        
+        field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+        
+        return field
+    
+    def create_separator(self, parent, orient=tk.HORIZONTAL, padding=SPACING_M):
+        """Create a visual separator"""
+        separator = ttk.Separator(parent, orient=orient)
+        if orient == tk.HORIZONTAL:
+            separator.pack(fill=tk.X, pady=padding)
+        else:
+            separator.pack(fill=tk.Y, padx=padding)
+        return separator
