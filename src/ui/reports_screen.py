@@ -2,31 +2,11 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 from .base_ui import BaseUI
+from utils.constants import *
 from utils.helpers import export_to_csv, export_report_to_csv, create_export_options_dialog
 
 class ReportsScreen(BaseUI):
     """Reports screen UI component with modern design"""
-    
-    # Color constants from design system
-    PRIMARY_BLUE = "#3498db"
-    PRIMARY_DARK = "#2c3e50"
-    PRIMARY_LIGHT = "#2980b9"
-    SECONDARY_GRAY = "#7f8c8d"
-    SECONDARY_LIGHT = "#95a5a6"
-    BACKGROUND_LIGHT = "#f0f0f0"
-    CARD_WHITE = "#ffffff"
-    SUCCESS = "#27ae60"
-    SUCCESS_LIGHT = "#ccffcc"
-    WARNING = "#f39c12"
-    WARNING_LIGHT = "#ffffcc"
-    ERROR = "#e74c3c"
-    ERROR_LIGHT = "#ffcccc"
-    TEXT_PRIMARY = "#2c3e50"
-    TEXT_SECONDARY = "#7f8c8d"
-    TEXT_DISABLED = "#bdc3c7"
-    BORDER_LIGHT = "#ecf0f1"
-    BORDER_MEDIUM = "#bdc3c7"
-    SHADOW = "#d0d0d0"
     
     def __init__(self, root, app):
         super().__init__(root, app)
@@ -36,19 +16,19 @@ class ReportsScreen(BaseUI):
     def setup_ui(self):
         """Setup modern reports UI"""
         # Main container with background
-        main_container = tk.Frame(self.app.content_frame, bg=BACKGROUND_LIGHT)
+        main_container = tk.Frame(self.app.content_frame, bg=COLOR_BACKGROUND_LIGHT)
         main_container.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
         
         # Title with modern styling
-        title_frame = tk.Frame(main_container, bg=CARD_WHITE, relief=tk.RAISED, bd=1)
+        title_frame = tk.Frame(main_container, bg=COLOR_CARD_WHITE, relief=tk.RAISED, bd=1)
         title_frame.pack(fill=tk.X, pady=(0, 16))
         
         title_label = tk.Label(
-            title_frame, 
-            text="📊 Business Analytics Reports", 
+            title_frame,
+            text="📊 Business Analytics Reports",
             font=("Segoe UI", 24, "bold"),
-            fg=PRIMARY_DARK,
-            bg=CARD_WHITE
+            fg=COLOR_PRIMARY_DARK,
+            bg=COLOR_CARD_WHITE
         )
         title_label.pack(pady=20)
         
@@ -56,25 +36,25 @@ class ReportsScreen(BaseUI):
             title_frame,
             text="Generate and analyze comprehensive business reports",
             font=("Segoe UI", 12, "normal"),
-            fg=TEXT_SECONDARY,
-            bg=CARD_WHITE
+            fg=COLOR_TEXT_SECONDARY,
+            bg=COLOR_CARD_WHITE
         )
         subtitle_label.pack(pady=(0, 20))
         
         # Controls card
-        controls_card = tk.Frame(main_container, bg=CARD_WHITE, relief=tk.RAISED, bd=1)
+        controls_card = tk.Frame(main_container, bg=COLOR_CARD_WHITE, relief=tk.RAISED, bd=1)
         controls_card.pack(fill=tk.X, pady=(0, 16))
         
         # Report type selection with modern styling
-        report_type_container = tk.Frame(controls_card, bg=CARD_WHITE)
+        report_type_container = tk.Frame(controls_card, bg=COLOR_CARD_WHITE)
         report_type_container.pack(fill=tk.X, padx=20, pady=16)
         
         type_label = tk.Label(
             report_type_container,
             text="📋 Report Type",
-            font=("Segoe UI", 12, "medium"),
-            fg=TEXT_PRIMARY,
-            bg=CARD_WHITE
+            font=("Segoe UI", 12, "normal"),
+            fg=COLOR_TEXT_PRIMARY,
+            bg=COLOR_CARD_WHITE
         )
         type_label.pack(anchor=tk.W, pady=(0, 8))
         
@@ -90,31 +70,31 @@ class ReportsScreen(BaseUI):
         report_type_combo.pack(fill=tk.X, pady=(0, 8))
         
         # Date range selection with modern styling
-        date_range_container = tk.Frame(controls_card, bg=CARD_WHITE)
+        date_range_container = tk.Frame(controls_card, bg=COLOR_CARD_WHITE)
         date_range_container.pack(fill=tk.X, padx=20, pady=(0, 16))
         
         date_label = tk.Label(
             date_range_container,
             text="📅 Date Range",
-            font=("Segoe UI", 12, "medium"),
-            fg=TEXT_PRIMARY,
-            bg=CARD_WHITE
+            font=("Segoe UI", 12, "normal"),
+            fg=COLOR_TEXT_PRIMARY,
+            bg=COLOR_CARD_WHITE
         )
         date_label.pack(anchor=tk.W, pady=(0, 8))
         
-        date_fields_frame = tk.Frame(date_range_container, bg=CARD_WHITE)
+        date_fields_frame = tk.Frame(date_range_container, bg=COLOR_CARD_WHITE)
         date_fields_frame.pack(fill=tk.X)
         
         # From date
-        from_date_frame = tk.Frame(date_fields_frame, bg=CARD_WHITE)
+        from_date_frame = tk.Frame(date_fields_frame, bg=COLOR_CARD_WHITE)
         from_date_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
         
         from_label = tk.Label(
             from_date_frame,
             text="From:",
             font=("Segoe UI", 11, "normal"),
-            fg=TEXT_SECONDARY,
-            bg=CARD_WHITE
+            fg=COLOR_TEXT_SECONDARY,
+            bg=COLOR_CARD_WHITE
         )
         from_label.pack(anchor=tk.W, pady=(0, 4))
         
@@ -124,22 +104,22 @@ class ReportsScreen(BaseUI):
             font=("Segoe UI", 11),
             relief=tk.SOLID,
             bd=1,
-            bg=CARD_WHITE,
-            fg=TEXT_PRIMARY
+            bg=COLOR_CARD_WHITE,
+            fg=COLOR_TEXT_PRIMARY
         )
         self.from_date_entry.pack(fill=tk.X)
         self.from_date_entry.insert(0, datetime.now().strftime('%Y-%m-%d'))
         
         # To date
-        to_date_frame = tk.Frame(date_fields_frame, bg=CARD_WHITE)
+        to_date_frame = tk.Frame(date_fields_frame, bg=COLOR_CARD_WHITE)
         to_date_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
         
         to_label = tk.Label(
             to_date_frame,
             text="To:",
             font=("Segoe UI", 11, "normal"),
-            fg=TEXT_SECONDARY,
-            bg=CARD_WHITE
+            fg=COLOR_TEXT_SECONDARY,
+            bg=COLOR_CARD_WHITE
         )
         to_label.pack(anchor=tk.W, pady=(0, 4))
         
@@ -149,14 +129,14 @@ class ReportsScreen(BaseUI):
             font=("Segoe UI", 11),
             relief=tk.SOLID,
             bd=1,
-            bg=CARD_WHITE,
-            fg=TEXT_PRIMARY
+            bg=COLOR_CARD_WHITE,
+            fg=COLOR_TEXT_PRIMARY
         )
         self.to_date_entry.pack(fill=tk.X)
         self.to_date_entry.insert(0, datetime.now().strftime('%Y-%m-%d'))
         
         # Action buttons with modern styling
-        buttons_container = tk.Frame(controls_card, bg=CARD_WHITE)
+        buttons_container = tk.Frame(controls_card, bg=COLOR_CARD_WHITE)
         buttons_container.pack(fill=tk.X, padx=20, pady=(0, 20))
         
         # Generate Report Button (Primary)
@@ -165,14 +145,14 @@ class ReportsScreen(BaseUI):
             text="🔍 Generate Report",
             command=self.generate_report,
             font=("Segoe UI", 12, "bold"),
-            bg=PRIMARY_BLUE,
+            bg=COLOR_PRIMARY,
             fg="white",
             relief=tk.FLAT,
             bd=0,
             padx=20,
             pady=10,
             cursor="hand2",
-            activebackground=PRIMARY_LIGHT,
+            activebackground=COLOR_PRIMARY_LIGHT,
             activeforeground="white"
         )
         self.generate_btn.pack(side=tk.LEFT, padx=(0, 8))
@@ -183,20 +163,20 @@ class ReportsScreen(BaseUI):
             text="📥 Export Options",
             command=self.advanced_export_csv,
             font=("Segoe UI", 12, "bold"),
-            bg=CARD_WHITE,
-            fg=PRIMARY_BLUE,
+            bg=COLOR_CARD_WHITE,
+            fg=COLOR_PRIMARY,
             relief=tk.SOLID,
             bd=2,
             padx=20,
             pady=10,
             cursor="hand2",
-            activebackground=PRIMARY_BLUE,
+            activebackground=COLOR_PRIMARY,
             activeforeground="white"
         )
         self.export_btn.pack(side=tk.LEFT, padx=8)
         
         # Report display card
-        report_card = tk.Frame(main_container, bg=CARD_WHITE, relief=tk.RAISED, bd=1)
+        report_card = tk.Frame(main_container, bg=COLOR_CARD_WHITE, relief=tk.RAISED, bd=1)
         report_card.pack(fill=tk.BOTH, expand=True)
         
         # Report header
@@ -207,13 +187,13 @@ class ReportsScreen(BaseUI):
             report_header,
             text="📈 Report Data",
             font=("Segoe UI", 16, "bold"),
-            fg=PRIMARY_DARK,
+            fg=COLOR_PRIMARY_DARK,
             bg="#f8f9fa"
         )
         self.report_title_label.pack(pady=12)
         
         # Report content with modern treeview
-        report_content = tk.Frame(report_card, bg=CARD_WHITE)
+        report_content = tk.Frame(report_card, bg=COLOR_CARD_WHITE)
         report_content.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
         
         # Create modern styled treeview
@@ -225,8 +205,8 @@ class ReportsScreen(BaseUI):
             report_card,
             text="⏳ Generating report...",
             font=("Segoe UI", 14, "normal"),
-            fg=PRIMARY_BLUE,
-            bg=CARD_WHITE
+            fg=COLOR_PRIMARY,
+            bg=COLOR_CARD_WHITE
         )
         
         # Generate default report
@@ -246,7 +226,7 @@ class ReportsScreen(BaseUI):
         style.configure(
             "Modern.Treeview.Heading",
             background="#f8f9fa",
-            foreground=TEXT_PRIMARY,
+            foreground=COLOR_TEXT_PRIMARY,
             font=("Segoe UI", 10, "bold"),
             relief=tk.RIDGE,
             borderwidth=1
@@ -255,10 +235,10 @@ class ReportsScreen(BaseUI):
         # Configure treeview style
         style.configure(
             "Modern.Treeview",
-            background=CARD_WHITE,
-            foreground=TEXT_PRIMARY,
+            background=COLOR_CARD_WHITE,
+            foreground=COLOR_TEXT_PRIMARY,
             font=("Segoe UI", 10),
-            fieldbackground=CARD_WHITE,
+            fieldbackground=COLOR_CARD_WHITE,
             borderwidth=1,
             relief=tk.SOLID
         )
@@ -267,14 +247,13 @@ class ReportsScreen(BaseUI):
         style.map(
             "Modern.Treeview",
             background=[("selected", "#e3f2fd")],
-            foreground=[("selected", TEXT_PRIMARY)]
+            foreground=[("selected", COLOR_TEXT_PRIMARY)]
         )
         
         tree.configure(style="Modern.Treeview")
         
         # Configure headings to use modern style
-        for heading in tree.heading():
-            tree.heading(heading, style="Modern.Treeview.Heading")
+        # Note: We'll apply the heading style when columns are added dynamically
         
         return tree, scrollbar
     

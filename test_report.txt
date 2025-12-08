@@ -1,0 +1,22 @@
+Restaurant POS System - Comprehensive Test Report
+============================================================
+Generated: 2025-12-09 02:54:39
+
+Total Tests: 11
+Passed: 10
+Failed: 1
+Success Rate: 90.9%
+
+Detailed Results:
+------------------------------------------------------------
+[PASS] Application Initialization: Application started without errors
+[PASS] Login Screen Display: Login screen created successfully
+[PASS] Login Authentication: Login successful with admin/admin123
+[PASS] Dashboard Screen: Dashboard loaded without errors
+[PASS] Order Screen: Order screen loaded without errors
+[PASS] Menu Screen: Menu screen loaded without errors
+[PASS] Tables Screen: Tables screen loaded without errors
+[PASS] Inventory Screen: Inventory screen loaded without errors
+[PASS] KOT Screen: KOT screen loaded without errors
+[PASS] Reports Screen: Reports screen loaded without errors
+[FAIL] Settings Screen: Exception: can't invoke "winfo" command: application has been destroyed

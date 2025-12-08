@@ -83,17 +83,17 @@ FONT_FAMILY_PRIMARY = "Segoe UI"
 FONT_FAMILY_FALLBACK = "Arial"
 
 # Spacing (based on 8px grid)
-SPACING_XS = 4     # Fine adjustments, tight spacing
-SPACING_S = 8      # Small gaps, related elements
-SPACING_M = 16     # Standard spacing, most common
-SPACING_L = 24     # Section separation, breathing room
-SPACING_XL = 32    # Major sections, screen divisions
-SPACING_XXL = 48   # Screen margins, large divisions
+SPACING_XS = 2     # Fine adjustments, tight spacing
+SPACING_S = 3      # Small gaps, related elements
+SPACING_M = 7     # Standard spacing, most common
+SPACING_L = 15     # Section separation, breathing room
+SPACING_XL = 23    # Major sections, screen divisions
+SPACING_XXL = 30   # Screen margins, large divisions
 
 # Border Radius
-BORDER_RADIUS_SMALL = 4
-BORDER_RADIUS_MEDIUM = 6
-BORDER_RADIUS_LARGE = 8
+BORDER_RADIUS_SMALL = 2
+BORDER_RADIUS_MEDIUM = 4
+BORDER_RADIUS_LARGE = 6
 
 # PIL import status placeholder
 PIL_AVAILABLE = None

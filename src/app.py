@@ -100,7 +100,27 @@ class RestaurantPOSApp:
     def update_setting(self, key, value):
         """Update a setting in the database"""
         self.settings_model.update(key, value)
+        # Notify UI components that settings have changed
+        self.on_settings_changed(key, value)
         self.settings[key] = value
+    
+    def on_settings_changed(self, key, value):
+        """Called when settings are changed - override in UI components if needed"""
+        # Update UI components that depend on settings
+        self.update_ui_for_setting_change(key, value)
+        # Update top bar restaurant name if it changed
+        if key == 'restaurant_name' and hasattr(self, 'top_bar_restaurant_label'):
+            self.top_bar_restaurant_label.config(text=value)
+    
+    def update_ui_for_setting_change(self, key, value):
+        """Update UI components when settings change"""
+        # Update top bar restaurant name if it changed
+        if key == 'restaurant_name' and hasattr(self, 'top_bar_restaurant_label'):
+            self.top_bar_restaurant_label.config(text=value)
+        
+        # Force refresh of current screen if it needs to update
+        if hasattr(self, 'current_screen') and hasattr(self.current_screen, 'on_settings_changed'):
+            self.current_screen.on_settings_changed(key, value)
     
     def show_login_screen(self):
         """Display the login screen"""
@@ -142,13 +162,12 @@ class RestaurantPOSApp:
     def create_top_bar(self, parent):
         """Create the top navigation bar"""
         top_bar = ttk.Frame(parent)
-        top_bar.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
-        
         # Restaurant name
-        restaurant_label = ttk.Label(top_bar, 
-                                  text=self.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME), 
+        self.top_bar_restaurant_label = ttk.Label(top_bar,
+                                  text=self.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
                                   font=('Arial',34, 'bold'))
-        restaurant_label.pack(side=tk.LEFT, padx=10)
+        self.top_bar_restaurant_label.pack(side=tk.LEFT, padx=10)
+        top_bar.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
         
         # User info
         user_frame = ttk.Frame(top_bar)
@@ -198,6 +217,7 @@ class RestaurantPOSApp:
         # Keyboard shortcut indicator
         shortcut_indicator = ttk.Label(status_frame, text="Press F1 for shortcuts", relief=tk.SUNKEN)
         shortcut_indicator.pack(side=tk.RIGHT, padx=2, pady=2)
+        self.current_screen = self.dashboard_screen
     
     def clear_content_frame(self):
         """Clear all widgets from the content frame"""
@@ -245,6 +265,7 @@ class RestaurantPOSApp:
         self.clear_content_frame()
         kot_screen = KOTScreen(self.root, self)
     
+        self.current_screen = kot_screen
     def show_reports(self):
         """Display the reports screen"""
         self.clear_content_frame()

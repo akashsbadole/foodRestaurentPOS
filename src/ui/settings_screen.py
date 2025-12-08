@@ -11,7 +11,7 @@ class SettingsScreen(BaseUI):
         self.setup_ui()
     
     def setup_ui(self):
-        """Setup modern settings UI"""
+        """Setup modern settings UI with improved design"""
         # Check if user has admin privileges
         if self.app.current_user['role'] != 'Admin':
             self.show_message("Access Denied", "You don't have permission to access settings", "error")
@@ -20,131 +20,254 @@ class SettingsScreen(BaseUI):
         # Configure styles
         self.configure_styles()
         
-        # Set background color for the entire content frame using a regular Frame
+        # Set background color for the entire content frame
         bg_frame = tk.Frame(self.app.content_frame, bg=COLOR_BACKGROUND_LIGHT)
         bg_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Create main container with padding
-        main_container = self.create_modern_frame(
-            bg_frame,
-            style="Card.TFrame",
-            padding=SPACING_L
-        )
-        main_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_XL, pady=SPACING_XL)
+        # Create main container with proper spacing and shadow effect
+        shadow_container = tk.Frame(bg_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_XL, pady=SPACING_XL)
         
-        # Title with modern styling
+        main_container = self.create_modern_frame(
+            shadow_container,
+            style="Card.TFrame",
+            padding=SPACING_XL
+        )
+        main_container.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        
+        # Header section with title and description
+        header_frame = self.create_modern_frame(main_container, style="Card.TFrame", padding=SPACING_M)
+        header_frame.pack(fill=tk.X, pady=(0, SPACING_L))
+        
         title_label = self.create_modern_label(
-            main_container, 
+            header_frame, 
             text="Settings", 
             style="Title.TLabel"
         )
-        title_label.pack(pady=(0, SPACING_L), anchor=tk.W)
+        title_label.pack(anchor=tk.W)
         
-        # Create modern notebook for tabs
+        subtitle_label = self.create_modern_label(
+            header_frame, 
+            text="Manage your restaurant settings, tax configuration, and user accounts", 
+            style="Subtitle.TLabel"
+        )
+        subtitle_label.pack(anchor=tk.W, pady=(SPACING_S, 0))
+        
+        # Create modern notebook for tabs with enhanced styling
         notebook = ttk.Notebook(main_container)
-        notebook.pack(fill=tk.BOTH, expand=True, pady=SPACING_M)
+        notebook.pack(fill=tk.BOTH, expand=True)
         
-        # Configure notebook style
+        # Configure enhanced notebook style
         style = ttk.Style()
-        style.configure("Modern.TNotebook", 
+        style.configure("Settings.TNotebook", 
                        background=COLOR_BACKGROUND_LIGHT,
                        borderwidth=0)
-        style.configure("Modern.TNotebook.Tab", 
+        style.configure("Settings.TNotebook.Tab", 
                        background=COLOR_CARD_WHITE,
                        foreground=COLOR_TEXT_SECONDARY,
-                       padding=[SPACING_M, SPACING_S],
-                       font=(FONT_FAMILY_PRIMARY, 12, 'medium'),
-                       borderwidth=0)
-        style.map("Modern.TNotebook.Tab",
+                       padding=[SPACING_L, SPACING_M],
+                       font=(FONT_FAMILY_PRIMARY, 12, 'bold'),
+                       borderwidth=0,
+                       focuscolor='none')
+        style.map("Settings.TNotebook.Tab",
                  background=[('selected', COLOR_PRIMARY)],
                  foreground=[('selected', COLOR_CARD_WHITE),
-                           ('!selected', COLOR_TEXT_SECONDARY)])
+                           ('!selected', COLOR_TEXT_SECONDARY)],
+                 padding=[('selected', [SPACING_L, SPACING_M]),
+                         ('!selected', [SPACING_M, SPACING_M])])
         
-        notebook.configure(style="Modern.TNotebook")
+        notebook.configure(style="Settings.TNotebook")
         
+        # Create tabs with improved content
+        self.create_general_settings_tab(notebook)
+        self.create_tax_settings_tab(notebook)
+        self.create_user_management_tab(notebook)
+        
+        # Save button container with modern styling
+        save_container = self.create_modern_frame(main_container, style="Card.TFrame", padding=SPACING_L)
+        save_container.pack(fill=tk.X, pady=(SPACING_L, 0))
+        
+        # Add separator
+        self.create_separator(save_container, orient=tk.HORIZONTAL, padding=SPACING_M)
+        
+        # Button container for save action
+        button_container = ttk.Frame(save_container, style="Card.TFrame")
+        button_container.pack(fill=tk.X, pady=SPACING_M)
+        
+        # Modern save button with enhanced styling
+        save_button = self.create_modern_button(
+            button_container,
+            text="Save All Settings",
+            command=self.save_settings,
+            style="Success.TButton"
+        )
+        save_button.pack(side=tk.RIGHT, padx=SPACING_S)
+        
+        # Status label for feedback
+        self.status_label = self.create_modern_label(
+            button_container,
+            text="",
+            style="Small.TLabel"
+        )
+        self.status_label.pack(side=tk.LEFT, padx=SPACING_S)
+        
+        # Load users
+        self.load_users()
+    
+    def create_general_settings_tab(self, notebook):
+        """Create the General Settings tab with improved layout"""
         # General settings tab with modern card design
-        general_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_L)
+        general_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
         notebook.add(general_frame, text="General Settings")
         
-        # General settings card
-        general_card = self.create_modern_frame(general_frame, style="Panel.TFrame", padding=SPACING_M)
-        general_card.pack(fill=tk.X, pady=SPACING_S)
+        # Tab description
+        desc_label = self.create_modern_label(
+            general_frame, 
+            text="Configure your restaurant's basic information", 
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
         
-        # Section title
+        # General settings card with shadow effect
+        shadow_container = tk.Frame(general_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        general_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        general_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(general_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
         section_title = self.create_modern_label(
-            general_card, 
-            text="Restaurant Information", 
+            section_header, 
+            text="🏪 Restaurant Information", 
             style="SectionTitle.TLabel"
         )
-        section_title.pack(pady=(0, SPACING_M), anchor=tk.W)
+        section_title.pack(side=tk.LEFT)
+        
+        # Form fields with improved layout
+        form_container = ttk.Frame(general_card, style="Panel.TFrame")
+        form_container.pack(fill=tk.X)
         
         # Restaurant name field
-        restaurant_name_var = tk.StringVar(value=self.app.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME))
-        restaurant_name_container = ttk.Frame(general_card)
-        restaurant_name_container.pack(fill=tk.X, pady=SPACING_S)
-        restaurant_name_label = self.create_modern_label(restaurant_name_container, "Restaurant Name", style="Body.TLabel")
-        restaurant_name_label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
-        self.restaurant_name_field = self.create_modern_entry(restaurant_name_container, textvariable=restaurant_name_var, width=40)
-        self.restaurant_name_field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+        self.restaurant_name_var = tk.StringVar(value=self.app.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME))
+        self.create_form_field(
+            form_container,
+            "Restaurant Name",
+            entry_type="entry",
+            textvariable=self.restaurant_name_var,
+            width=50
+        )
         
         # Restaurant address field
-        address_var = tk.StringVar(value=self.app.settings.get('restaurant_address', DEFAULT_RESTAURANT_ADDRESS))
-        address_container = ttk.Frame(general_card)
-        address_container.pack(fill=tk.X, pady=SPACING_S)
-        address_label = self.create_modern_label(address_container, "Address", style="Body.TLabel")
-        address_label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
-        self.address_field = self.create_modern_entry(address_container, textvariable=address_var, width=40)
-        self.address_field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+        self.address_var = tk.StringVar(value=self.app.settings.get('restaurant_address', DEFAULT_RESTAURANT_ADDRESS))
+        self.create_form_field(
+            form_container,
+            "Address",
+            entry_type="entry",
+            textvariable=self.address_var,
+            width=50
+        )
         
         # Currency symbol field
-        currency_var = tk.StringVar(value=self.app.settings.get('currency_symbol', DEFAULT_CURRENCY_SYMBOL))
-        currency_container = ttk.Frame(general_card)
-        currency_container.pack(fill=tk.X, pady=SPACING_S)
-        currency_label = self.create_modern_label(currency_container, "Currency Symbol", style="Body.TLabel")
-        currency_label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
-        self.currency_field = self.create_modern_entry(currency_container, textvariable=currency_var, width=10)
-        self.currency_field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
-        
+        self.currency_var = tk.StringVar(value=self.app.settings.get('currency_symbol', DEFAULT_CURRENCY_SYMBOL))
+        self.create_form_field(
+            form_container,
+            "Currency Symbol",
+            entry_type="entry",
+            textvariable=self.currency_var,
+            width=10
+        )
+    
+    def create_tax_settings_tab(self, notebook):
+        """Create the Tax Settings tab with improved layout"""
         # Tax settings tab with modern card design
-        tax_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_L)
+        tax_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
         notebook.add(tax_frame, text="Tax Settings")
         
-        # Tax settings card
-        tax_card = self.create_modern_frame(tax_frame, style="Panel.TFrame", padding=SPACING_M)
-        tax_card.pack(fill=tk.X, pady=SPACING_S)
+        # Tab description
+        desc_label = self.create_modern_label(
+            tax_frame, 
+            text="Configure tax rates and financial settings", 
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
         
-        # Section title
-        tax_section_title = self.create_modern_label(
-            tax_card, 
-            text="Tax Configuration", 
+        # Tax settings card with shadow effect
+        shadow_container = tk.Frame(tax_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        tax_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        tax_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(tax_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        section_title = self.create_modern_label(
+            section_header, 
+            text="💰 Tax Configuration", 
             style="SectionTitle.TLabel"
         )
-        tax_section_title.pack(pady=(0, SPACING_M), anchor=tk.W)
+        section_title.pack(side=tk.LEFT)
+        
+        # Form fields with improved layout
+        form_container = ttk.Frame(tax_card, style="Panel.TFrame")
+        form_container.pack(fill=tk.X)
         
         # Tax rate field
-        tax_rate_var = tk.StringVar(value=self.app.settings.get('tax_rate', str(DEFAULT_TAX_RATE)))
-        tax_rate_container = ttk.Frame(tax_card)
-        tax_rate_container.pack(fill=tk.X, pady=SPACING_S)
-        tax_rate_label = self.create_modern_label(tax_rate_container, "Tax Rate (%)", style="Body.TLabel")
-        tax_rate_label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
-        self.tax_rate_field = self.create_modern_entry(tax_rate_container, textvariable=tax_rate_var, width=10)
-        self.tax_rate_field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+        self.tax_rate_var = tk.StringVar(value=self.app.settings.get('tax_rate', str(DEFAULT_TAX_RATE)))
+        self.create_form_field(
+            form_container,
+            "Tax Rate (%)",
+            entry_type="entry",
+            textvariable=self.tax_rate_var,
+            width=15
+        )
         
+        # Information note
+        note_frame = self.create_modern_frame(tax_card, style="Card.TFrame", padding=SPACING_M)
+        note_frame.pack(fill=tk.X, pady=(SPACING_M, 0))
+        
+        note_label = self.create_modern_label(
+            note_frame,
+            "💡 Note: Tax rate should be a value between 0 and 100",
+            style="Small.TLabel"
+        )
+        note_label.pack(anchor=tk.W)
+    
+    def create_user_management_tab(self, notebook):
+        """Create the User Management tab with improved layout"""
         # User management tab with modern design
-        user_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_L)
+        user_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
         notebook.add(user_frame, text="User Management")
         
-        # User management card
-        user_card = self.create_modern_frame(user_frame, style="Panel.TFrame", padding=SPACING_M)
-        user_card.pack(fill=tk.BOTH, expand=True, pady=SPACING_S)
+        # Tab description
+        desc_label = self.create_modern_label(
+            user_frame, 
+            text="Add, remove, and manage user accounts and permissions", 
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
         
-        # Section title
-        user_section_title = self.create_modern_label(
-            user_card, 
-            text="Manage Users", 
+        # User management card with shadow effect
+        shadow_container = tk.Frame(user_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.BOTH, expand=True, pady=SPACING_S)
+        
+        user_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        user_card.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(user_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        section_title = self.create_modern_label(
+            section_header, 
+            text="👥 Manage Users", 
             style="SectionTitle.TLabel"
         )
-        user_section_title.pack(pady=(0, SPACING_M), anchor=tk.W)
+        section_title.pack(side=tk.LEFT)
         
         # User list container with shadow effect
         user_list_container = self.create_modern_frame(user_card, style="Shadow.TFrame", padding=1)
@@ -158,7 +281,7 @@ class SettingsScreen(BaseUI):
             user_list_frame,
             ("username", "role"),
             ("Username", "Role"),
-            (200, 100)
+            (250, 120)
         )
         self.user_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
@@ -166,37 +289,19 @@ class SettingsScreen(BaseUI):
         user_buttons_frame = self.create_button_group(
             user_card,
             [
-                ("Add User", self.add_user, "Success.TButton"),
-                ("Delete User", self.delete_user, "Danger.TButton")
+                ("➕ Add User", self.add_user, "Success.TButton"),
+                ("🗑️ Delete User", self.delete_user, "Danger.TButton")
             ],
             spacing=SPACING_M
         )
-        
-        # Save button container with modern styling
-        save_container = self.create_modern_frame(main_container, style="Card.TFrame", padding=SPACING_M)
-        save_container.pack(fill=tk.X, pady=SPACING_L)
-        
-        # Modern save button
-        save_button = self.create_modern_button(
-            save_container,
-            text="Save Settings",
-            command=self.save_settings,
-            style="Success.TButton"
-        )
-        save_button.pack(side=tk.RIGHT, padx=SPACING_S, pady=SPACING_S)
-        
-        # Store references for user management
-        self.restaurant_name_var = restaurant_name_var
-        self.address_var = address_var
-        self.currency_var = currency_var
-        self.tax_rate_var = tax_rate_var
-        
-        # Load users
-        self.load_users()
     
     def save_settings(self):
         """Save all settings with validation and feedback"""
         try:
+            # Show saving status
+            self.status_label.configure(text="Saving settings...", foreground=COLOR_WARNING)
+            self.app.root.update()
+            
             # Save general settings
             self.app.update_setting('restaurant_name', self.restaurant_name_var.get())
             self.app.update_setting('restaurant_address', self.address_var.get())
@@ -209,14 +314,32 @@ class SettingsScreen(BaseUI):
                     raise ValueError("Tax rate must be between 0 and 100")
                 self.app.update_setting('tax_rate', str(tax_rate))
             except ValueError as e:
+                self.status_label.configure(text=f"Error: {str(e)}", foreground=COLOR_ERROR)
                 self.show_message("Validation Error", f"Invalid tax rate: {str(e)}", "error")
                 return
             
             # Show success message
+            self.status_label.configure(text="Settings saved successfully!", foreground=COLOR_SUCCESS)
             self.show_message("Success", "Settings saved successfully", "info")
             
+            # Clear status after delay
+            self.app.root.after(3000, lambda: self.status_label.configure(text=""))
+            
         except Exception as e:
+            self.status_label.configure(text=f"Error: {str(e)}", foreground=COLOR_ERROR)
             self.show_message("Error", f"Failed to save settings: {str(e)}", "error")
+    
+    def on_settings_changed(self, key, value):
+        """Called when settings are changed elsewhere"""
+        # Update the corresponding field if this setting is changed
+        if key == 'restaurant_name':
+            self.restaurant_name_var.set(value)
+        elif key == 'restaurant_address':
+            self.address_var.set(value)
+        elif key == 'currency_symbol':
+            self.currency_var.set(value)
+        elif key == 'tax_rate':
+            self.tax_rate_var.set(value)
     
     def load_users(self):
         """Load users into the modern user tree"""
@@ -244,16 +367,26 @@ class SettingsScreen(BaseUI):
         # Create modern add user window
         add_window = tk.Toplevel(self.app.root)
         add_window.title("Add New User")
-        add_window.geometry("400x300")
+        add_window.geometry("450x400")
         add_window.configure(background=COLOR_BACKGROUND_LIGHT)
+        add_window.resizable(False, False)
         
         # Make window modal
         add_window.transient(self.app.root)
         add_window.grab_set()
         
-        # Main container
-        main_container = self.create_modern_frame(add_window, style="Card.TFrame", padding=SPACING_L)
-        main_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_M, pady=SPACING_M)
+        # Center the window
+        add_window.update_idletasks()
+        x = (add_window.winfo_screenwidth() // 2) - (450 // 2)
+        y = (add_window.winfo_screenheight() // 2) - (400 // 2)
+        add_window.geometry(f"450x400+{x}+{y}")
+        
+        # Main container with shadow effect
+        shadow_container = tk.Frame(add_window, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.BOTH, expand=True, padx=SPACING_M, pady=SPACING_M)
+        
+        main_container = self.create_modern_frame(shadow_container, style="Card.TFrame", padding=SPACING_L)
+        main_container.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
         
         # Title
         title_label = self.create_modern_label(
@@ -269,30 +402,36 @@ class SettingsScreen(BaseUI):
         
         # Username field
         username_var = tk.StringVar()
-        username_container = ttk.Frame(form_container)
-        username_container.pack(fill=tk.X, pady=SPACING_S)
-        username_label = self.create_modern_label(username_container, "Username", style="Body.TLabel")
-        username_label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
-        username_field = self.create_modern_entry(username_container, textvariable=username_var, width=30)
-        username_field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+        self.create_form_field(
+            form_container,
+            "Username",
+            entry_type="entry",
+            textvariable=username_var,
+            width=30
+        )
         
         # Password field
         password_var = tk.StringVar()
-        password_container = ttk.Frame(form_container)
-        password_container.pack(fill=tk.X, pady=SPACING_S)
-        password_label = self.create_modern_label(password_container, "Password", style="Body.TLabel")
-        password_label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
-        password_field = self.create_modern_entry(password_container, textvariable=password_var, show="*", width=30)
-        password_field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+        self.create_form_field(
+            form_container,
+            "Password",
+            entry_type="entry",
+            textvariable=password_var,
+            show="*",
+            width=30
+        )
         
         # Role field
         role_var = tk.StringVar(value="Cashier")
-        role_container = ttk.Frame(form_container)
-        role_container.pack(fill=tk.X, pady=SPACING_S)
-        role_label = self.create_modern_label(role_container, "Role", style="Body.TLabel")
-        role_label.pack(anchor=tk.W, padx=(SPACING_M, SPACING_S))
-        role_field = self.create_modern_combobox(role_container, textvariable=role_var, values=["Admin", "Cashier"], state="readonly", width=28)
-        role_field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+        self.create_form_field(
+            form_container,
+            "Role",
+            entry_type="combobox",
+            textvariable=role_var,
+            values=["Admin", "Cashier"],
+            state="readonly",
+            width=28
+        )
         
         # Button container
         button_container = self.create_modern_frame(main_container, style="Card.TFrame", padding=SPACING_M)
@@ -332,7 +471,7 @@ class SettingsScreen(BaseUI):
         )
         
         # Focus on username field
-        username_field.focus_set()
+        add_window.after(100, lambda: add_window.focus_set())
     
     def delete_user(self):
         """Delete selected user with confirmation"""

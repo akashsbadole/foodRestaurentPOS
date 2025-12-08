@@ -417,6 +417,7 @@ class OrderScreen(BaseUI):
             discount_type = self.discount_type_var.get()
         except ValueError:
             discount_value = 0
+            discount_type = self.discount_type_var.get()  # Add this line
         
         totals = self.order_controller.calculate_totals(discount_value, discount_type)
         
