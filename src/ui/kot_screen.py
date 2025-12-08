@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog
 from datetime import datetime, timedelta
 from .base_ui import BaseUI
 from utils.helpers import generate_kot_content
+from utils.printer import PrinterManager
 from utils.constants import *
 
 class KOTScreen(BaseUI):
@@ -10,6 +11,7 @@ class KOTScreen(BaseUI):
     
     def __init__(self, root, app):
         super().__init__(root, app)
+        self.printer_manager = PrinterManager(app.settings)
         self.setup_ui()
     
     def setup_ui(self):
@@ -453,17 +455,78 @@ class KOTScreen(BaseUI):
         
         order_number, name, quantity, created_at = kot_details
         
-        # Create KOT content
-        kot_content = generate_kot_content(order_number, name, quantity, created_at)
+        # Check auto-print settings
+        auto_print_kot = self.app.settings.get('auto_print_kot', 'True') == 'True'
         
-        # Save KOT to file
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".txt",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
-            initialfile=f"KOT_{order_number}_{name}.txt"
-        )
-        
-        if file_path:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(kot_content)
-            self.show_message("KOT Saved", f"KOT saved to {file_path}", "info")
+        if auto_print_kot:
+            # Auto-print KOT using default settings
+            self.print_kot_auto(order_number, name, quantity, created_at)
+        else:
+            # Show print options dialog
+            self.show_print_options(order_number, name, quantity, created_at)
+    
+    def print_kot_auto(self, order_number, name, quantity, created_at):
+        """Auto-print KOT using default settings"""
+        try:
+            # Prepare KOT data
+            kot_data = {
+                'order_number': order_number,
+                'time': created_at,
+                'item_name': name,
+                'quantity': quantity,
+                'notes': ''
+            }
+            
+            # Get default printer settings
+            printer_type = self.app.settings.get('default_kot_printer_type', PRINTER_TYPE_THERMAL)
+            printer_name = self.app.settings.get('thermal_printer_name' if printer_type == PRINTER_TYPE_THERMAL else 'standard_printer_name', '')
+            
+            # Print KOT
+            success = self.printer_manager.print_kot(kot_data, printer_type, printer_name)
+            
+            if not success:
+                self.show_message("Warning", "Auto-print failed. Please check printer settings.", "warning")
+                
+        except Exception as e:
+            print(f"Auto-print KOT error: {e}")
+    
+    def show_print_options(self, order_number, name, quantity, created_at):
+        """Show print options dialog"""
+        try:
+            from .printer_dialog import PrinterSelectionDialog, PrintPreviewDialog
+            
+            # Show printer selection dialog
+            dialog = PrinterSelectionDialog(self.root, self.app.settings, "kot")
+            result = dialog.get_result()
+            
+            if result:
+                # Prepare KOT data
+                kot_data = {
+                    'order_number': order_number,
+                    'time': created_at,
+                    'item_name': name,
+                    'quantity': quantity,
+                    'notes': ''
+                }
+                
+                # Show preview if requested
+                if result.get('preview', False):
+                    content = generate_kot_content(order_number, name, quantity, created_at)
+                    preview_dialog = PrintPreviewDialog(self.root, content, "KOT Preview")
+                    if not preview_dialog.get_result():
+                        return
+                
+                # Print the KOT
+                success = self.printer_manager.print_kot(
+                    kot_data,
+                    result['printer_type'],
+                    result['printer_name']
+                )
+                
+                if success:
+                    self.show_message("Success", "KOT printed successfully!", "info")
+                else:
+                    self.show_message("Error", "Failed to print KOT", "error")
+                    
+        except Exception as e:
+            self.show_message("Error", f"Print error: {str(e)}", "error")

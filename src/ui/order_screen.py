@@ -3,6 +3,8 @@ from tkinter import ttk
 from .base_ui import BaseUI
 from controllers.order_controller import OrderController
 from utils.constants import *
+from utils.printer import PrinterManager
+from utils.helpers import generate_bill_content, generate_kot_content
 
 class OrderScreen(BaseUI):
     """Order screen UI component"""
@@ -12,6 +14,9 @@ class OrderScreen(BaseUI):
         self.order_controller = OrderController(self.db)
         self.menu_tree = None
         self.cart_tree = None
+        
+        # Initialize printer manager
+        self.printer_manager = PrinterManager(app.settings)
     
     def setup_ui(self):
         """Setup the modern order screen UI"""
@@ -509,6 +514,17 @@ class OrderScreen(BaseUI):
         
         if success:
             self.show_message("Success", f"Order {result} completed successfully!", "info")
+            
+            # Check auto-print settings
+            auto_print_bill = self.app.settings.get('auto_print_bill', 'False') == 'True'
+            
+            if auto_print_bill:
+                # Auto-print bill using default settings
+                self.print_bill_auto(result)
+            else:
+                # Show print options dialog
+                self.show_print_options(result, "bill")
+            
             # Reset order
             self.order_controller.reset_order()
             self.setup_ui()  # Reset UI
@@ -551,3 +567,160 @@ class OrderScreen(BaseUI):
         self.customer_name_entry = None
         self.customer_mobile_entry = None
         self.discount_entry = None
+    
+    def show_print_options(self, order_number, print_type="bill"):
+        """Show print options dialog"""
+        try:
+            from .printer_dialog import PrinterSelectionDialog, PrintPreviewDialog
+            
+            # Show printer selection dialog
+            dialog = PrinterSelectionDialog(self.root, self.app.settings, print_type)
+            result = dialog.get_result()
+            
+            if result:
+                # Prepare print data
+                if print_type == "bill":
+                    print_data = self._prepare_bill_data(order_number)
+                else:  # KOT
+                    print_data = self._prepare_kot_data(order_number)
+                
+                # Show preview if requested
+                if result.get('preview', False):
+                    content = self._get_preview_content(print_data, print_type)
+                    preview_dialog = PrintPreviewDialog(self.root, content, f"{print_type.title()} Preview")
+                    if not preview_dialog.get_result():
+                        return
+                
+                # Print the document
+                success = self.printer_manager.print_bill(
+                    print_data,
+                    result['printer_type'],
+                    result['printer_name']
+                ) if print_type == "bill" else self.printer_manager.print_kot(
+                    print_data,
+                    result['printer_type'],
+                    result['printer_name']
+                )
+                
+                if success:
+                    self.show_message("Success", f"{print_type.title()} printed successfully!", "info")
+                else:
+                    self.show_message("Error", f"Failed to print {print_type}", "error")
+                    
+        except Exception as e:
+            self.show_message("Error", f"Print error: {str(e)}", "error")
+    
+    def print_bill_auto(self, order_number):
+        """Auto-print bill using default settings"""
+        try:
+            # Prepare bill data
+            bill_data = self._prepare_bill_data(order_number)
+            
+            # Get default printer settings
+            printer_type = self.app.settings.get('default_bill_printer_type', PRINTER_TYPE_STANDARD)
+            printer_name = self.app.settings.get('standard_printer_name' if printer_type == PRINTER_TYPE_STANDARD else 'thermal_printer_name', '')
+            
+            # Print bill
+            success = self.printer_manager.print_bill(bill_data, printer_type, printer_name)
+            
+            if not success:
+                self.show_message("Warning", "Auto-print failed. Please check printer settings.", "warning")
+                
+        except Exception as e:
+            print(f"Auto-print error: {e}")
+    
+    def _prepare_bill_data(self, order_number):
+        """Prepare bill data for printing"""
+        try:
+            # Get order details from database
+            order_details = self.app.order_model.get_details_by_number(order_number)
+            if not order_details:
+                return {}
+            
+            # Get table number if dine-in
+            table_number = None
+            if order_details['table_id']:
+                tables = self.app.table_model.get_all()
+                for table in tables:
+                    if table[0] == order_details['table_id']:
+                        table_number = table[1]
+                        break
+            
+            # Get order items
+            items = self.app.order_model.get_items_by_order_number(order_number)
+            
+            # Format items for printing
+            formatted_items = []
+            for item in items:
+                name, quantity, price, total, status = item
+                formatted_items.append((name, quantity, price, total))
+            
+            return {
+                'restaurant_name': self.app.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
+                'restaurant_address': self.app.settings.get('restaurant_address', DEFAULT_RESTAURANT_ADDRESS),
+                'order_number': order_number,
+                'date': order_details['created_at'],
+                'order_type': order_details['order_type'],
+                'table_number': table_number,
+                'customer_name': order_details['customer_name'],
+                'customer_mobile': order_details['customer_mobile'],
+                'items': formatted_items,
+                'subtotal': order_details['subtotal'],
+                'tax': order_details['tax'],
+                'discount': order_details['discount'],
+                'total': order_details['total'],
+                'tax_rate': float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE))
+            }
+            
+        except Exception as e:
+            print(f"Error preparing bill data: {e}")
+            return {}
+    
+    def _prepare_kot_data(self, order_number):
+        """Prepare KOT data for printing"""
+        try:
+            # Get order items for KOT
+            items = self.app.order_model.get_items_by_order_number(order_number)
+            if not items:
+                return {}
+            
+            # For KOT, we'll print each item separately or group them
+            # For simplicity, let's take the first item
+            first_item = items[0] if items else None
+            if not first_item:
+                return {}
+            
+            name, quantity, price, total, status = first_item
+            
+            return {
+                'order_number': order_number,
+                'time': datetime.now().strftime('%H:%M:%S'),
+                'item_name': name,
+                'quantity': quantity,
+                'notes': ''  # Could add special instructions here
+            }
+            
+        except Exception as e:
+            print(f"Error preparing KOT data: {e}")
+            return {}
+    
+    def _get_preview_content(self, print_data, print_type):
+        """Get preview content for display"""
+        if print_type == "bill":
+            return generate_bill_content(
+                print_data.get('restaurant_name', ''),
+                print_data.get('restaurant_address', ''),
+                print_data,
+                print_data.get('items', []),
+                print_data.get('subtotal', 0),
+                print_data.get('tax', 0),
+                print_data.get('discount', 0),
+                print_data.get('total', 0)
+            )
+        else:  # KOT
+            return generate_kot_content(
+                print_data.get('order_number', ''),
+                print_data.get('item_name', ''),
+                print_data.get('quantity', 0),
+                print_data.get('time', '')
+            )

@@ -3,12 +3,15 @@ from tkinter import ttk, filedialog
 from datetime import datetime
 from .base_ui import BaseUI
 from utils.helpers import format_datetime, generate_bill_content
+from utils.printer import PrinterManager
+from utils.constants import *
 
 class OrdersScreen(BaseUI):
     """Orders management screen UI component"""
     
     def __init__(self, root, app):
         super().__init__(root, app)
+        self.printer_manager = PrinterManager(app.settings)
         self.setup_ui()
     
     def setup_ui(self):
@@ -237,8 +240,8 @@ class OrdersScreen(BaseUI):
         # Get order ID from tags
         order_id = int(self.orders_tree.item(selection[0])['tags'][0])
         
-        # Generate bill
-        self.generate_bill(order_id)
+        # Show print options dialog
+        self.show_print_options(order_id)
     
     def generate_bill(self, order_id):
         """Generate bill for the order"""
@@ -282,3 +285,109 @@ class OrdersScreen(BaseUI):
     def refresh_orders(self):
         """Refresh orders list"""
         self.load_orders()
+    
+    def show_print_options(self, order_id):
+        """Show print options dialog"""
+        try:
+            from .printer_dialog import PrinterSelectionDialog, PrintPreviewDialog
+            
+            # Get order details
+            order_details = self.app.order_model.get_details(order_id)
+            if not order_details:
+                self.show_message("Error", "Order not found", "error")
+                return
+            
+            # Get order number
+            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
+            
+            # Show printer selection dialog
+            dialog = PrinterSelectionDialog(self.root, self.app.settings, "bill")
+            result = dialog.get_result()
+            
+            if result:
+                # Prepare bill data
+                bill_data = self._prepare_bill_data(order_id)
+                
+                # Show preview if requested
+                if result.get('preview', False):
+                    content = self._get_bill_preview_content(bill_data)
+                    preview_dialog = PrintPreviewDialog(self.root, content, "Bill Preview")
+                    if not preview_dialog.get_result():
+                        return
+                
+                # Print the bill
+                success = self.printer_manager.print_bill(
+                    bill_data,
+                    result['printer_type'],
+                    result['printer_name']
+                )
+                
+                if success:
+                    self.show_message("Success", "Bill printed successfully!", "info")
+                else:
+                    self.show_message("Error", "Failed to print bill", "error")
+                    
+        except Exception as e:
+            self.show_message("Error", f"Print error: {str(e)}", "error")
+    
+    def _prepare_bill_data(self, order_id):
+        """Prepare bill data for printing"""
+        try:
+            # Get order details
+            order_details = self.app.order_model.get_details(order_id)
+            if not order_details:
+                return {}
+            
+            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
+            
+            # Get table number if dine-in
+            table_number = None
+            if table_id:
+                tables = self.app.table_model.get_all()
+                for table in tables:
+                    if table[0] == table_id:
+                        table_number = table[1]
+                        break
+            
+            # Get order items
+            items = self.app.order_model.get_items(order_id)
+            
+            # Format items for printing
+            formatted_items = []
+            for item in items:
+                name, quantity, price, item_total, item_status = item
+                formatted_items.append((name, quantity, price, item_total))
+            
+            return {
+                'restaurant_name': self.app.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
+                'restaurant_address': self.app.settings.get('restaurant_address', DEFAULT_RESTAURANT_ADDRESS),
+                'order_number': order_number,
+                'date': created_at,
+                'order_type': order_type,
+                'table_number': table_number,
+                'customer_name': customer_name,
+                'customer_mobile': customer_mobile,
+                'items': formatted_items,
+                'subtotal': subtotal,
+                'tax': tax,
+                'discount': discount,
+                'total': total,
+                'tax_rate': float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE))
+            }
+            
+        except Exception as e:
+            print(f"Error preparing bill data: {e}")
+            return {}
+    
+    def _get_bill_preview_content(self, bill_data):
+        """Get bill preview content for display"""
+        return generate_bill_content(
+            bill_data.get('restaurant_name', ''),
+            bill_data.get('restaurant_address', ''),
+            bill_data,
+            bill_data.get('items', []),
+            bill_data.get('subtotal', 0),
+            bill_data.get('tax', 0),
+            bill_data.get('discount', 0),
+            bill_data.get('total', 0)
+        )

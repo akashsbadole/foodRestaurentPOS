@@ -184,7 +184,16 @@ def setup_database():
             ('restaurant_name', 'My Restaurant'),
             ('restaurant_address', '123 Main Street, City'),
             ('currency_symbol', '₹'),
-            ('tax_rate', '5.0')
+            ('tax_rate', '5.0'),
+            # Printer settings
+            ('thermal_printer_name', ''),
+            ('standard_printer_name', ''),
+            ('default_bill_printer_type', 'standard'),
+            ('default_kot_printer_type', 'thermal'),
+            ('bill_paper_width', '58'),
+            ('kot_paper_width', '58'),
+            ('auto_print_bill', 'False'),
+            ('auto_print_kot', 'True')
         ]
         
         cursor.executemany("""

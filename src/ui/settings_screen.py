@@ -81,6 +81,7 @@ class SettingsScreen(BaseUI):
         # Create tabs with improved content
         self.create_general_settings_tab(notebook)
         self.create_tax_settings_tab(notebook)
+        self.create_printer_settings_tab(notebook)
         self.create_user_management_tab(notebook)
         
         # Save button container with modern styling
@@ -237,6 +238,214 @@ class SettingsScreen(BaseUI):
         )
         note_label.pack(anchor=tk.W)
     
+    def create_printer_settings_tab(self, notebook):
+        """Create Printer Settings tab with improved layout"""
+        # Printer settings tab with modern card design
+        printer_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
+        notebook.add(printer_frame, text="Printer Settings")
+        
+        # Tab description
+        desc_label = self.create_modern_label(
+            printer_frame,
+            text="Configure printer settings for bills and kitchen orders",
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
+        
+        # Bill printer settings card with shadow effect
+        shadow_container = tk.Frame(printer_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        bill_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        bill_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(bill_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        section_title = self.create_modern_label(
+            section_header,
+            text="🧾 Bill Printer Settings",
+            style="SectionTitle.TLabel"
+        )
+        section_title.pack(side=tk.LEFT)
+        
+        # Form fields with improved layout
+        form_container = ttk.Frame(bill_card, style="Panel.TFrame")
+        form_container.pack(fill=tk.X)
+        
+        # Default bill printer type
+        self.bill_printer_type_var = tk.StringVar(
+            value=self.app.settings.get('default_bill_printer_type', DEFAULT_BILL_PRINTER_TYPE)
+        )
+        self.create_form_field(
+            form_container,
+            "Default Printer Type",
+            entry_type="combobox",
+            textvariable=self.bill_printer_type_var,
+            values=["thermal", "standard"],
+            state="readonly",
+            width=28
+        )
+        
+        # Thermal printer name for bills
+        self.thermal_printer_var = tk.StringVar(
+            value=self.app.settings.get('thermal_printer_name', DEFAULT_THERMAL_PRINTER)
+        )
+        self.create_form_field(
+            form_container,
+            "Thermal Printer Name",
+            entry_type="entry",
+            textvariable=self.thermal_printer_var,
+            width=50
+        )
+        
+        # Standard printer name for bills
+        self.standard_printer_var = tk.StringVar(
+            value=self.app.settings.get('standard_printer_name', DEFAULT_STANDARD_PRINTER)
+        )
+        self.create_form_field(
+            form_container,
+            "Standard Printer Name",
+            entry_type="entry",
+            textvariable=self.standard_printer_var,
+            width=50
+        )
+        
+        # Bill paper width
+        self.bill_paper_width_var = tk.StringVar(
+            value=str(self.app.settings.get('bill_paper_width', DEFAULT_BILL_PAPER_WIDTH))
+        )
+        self.create_form_field(
+            form_container,
+            "Bill Paper Width (mm)",
+            entry_type="combobox",
+            textvariable=self.bill_paper_width_var,
+            values=["58", "80"],
+            state="readonly",
+            width=28
+        )
+        
+        # Auto-print bill checkbox
+        self.auto_print_bill_var = tk.BooleanVar(
+            value=self.app.settings.get('auto_print_bill', DEFAULT_AUTO_PRINT_BILL) == 'True'
+        )
+        self.create_form_field(
+            form_container,
+            "Auto-print Bill after Payment",
+            entry_type="checkbutton",
+            textvariable=self.auto_print_bill_var
+        )
+        
+        # KOT printer settings card with shadow effect
+        kot_shadow_container = tk.Frame(printer_frame, bg=COLOR_SHADOW)
+        kot_shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        kot_card = self.create_modern_frame(kot_shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        kot_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        kot_section_header = ttk.Frame(kot_card, style="Panel.TFrame")
+        kot_section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        kot_section_title = self.create_modern_label(
+            kot_section_header,
+            text="🧾 KOT Printer Settings",
+            style="SectionTitle.TLabel"
+        )
+        kot_section_title.pack(side=tk.LEFT)
+        
+        # KOT form fields
+        kot_form_container = ttk.Frame(kot_card, style="Panel.TFrame")
+        kot_form_container.pack(fill=tk.X)
+        
+        # Default KOT printer type
+        self.kot_printer_type_var = tk.StringVar(
+            value=self.app.settings.get('default_kot_printer_type', DEFAULT_KOT_PRINTER_TYPE)
+        )
+        self.create_form_field(
+            kot_form_container,
+            "Default KOT Printer Type",
+            entry_type="combobox",
+            textvariable=self.kot_printer_type_var,
+            values=["thermal", "standard"],
+            state="readonly",
+            width=28
+        )
+        
+        # KOT paper width
+        self.kot_paper_width_var = tk.StringVar(
+            value=str(self.app.settings.get('kot_paper_width', DEFAULT_KOT_PAPER_WIDTH))
+        )
+        self.create_form_field(
+            kot_form_container,
+            "KOT Paper Width (mm)",
+            entry_type="combobox",
+            textvariable=self.kot_paper_width_var,
+            values=["58", "80"],
+            state="readonly",
+            width=28
+        )
+        
+        # Auto-print KOT checkbox
+        self.auto_print_kot_var = tk.BooleanVar(
+            value=self.app.settings.get('auto_print_kot', DEFAULT_AUTO_PRINT_KOT) == 'True'
+        )
+        self.create_form_field(
+            kot_form_container,
+            "Auto-print KOT after Order",
+            entry_type="checkbutton",
+            textvariable=self.auto_print_kot_var
+        )
+        
+        # Test buttons
+        test_button_frame = self.create_modern_frame(printer_frame, style="Card.TFrame", padding=SPACING_M)
+        test_button_frame.pack(fill=tk.X, pady=SPACING_S)
+        
+        test_container = ttk.Frame(test_button_frame, style="Card.TFrame")
+        test_container.pack(fill=tk.X)
+        
+        # Test buttons
+        def test_thermal_printer():
+            printer_name = self.thermal_printer_var.get()
+            if not printer_name:
+                self.show_message("Warning", "Please enter thermal printer name", "warning")
+                return
+            
+            from utils.printer import PrinterManager
+            manager = PrinterManager(self.app.settings)
+            success = manager.test_printer("thermal", printer_name)
+            
+            if success:
+                self.show_message("Success", "Thermal printer test successful!", "info")
+            else:
+                self.show_message("Error", "Thermal printer test failed", "error")
+        
+        def test_standard_printer():
+            printer_name = self.standard_printer_var.get()
+            if not printer_name:
+                self.show_message("Warning", "Please enter standard printer name", "warning")
+                return
+            
+            from utils.printer import PrinterManager
+            manager = PrinterManager(self.app.settings)
+            success = manager.test_printer("standard", printer_name)
+            
+            if success:
+                self.show_message("Success", "Standard printer test successful!", "info")
+            else:
+                self.show_message("Error", "Standard printer test failed", "error")
+        
+        # Create test button group
+        self.create_button_group(
+            test_container,
+            [
+                ("🧪 Test Thermal Printer", test_thermal_printer, "Primary.TButton"),
+                ("🖨️ Test Standard Printer", test_standard_printer, "Secondary.TButton")
+            ],
+            spacing=SPACING_M
+        )
+    
     def create_user_management_tab(self, notebook):
         """Create the User Management tab with improved layout"""
         # User management tab with modern design
@@ -307,6 +516,16 @@ class SettingsScreen(BaseUI):
             self.app.update_setting('restaurant_address', self.address_var.get())
             self.app.update_setting('currency_symbol', self.currency_var.get())
             
+            # Save printer settings
+            self.app.update_setting('thermal_printer_name', self.thermal_printer_var.get())
+            self.app.update_setting('standard_printer_name', self.standard_printer_var.get())
+            self.app.update_setting('default_bill_printer_type', self.bill_printer_type_var.get())
+            self.app.update_setting('default_kot_printer_type', self.kot_printer_type_var.get())
+            self.app.update_setting('bill_paper_width', self.bill_paper_width_var.get())
+            self.app.update_setting('kot_paper_width', self.kot_paper_width_var.get())
+            self.app.update_setting('auto_print_bill', str(self.auto_print_bill_var.get()))
+            self.app.update_setting('auto_print_kot', str(self.auto_print_kot_var.get()))
+            
             # Save tax settings with validation
             try:
                 tax_rate = float(self.tax_rate_var.get())
@@ -340,6 +559,22 @@ class SettingsScreen(BaseUI):
             self.currency_var.set(value)
         elif key == 'tax_rate':
             self.tax_rate_var.set(value)
+        elif key == 'thermal_printer_name':
+            self.thermal_printer_var.set(value)
+        elif key == 'standard_printer_name':
+            self.standard_printer_var.set(value)
+        elif key == 'default_bill_printer_type':
+            self.bill_printer_type_var.set(value)
+        elif key == 'default_kot_printer_type':
+            self.kot_printer_type_var.set(value)
+        elif key == 'bill_paper_width':
+            self.bill_paper_width_var.set(value)
+        elif key == 'kot_paper_width':
+            self.kot_paper_width_var.set(value)
+        elif key == 'auto_print_bill':
+            self.auto_print_bill_var.set(value == 'True')
+        elif key == 'auto_print_kot':
+            self.auto_print_kot_var.set(value == 'True')
     
     def load_users(self):
         """Load users into the modern user tree"""

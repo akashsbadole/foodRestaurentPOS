@@ -85,15 +85,33 @@ FONT_FAMILY_FALLBACK = "Arial"
 # Spacing (based on 8px grid)
 SPACING_XS = 2     # Fine adjustments, tight spacing
 SPACING_S = 3      # Small gaps, related elements
-SPACING_M = 7     # Standard spacing, most common
-SPACING_L = 15     # Section separation, breathing room
-SPACING_XL = 23    # Major sections, screen divisions
-SPACING_XXL = 30   # Screen margins, large divisions
+SPACING_M = 5     # Standard spacing, most common
+SPACING_L = 10     # Section separation, breathing room
+SPACING_XL = 20    # Major sections, screen divisions
+SPACING_XXL = 25   # Screen margins, large divisions
 
 # Border Radius
 BORDER_RADIUS_SMALL = 2
 BORDER_RADIUS_MEDIUM = 4
 BORDER_RADIUS_LARGE = 6
+
+# Printer constants
+PRINTER_TYPE_THERMAL = "thermal"
+PRINTER_TYPE_STANDARD = "standard"
+
+# Paper size constants for thermal printers
+PAPER_SIZE_MM58 = 58  # 58mm paper width
+PAPER_SIZE_MM80 = 80  # 80mm paper width
+
+# Default printer settings
+DEFAULT_THERMAL_PRINTER = ""
+DEFAULT_STANDARD_PRINTER = ""
+DEFAULT_BILL_PRINTER_TYPE = "standard"
+DEFAULT_KOT_PRINTER_TYPE = "thermal"
+DEFAULT_BILL_PAPER_WIDTH = 58
+DEFAULT_KOT_PAPER_WIDTH = 58
+DEFAULT_AUTO_PRINT_BILL = False
+DEFAULT_AUTO_PRINT_KOT = True
 
 # PIL import status placeholder
 PIL_AVAILABLE = None
