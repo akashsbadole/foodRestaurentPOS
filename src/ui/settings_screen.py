@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from .base_ui import BaseUI
-from utils.constants import *
+from src.utils.constants import *
 
 class SettingsScreen(BaseUI):
     """Settings screen UI component (Admin only)"""
@@ -412,7 +412,7 @@ class SettingsScreen(BaseUI):
                 self.show_message("Warning", "Please enter thermal printer name", "warning")
                 return
             
-            from utils.printer import PrinterManager
+            from src.utils.printer import PrinterManager
             manager = PrinterManager(self.app.settings)
             success = manager.test_printer("thermal", printer_name)
             
@@ -427,7 +427,7 @@ class SettingsScreen(BaseUI):
                 self.show_message("Warning", "Please enter standard printer name", "warning")
                 return
             
-            from utils.printer import PrinterManager
+            from src.utils.printer import PrinterManager
             manager = PrinterManager(self.app.settings)
             success = manager.test_printer("standard", printer_name)
             

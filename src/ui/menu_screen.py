@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 from .base_ui import BaseUI
-from utils.constants import *
+from src.utils.constants import *
 
 class MenuScreen(BaseUI):
     """Menu management screen UI component"""
@@ -65,15 +65,69 @@ class MenuScreen(BaseUI):
         
         self.category_var = tk.StringVar()
         self.category_combo = self.create_modern_combobox(
-            search_frame, 
-            self.category_var, 
-            [], 
+            search_frame,
+            self.category_var,
+            [],
             style="Modern.TCombobox",
             state="readonly",
             font=(FONT_FAMILY_PRIMARY, 12)
         )
         self.category_combo.grid(row=1, column=1, sticky=tk.W+tk.E, padx=(0, SPACING_M), pady=SPACING_S)
         self.category_combo.bind("<<ComboboxSelected>>", self.filter_menu_items)
+        
+        # Price range filter
+        price_label = self.create_modern_label(search_frame, "Price Range:", style="Body.TLabel")
+        price_label.grid(row=2, column=0, sticky=tk.W, padx=(0, SPACING_S), pady=SPACING_S)
+        
+        price_range_frame = ttk.Frame(search_frame, style="Card.TFrame")
+        price_range_frame.grid(row=2, column=1, sticky=tk.W+tk.E, padx=(0, SPACING_M), pady=SPACING_S)
+        
+        self.min_price_var = tk.StringVar()
+        self.max_price_var = tk.StringVar()
+        
+        min_price_entry = self.create_modern_entry(
+            price_range_frame,
+            textvariable=self.min_price_var,
+            style="Modern.TEntry",
+            font=(FONT_FAMILY_PRIMARY, 12),
+            width=10
+        )
+        min_price_entry.pack(side=tk.LEFT, padx=(0, SPACING_XS))
+        
+        to_label = self.create_modern_label(price_range_frame, "to", style="Body.TLabel")
+        to_label.pack(side=tk.LEFT, padx=SPACING_XS)
+        
+        max_price_entry = self.create_modern_entry(
+            price_range_frame,
+            textvariable=self.max_price_var,
+            style="Modern.TEntry",
+            font=(FONT_FAMILY_PRIMARY, 12),
+            width=10
+        )
+        max_price_entry.pack(side=tk.LEFT, padx=(SPACING_XS, 0))
+        
+        # Stock status filter
+        stock_label = self.create_modern_label(search_frame, "Stock Status:", style="Body.TLabel")
+        stock_label.grid(row=3, column=0, sticky=tk.W, padx=(0, SPACING_S), pady=SPACING_S)
+        
+        self.stock_var = tk.StringVar(value="All")
+        stock_combo = self.create_modern_combobox(
+            search_frame,
+            self.stock_var,
+            ["All", "In Stock", "Low Stock", "Out of Stock"],
+            style="Modern.TCombobox",
+            state="readonly",
+            font=(FONT_FAMILY_PRIMARY, 12)
+        )
+        stock_combo.grid(row=3, column=1, sticky=tk.W+tk.E, padx=(0, SPACING_M), pady=SPACING_S)
+        stock_combo.bind("<<ComboboxSelected>>", self.filter_menu_items)
+        
+        # Clear filters button
+        clear_button = self.create_modern_button(
+            search_frame, "Clear Filters", self.clear_filters,
+            style="Secondary.TButton"
+        )
+        clear_button.grid(row=4, column=1, sticky=tk.E, padx=(0, SPACING_M), pady=SPACING_S)
         
         # Configure grid weights for responsive layout
         search_frame.grid_columnconfigure(1, weight=1)
@@ -154,44 +208,120 @@ class MenuScreen(BaseUI):
         self.category_combo['values'] = category_list
         self.category_combo.current(0)
     
+    def clear_filters(self):
+        """Clear all search filters"""
+        self.search_entry.delete(0, tk.END)
+        self.category_combo.current(0)
+        self.min_price_var.set("")
+        self.max_price_var.set("")
+        self.stock_var.set("All")
+        self.load_menu_items_management()
+    
     def load_menu_items_management(self, search_term="", category="All"):
-        """Load menu items for menu management screen"""
-        items = self.app.menu_item_model.get_all(search_term, category)
-        
-        # Clear menu items tree
-        for item in self.menu_items_tree.get_children():
-            self.menu_items_tree.delete(item)
-        
-        # Add items to tree with stock status tags
-        for item in items:
-            item_id, name, category, price, stock = item
+        """Load menu items for menu management screen with enhanced error handling"""
+        try:
+            # Get filter values
+            search_term = self.search_entry.get()
+            category = self.category_var.get()
+            min_price = self.min_price_var.get().strip()
+            max_price = self.max_price_var.get().strip()
+            stock_status = self.stock_var.get()
             
-            # Determine stock status tag
-            if stock <= 0:
-                stock_tag = "out_of_stock"
-            elif stock <= LOW_STOCK_THRESHOLD:
-                stock_tag = "low_stock"
-            else:
-                stock_tag = "in_stock"
+            items = self.app.menu_item_model.get_all(search_term, category)
             
-            self.menu_items_tree.insert("", tk.END, values=(
-                name,
-                category,
-                f"₹{price:.2f}",
-                f"{stock} units"
-            ), tags=(item_id, stock_tag))
+            # Apply additional filters
+            filtered_items = []
+            for item in items:
+                item_id, name, item_category, price, stock = item
+                
+                # Price filter
+                if min_price and max_price:
+                    try:
+                        if price < float(min_price) or price > float(max_price):
+                            continue
+                    except ValueError:
+                        pass
+                elif min_price:
+                    try:
+                        if price < float(min_price):
+                            continue
+                    except ValueError:
+                        pass
+                elif max_price:
+                    try:
+                        if price > float(max_price):
+                            continue
+                    except ValueError:
+                        pass
+                
+                # Stock status filter
+                if stock_status != "All":
+                    try:
+                        stock_int = int(stock) if isinstance(stock, str) else stock
+                        if stock_status == "In Stock" and stock_int <= LOW_STOCK_THRESHOLD:
+                            continue
+                        elif stock_status == "Low Stock" and (stock_int <= 0 or stock_int > LOW_STOCK_THRESHOLD):
+                            continue
+                        elif stock_status == "Out of Stock" and stock_int > 0:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+                
+                filtered_items.append(item)
+            
+            items = filtered_items
+            
+            # Clear menu items tree
+            for item in self.menu_items_tree.get_children():
+                self.menu_items_tree.delete(item)
+            
+            # Add items to tree with stock status tags
+            for item in items:
+                item_id, name, category, price, stock = item
+                
+                # Convert stock to integer if it's a string
+                try:
+                    stock_int = int(stock) if isinstance(stock, str) else stock
+                except (ValueError, TypeError):
+                    stock_int = 0
+                
+                # Determine stock status tag
+                if stock_int <= 0:
+                    stock_tag = "out_of_stock"
+                elif stock_int <= LOW_STOCK_THRESHOLD:
+                    stock_tag = "low_stock"
+                else:
+                    stock_tag = "in_stock"
+                
+                self.menu_items_tree.insert("", tk.END, values=(
+                    name,
+                    category,
+                    f"₹{price:.2f}",
+                    f"{stock_int} units"
+                ), tags=(item_id, stock_tag))
+                
+        except Exception as e:
+            print(f"Error loading menu items: {e}")
+            # Show error message
+            error_frame = self.create_modern_frame(self.menu_items_tree.master, style="Card.TFrame", padding=SPACING_XL)
+            error_frame.pack(fill=tk.BOTH, expand=True, pady=SPACING_L)
+            
+            error_icon = self.create_modern_label(error_frame, text="⚠", style="Title.TLabel")
+            error_icon.pack(pady=(0, SPACING_M))
+            
+            error_label = self.create_modern_label(error_frame, text="Failed to load menu items", style="Subtitle.TLabel")
+            error_label.pack()
+            
+            error_sublabel = self.create_modern_label(error_frame, text="Please try refreshing the screen", style="Small.TLabel")
+            error_sublabel.pack(pady=(SPACING_S, 0))
     
     def search_menu_items(self, event=None):
-        """Search menu items"""
-        search_term = self.search_entry.get()
-        category = self.category_var.get()
-        self.load_menu_items_management(search_term, category)
+        """Search menu items with all filters"""
+        self.load_menu_items_management()
     
     def filter_menu_items(self, event=None):
-        """Filter menu items by category"""
-        search_term = self.search_entry.get()
-        category = self.category_var.get()
-        self.load_menu_items_management(search_term, category)
+        """Filter menu items by all criteria"""
+        self.load_menu_items_management()
     
     def add_menu_item(self):
         """Add a new menu item with modern dialog"""
@@ -245,6 +375,7 @@ class MenuScreen(BaseUI):
             form_frame, "Stock Quantity:", "entry",
             style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
         )
+        stock_entry.insert(0, "0")  # Set default value to 0
         
         # Image path field
         image_path_var = tk.StringVar()
@@ -293,9 +424,13 @@ class MenuScreen(BaseUI):
             stock = stock_entry.get().strip()
             image_path = image_path_var.get().strip()
             
-            if not name or not category or not price or not stock:
+            if not name or not category or not price:
                 self.show_message("Warning", "Please fill in all required fields", "warning")
                 return
+            
+            # Handle empty stock field by defaulting to 0
+            if not stock:
+                stock = "0"
             
             try:
                 price = float(price)
@@ -447,9 +582,13 @@ class MenuScreen(BaseUI):
             stock = stock_entry.get().strip()
             image_path = image_path_var.get().strip()
             
-            if not name or not category or not price or not stock:
+            if not name or not category or not price:
                 self.show_message("Warning", "Please fill in all required fields", "warning")
                 return
+            
+            # Handle empty stock field by defaulting to 0
+            if not stock:
+                stock = "0"
             
             try:
                 price = float(price)

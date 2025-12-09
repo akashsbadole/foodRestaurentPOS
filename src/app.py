@@ -28,21 +28,25 @@ from io import StringIO
 import tempfile
 
 # Import our modular components
-from models.database import DatabaseManager, User, Category, MenuItem, Table, Order, KOT, Settings
-from models.report import Report
-from ui.login_screen import LoginScreen
-from ui.dashboard_screen import DashboardScreen
-from ui.order_screen import OrderScreen
-from ui.menu_screen import MenuScreen
-from ui.orders_screen import OrdersScreen
-from ui.tables_screen import TablesScreen
-from ui.inventory_screen import InventoryScreen
-from ui.kot_screen import KOTScreen
-from ui.reports_screen import ReportsScreen
-from ui.settings_screen import SettingsScreen
-from utils.keyboard_handler import KeyboardHandler
-from utils.helpers import generate_order_number, format_currency, format_datetime, export_to_csv, generate_bill_content, generate_kot_content
-from utils.constants import *
+from src.models.database import DatabaseManager, User, Category, Table, Order, KOT, Settings
+from src.models.menu_item import MenuItem
+from src.models.report import Report
+from src.ui.login_screen import LoginScreen
+from src.ui.dashboard_screen import DashboardScreen
+from src.ui.order_screen import OrderScreen
+from src.ui.menu_screen import MenuScreen
+from src.ui.orders_screen import OrdersScreen
+from src.ui.tables_screen import TablesScreen
+from src.ui.inventory_screen import InventoryScreen
+from src.ui.kot_screen import KOTScreen
+from src.ui.reports_screen import ReportsScreen
+from src.ui.settings_screen import SettingsScreen
+from src.ui.data_management_screen import DataManagementScreen
+from src.utils.keyboard_handler import KeyboardHandler
+from src.utils.helpers import generate_order_number, format_currency, format_datetime, export_to_csv, generate_bill_content, generate_kot_content
+from src.utils.constants import *
+from src.utils.event_dispatcher import event_dispatcher, EventType
+from src.managers.data_manager import init_data_manager
 
 class RestaurantPOSApp:
     """Main Restaurant POS Application Class"""
@@ -82,8 +86,14 @@ class RestaurantPOSApp:
         self.content_frame = None
         self.status_bar = None
         
+        # Initialize event dispatcher
+        event_dispatcher.set_tk_root(root)
+        
         # Load settings
         self.load_settings()
+        
+        # Initialize data manager
+        init_data_manager(self)
         
         # Check if database exists, if not create it
         if not os.path.exists('restaurant_pos.db'):
@@ -153,6 +163,9 @@ class RestaurantPOSApp:
         # Create status bar
         self.create_status_bar(self.root)
         
+        # Initialize event dispatcher after UI is ready
+        event_dispatcher.set_tk_root(self.root)
+        
         # Set up global keyboard shortcuts
         self.keyboard_handler.setup_global_keyboard_shortcuts()
         
@@ -201,8 +214,9 @@ class RestaurantPOSApp:
         for text, command in buttons:
             ttk.Button(sidebar, text=text, command=command).pack(fill=tk.X, pady=5)
         
-        # Settings button (only for admin)
+        # Data Management button (only for admin)
         if self.current_user['role'] == ROLE_ADMIN:
+            ttk.Button(sidebar, text="Data Management", command=self.show_data_management).pack(fill=tk.X, pady=5)
             ttk.Button(sidebar, text="Settings", command=self.show_settings).pack(fill=tk.X, pady=5)
     
     def create_status_bar(self, parent):
@@ -244,21 +258,25 @@ class RestaurantPOSApp:
         """Display the orders screen"""
         self.clear_content_frame()
         orders_screen = OrdersScreen(self.root, self)
+        self.current_screen = orders_screen
     
     def show_menu(self):
         """Display the menu management screen"""
         self.clear_content_frame()
         menu_screen = MenuScreen(self.root, self)
+        self.current_screen = menu_screen
     
     def show_tables(self):
         """Display the tables management screen"""
         self.clear_content_frame()
         tables_screen = TablesScreen(self.root, self)
+        self.current_screen = tables_screen
     
     def show_inventory(self):
         """Display the inventory management screen"""
         self.clear_content_frame()
         inventory_screen = InventoryScreen(self.root, self)
+        self.current_screen = inventory_screen
     
     def show_kot(self):
         """Display the Kitchen Order Ticket screen"""
@@ -270,11 +288,19 @@ class RestaurantPOSApp:
         """Display the reports screen"""
         self.clear_content_frame()
         reports_screen = ReportsScreen(self.root, self)
+        self.current_screen = reports_screen
+    
+    def show_data_management(self):
+        """Display the data management screen (Admin only)"""
+        self.clear_content_frame()
+        data_management_screen = DataManagementScreen(self.root, self)
+        self.current_screen = data_management_screen
     
     def show_settings(self):
         """Display the settings screen (Admin only)"""
         self.clear_content_frame()
         settings_screen = SettingsScreen(self.root, self)
+        self.current_screen = settings_screen
     
     def logout(self):
         """Logout the current user"""

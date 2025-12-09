@@ -155,103 +155,6 @@ class Category:
         result = self.db.fetch_one()
         return result[0] if result else 0
 
-class MenuItem:
-    """Menu item model"""
-    
-    def __init__(self, db_manager):
-        self.db = db_manager
-    
-    def get_all(self, search_term="", category="All"):
-        """Get all menu items with optional filtering"""
-        query = """
-        SELECT mi.id, mi.name, c.name, mi.price, mi.stock_quantity
-        FROM menu_items mi
-        JOIN categories c ON mi.category_id = c.id
-        WHERE 1=1
-        """
-        params = []
-        
-        if search_term:
-            query += " AND mi.name LIKE ?"
-            params.append(f"%{search_term}%")
-            
-            if category != "All":
-                query += " AND c.name = ?"
-                params.append(category)
-        elif category != "All":
-            query += " AND c.name = ?"
-            params.append(category)
-        
-        query += " ORDER BY c.name, mi.name"
-        
-        self.db.execute_query(query, params)
-        return self.db.fetch_all()
-    
-    def get_by_id(self, item_id):
-        """Get menu item by ID"""
-        query = """
-        SELECT mi.name, mi.price, mi.category_id, mi.stock_quantity, mi.image_path, c.name
-        FROM menu_items mi
-        JOIN categories c ON mi.category_id = c.id
-        WHERE mi.id = ?
-        """
-        self.db.execute_query(query, (item_id,))
-        return self.db.fetch_one()
-    
-    def add(self, name, price, category_id, stock_quantity, image_path=""):
-        """Add new menu item"""
-        query = """
-        INSERT INTO menu_items (name, price, category_id, stock_quantity, image_path)
-        VALUES (?, ?, ?, ?, ?)
-        """
-        self.db.execute_query(query, (name, price, category_id, stock_quantity, image_path))
-        self.db.commit()
-    
-    def update(self, item_id, name, price, category_id, stock_quantity, image_path=""):
-        """Update menu item"""
-        query = """
-        UPDATE menu_items 
-        SET name = ?, price = ?, category_id = ?, stock_quantity = ?, image_path = ?
-        WHERE id = ?
-        """
-        self.db.execute_query(query, (name, price, category_id, stock_quantity, image_path, item_id))
-        self.db.commit()
-    
-    def delete(self, item_id):
-        """Delete menu item"""
-        query = "DELETE FROM menu_items WHERE id = ?"
-        self.db.execute_query(query, (item_id,))
-        self.db.commit()
-    
-    def update_stock(self, item_id, quantity):
-        """Update stock quantity"""
-        query = "UPDATE menu_items SET stock_quantity = ? WHERE id = ?"
-        self.db.execute_query(query, (quantity, item_id))
-        self.db.commit()
-    
-    def get_inventory_items(self, search_term="", filter_type="All"):
-        """Get inventory items with filtering"""
-        query = """
-        SELECT mi.id, mi.name, c.name, mi.stock_quantity
-        FROM menu_items mi
-        JOIN categories c ON mi.category_id = c.id
-        WHERE 1=1
-        """
-        params = []
-        
-        if search_term:
-            query += " AND mi.name LIKE ?"
-            params.append(f"%{search_term}%")
-        
-        if filter_type == "Low Stock":
-            query += " AND mi.stock_quantity > 0 AND mi.stock_quantity <= 10"
-        elif filter_type == "Out of Stock":
-            query += " AND mi.stock_quantity = 0"
-        
-        query += " ORDER BY mi.stock_quantity ASC, mi.name"
-        
-        self.db.execute_query(query, params)
-        return self.db.fetch_all()
 
 class Table:
     """Table model"""
@@ -333,9 +236,9 @@ class Order:
             return None
         
         query = """
-        INSERT INTO orders (order_number, table_id, customer_name, customer_mobile, order_type, 
+        INSERT INTO orders (order_number, table_id, customer_name, customer_mobile, order_type,
                            subtotal, tax, discount, total, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         self.db.execute_query(query, order_data)
         order_id = self.db.lastrowid()
@@ -556,8 +459,41 @@ class Settings:
         self.db.execute_query(query, (today,))
         items_sold = self.db.fetch_one()[0] or 0
         
+        # Occupied tables
+        query = "SELECT COUNT(*) FROM tables WHERE status = 'Occupied'"
+        self.db.execute_query(query)
+        occupied_tables = self.db.fetch_one()[0]
+        
+        # Recent orders
+        query = """
+        SELECT o.order_number, o.total, o.created_at, o.order_type
+        FROM orders o
+        WHERE DATE(o.created_at) = ?
+        ORDER BY o.created_at DESC
+        LIMIT 5
+        """
+        self.db.execute_query(query, (today,))
+        recent_orders = self.db.fetch_all()
+        
+        # Top items
+        query = """
+        SELECT mi.name, SUM(oi.quantity) as quantity, SUM(oi.total) as revenue
+        FROM order_items oi
+        JOIN menu_items mi ON oi.menu_item_id = mi.id
+        JOIN orders o ON oi.order_id = o.id
+        WHERE DATE(o.created_at) = ?
+        GROUP BY mi.name
+        ORDER BY revenue DESC
+        LIMIT 5
+        """
+        self.db.execute_query(query, (today,))
+        top_items = self.db.fetch_all()
+        
         return {
             'total_orders': total_orders,
             'today_sales': today_sales,
-            'items_sold': items_sold
+            'items_sold': items_sold,
+            'occupied_tables': occupied_tables,
+            'recent_orders': recent_orders,
+            'top_items': top_items
         }

@@ -1,0 +1,15 @@
+EVENT SYSTEM AND DATA FLOW TEST REPORT
+==================================================
+Test Duration: 0:00:04.898307
+Total Tests: 19
+Passed: 14
+Failed: 5
+Success Rate: 73.7%
+Total Events: 60
+
+Failed Tests:
+- Add Item to Cart: Added Soft Drink to cart: Soft Drink is out of stock
+- Update KOT Status: KOT status update triggered events
+- KOT Status Change Events Dispatched: Found 0 KOT status change events
+- Update Stock Manually: Stock updated from 100 to 110
+- Inventory Update Events Dispatched: Found 0 inventory update events

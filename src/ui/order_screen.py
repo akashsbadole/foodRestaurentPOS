@@ -1,674 +1,558 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox, simpledialog
+from datetime import datetime
 from .base_ui import BaseUI
-from controllers.order_controller import OrderController
-from utils.constants import *
-from utils.printer import PrinterManager
-from utils.helpers import generate_bill_content, generate_kot_content
+from src.utils.helpers import generate_order_number, format_currency
+from src.utils.constants import *
+from src.utils.event_dispatcher import event_dispatcher, EventType
 
 class OrderScreen(BaseUI):
-    """Order screen UI component"""
+    """New Order Screen for creating and managing orders"""
     
     def __init__(self, root, app):
         super().__init__(root, app)
-        self.order_controller = OrderController(self.db)
-        self.menu_tree = None
-        self.cart_tree = None
+        self.root = root
+        self.app = app
+        self.db = app.db  # Add database reference
         
-        # Initialize printer manager
-        self.printer_manager = PrinterManager(app.settings)
-    
+        # Order data
+        self.order_items = []
+        self.current_table_id = None
+        self.current_customer = ""
+        self.current_customer_mobile = ""
+        self.order_type = tk.StringVar(value="Dine-in")
+        self.subtotal = 0.0
+        self.tax = 0.0
+        self.discount = 0.0
+        self.total = 0.0
+        
+        # UI components
+        self.content_frame = None
+        self.order_tree = None
+        self.category_combo = None
+        self.menu_combo = None
+        self.quantity_var = None
+        self.table_combo = None
+        
     def setup_ui(self):
-        """Setup the modern order screen UI"""
-        # Reset the order controller to ensure clean state
-        self.order_controller.reset_order()
+        """Setup the order screen UI"""
+        # Clear content frame
+        if self.app.content_frame:
+            for widget in self.app.content_frame.winfo_children():
+                widget.destroy()
+        else:
+            # Create content frame if it doesn't exist
+            self.app.content_frame = ttk.Frame(self.app.root)
+            self.app.content_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Configure modern styles
-        self.configure_styles()
+        self.content_frame = self.app.content_frame
         
-        # Set main background - use style configuration for ttk.Frame
-        try:
-            self.app.content_frame.configure(background=COLOR_BACKGROUND_LIGHT)
-        except tk.TclError:
-            # If it's a ttk.Frame, use style configuration
-            style = ttk.Style()
-            style.configure("OrderScreen.TFrame", background=COLOR_BACKGROUND_LIGHT)
-            self.app.content_frame.configure(style="OrderScreen.TFrame")
+        # Title
+        title_label = ttk.Label(self.content_frame, text="New Order", font=('Arial', 18, 'bold'))
+        title_label.pack(pady=10)
         
-        # Title with modern styling
-        title_frame = self.create_modern_frame(self.app.content_frame, padding=(SPACING_L, SPACING_M, SPACING_L, SPACING_S))
-        title_frame.pack(fill=tk.X)
+        # Order type and customer info frame
+        info_frame = ttk.Frame(self.content_frame)
+        info_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        title_label = self.create_modern_label(title_frame, "New Order", style="Title.TLabel")
-        title_label.pack()
+        # Order type
+        ttk.Label(info_frame, text="Order Type:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        ttk.Radiobutton(info_frame, text="Dine-in", variable=self.order_type, 
+                       value="Dine-in", command=self.on_order_type_changed).grid(row=0, column=1, padx=5)
+        ttk.Radiobutton(info_frame, text="Takeaway", variable=self.order_type, 
+                       value="Takeaway", command=self.on_order_type_changed).grid(row=0, column=2, padx=5)
         
-        # Create main order container with modern styling
-        order_container = self.create_modern_frame(self.app.content_frame, padding=SPACING_L)
-        order_container.pack(fill=tk.BOTH, expand=True)
+        # Customer info
+        ttk.Label(info_frame, text="Customer Name:").grid(row=0, column=3, sticky=tk.W, padx=5)
+        self.customer_entry = ttk.Entry(info_frame, width=20)
+        self.customer_entry.grid(row=0, column=4, padx=5)
         
-        # Create two-panel layout with proper spacing
-        panels_frame = ttk.Frame(order_container)
-        panels_frame.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(info_frame, text="Mobile:").grid(row=0, column=5, sticky=tk.W, padx=5)
+        self.mobile_entry = ttk.Entry(info_frame, width=15)
+        self.mobile_entry.grid(row=0, column=6, padx=5)
         
-        # Left panel - Order details and menu
-        left_panel = self.create_modern_frame(panels_frame, padding=SPACING_M)
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, SPACING_S))
+        # Table selection (for dine-in)
+        self.table_frame = ttk.Frame(self.content_frame)
+        self.table_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        # Right panel - Cart and payment
-        right_panel = self.create_modern_frame(panels_frame, padding=SPACING_M)
-        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(SPACING_S, 0))
+        ttk.Label(self.table_frame, text="Table:").pack(side=tk.LEFT, padx=5)
+        self.table_combo = ttk.Combobox(self.table_frame, width=20, state="readonly")
+        self.table_combo.pack(side=tk.LEFT, padx=5)
         
-        # === LEFT PANEL CONTENT ===
-        
-        # Order Type Section
-        order_type_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
-        order_type_frame.pack(fill=tk.X, pady=(0, SPACING_M))
-        
-        order_type_title = self.create_modern_label(order_type_frame, "Order Type", style="CardTitle.TLabel")
-        order_type_title.pack(anchor=tk.W, pady=(0, SPACING_S))
-        
-        self.order_type_var = tk.StringVar(value="Dine-in")
-        order_type_buttons_frame = ttk.Frame(order_type_frame)
-        order_type_buttons_frame.pack(fill=tk.X)
-        
-        dine_in_radio = ttk.Radiobutton(order_type_buttons_frame, text="Dine-in",
-                                       variable=self.order_type_var, value="Dine-in",
-                                       command=self.change_order_type)
-        dine_in_radio.pack(side=tk.LEFT, padx=(0, SPACING_L))
-        
-        takeaway_radio = ttk.Radiobutton(order_type_buttons_frame, text="Takeaway",
-                                        variable=self.order_type_var, value="Takeaway",
-                                        command=self.change_order_type)
-        takeaway_radio.pack(side=tk.LEFT)
-        
-        # Table Selection Section (for dine-in)
-        self.table_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
-        self.table_frame.pack(fill=tk.X, pady=(0, SPACING_M))
-        
-        table_title = self.create_modern_label(self.table_frame, "Table Selection", style="CardTitle.TLabel")
-        table_title.pack(anchor=tk.W, pady=(0, SPACING_S))
-        
-        self.table_var = tk.StringVar()
-        self.table_combo = self.create_modern_combobox(self.table_frame, self.table_var, [], state="readonly")
-        self.table_combo.pack(fill=tk.X)
-        self.table_combo.bind("<<ComboboxSelected>>", self.select_table)
-        
-        # Customer Details Section (for takeaway)
-        self.customer_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
-        
-        customer_title = self.create_modern_label(self.customer_frame, "Customer Details", style="CardTitle.TLabel")
-        customer_title.pack(anchor=tk.W, pady=(0, SPACING_S))
-        
-        # Customer name field
-        self.customer_name_entry = self.create_form_field(
-            self.customer_frame, "Name:", "entry"
-        )
-        
-        # Customer mobile field
-        self.customer_mobile_entry = self.create_form_field(
-            self.customer_frame, "Mobile:", "entry"
-        )
-        
-        # Initially hide customer frame
-        self.customer_frame.pack_forget()
-        
-        # Menu Items Section
-        menu_frame = self.create_modern_frame(left_panel, padding=SPACING_M)
-        menu_frame.pack(fill=tk.BOTH, expand=True)
-        
-        menu_title = self.create_modern_label(menu_frame, "Menu Items", style="CardTitle.TLabel")
-        menu_title.pack(anchor=tk.W, pady=(0, SPACING_S))
-        
-        # Search and Filter Section
-        search_filter_frame = ttk.Frame(menu_frame)
-        search_filter_frame.pack(fill=tk.X, pady=(0, SPACING_M))
-        
-        # Search field
-        search_label = self.create_modern_label(search_filter_frame, "Search:", style="Body.TLabel")
-        search_label.pack(side=tk.LEFT, padx=(0, SPACING_S))
-        
-        self.search_entry = self.create_modern_entry(search_filter_frame)
-        self.search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, SPACING_M))
-        self.search_entry.bind("<KeyRelease>", self.search_menu)
-        
-        # Category filter
-        category_label = self.create_modern_label(search_filter_frame, "Category:", style="Body.TLabel")
-        category_label.pack(side=tk.LEFT, padx=(0, SPACING_S))
-        
-        self.category_var = tk.StringVar()
-        self.category_combo = self.create_modern_combobox(search_filter_frame, self.category_var, [], state="readonly", width=15)
-        self.category_combo.pack(side=tk.LEFT)
-        self.category_combo.bind("<<ComboboxSelected>>", self.filter_menu)
-        
-        # Menu items treeview with modern styling
-        self.menu_tree, menu_scrollbar = self.create_modern_treeview(
-            menu_frame,
-            ("name", "price", "stock"),
-            ("Name", "Price", "Stock"),
-            (250, 100, 80)
-        )
-        self.menu_tree.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
-        
-        # Add to cart button with modern styling
-        add_to_cart_button = self.create_modern_button(
-            menu_frame, "Add to Cart", self.add_to_cart, "Primary.TButton"
-        )
-        add_to_cart_button.pack(fill=tk.X)
-        
-        # === RIGHT PANEL CONTENT ===
-        
-        # Cart Section
-        cart_frame = self.create_modern_frame(right_panel, padding=SPACING_M)
-        cart_frame.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
-        
-        cart_title = self.create_modern_label(cart_frame, "Cart", style="CardTitle.TLabel")
-        cart_title.pack(anchor=tk.W, pady=(0, SPACING_S))
-        
-        # Cart treeview with modern styling
-        self.cart_tree, cart_scrollbar = self.create_modern_treeview(
-            cart_frame,
-            ("name", "price", "quantity", "total"),
-            ("Item", "Price", "Quantity", "Total"),
-            (200, 80, 80, 80)
-        )
-        self.cart_tree.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
-        
-        # Cart action buttons
-        cart_buttons = [
-            ("Update Quantity", self.update_cart_quantity, "Secondary.TButton"),
-            ("Remove Item", self.remove_from_cart, "Danger.TButton"),
-            ("Clear Cart", self.clear_cart, "Danger.TButton")
-        ]
-        self.create_button_group(cart_frame, cart_buttons)
-        
-        # Order Summary Section
-        summary_frame = self.create_modern_frame(right_panel, padding=SPACING_M)
-        summary_frame.pack(fill=tk.X, pady=(0, SPACING_M))
-        
-        summary_title = self.create_modern_label(summary_frame, "Order Summary", style="CardTitle.TLabel")
-        summary_title.pack(anchor=tk.W, pady=(0, SPACING_M))
-        
-        # Summary labels with modern styling
-        self.subtotal_label = self.create_modern_label(summary_frame, "Subtotal: ₹0.00", style="Body.TLabel")
-        self.subtotal_label.pack(anchor=tk.W, pady=SPACING_XS)
-        
-        self.tax_label = self.create_modern_label(summary_frame, f"Tax (5%): ₹0.00", style="Body.TLabel")
-        self.tax_label.pack(anchor=tk.W, pady=SPACING_XS)
-        
-        # Discount section
-        discount_frame = ttk.Frame(summary_frame)
-        discount_frame.pack(fill=tk.X, pady=SPACING_XS)
-        
-        discount_label = self.create_modern_label(discount_frame, "Discount:", style="Body.TLabel")
-        discount_label.pack(side=tk.LEFT)
-        
-        self.discount_var = tk.StringVar(value="0")
-        self.discount_entry = self.create_modern_entry(discount_frame, textvariable=self.discount_var, width=8)
-        self.discount_entry.pack(side=tk.LEFT, padx=SPACING_S)
-        
-        self.discount_type_var = tk.StringVar(value="%")
-        percent_radio = ttk.Radiobutton(discount_frame, text="%", variable=self.discount_type_var, value="%")
-        percent_radio.pack(side=tk.LEFT, padx=(SPACING_S, 0))
-        
-        flat_radio = ttk.Radiobutton(discount_frame, text="Flat", variable=self.discount_type_var, value="Flat")
-        flat_radio.pack(side=tk.LEFT, padx=(SPACING_S, 0))
-        
-        self.discount_entry.bind("<KeyRelease>", self.calculate_totals)
-        self.discount_type_var.trace("w", lambda *args: self.calculate_totals())
-        
-        # Total with emphasis
-        self.total_label = self.create_modern_label(summary_frame, "Total: ₹0.00", style="CardTitle.TLabel")
-        self.total_label.pack(anchor=tk.W, pady=(SPACING_S, 0))
-        
-        # Payment Section
-        payment_frame = self.create_modern_frame(right_panel, padding=SPACING_M)
-        payment_frame.pack(fill=tk.X)
-        
-        payment_title = self.create_modern_label(payment_frame, "Payment", style="CardTitle.TLabel")
-        payment_title.pack(anchor=tk.W, pady=(0, SPACING_M))
-        
-        # Payment buttons with modern styling
-        payment_buttons = [
-            ("Cash Payment", self.process_cash_payment, "Success.TButton"),
-            ("Card Payment", self.process_card_payment, "Primary.TButton"),
-            ("UPI Payment", self.process_upi_payment, "Primary.TButton")
-        ]
-        
-        # Create payment buttons in a vertical layout
-        for text, command, style in payment_buttons:
-            button = self.create_modern_button(payment_frame, text, command, style)
-            button.pack(fill=tk.X, pady=SPACING_XS)
-        
-        # Load initial data
+        # Load available tables
         self.load_tables()
+        
+        # Menu selection frame
+        menu_frame = ttk.LabelFrame(self.content_frame, text="Add Items", padding=10)
+        menu_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # First row - Category and Menu Item
+        ttk.Label(menu_frame, text="Category:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        self.category_combo = ttk.Combobox(menu_frame, width=20, state="readonly")
+        self.category_combo.grid(row=0, column=1, padx=5)
+        self.category_combo.bind("<<ComboboxSelected>>", self.on_category_changed)
+        
+        ttk.Label(menu_frame, text="Item:").grid(row=0, column=2, sticky=tk.W, padx=5)
+        self.menu_combo = ttk.Combobox(menu_frame, width=30, state="readonly")
+        self.menu_combo.grid(row=0, column=3, padx=5)
+        
+        # Second row - Search
+        ttk.Label(menu_frame, text="Search:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.menu_search_var = tk.StringVar()
+        self.menu_search_entry = ttk.Entry(menu_frame, textvariable=self.menu_search_var, width=30)
+        self.menu_search_entry.grid(row=1, column=1, columnspan=2, padx=5, pady=5, sticky=tk.W+tk.E)
+        self.menu_search_entry.bind("<KeyRelease>", self.search_menu_items)
+        
+        # Clear search button
+        clear_search_btn = ttk.Button(menu_frame, text="Clear", command=self.clear_menu_search)
+        clear_search_btn.grid(row=1, column=3, padx=5, pady=5)
+        
+        # Third row - Quantity and Add button
+        ttk.Label(menu_frame, text="Quantity:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.quantity_var = tk.StringVar(value="1")
+        quantity_spin = ttk.Spinbox(menu_frame, from_=1, to=99, textvariable=self.quantity_var, width=10)
+        quantity_spin.grid(row=2, column=1, padx=5, pady=5)
+        
+        # Add button
+        add_button = ttk.Button(menu_frame, text="Add Item", command=self.add_item)
+        add_button.grid(row=2, column=2, columnspan=2, padx=5, pady=5)
+        
+        # Load categories
         self.load_categories()
         
-        # Ensure menu tree is properly initialized before loading items
-        if self.menu_tree:
-            self.load_menu_items()
-        else:
-            # If menu tree is not initialized, wait a bit and try again
-            self.root.after(100, self.load_menu_items)
-    
-    def change_order_type(self):
-        """Handle order type change"""
-        self.order_controller.set_order_type(self.order_type_var.get())
+        # Order items frame
+        items_frame = ttk.LabelFrame(self.content_frame, text="Order Items", padding=10)
+        items_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        if self.order_type_var.get() == "Dine-in":
-            self.table_frame.pack(fill=tk.X, pady=5)
-            self.customer_frame.pack_forget()
-        else:  # Takeaway
-            self.table_frame.pack_forget()
-            self.customer_frame.pack(fill=tk.X, pady=5)
-    
+        # Create treeview for order items
+        self.order_tree, scrollbar = self.create_treeview(
+            items_frame,
+            ("name", "quantity", "price", "total"),
+            ("Item", "Quantity", "Price", "Total"),
+            (200, 80, 100, 100)
+        )
+        self.order_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Right click menu for order items
+        self.order_tree.bind("<Button-3>", self.show_item_context_menu)
+        
+        # Order summary frame
+        summary_frame = ttk.Frame(self.content_frame)
+        summary_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Summary labels
+        summary_info = ttk.Frame(summary_frame)
+        summary_info.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        self.subtotal_label = ttk.Label(summary_info, text="Subtotal: ₹0.00")
+        self.subtotal_label.pack(anchor=tk.W, pady=2)
+        
+        self.tax_label = ttk.Label(summary_info, text="Tax: ₹0.00")
+        self.tax_label.pack(anchor=tk.W, pady=2)
+        
+        self.discount_label = ttk.Label(summary_info, text="Discount: ₹0.00")
+        self.discount_label.pack(anchor=tk.W, pady=2)
+        
+        self.total_label = ttk.Label(summary_info, text="Total: ₹0.00", font=('Arial', 12, 'bold'))
+        self.total_label.pack(anchor=tk.W, pady=2)
+        
+        # Buttons frame
+        buttons_frame = ttk.Frame(summary_frame)
+        buttons_frame.pack(side=tk.RIGHT, padx=10)
+        
+        ttk.Button(buttons_frame, text="Apply Discount", command=self.apply_discount).pack(pady=2)
+        ttk.Button(buttons_frame, text="Clear Order", command=self.clear_order).pack(pady=2)
+        ttk.Button(buttons_frame, text="Save Order", command=self.save_order).pack(pady=2)
+        ttk.Button(buttons_frame, text="Save & Print", command=self.save_and_print_order).pack(pady=2)
+        
     def load_tables(self):
         """Load available tables"""
-        tables = self.order_controller.get_available_tables()
-        table_list = [f"{table[1]} (ID: {table[0]})" for table in tables]
-        self.table_combo['values'] = table_list
-        
+        tables = self.app.table_model.get_available()
+        table_list = [(f"Table {table[1]}", table[0]) for table in tables]
+        self.table_combo['values'] = [table[0] for table in table_list]
         if table_list:
             self.table_combo.current(0)
-            self.select_table()
-    
-    def select_table(self, event=None):
-        """Handle table selection"""
-        selection = self.table_var.get()
-        if selection:
-            # Extract table ID from selection
-            table_id = selection.split("(ID: ")[1].rstrip(")")
-            self.order_controller.set_table(int(table_id))
+            self.current_table_id = table_list[0][1]
     
     def load_categories(self):
         """Load menu categories"""
-        categories = self.order_controller.get_categories()
-        category_list = ["All"] + [category[1] for category in categories]
-        self.category_combo['values'] = category_list
-        self.category_combo.current(0)
+        categories = self.app.category_model.get_all()
+        category_list = [("All Categories", "All")] + [(cat[1], cat[0]) for cat in categories]
+        self.category_combo['values'] = [cat[0] for cat in category_list]
+        if category_list:
+            self.category_combo.current(0)
     
-    def load_menu_items(self, search_term="", category="All"):
-        """Load menu items with modern styling"""
-        # Check if menu tree exists
-        if not self.menu_tree:
-            return
-            
-        items = self.order_controller.get_menu_items(search_term, category)
-        
-        # Clear tree
-        for item in self.menu_tree.get_children():
-            self.menu_tree.delete(item)
-        
-        # Add items to tree with modern styling
-        for item in items:
-            item_id, name, category, price, stock = item
-            
-            # Determine stock status for styling
-            stock_int = int(stock) if isinstance(stock, str) and stock.isdigit() else (stock if isinstance(stock, int) else 0)
-            tag = "low_stock" if stock_int < LOW_STOCK_THRESHOLD else "normal_stock"
-            
-            self.menu_tree.insert("", tk.END, values=(name, f"₹{price:.2f}", stock),
-                                 tags=(item_id, tag))
-            
-        # Configure tag styling
-        self.menu_tree.tag_configure("low_stock", foreground=COLOR_WARNING)
-        self.menu_tree.tag_configure("normal_stock", foreground=COLOR_TEXT_PRIMARY)
-        
-        # Ensure tree is properly selectable
-        self.menu_tree.configure(selectmode="extended")
-    
-    def search_menu(self, event=None):
-        """Search menu items"""
-        search_term = self.search_entry.get()
-        category = self.category_var.get()
-        self.load_menu_items(search_term, category)
-    
-    def filter_menu(self, event=None):
-        """Filter menu items by category"""
-        search_term = self.search_entry.get()
-        category = self.category_var.get()
-        self.load_menu_items(search_term, category)
-    
-    def add_to_cart(self):
-        """Add selected menu item to cart"""
-        # Check if menu tree exists and has items
-        if not self.menu_tree:
-            self.show_message("Error", "Menu not loaded. Please try again.", "error")
-            return
-            
-        selection = self.menu_tree.selection()
-        if not selection:
-            self.show_message("Warning", "Please select an item to add to cart", "warning")
-            return
-        
-        try:
-            # Get selected item
-            item = self.menu_tree.item(selection[0])
-            values = item['values']
-            
-            # Validate values structure
-            if len(values) < 3:
-                self.show_message("Error", "Invalid item data structure", "error")
-                return
-                
-            item_name = values[0]
-            item_price_str = values[1].replace("₹", "")
-            item_stock = values[2]
-            
-            # Validate and convert price
-            try:
-                item_price = float(item_price_str)
-            except ValueError:
-                self.show_message("Error", f"Invalid price format: {item_price_str}", "error")
-                return
-            
-            # Validate and convert stock
-            try:
-                item_stock = int(item_stock)
-            except ValueError:
-                self.show_message("Error", f"Invalid stock format: {item_stock}", "error")
-                return
-            
-            # Get item ID from tags
-            tags = item.get('tags', [])
-            if not tags:
-                self.show_message("Error", "Item ID not found", "error")
-                return
-                
-            item_id = int(tags[0])
-            
-            # Ask for quantity
-            quantity = self.show_input_dialog("Quantity", f"Enter quantity for {item_name}:", minvalue=1, maxvalue=item_stock)
-            if not quantity:
-                return
-            
-            # Add to cart using controller
-            success, message = self.order_controller.add_to_cart(item_id, quantity)
-            
-            if success:
-                self.update_cart_display()
-                # Clear selection after successful addition
-                self.menu_tree.selection_remove(selection[0])
-            else:
-                self.show_message("Warning", message, "warning")
-                
-        except Exception as e:
-            self.show_message("Error", f"Failed to add item to cart: {str(e)}", "error")
-    
-    def update_cart_display(self):
-        """Update the cart display with modern styling"""
-        # Clear cart tree
-        for item in self.cart_tree.get_children():
-            self.cart_tree.delete(item)
-        
-        # Add items to cart tree with modern styling
-        for cart_item in self.order_controller.cart_items:
-            self.cart_tree.insert("", tk.END, values=(
-                cart_item['name'],
-                f"₹{cart_item['price']:.2f}",
-                cart_item['quantity'],
-                f"₹{cart_item['total']:.2f}"
-            ), tags=(cart_item['id'], 'cart_item'))
-        
-        # Configure cart item styling
-        self.cart_tree.tag_configure("cart_item", foreground=COLOR_TEXT_PRIMARY)
-        
-        # Calculate totals
-        self.calculate_totals()
-    
-    def calculate_totals(self, *args):
-        """Calculate order totals"""
-        try:
-            discount_value = float(self.discount_var.get())
-            discount_type = self.discount_type_var.get()
-        except ValueError:
-            discount_value = 0
-            discount_type = self.discount_type_var.get()  # Add this line
-        
-        totals = self.order_controller.calculate_totals(discount_value, discount_type)
-        
-        # Update labels
-        self.subtotal_label.config(text=f"Subtotal: ₹{totals['subtotal']:.2f}")
-        self.tax_label.config(text=f"Tax (5%): ₹{totals['tax']:.2f}")
-        self.total_label.config(text=f"Total: ₹{totals['total']:.2f}")
-    
-    def update_cart_quantity(self):
-        """Update quantity of selected cart item"""
-        selection = self.cart_tree.selection()
-        if not selection:
-            self.show_message("Warning", "Please select an item to update", "warning")
-            return
-        
-        # Get item ID from tags
-        item_id = int(self.cart_tree.item(selection[0])['tags'][0])
-        
-        # Get current quantity
-        for cart_item in self.order_controller.cart_items:
-            if cart_item['id'] == item_id:
-                current_quantity = cart_item['quantity']
-                break
-        
-        # Ask for new quantity
-        new_quantity = self.show_input_dialog("Update Quantity", 
-                                           f"Enter new quantity (Current: {current_quantity}):", 
-                                           minvalue=1, maxvalue=100)
-        if new_quantity:
-            success, message = self.order_controller.update_cart_quantity(item_id, new_quantity)
-            
-            if success:
-                self.update_cart_display()
-            else:
-                self.show_message("Warning", message, "warning")
-    
-    def remove_from_cart(self):
-        """Remove selected item from cart"""
-        selection = self.cart_tree.selection()
-        if not selection:
-            self.show_message("Warning", "Please select an item to remove", "warning")
-            return
-        
-        # Get item ID from tags
-        item_id = int(self.cart_tree.item(selection[0])['tags'][0])
-        
-        # Remove item from cart
-        self.order_controller.remove_from_cart(item_id)
-        self.update_cart_display()
-    
-    def clear_cart(self):
-        """Clear all items from cart"""
-        if not self.order_controller.cart_items:
-            return
-        
-        if self.show_message("Confirm", "Are you sure you want to clear the cart?", "yesno"):
-            self.order_controller.clear_cart()
-            self.update_cart_display()
-    
-    def process_payment(self, payment_mode):
-        """Process payment for the order"""
-        if not self.order_controller.cart_items:
-            self.show_message("Warning", "Cart is empty. Please add items to the cart.", "warning")
-            return
-        
-        if self.order_controller.order_type == "Dine-in" and not self.order_controller.selected_table:
-            self.show_message("Warning", "Please select a table.", "warning")
-            return
-        
-        # Get discount values
-        try:
-            discount_value = float(self.discount_var.get())
-            discount_type = self.discount_type_var.get()
-        except ValueError:
-            discount_value = 0
-            discount_type = "%"
-        
-        # Get customer details for takeaway
-        customer_name = None
-        customer_mobile = None
-        if self.order_controller.order_type == "Takeaway":
-            customer_name = self.customer_name_entry.get()
-            customer_mobile = self.customer_mobile_entry.get()
-        
-        # Process payment using controller
-        success, result = self.order_controller.process_payment(
-            payment_mode, discount_value, discount_type, customer_name, customer_mobile
-        )
-        
-        if success:
-            self.show_message("Success", f"Order {result} completed successfully!", "info")
-            
-            # Check auto-print settings
-            auto_print_bill = self.app.settings.get('auto_print_bill', 'False') == 'True'
-            
-            if auto_print_bill:
-                # Auto-print bill using default settings
-                self.print_bill_auto(result)
-            else:
-                # Show print options dialog
-                self.show_print_options(result, "bill")
-            
-            # Reset order
-            self.order_controller.reset_order()
-            self.setup_ui()  # Reset UI
+    def on_category_changed(self, event=None):
+        """Handle category selection change"""
+        category_name = self.category_combo.get()
+        if category_name == "All Categories":
+            self.load_menu_items("")
         else:
-            self.show_message("Error", result, "error")
+            self.load_menu_items(category_name)
     
-    def process_cash_payment(self):
-        """Process cash payment"""
-        self.process_payment("Cash")
-    
-    def process_card_payment(self):
-        """Process card payment with modern dialog"""
-        # Ask for card details
-        card_details = self.show_input_dialog("Card Payment", "Enter last 4 digits of card:")
-        if card_details:
-            self.show_message("Payment Successful", f"Card payment processed successfully!\nCard ending in: {card_details}", "info")
-            self.process_payment("Card")
-    
-    def process_upi_payment(self):
-        """Process UPI payment with modern dialog"""
-        # Ask for UPI ID
-        upi_id = self.show_input_dialog("UPI Payment", "Enter UPI ID:")
-        if upi_id:
-            self.show_message("Payment Successful", f"UPI payment processed successfully!\nUPI ID: {upi_id}", "info")
-            self.process_payment("UPI")
-    
-    def cleanup(self):
-        """Clean up resources when the screen is being destroyed"""
-        # Reset the order controller state
-        self.order_controller.reset_order()
+    def load_menu_items(self, category_name):
+        """Load menu items for selected category"""
+        if category_name == "All Categories":
+            menu_items = self.app.menu_item_model.get_all()
+        else:
+            menu_items = self.app.menu_item_model.get_all("", category_name)
         
-        # Clear any references to widgets
-        self.menu_tree = None
-        self.cart_tree = None
-        
-        # Clear any other resources
-        self.search_entry = None
-        self.category_combo = None
-        self.table_combo = None
-        self.customer_name_entry = None
-        self.customer_mobile_entry = None
-        self.discount_entry = None
+        self._update_menu_combo(menu_items)
     
-    def show_print_options(self, order_number, print_type="bill"):
-        """Show print options dialog"""
+    def _update_menu_combo(self, menu_items):
+        """Update the menu combo box with the provided items"""
+        menu_list = [(f"{item[1]} - ₹{item[3]:.2f}", item[0]) for item in menu_items]
+        self.menu_combo['values'] = [item[0] for item in menu_list]
+        if menu_list:
+            self.menu_combo.current(0)
+    
+    def search_menu_items(self, event=None):
+        """Search menu items based on search term"""
+        search_term = self.menu_search_var.get().strip()
+        category_name = self.category_combo.get()
+        
+        if not search_term:
+            # If search is empty, load items for the selected category
+            self.load_menu_items(category_name)
+            return
+        
+        # Search items by name in the selected category
+        if category_name == "All Categories":
+            menu_items = self.app.menu_item_model.get_all(search_term)
+        else:
+            menu_items = self.app.menu_item_model.get_all(search_term, category_name)
+        
+        self._update_menu_combo(menu_items)
+    
+    def clear_menu_search(self):
+        """Clear the search and reload items for the selected category"""
+        self.menu_search_var.set("")
+        category_name = self.category_combo.get()
+        self.load_menu_items(category_name)
+    
+    def on_order_type_changed(self):
+        """Handle order type change"""
+        if self.order_type.get() == "Dine-in":
+            self.table_frame.pack(fill=tk.X, padx=10, pady=5, before=self.content_frame.winfo_children()[2])
+        else:
+            self.table_frame.pack_forget()
+    
+    def add_item(self):
+        """Add item to order"""
         try:
-            from .printer_dialog import PrinterSelectionDialog, PrintPreviewDialog
+            # Get selected menu item
+            menu_selection = self.menu_combo.get()
+            if not menu_selection:
+                messagebox.showwarning("Warning", "Please select a menu item")
+                return
+            
+            # Parse menu item name and get menu item ID
+            menu_item_name = menu_selection.split(" - ₹")[0]
+            menu_items = self.app.menu_item_model.get_all(menu_item_name)
+            if not menu_items:
+                messagebox.showerror("Error", "Menu item not found")
+                return
+            
+            menu_item = menu_items[0]
+            menu_item_id = menu_item[0]
+            item_name = menu_item[1]
+            price = float(menu_item[3])
+            
+            # Get quantity
+            try:
+                quantity = int(self.quantity_var.get())
+                if quantity <= 0:
+                    raise ValueError("Quantity must be positive")
+            except ValueError as e:
+                messagebox.showerror("Error", f"Invalid quantity: {e}")
+                return
+            
+            # Check stock availability
+            if menu_item[4] < quantity:
+                messagebox.showwarning("Warning", f"Insufficient stock. Available: {menu_item[4]}")
+                return
+            
+            # Add to order items
+            item_total = price * quantity
+            self.order_items.append({
+                'menu_item_id': menu_item_id,
+                'name': item_name,
+                'quantity': quantity,
+                'price': price,
+                'total': item_total
+            })
+            
+            # Add to treeview
+            self.order_tree.insert("", tk.END, values=(
+                item_name,
+                quantity,
+                f"₹{price:.2f}",
+                f"₹{item_total:.2f}"
+            ))
+            
+            # Update totals
+            self.update_totals()
+            
+            # Reset selection
+            self.quantity_var.set("1")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to add item: {e}")
+            print(f"Add item error details: {e}")
+    
+    def show_item_context_menu(self, event):
+        """Show context menu for order items"""
+        selection = self.order_tree.selection()
+        if selection:
+            context_menu = tk.Menu(self.root, tearoff=0)
+            context_menu.add_command(label="Remove Item", command=lambda: self.remove_item(selection[0]))
+            context_menu.post(event.x_root, event.y_root)
+    
+    def remove_item(self, item_id):
+        """Remove item from order"""
+        selection = self.order_tree.selection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select an item to remove")
+            return
+        
+        # Get selected index
+        selected_index = self.order_tree.index(selection[0])
+        
+        # Remove from order items
+        if 0 <= selected_index < len(self.order_items):
+            del self.order_items[selected_index]
+        else:
+            messagebox.showerror("Error", "Invalid item selection")
+            return
+        
+        # Remove from treeview
+        self.order_tree.delete(selection[0])
+        
+        # Update totals
+        self.update_totals()
+        
+        # Reset selection if no items left
+        if not self.order_items:
+            self.order_tree.selection_set("")
+    
+    def update_totals(self):
+        """Update order totals"""
+        try:
+            self.subtotal = sum(item['total'] for item in self.order_items)
+            tax_rate = float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE))
+            self.tax = self.subtotal * (tax_rate / 100)
+            self.total = self.subtotal + self.tax - self.discount
+            
+            # Update labels
+            self.subtotal_label.config(text=f"Subtotal: ₹{self.subtotal:.2f}")
+            self.tax_label.config(text=f"Tax: ₹{self.tax:.2f}")
+            self.discount_label.config(text=f"Discount: ₹{self.discount:.2f}")
+            self.total_label.config(text=f"Total: ₹{self.total:.2f}")
+        except Exception as e:
+            print(f"Error updating totals: {e}")
+            # Reset to zero if there's an error
+            self.subtotal = 0.0
+            self.tax = 0.0
+            self.total = 0.0
+            self.discount = 0.0
+            self.subtotal_label.config(text="Subtotal: ₹0.00")
+            self.tax_label.config(text="Tax: ₹0.00")
+            self.discount_label.config(text="Discount: ₹0.00")
+            self.total_label.config(text="Total: ₹0.00")
+    
+    def apply_discount(self):
+        """Apply discount to order"""
+        try:
+            discount_str = simpledialog.askstring("Discount", "Enter discount amount:")
+            if discount_str:
+                discount = float(discount_str)
+                if discount < 0:
+                    raise ValueError("Discount cannot be negative")
+                if discount > self.subtotal:
+                    raise ValueError("Discount cannot exceed subtotal")
+                
+                self.discount = discount
+                self.update_totals()
+        except ValueError as e:
+            messagebox.showerror("Error", f"Invalid discount: {e}")
+    
+    def clear_order(self):
+        """Clear current order"""
+        if messagebox.askyesno("Confirm", "Clear current order?"):
+            self.order_items = []
+            self.order_tree.delete(*self.order_tree.get_children())
+            self.discount = 0.0
+            self.update_totals()
+    
+    def save_order(self, print_bill=False):
+        """Save the order"""
+        try:
+            if not self.order_items:
+                messagebox.showwarning("Warning", "No items in order")
+                return
+            
+            # Get order details
+            order_type = self.order_type.get()
+            table_id = None
+            
+            if order_type == "Dine-in":
+                table_selection = self.table_combo.get()
+                if table_selection:
+                    table_number = table_selection.split(" ")[1]
+                    tables = self.app.table_model.get_all()
+                    for table in tables:
+                        if str(table[1]) == table_number:
+                            table_id = table[0]
+                            break
+                
+                if not table_id:
+                    messagebox.showwarning("Warning", "Please select a table")
+                    return
+            
+            customer_name = self.customer_entry.get().strip()
+            customer_mobile = self.mobile_entry.get().strip()
+            
+            if order_type == "Takeaway" and not customer_name:
+                messagebox.showwarning("Warning", "Please enter customer name for takeaway order")
+                return
+            
+            # Generate order number
+            order_number = generate_order_number()
+            
+            # Create order
+            order_data = (
+                order_number,
+                table_id,
+                customer_name,
+                customer_mobile,
+                order_type,
+                self.subtotal,
+                self.tax,
+                self.discount,
+                self.total
+            )
+            
+            order_id = self.app.order_model.create(order_data)
+            if not order_id:
+                messagebox.showerror("Error", "Failed to create order")
+                return
+            
+            # Add order items
+            for item in self.order_items:
+                self.app.order_model.add_item(
+                    order_id,
+                    item['menu_item_id'],
+                    item['quantity'],
+                    item['price'],
+                    item['total']
+                )
+                
+                # Update stock
+                menu_item = self.app.menu_item_model.get_by_id(item['menu_item_id'])
+                if menu_item:
+                    new_stock = menu_item[3] - item['quantity']
+                    self.app.menu_item_model.update_stock(item['menu_item_id'], new_stock)
+            
+            # Add payment (default to cash for now)
+            self.app.order_model.add_payment(order_id, "Cash", self.total)
+            
+            # Update table status if dine-in
+            if order_type == "Dine-in" and table_id:
+                self.app.table_model.update_status(table_id, "Occupied")
+            
+            # Show success message
+            messagebox.showinfo("Success", f"Order {order_number} saved successfully!")
+            
+            # Print bill if requested
+            if print_bill:
+                self.print_bill(order_id)
+            
+            # Clear order and refresh
+            self.clear_order()
+            
+            # Dispatch events
+            event_dispatcher.order_created(order_id)
+            event_dispatcher.inventory_updated(None, None)  # Trigger inventory refresh
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save order: {e}")
+    
+    def save_and_print_order(self):
+        """Save order and print bill"""
+        self.save_order(print_bill=True)
+    
+    def print_bill(self, order_id):
+        """Print bill for the order"""
+        try:
+            from src.ui.printer_dialog import PrinterSelectionDialog
+            from src.utils.printer import PrinterManager
             
             # Show printer selection dialog
-            dialog = PrinterSelectionDialog(self.root, self.app.settings, print_type)
+            dialog = PrinterSelectionDialog(self.root, self.app.settings, "bill")
             result = dialog.get_result()
             
             if result:
-                # Prepare print data
-                if print_type == "bill":
-                    print_data = self._prepare_bill_data(order_number)
-                else:  # KOT
-                    print_data = self._prepare_kot_data(order_number)
+                # Prepare bill data
+                bill_data = self._prepare_bill_data(order_id)
                 
-                # Show preview if requested
-                if result.get('preview', False):
-                    content = self._get_preview_content(print_data, print_type)
-                    preview_dialog = PrintPreviewDialog(self.root, content, f"{print_type.title()} Preview")
-                    if not preview_dialog.get_result():
-                        return
-                
-                # Print the document
-                success = self.printer_manager.print_bill(
-                    print_data,
-                    result['printer_type'],
-                    result['printer_name']
-                ) if print_type == "bill" else self.printer_manager.print_kot(
-                    print_data,
+                # Print the bill
+                printer_manager = PrinterManager(self.app.settings)
+                success = printer_manager.print_bill(
+                    bill_data,
                     result['printer_type'],
                     result['printer_name']
                 )
                 
                 if success:
-                    self.show_message("Success", f"{print_type.title()} printed successfully!", "info")
+                    messagebox.showinfo("Success", "Bill printed successfully!")
                 else:
-                    self.show_message("Error", f"Failed to print {print_type}", "error")
+                    messagebox.showerror("Error", "Failed to print bill")
                     
         except Exception as e:
-            self.show_message("Error", f"Print error: {str(e)}", "error")
+            messagebox.showerror("Error", f"Print error: {e}")
     
-    def print_bill_auto(self, order_number):
-        """Auto-print bill using default settings"""
-        try:
-            # Prepare bill data
-            bill_data = self._prepare_bill_data(order_number)
-            
-            # Get default printer settings
-            printer_type = self.app.settings.get('default_bill_printer_type', PRINTER_TYPE_STANDARD)
-            printer_name = self.app.settings.get('standard_printer_name' if printer_type == PRINTER_TYPE_STANDARD else 'thermal_printer_name', '')
-            
-            # Print bill
-            success = self.printer_manager.print_bill(bill_data, printer_type, printer_name)
-            
-            if not success:
-                self.show_message("Warning", "Auto-print failed. Please check printer settings.", "warning")
-                
-        except Exception as e:
-            print(f"Auto-print error: {e}")
-    
-    def _prepare_bill_data(self, order_number):
+    def _prepare_bill_data(self, order_id):
         """Prepare bill data for printing"""
         try:
-            # Get order details from database
-            order_details = self.app.order_model.get_details_by_number(order_number)
+            # Get order details
+            order_details = self.app.order_model.get_details(order_id)
             if not order_details:
                 return {}
             
+            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
+            
             # Get table number if dine-in
             table_number = None
-            if order_details['table_id']:
+            if table_id:
                 tables = self.app.table_model.get_all()
                 for table in tables:
-                    if table[0] == order_details['table_id']:
+                    if table[0] == table_id:
                         table_number = table[1]
                         break
             
             # Get order items
-            items = self.app.order_model.get_items_by_order_number(order_number)
+            items = self.app.order_model.get_items(order_id)
             
             # Format items for printing
             formatted_items = []
             for item in items:
-                name, quantity, price, total, status = item
-                formatted_items.append((name, quantity, price, total))
+                name, quantity, price, item_total, item_status = item
+                formatted_items.append((name, quantity, price, item_total))
             
             return {
                 'restaurant_name': self.app.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
                 'restaurant_address': self.app.settings.get('restaurant_address', DEFAULT_RESTAURANT_ADDRESS),
                 'order_number': order_number,
-                'date': order_details['created_at'],
-                'order_type': order_details['order_type'],
+                'date': created_at,
+                'order_type': order_type,
                 'table_number': table_number,
-                'customer_name': order_details['customer_name'],
-                'customer_mobile': order_details['customer_mobile'],
+                'customer_name': customer_name,
+                'customer_mobile': customer_mobile,
                 'items': formatted_items,
-                'subtotal': order_details['subtotal'],
-                'tax': order_details['tax'],
-                'discount': order_details['discount'],
-                'total': order_details['total'],
+                'subtotal': subtotal,
+                'tax': tax,
+                'discount': discount,
+                'total': total,
                 'tax_rate': float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE))
             }
             
@@ -676,51 +560,7 @@ class OrderScreen(BaseUI):
             print(f"Error preparing bill data: {e}")
             return {}
     
-    def _prepare_kot_data(self, order_number):
-        """Prepare KOT data for printing"""
-        try:
-            # Get order items for KOT
-            items = self.app.order_model.get_items_by_order_number(order_number)
-            if not items:
-                return {}
-            
-            # For KOT, we'll print each item separately or group them
-            # For simplicity, let's take the first item
-            first_item = items[0] if items else None
-            if not first_item:
-                return {}
-            
-            name, quantity, price, total, status = first_item
-            
-            return {
-                'order_number': order_number,
-                'time': datetime.now().strftime('%H:%M:%S'),
-                'item_name': name,
-                'quantity': quantity,
-                'notes': ''  # Could add special instructions here
-            }
-            
-        except Exception as e:
-            print(f"Error preparing KOT data: {e}")
-            return {}
-    
-    def _get_preview_content(self, print_data, print_type):
-        """Get preview content for display"""
-        if print_type == "bill":
-            return generate_bill_content(
-                print_data.get('restaurant_name', ''),
-                print_data.get('restaurant_address', ''),
-                print_data,
-                print_data.get('items', []),
-                print_data.get('subtotal', 0),
-                print_data.get('tax', 0),
-                print_data.get('discount', 0),
-                print_data.get('total', 0)
-            )
-        else:  # KOT
-            return generate_kot_content(
-                print_data.get('order_number', ''),
-                print_data.get('item_name', ''),
-                print_data.get('quantity', 0),
-                print_data.get('time', '')
-            )
+    def cleanup(self):
+        """Cleanup resources when screen is destroyed"""
+        # Add any cleanup code here
+        pass

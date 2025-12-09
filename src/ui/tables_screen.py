@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from .base_ui import BaseUI
-from utils.constants import *
+from src.utils.constants import *
 
 class TablesScreen(BaseUI):
     """Tables management screen UI component"""

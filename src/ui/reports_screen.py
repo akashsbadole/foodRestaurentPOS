@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 from .base_ui import BaseUI
-from utils.constants import *
-from utils.helpers import export_to_csv, export_report_to_csv, create_export_options_dialog
+from src.utils.constants import *
+from src.utils.helpers import export_to_csv, export_report_to_csv, create_export_options_dialog
 
 class ReportsScreen(BaseUI):
     """Reports screen UI component with modern design"""

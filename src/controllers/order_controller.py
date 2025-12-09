@@ -1,5 +1,7 @@
-from models.database import Order, MenuItem, Table
-from utils.helpers import generate_order_number, format_currency
+from src.models.database import Table, Order
+from src.models.menu_item import MenuItem
+from src.utils.helpers import generate_order_number, format_currency
+from src.utils.event_dispatcher import event_dispatcher, EventType
 
 class OrderController:
     """Controller for order-related operations"""
@@ -145,33 +147,24 @@ class OrderController:
             order_number = generate_order_number()
             
             # Create order data
-            order_data = (
-                order_number,
-                self.selected_table,
-                customer_name,
-                customer_mobile,
-                self.order_type,
-                totals['subtotal'],
-                totals['tax'],
-                totals['discount'],
-                totals['total'],
-                "Completed"
-            )
+            order_data = {
+                'table_id': self.selected_table,
+                'customer_name': customer_name,
+                'customer_mobile': customer_mobile,
+                'order_type': self.order_type,
+                'subtotal': totals['subtotal'],
+                'tax': totals['tax'],
+                'discount': totals['discount'],
+                'total': totals['total'],
+                'payment_mode': payment_mode,
+                'items': self.cart_items.copy()  # Add items to order data
+            }
             
             # Create order
             order_id = self.order_model.create(order_data)
             
-            # Add order items
+            # Add order items with PENDING status for KOT workflow
             for cart_item in self.cart_items:
-                self.order_model.add_item(
-                    order_id,
-                    cart_item['id'],
-                    cart_item['quantity'],
-                    cart_item['price'],
-                    cart_item['total'],
-                    "Completed"
-                )
-                
                 # Update inventory
                 self.menu_item_model.update_stock(
                     cart_item['id'],
@@ -184,6 +177,25 @@ class OrderController:
             # Update table status if dine-in
             if self.order_type == "Dine-in":
                 self.table_model.update_status(self.selected_table, "Occupied")
+            
+            # Emit events for real-time updates
+            event_dispatcher.order_created(order_number, {
+                'order_type': self.order_type,
+                'table_id': self.selected_table,
+                'items': self.cart_items.copy(),
+                'totals': totals
+            })
+            
+            # Emit inventory updates for each item
+            for cart_item in self.cart_items:
+                item_data = self.menu_item_model.get_by_id(cart_item['id'])
+                if item_data:
+                    new_stock = item_data[3] - cart_item['quantity']  # stock is at index 3
+                    event_dispatcher.inventory_updated(cart_item['id'], new_stock)
+            
+            # Emit table status change if dine-in
+            if self.order_type == "Dine-in":
+                event_dispatcher.table_status_changed(self.selected_table, "Occupied")
             
             # Reset order
             self.reset_order()
@@ -203,6 +215,6 @@ class OrderController:
     
     def get_categories(self):
         """Get all categories"""
-        from models.database import Category
+        from src.models.database import Category
         category_model = Category(self.db)
         return category_model.get_all()

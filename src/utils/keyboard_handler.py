@@ -121,9 +121,13 @@ class KeyboardHandler:
         elif hasattr(self.app, 'categories_tree') and treeview == self.app.categories_tree:
             self.app.edit_category()
             self.show_keyboard_feedback("Edit Category")
-        elif hasattr(self.app, 'inventory_tree') and treeview == self.app.inventory_tree:
-            self.app.update_stock()
-            self.show_keyboard_feedback("Update Stock")
+        elif (hasattr(self.app, 'current_screen') and
+              hasattr(self.app.current_screen, 'inventory_tree') and
+              treeview == self.app.current_screen.inventory_tree):
+            # Check if current screen is inventory screen and has update_stock method
+            if hasattr(self.app.current_screen, 'update_stock'):
+                self.app.current_screen.update_stock()
+                self.show_keyboard_feedback("Update Stock")
         elif hasattr(self.app, 'kot_tree') and treeview == self.app.kot_tree:
             # Toggle between statuses
             if self.app.kot_filter_var.get() == "Pending":

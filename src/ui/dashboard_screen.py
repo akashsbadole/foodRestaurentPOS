@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, Canvas, Frame
 from .base_ui import BaseUI
-from utils.helpers import format_currency
+from src.utils.helpers import format_currency
 
 class DashboardScreen(BaseUI):
     """Dashboard screen UI component"""
@@ -287,7 +287,7 @@ class DashboardScreen(BaseUI):
             order_number, total, created_at, order_type = order
             
             # Format time
-            from utils.helpers import format_datetime
+            from src.utils.helpers import format_datetime
             time_str = format_datetime(created_at, '%Y-%m-%d %H:%M:%S', '%H:%M')
             
             # Format total with currency

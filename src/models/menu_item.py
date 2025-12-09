@@ -33,34 +33,50 @@ class MenuItem:
     def add(self, name, price, category_id, stock_quantity, image_path=""):
         """Add a new menu item"""
         try:
+            # Handle empty stock quantity - default to 0
+            if stock_quantity == "" or stock_quantity is None:
+                stock_quantity = 0
+            elif isinstance(stock_quantity, str) and not stock_quantity.strip():
+                stock_quantity = 0
+            else:
+                # Try to convert to integer
+                try:
+                    stock_quantity = int(stock_quantity)
+                except (ValueError, TypeError):
+                    stock_quantity = 0
+            
+            print(f"[DEBUG] MenuItem.add: processed stock_quantity = {stock_quantity} (type: {type(stock_quantity)})")
+            
             query = """
             INSERT INTO menu_items (name, price, category_id, stock_quantity, image_path)
             VALUES (?, ?, ?, ?, ?)
             """
-            self.db.execute(query, (name, price, category_id, stock_quantity, image_path))
+            self.db.execute_query(query, (name, price, category_id, stock_quantity, image_path))
             self.db.commit()
             return True
-        except Exception:
+        except Exception as e:
+            print(f"Error adding menu item: {e}")
             return False
     
     def update(self, item_id, name, price, category_id, stock_quantity, image_path=""):
         """Update a menu item"""
         try:
             query = """
-            UPDATE menu_items 
+            UPDATE menu_items
             SET name = ?, price = ?, category_id = ?, stock_quantity = ?, image_path = ?
             WHERE id = ?
             """
-            self.db.execute(query, (name, price, category_id, stock_quantity, image_path, item_id))
+            self.db.execute_query(query, (name, price, category_id, stock_quantity, image_path, item_id))
             self.db.commit()
             return True
-        except Exception:
+        except Exception as e:
+            print(f"Error updating menu item: {e}")
             return False
     
     def delete(self, item_id):
         """Delete a menu item"""
         query = "DELETE FROM menu_items WHERE id = ?"
-        self.db.execute(query, (item_id,))
+        self.db.execute_query(query, (item_id,))
         self.db.commit()
     
     def get_by_id(self, item_id):
@@ -101,5 +117,9 @@ class MenuItem:
     def update_stock(self, item_id, new_stock):
         """Update stock quantity for an item"""
         query = "UPDATE menu_items SET stock_quantity = ? WHERE id = ?"
-        self.db.execute(query, (new_stock, item_id))
+        self.db.execute_query(query, (new_stock, item_id))
         self.db.commit()
+        
+        # Dispatch inventory updated event
+        from src.utils.event_dispatcher import event_dispatcher
+        event_dispatcher.inventory_updated(item_id, new_stock)

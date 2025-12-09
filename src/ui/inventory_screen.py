@@ -1,13 +1,18 @@
 import tkinter as tk
 from tkinter import ttk, simpledialog
 from .base_ui import BaseUI
-from utils.constants import *
+from src.utils.constants import *
+from src.utils.event_dispatcher import event_dispatcher, EventType
 
 class InventoryScreen(BaseUI):
     """Inventory management screen UI component with modern design"""
     
     def __init__(self, root, app):
         super().__init__(root, app)
+        
+        # Subscribe to events for real-time updates
+        event_dispatcher.subscribe(EventType.INVENTORY_UPDATED, self._on_inventory_updated)
+        
         self.setup_ui()
     
     def setup_ui(self):
@@ -181,12 +186,18 @@ class InventoryScreen(BaseUI):
         for item in items:
             item_id, name, category, stock = item
             
+            # Convert stock to integer if it's a string
+            try:
+                stock_int = int(stock) if isinstance(stock, str) else stock
+            except (ValueError, TypeError):
+                stock_int = 0
+            
             # Determine status and styling
-            if stock <= 0:
+            if stock_int <= 0:
                 status = "Out of Stock"
                 tag = "out_of_stock"
                 status_style = "Error"
-            elif stock <= 10:
+            elif stock_int <= 10:
                 status = "Low Stock"
                 tag = "low_stock"
                 status_style = "Warning"
@@ -196,12 +207,22 @@ class InventoryScreen(BaseUI):
                 status_style = "Success"
             
             # Insert item with tags
-            self.inventory_tree.insert("", tk.END, values=(name, category, stock, status), tags=(item_id, tag))
+            self.inventory_tree.insert("", tk.END, values=(name, category, stock_int, status), tags=(item_id, tag))
         
         # Update status message
         total_items = len(items)
-        low_stock_count = len([item for item in items if item[3] <= 10 and item[3] > 0])
-        out_of_stock_count = len([item for item in items if item[3] <= 0])
+        low_stock_count = 0
+        out_of_stock_count = 0
+        
+        for item in items:
+            try:
+                stock_val = int(item[3]) if isinstance(item[3], str) else item[3]
+                if stock_val <= 10 and stock_val > 0:
+                    low_stock_count += 1
+                elif stock_val <= 0:
+                    out_of_stock_count += 1
+            except (ValueError, TypeError):
+                out_of_stock_count += 1
         
         status_text = f"Total: {total_items} items"
         if low_stock_count > 0:
@@ -244,6 +265,9 @@ class InventoryScreen(BaseUI):
             # Update stock in database
             self.app.menu_item_model.update_stock(item_id, new_stock)
             
+            # Dispatch inventory updated event for real-time updates
+            event_dispatcher.inventory_updated(item_id, new_stock)
+            
             # Show success message
             self.show_message("Success", f"Stock for '{item_name}' updated to {new_stock} units", "info")
             
@@ -253,6 +277,11 @@ class InventoryScreen(BaseUI):
     def export_inventory(self):
         """Export inventory data (placeholder for future implementation)"""
         self.show_message("Coming Soon", "Inventory export feature will be available in the next update", "info")
+    def _on_inventory_updated(self, data):
+        """Handle inventory update events for real-time updates"""
+        if data and 'item_id' in data:
+            # Auto-refresh inventory when stock changes
+            self.load_inventory()
 
 
 class ModernStockUpdateDialog(simpledialog.Dialog):
@@ -364,3 +393,4 @@ class ModernStockUpdateDialog(simpledialog.Dialog):
                 self.result = None
         except ValueError:
             self.result = None
+    

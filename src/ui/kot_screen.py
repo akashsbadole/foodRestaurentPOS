@@ -2,9 +2,10 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from datetime import datetime, timedelta
 from .base_ui import BaseUI
-from utils.helpers import generate_kot_content
-from utils.printer import PrinterManager
-from utils.constants import *
+from src.utils.helpers import generate_kot_content
+from src.utils.printer import PrinterManager
+from src.utils.constants import *
+from src.utils.event_dispatcher import event_dispatcher, EventType
 
 class KOTScreen(BaseUI):
     """Kitchen Order Ticket screen UI component"""
@@ -12,6 +13,11 @@ class KOTScreen(BaseUI):
     def __init__(self, root, app):
         super().__init__(root, app)
         self.printer_manager = PrinterManager(app.settings)
+        
+        # Subscribe to events for real-time updates
+        event_dispatcher.subscribe(EventType.ORDER_CREATED, self._on_order_created)
+        event_dispatcher.subscribe(EventType.KOT_STATUS_CHANGED, self._on_kot_status_changed)
+        
         self.setup_ui()
     
     def setup_ui(self):
@@ -145,42 +151,64 @@ class KOTScreen(BaseUI):
         """Load KOT items with modern card-based display"""
         status_filter = self.kot_filter_var.get()
         
-        items = self.app.kot_model.get_items(status_filter)
-        
-        # Clear existing KOT cards
-        for widget in self.kot_scrollable_frame.winfo_children():
-            widget.destroy()
-        
-        # Update filter button styling
-        self._update_filter_button_styles()
-        
-        # Update order count
-        self.order_count_label.config(text=f"Total: {len(items)} orders")
-        
-        if not items:
-            # Show enhanced empty state message
-            empty_frame = self.create_modern_frame(self.kot_scrollable_frame, style="Card.TFrame",
-                                                 padding=SPACING_XL)
-            empty_frame.pack(fill=tk.X, pady=SPACING_L)
+        try:
+            items = self.app.kot_model.get_items(status_filter)
             
-            empty_icon = self.create_modern_label(empty_frame, text="📋",
-                                                 style="Title.TLabel")
-            empty_icon.pack(pady=(0, SPACING_M))
+            # Clear existing KOT cards
+            for widget in self.kot_scrollable_frame.winfo_children():
+                widget.destroy()
             
-            empty_label = self.create_modern_label(empty_frame,
-                                                 text=f"No {status_filter.lower()} orders found",
-                                                 style="Subtitle.TLabel")
-            empty_label.pack()
+            # Update filter button styling
+            self._update_filter_button_styles()
             
-            empty_sublabel = self.create_modern_label(empty_frame,
-                                                     text="Orders will appear here when they are created",
-                                                     style="Small.TLabel")
-            empty_sublabel.pack(pady=(SPACING_S, 0))
-            return
-        
-        # Create KOT cards for each item
-        for item in items:
-            self._create_kot_card(item)
+            # Update order count
+            self.order_count_label.config(text=f"Total: {len(items)} orders")
+            
+            if not items:
+                # Show enhanced empty state message
+                empty_frame = self.create_modern_frame(self.kot_scrollable_frame, style="Card.TFrame",
+                                                     padding=SPACING_XL)
+                empty_frame.pack(fill=tk.X, pady=SPACING_L)
+                
+                empty_icon = self.create_modern_label(empty_frame, text="📋",
+                                                    style="Title.TLabel")
+                empty_icon.pack(pady=(0, SPACING_M))
+                
+                empty_label = self.create_modern_label(empty_frame,
+                                                    text=f"No {status_filter.lower()} orders found",
+                                                    style="Subtitle.TLabel")
+                empty_label.pack()
+                
+                empty_sublabel = self.create_modern_label(empty_frame,
+                                                        text="Orders will appear here when they are created",
+                                                        style="Small.TLabel")
+                empty_sublabel.pack(pady=(SPACING_S, 0))
+                return
+            
+            # Create KOT cards for each item
+            for item in items:
+                self._create_kot_card(item)
+                
+        except Exception as e:
+            print(f"Error loading KOT items: {e}")
+            # Show error message
+            error_frame = self.create_modern_frame(self.kot_scrollable_frame, style="Card.TFrame",
+                                                padding=SPACING_XL)
+            error_frame.pack(fill=tk.X, pady=SPACING_L)
+            
+            error_icon = self.create_modern_label(error_frame, text="⚠",
+                                                style="Title.TLabel")
+            error_icon.pack(pady=(0, SPACING_M))
+            
+            error_label = self.create_modern_label(error_frame,
+                                                text="Failed to load orders",
+                                                style="Subtitle.TLabel")
+            error_label.pack()
+            
+            error_sublabel = self.create_modern_label(error_frame,
+                                                    text="Please try refreshing the screen",
+                                                    style="Small.TLabel")
+            error_sublabel.pack(pady=(SPACING_S, 0))
     
     def _create_kot_card(self, item):
         """Create a modern card for a KOT item with enhanced styling"""
@@ -530,3 +558,27 @@ class KOTScreen(BaseUI):
                     
         except Exception as e:
             self.show_message("Error", f"Print error: {str(e)}", "error")
+    
+    def _on_order_created(self, data):
+        """Handle order creation events for real-time updates"""
+        if data and 'order_number' in data:
+            # Auto-refresh KOT screen when new order is created
+            self.load_kot()
+    
+    def _on_kot_status_changed(self, data):
+        """Handle KOT status change events for real-time updates"""
+        if data and 'item_id' in data:
+            # Auto-refresh KOT screen when status changes
+            self.load_kot()
+    
+    def cleanup(self):
+        """Clean up resources when screen is destroyed"""
+        # Unsubscribe from events
+        event_dispatcher.unsubscribe(EventType.ORDER_CREATED, self._on_order_created)
+        event_dispatcher.unsubscribe(EventType.KOT_STATUS_CHANGED, self._on_kot_status_changed)
+        
+        # Clean up UI components
+        if hasattr(self, 'kot_canvas'):
+            self.kot_canvas.destroy()
+        if hasattr(self, 'selected_card'):
+            self.selected_card = None

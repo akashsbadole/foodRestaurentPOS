@@ -2,9 +2,10 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from datetime import datetime
 from .base_ui import BaseUI
-from utils.helpers import format_datetime, generate_bill_content
-from utils.printer import PrinterManager
-from utils.constants import *
+from src.utils.helpers import format_datetime, generate_bill_content
+from src.utils.printer import PrinterManager
+from src.utils.constants import *
+from src.utils.event_dispatcher import event_dispatcher, EventType
 
 class OrdersScreen(BaseUI):
     """Orders management screen UI component"""
@@ -95,6 +96,11 @@ class OrdersScreen(BaseUI):
             
             # Add orders to tree
             for order in orders:
+                # Ensure we have the expected number of columns
+                if len(order) < 8:
+                    print(f"Warning: Order data has unexpected format: {order}")
+                    continue
+                
                 order_id, order_number, created_at, order_type, table_number, total, status, customer_name = order
                 
                 # Skip if we've already seen this order ID
@@ -129,6 +135,14 @@ class OrdersScreen(BaseUI):
         except Exception as e:
             print(f"Error loading orders: {e}")
             self.show_message("Error", f"Failed to load orders: {e}", "error")
+            
+            # For debugging: show what's in the database
+            try:
+                # Try to get a sample order to see what data is available
+                sample_orders = self.app.order_model.get_orders("All", "")
+                print(f"Sample orders data: {sample_orders}")
+            except Exception as debug_e:
+                print(f"Debug error: {debug_e}")
     
     def view_order_details(self):
         """View details of selected order"""
@@ -150,6 +164,7 @@ class OrdersScreen(BaseUI):
         if not order_details:
             return
         
+        # order_details is a tuple directly from the database
         order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
         
         # Get table number if dine-in
@@ -161,10 +176,10 @@ class OrdersScreen(BaseUI):
                     table_number = table[1]
                     break
         
-        # Get order items
+        # Get order items separately
         items = self.app.order_model.get_items(order_id)
         
-        # Get payment details
+        # Get payment details separately
         payments = self.app.order_model.get_payments(order_id)
         
         # Create details frame
@@ -250,6 +265,7 @@ class OrdersScreen(BaseUI):
         if not order_details:
             return
         
+        # order_details is a tuple directly from the database
         order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
         
         # Get table number if dine-in
@@ -261,7 +277,7 @@ class OrdersScreen(BaseUI):
                     table_number = table[1]
                     break
         
-        # Get order items
+        # Get order items separately
         items = self.app.order_model.get_items(order_id)
         
         # Create bill content
@@ -289,7 +305,7 @@ class OrdersScreen(BaseUI):
     def show_print_options(self, order_id):
         """Show print options dialog"""
         try:
-            from .printer_dialog import PrinterSelectionDialog, PrintPreviewDialog
+            from src.ui.printer_dialog import PrinterSelectionDialog, PrintPreviewDialog
             
             # Get order details
             order_details = self.app.order_model.get_details(order_id)
@@ -297,7 +313,7 @@ class OrdersScreen(BaseUI):
                 self.show_message("Error", "Order not found", "error")
                 return
             
-            # Get order number
+            # order_details is a tuple directly from the database
             order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
             
             # Show printer selection dialog
@@ -338,6 +354,7 @@ class OrdersScreen(BaseUI):
             if not order_details:
                 return {}
             
+            # order_details is a tuple directly from the database
             order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
             
             # Get table number if dine-in
@@ -349,7 +366,7 @@ class OrdersScreen(BaseUI):
                         table_number = table[1]
                         break
             
-            # Get order items
+            # Get order items separately
             items = self.app.order_model.get_items(order_id)
             
             # Format items for printing

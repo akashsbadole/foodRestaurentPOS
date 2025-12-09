@@ -5,8 +5,8 @@ Allows users to select printer type and specific printer for printing bills and 
 
 import tkinter as tk
 from tkinter import ttk, messagebox
-from utils.constants import *
-from utils.printer import PrinterManager, PrinterType, PaperSize
+from src.utils.constants import *
+from src.utils.printer import PrinterManager, PrinterType, PaperSize
 
 
 class PrinterSelectionDialog:
