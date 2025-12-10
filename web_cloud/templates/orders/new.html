@@ -1,0 +1,468 @@
+{% extends "base.html" %} {% block title %}New Order - Restaurant POS{% endblock
+%} {% block extra_css %}
+<style>
+  .order-screen {
+    height: calc(100vh - 120px);
+  }
+
+  .left-panel {
+    border-right: 1px solid #e3e6f0;
+  }
+
+  .menu-category-btn {
+    min-height: 60px;
+    border: none;
+    background: #f8f9fc;
+    margin-bottom: 5px;
+    transition: all 0.2s;
+  }
+
+  .menu-category-btn:hover,
+  .menu-category-btn.active {
+    background: #4e73df;
+    color: white;
+  }
+
+  .menu-item-card {
+    border: none;
+    background: white;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .menu-item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .menu-item-card.out-of-stock {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .order-tabs {
+    min-height: 40px;
+  }
+
+  .order-tab {
+    padding: 8px 16px;
+    border: 1px solid #e3e6f0;
+    background: #f8f9fc;
+    cursor: pointer;
+    border-bottom: none;
+  }
+
+  .order-tab.active {
+    background: white;
+    border-bottom: 1px solid white;
+    margin-bottom: -1px;
+  }
+
+  .order-item {
+    border-bottom: 1px solid #e3e6f0;
+    padding: 10px 0;
+  }
+
+  .receipt-total {
+    border-top: 2px solid #4e73df;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  .item-badge {
+    font-size: 0.8em;
+    padding: 2px 6px;
+  }
+
+  .search-box {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+    padding: 10px 0;
+  }
+
+  .qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .qty-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .qty-btn:hover {
+    background: #f8f9fc;
+  }
+
+  .quantity-display {
+    min-width: 40px;
+    text-align: center;
+    font-weight: bold;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid order-screen" x-data="orderScreen()">
+  <div class="row h-100">
+    <!-- Left Panel - Menu and Order Entry -->
+    <div class="col-lg-8 h-100 left-panel d-flex flex-column">
+      <!-- Order Type Selection and Search -->
+      <div class="border-bottom p-3">
+        <div class="row align-items-center">
+          <div class="col-md-3">
+            <label class="form-label">Order Type</label>
+            <select x-model="currentOrder.order_type" class="form-select">
+              <option value="Dine-in">Dine-in</option>
+              <option value="Takeaway">Takeaway</option>
+              <option value="Delivery">Delivery</option>
+            </select>
+          </div>
+          <div class="col-md-3" x-show="currentOrder.order_type === 'Dine-in'">
+            <label class="form-label">Table</label>
+            <select x-model="currentOrder.table_id" class="form-select">
+              <option value="">Select Table</option>
+              {% for table in tables %}
+              <option value="{{ table.id }}">{{ table.table_number }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Customer</label>
+            <input
+              type="text"
+              x-model="currentOrder.customer_name"
+              class="form-control"
+              placeholder="Customer name"
+            />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Mobile</label>
+            <input
+              type="text"
+              x-model="currentOrder.customer_mobile"
+              class="form-control"
+              placeholder="Mobile"
+            />
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div class="row mt-3">
+          <div class="col-12">
+            <div class="input-group">
+              <span class="input-group-text"
+                ><i class="fas fa-search"></i
+              ></span>
+              <input
+                type="text"
+                x-model="searchQuery"
+                @input="filterMenuItems()"
+                class="form-control"
+                placeholder="Search menu items..."
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categories and Menu Items -->
+      <div class="flex-fill overflow-auto">
+        <div class="row h-100">
+          <!-- Categories -->
+          <div class="col-md-3 border-end p-3">
+            <h6 class="text-muted mb-3">Categories</h6>
+            <div class="d-grid gap-1">
+              <button
+                @click="selectedCategory = null"
+                :class="{active: selectedCategory === null}"
+                class="menu-category-btn btn btn-outline-secondary"
+              >
+                All Items
+              </button>
+              {% for category in categories %}
+              <button
+                @click="selectedCategory = {{ category.id }}"
+                :class="{active: selectedCategory === {{ category.id }}}"
+                class="menu-category-btn btn btn-outline-secondary"
+              >
+                {{ category.name }}
+                <small class="d-block text-muted"
+                  >{{ category.get_item_count() }} items</small
+                >
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Menu Items Grid -->
+          <div class="col-md-9 p-3">
+            <div class="row" id="menuItems">
+              {% for item in menu_items %}
+              <div
+                class="col-md-4 mb-3 menu-item"
+                data-category="{{ item.category_id }}"
+                data-name="{{ item.name|lower }}"
+              >
+                <div
+                  @click="addToOrder({{ item.id }})"
+                  :class="{outOfStock: {{ 'true' if item.is_out_of_stock else 'false' }}}"
+                  class="card menu-item-card h-100"
+                >
+                  {% if item.image_path %}
+                  <img
+                    src="{{ url_for('static', filename='uploads/' + item.image_path) }}"
+                    class="card-img-top"
+                    style="height: 120px; object-fit: cover"
+                  />
+                  {% endif %}
+                  <div class="card-body">
+                    <h6 class="card-title">{{ item.name }}</h6>
+                    <p class="card-text small text-muted">
+                      {{ item.description or '' }}
+                    </p>
+                    <div
+                      class="d-flex justify-content-between align-items-center"
+                    >
+                      <strong>₹{{ "%.2f"|format(item.price) }}</strong>
+                      {% if item.is_out_of_stock %}
+                      <span class="badge bg-danger">Out of Stock</span>
+                      {% elif item.is_low_stock %}
+                      <span class="badge bg-warning">Low Stock</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel - Order Summary -->
+    <div class="col-lg-4 h-100 bg-light d-flex flex-column">
+      <!-- Order Tabs -->
+      <div class="border-bottom p-2">
+        <div class="d-flex overflow-auto">
+          <template x-for="(order, index) in orders" :key="index">
+            <div
+              @click="currentOrderIndex = index"
+              :class="{active: currentOrderIndex === index}"
+              class="order-tab me-2"
+              style="min-width: 150px"
+            >
+              <div class="d-flex justify-content-between align-items-center">
+                <span>Order <span x-text="index + 1"></span></span>
+                <button
+                  @click.stop="removeOrder(index)"
+                  x-show="orders.length > 1"
+                  class="btn btn-sm btn-link text-danger p-0"
+                >
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <small
+                class="text-muted"
+                x-text="order.items.length + ' items'"
+              ></small>
+            </div>
+          </template>
+          <button @click="addNewOrder()" class="btn btn-sm btn-primary ms-2">
+            <i class="fas fa-plus"></i> New Order
+          </button>
+        </div>
+      </div>
+
+      <!-- Current Order Details -->
+      <div class="flex-fill d-flex flex-column">
+        <div class="p-3 border-bottom">
+          <div class="row">
+            <div class="col-6">
+              <small class="text-muted">Type:</small>
+              <div x-text="currentOrder.order_type"></div>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">Table:</small>
+              <div x-text="getTableNumber(currentOrder.table_id)"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Items -->
+        <div class="flex-fill overflow-auto p-3">
+          <template x-for="item in currentOrder.items" :key="item.id">
+            <div class="order-item">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-fill">
+                  <div class="d-flex justify-content-between">
+                    <strong x-text="item.name"></strong>
+                    <span
+                      x-text="'₹' + (item.price * item.quantity).toFixed(2)"
+                    ></span>
+                  </div>
+                  <small
+                    class="text-muted"
+                    x-text="item.special_instructions"
+                    x-show="item.special_instructions"
+                  ></small>
+                </div>
+              </div>
+              <div class="mt-2">
+                <div class="qty-controls">
+                  <button
+                    @click="updateQuantity(item.id, item.quantity - 1)"
+                    class="qty-btn"
+                  >
+                    -
+                  </button>
+                  <span class="quantity-display" x-text="item.quantity"></span>
+                  <button
+                    @click="updateQuantity(item.id, item.quantity + 1)"
+                    class="qty-btn"
+                  >
+                    +
+                  </button>
+                  <button
+                    @click="removeItem(item.id)"
+                    class="btn btn-sm btn-link text-danger ms-2"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div
+            x-show="currentOrder.items.length === 0"
+            class="text-center text-muted mt-5"
+          >
+            <i class="fas fa-shopping-cart fa-3x mb-3"></i>
+            <p>Add items to start your order</p>
+          </div>
+        </div>
+
+        <!-- Order Total -->
+        <div class="receipt-total p-3">
+          <div class="d-flex justify-content-between mb-2">
+            <span>Subtotal:</span>
+            <span x-text="'₹' + currentOrder.subtotal.toFixed(2)"></span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span>CGST (2.5%):</span>
+            <span x-text="'₹' + currentOrder.cgst.toFixed(2)"></span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span>SGST (2.5%):</span>
+            <span x-text="'₹' + currentOrder.sgst.toFixed(2)"></span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span>Discount:</span>
+            <input
+              type="number"
+              x-model="currentOrder.discount"
+              @input="calculateTotals()"
+              class="form-control form-control-sm d-inline-block"
+              style="width: 100px"
+            />
+          </div>
+          <div class="d-flex justify-content-between h5">
+            <strong>Total:</strong>
+            <strong x-text="'₹' + currentOrder.total.toFixed(2)"></strong>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="p-3 border-top">
+          <div class="row g-2">
+            <div class="col-6">
+              <button
+                @click="saveOrder()"
+                class="btn btn-outline-primary btn-block"
+              >
+                <i class="fas fa-save"></i> Save
+              </button>
+            </div>
+            <div class="col-6">
+              <button
+                @click="proceedToPayment()"
+                class="btn btn-success btn-block"
+              >
+                <i class="fas fa-credit-card"></i> Pay
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Item Modal -->
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" x-text="selectedMenuItem?.name"></h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Quantity</label>
+          <div class="qty-controls justify-content-center">
+            <button
+              @click="itemQuantity = Math.max(1, itemQuantity - 1)"
+              class="qty-btn"
+            >
+              -
+            </button>
+            <span class="quantity-display" x-text="itemQuantity"></span>
+            <button @click="itemQuantity++" class="qty-btn">+</button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Special Instructions</label>
+          <textarea
+            x-model="itemInstructions"
+            class="form-control"
+            rows="3"
+            placeholder="Any special requests?"
+          ></textarea>
+        </div>
+        <div class="text-center">
+          <h4
+            x-text="'₹' + ((selectedMenuItem?.price || 0) * itemQuantity).toFixed(2)"
+          ></h4>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button type="button" @click="confirmAddItem()" class="btn btn-primary">
+          Add to Order
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script type="text/javascript">
+// Pass data from Flask to JavaScript
+window.menuItems = {{ menu_items|tojson|safe }};
+window.tables = {{ tables|tojson|safe }};
+</script>
+<script src="{{ url_for('static', filename='js/order-screen.js') }}"></script>
+{% endblock %}

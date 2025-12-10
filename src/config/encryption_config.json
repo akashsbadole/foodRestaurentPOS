@@ -1,0 +1,19 @@
+{
+  "encryption_settings": {
+    "algorithm": "AES-256",
+    "key_derivation": "PBKDF2-HMAC-SHA256",
+    "iterations": 100000,
+    "key_length": 256,
+    "salt_length": 16
+  },
+  "security_notes": {
+    "key_storage": "Encryption keys are stored in encryption.key file with restricted permissions (600)",
+    "master_key": "Set POS_ENCRYPTION_MASTER_KEY environment variable for enhanced security",
+    "rotation": "Regular key rotation is recommended for production environments"
+  },
+  "encrypted_fields": {
+    "users": ["password"],
+    "payments": ["card_number", "upi_id", "wallet_number"],
+    "orders": ["customer_mobile"]
+  }
+}

@@ -1,10 +1,15 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 import os
+import sys
 from datetime import datetime
 import hashlib
 import random
 import string
+
+# Add project root to Python path for imports
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 # Enhanced PIL import with better error handling
 try:
@@ -17,11 +22,23 @@ except ImportError as e:
     PIL_VERSION = None
     print(f"Warning: PIL (Pillow) not installed or import failed: {e}")
     print("Image features will be disabled. Install with: pip install Pillow")
+    # Create dummy classes to prevent AttributeError
+    class Image:
+        __version__ = "Not Available"
+    ImageTk = Image
+    ImageDraw = Image
+    ImageFont = Image
 except Exception as e:
     PIL_AVAILABLE = False
     PIL_VERSION = None
     print(f"Warning: PIL (Pillow) import error: {e}")
     print("Image features will be disabled due to import issues")
+    # Create dummy classes to prevent AttributeError
+    class Image:
+        __version__ = "Not Available"
+    ImageTk = Image
+    ImageDraw = Image
+    ImageFont = Image
 
 import csv
 from io import StringIO
@@ -41,6 +58,7 @@ from src.ui.tables_screen import TablesScreen
 from src.ui.inventory_screen import InventoryScreen
 from src.ui.kot_screen import KOTScreen
 from src.ui.reports_screen import ReportsScreen
+from src.ui.gst_reports_screen import GSTReportsScreen
 from src.ui.settings_screen import SettingsScreen
 from src.ui.data_management_screen import DataManagementScreen
 from src.utils.keyboard_handler import KeyboardHandler
@@ -109,7 +127,7 @@ class RestaurantPOSApp:
         self.settings = self.settings_model.get_all()
     
     def update_setting(self, key, value):
-        """Update a setting in the database"""
+        """Update a setting in database"""
         self.settings_model.update(key, value)
         # Notify UI components that settings have changed
         self.on_settings_changed(key, value)
@@ -129,7 +147,7 @@ class RestaurantPOSApp:
         if key == 'restaurant_name' and hasattr(self, 'top_bar_restaurant_label'):
             self.top_bar_restaurant_label.config(text=value)
         
-        # Force refresh of current screen if it needs to update
+        # Force refresh of current screen if it needs to Update
         if hasattr(self, 'current_screen') and hasattr(self.current_screen, 'on_settings_changed'):
             self.current_screen.on_settings_changed(key, value)
     
@@ -179,7 +197,7 @@ class RestaurantPOSApp:
         # Restaurant name
         self.top_bar_restaurant_label = ttk.Label(top_bar,
                                   text=self.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
-                                  font=('Arial',34, 'bold'))
+                                  font=('Arial', 14, 'bold'))
         self.top_bar_restaurant_label.pack(side=tk.LEFT, padx=10)
         top_bar.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
         
@@ -209,7 +227,8 @@ class RestaurantPOSApp:
             ("Tables", self.show_tables),
             ("Inventory", self.show_inventory),
             ("KOT", self.show_kot),
-            ("Reports", self.show_reports)
+            ("Reports", self.show_reports),
+            ("GST Reports", self.show_gst_reports)
         ]
         
         for text, command in buttons:
@@ -240,11 +259,11 @@ class RestaurantPOSApp:
             widget.destroy()
     
     def show_dashboard(self):
-        """Display the dashboard"""
+        """Display dashboard"""
         self.dashboard_screen.show(self.content_frame)
     
     def show_new_order(self):
-        """Display the new order screen"""
+        """Display new order screen"""
         self.clear_content_frame()
         
         # Clean up existing OrderScreen if it exists
@@ -256,49 +275,55 @@ class RestaurantPOSApp:
         self.current_order_screen.setup_ui()
     
     def show_orders(self):
-        """Display the orders screen"""
+        """Display orders screen"""
         self.clear_content_frame()
         orders_screen = OrdersScreen(self.root, self)
         self.current_screen = orders_screen
     
     def show_menu(self):
-        """Display the menu management screen"""
+        """Display menu management screen"""
         self.clear_content_frame()
         menu_screen = MenuScreen(self.root, self)
         self.current_screen = menu_screen
     
     def show_tables(self):
-        """Display the tables management screen"""
+        """Display tables management screen"""
         self.clear_content_frame()
         tables_screen = TablesScreen(self.root, self)
         self.current_screen = tables_screen
     
     def show_inventory(self):
-        """Display the inventory management screen"""
+        """Display inventory management screen"""
         self.clear_content_frame()
         inventory_screen = InventoryScreen(self.root, self)
         self.current_screen = inventory_screen
     
     def show_kot(self):
-        """Display the Kitchen Order Ticket screen"""
+        """Display Kitchen Order Ticket screen"""
         self.clear_content_frame()
         kot_screen = KOTScreen(self.root, self)
-    
         self.current_screen = kot_screen
+    
     def show_reports(self):
-        """Display the reports screen"""
+        """Display reports screen"""
         self.clear_content_frame()
         reports_screen = ReportsScreen(self.root, self)
         self.current_screen = reports_screen
     
+    def show_gst_reports(self):
+        """Display GST reports screen"""
+        self.clear_content_frame()
+        gst_reports_screen = GSTReportsScreen(self.root, self)
+        self.current_screen = gst_reports_screen
+    
     def show_data_management(self):
-        """Display the data management screen (Admin only)"""
+        """Display data management screen (Admin only)"""
         self.clear_content_frame()
         data_management_screen = DataManagementScreen(self.root, self)
         self.current_screen = data_management_screen
     
     def show_settings(self):
-        """Display the settings screen (Admin only)"""
+        """Display settings screen (Admin only)"""
         self.clear_content_frame()
         settings_screen = SettingsScreen(self.root, self)
         self.current_screen = settings_screen

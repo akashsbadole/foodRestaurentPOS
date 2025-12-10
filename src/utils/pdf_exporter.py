@@ -7,15 +7,40 @@ import os
 import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm, inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.platypus.tableofcontents import TableOfContents
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
+# ReportLab imports with error handling
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm, inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.platypus.tableofcontents import TableOfContents
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.utils import ImageReader
+    REPORTLAB_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: ReportLab not available: {e}")
+    REPORTLAB_AVAILABLE = False
+    # Fallback imports for compatibility
+    A4 = None
+    colors = None
+    getSampleStyleSheet = None
+    ParagraphStyle = None
+    mm = None
+    inch = None
+    SimpleDocTemplate = None
+    Table = None
+    TableStyle = None
+    Paragraph = None
+    Spacer = None
+    PageBreak = None
+    TableOfContents = None
+    TA_CENTER = None
+    TA_LEFT = None
+    TA_RIGHT = None
+    canvas = None
+    ImageReader = None
 
 
 class PDFExporter:

@@ -1,0 +1,309 @@
+{% extends "base.html" %} {% block title %}Table Management - Restaurant POS{%
+endblock %} {% block content %}
+<div class="container-fluid" x-data="tableManagement()">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Table Management</h1>
+    <div>
+      <button @click="showAddModal()" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Table
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-primary shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div
+                class="text-xs font-weight-bold text-primary text-uppercase mb-1"
+              >
+                Total Tables
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">
+                {{ total_tables }}
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-table fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-success shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div
+                class="text-xs font-weight-bold text-success text-uppercase mb-1"
+              >
+                Available
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">
+                {{ available_tables }}
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-warning shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div
+                class="text-xs font-weight-bold text-warning text-uppercase mb-1"
+              >
+                Occupied
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">
+                {{ occupied_tables }}
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-users fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-info shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div
+                class="text-xs font-weight-bold text-info text-uppercase mb-1"
+              >
+                Reserved
+              </div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">
+                {{ reserved_tables }}
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="fas fa-clock fa-2x text-gray-300"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Grid -->
+  <div class="card shadow mb-4">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-primary">Table Layout</h6>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for table in tables %}
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+          <div
+            class="card h-100 table-card"
+            :class="getTableClass('{{ table.status }}')"
+          >
+            <div class="card-body text-center">
+              <div class="table-icon mb-3">
+                <i class="fas fa-chair fa-3x"></i>
+              </div>
+              <h5 class="card-title">{{ table.table_number }}</h5>
+              <p class="card-text">
+                <small class="text-muted"
+                  >Capacity: {{ table.capacity }} persons</small
+                >
+              </p>
+              <div class="table-status mb-2">
+                <span class="badge badge-{{ table.status|lower }}">
+                  {{ table.status.replace('_', ' ').title() }}
+                </span>
+              </div>
+              {% if table.current_order %}
+              <div class="current-order mb-2">
+                <small class="text-muted">
+                  Order: {{ table.current_order.order_number }}
+                </small>
+              </div>
+              {% endif %}
+              <div class="table-actions">
+                {% if table.status == 'Available' %}
+                <button
+                  @click="occupyTable({{ table.id }})"
+                  class="btn btn-sm btn-primary"
+                >
+                  <i class="fas fa-user-plus"></i> Occupy
+                </button>
+                {% elif table.status == 'Occupied' %}
+                <button
+                  @click="releaseTable({{ table.id }})"
+                  class="btn btn-sm btn-success"
+                >
+                  <i class="fas fa-user-minus"></i> Release
+                </button>
+                {% endif %}
+                <button
+                  @click="editTable({{ table.id }})"
+                  class="btn btn-sm btn-outline-secondary"
+                >
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Table List -->
+  <div class="card shadow mb-4">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-primary">Table Details</h6>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table
+          class="table table-bordered"
+          id="dataTable"
+          width="100%"
+          cellspacing="0"
+        >
+          <thead>
+            <tr>
+              <th>Table #</th>
+              <th>Status</th>
+              <th>Capacity</th>
+              <th>Current Order</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for table in tables %}
+            <tr>
+              <td>{{ table.table_number }}</td>
+              <td>
+                <span class="badge badge-{{ table.status|lower }}">
+                  {{ table.status.replace('_', ' ').title() }}
+                </span>
+              </td>
+              <td>{{ table.capacity }} persons</td>
+              <td>
+                {% if table.current_order %} {{ table.current_order.order_number
+                }} {% else %} - {% endif %}
+              </td>
+              <td>
+                <div class="btn-group">
+                  <button
+                    @click="editTable({{ table.id }})"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  {% if table.is_active %}
+                  <button
+                    @click="toggleTableStatus({{ table.id }})"
+                    class="btn btn-sm btn-outline-warning"
+                  >
+                    <i class="fas fa-eye-slash"></i>
+                  </button>
+                  {% else %}
+                  <button
+                    @click="toggleTableStatus({{ table.id }})"
+                    class="btn btn-sm btn-outline-success"
+                  >
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Table Modal -->
+<div class="modal fade" id="tableModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5
+          class="modal-title"
+          x-text="editingTable ? 'Edit Table' : 'Add New Table'"
+        ></h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="tableForm">
+          <div class="mb-3">
+            <label class="form-label">Table Number *</label>
+            <input
+              type="text"
+              x-model="formData.table_number"
+              class="form-control"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Capacity (persons) *</label>
+            <input
+              type="number"
+              x-model="formData.capacity"
+              class="form-control"
+              min="1"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Location</label>
+            <input
+              type="text"
+              x-model="formData.location"
+              class="form-control"
+              placeholder="e.g., Near Window, Ground Floor"
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea
+              x-model="formData.description"
+              class="form-control"
+              rows="3"
+            ></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button type="button" @click="saveTable()" class="btn btn-primary">
+          <i class="fas fa-save"></i> Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script src="{{ url_for('static', filename='js/table-management.js') }}"></script>
+{% endblock %}

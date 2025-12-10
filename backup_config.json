@@ -1,0 +1,22 @@
+{
+  "backup_location": "backups",
+  "auto_backup_enabled": true,
+  "backup_frequency": "daily",
+  "backup_retention_days": 30,
+  "include_orders": true,
+  "include_menu_items": true,
+  "include_categories": true,
+  "include_tables": true,
+  "include_users": true,
+  "include_settings": true,
+  "include_inventory": true,
+  "compress_backups": true,
+  "encrypt_backups": false,
+  "verify_backups": true,
+  "incremental_backups": false,
+  "cloud_backup_enabled": false,
+  "cloud_provider": "",
+  "cloud_credentials": null,
+  "email_notifications": false,
+  "email_address": ""
+}

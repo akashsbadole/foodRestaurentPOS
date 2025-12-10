@@ -459,20 +459,25 @@ class DashboardScreen(BaseUI):
         try:
             from datetime import datetime
             current_datetime = datetime.now()
-            
+
             # Update date (only if date changed)
             date_str = current_datetime.strftime('%A, %B %d, %Y')
-            if hasattr(self, 'date_label'):
+            if hasattr(self, 'date_label') and self.date_label and self.date_label.winfo_exists():
                 self.date_label.config(text=date_str)
-            
+
             # Update time every second
             time_str = current_datetime.strftime('%I:%M %S %p')
-            if hasattr(self, 'time_label'):
+            if hasattr(self, 'time_label') and self.time_label and self.time_label.winfo_exists():
                 self.time_label.config(text=time_str)
-            
+
         except Exception as e:
-            print(f"Error updating datetime: {e}")
-        
+            # Don't print error to avoid spamming - this can happen when switching screens
+            pass
+
         # Schedule next update in 1 second
-        if hasattr(self, 'content_frame') and self.content_frame:
-            self.content_frame.after(1000, self.update_datetime)
+        try:
+            if hasattr(self, 'content_frame') and self.content_frame and self.content_frame.winfo_exists():
+                self.content_frame.after(1000, self.update_datetime)
+        except:
+            # Stop updating if content frame no longer exists
+            pass

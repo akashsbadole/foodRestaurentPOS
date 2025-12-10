@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>
+      {% block title %}{{ public_settings.get('restaurant_name', 'Restaurant
+      POS') }}{% endblock %}
+    </title>
+
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Bootstrap Icons -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <!-- Alpine.js -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <!-- Custom CSS -->
+    <link
+      href="{{ url_for('static', filename='css/pos.css') }}"
+      rel="stylesheet"
+    />
+
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body x-data="posApp()" x-init="init()">
+    <!-- Main Navigation -->
+    <header class="bg-dark text-white sticky-top">
+      <div class="container-fluid">
+        <div class="row align-items-center py-2">
+          <!-- Left: Order Tabs -->
+          <div class="col-md-6">
+            <div class="d-flex align-items-center">
+              <button
+                @click="createNewOrder()"
+                class="btn btn-success btn-sm me-2"
+              >
+                <i class="bi bi-plus-lg"></i> New Order
+              </button>
+
+              <!-- Order Tabs -->
+              <div
+                class="order-tabs"
+                x-show="activeOrders && Object.keys(activeOrders).length > 0"
+              >
+                <template
+                  x-for="[orderId, order] in Object.entries(activeOrders)"
+                  :key="orderId"
+                >
+                  <div
+                    class="order-tab"
+                    :class="{'active': currentOrderId === orderId}"
+                    @click="switchToOrder(orderId)"
+                  >
+                    <span x-text="order.orderNumber || 'New Order'"></span>
+                    <button
+                      @click.stop="closeOrder(orderId)"
+                      class="btn-close btn-close-white btn-close-sm ms-2"
+                    ></button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: User Info & Actions -->
+          <div class="col-md-6 text-end">
+            <div class="d-inline-flex align-items-center">
+              {% if current_user.is_authenticated %}
+              <span class="me-3">
+                <i class="bi bi-person-circle"></i>
+                {{ current_user.username }}
+                <small class="text-muted">({{ current_user.role }})</small>
+              </span>
+
+              <!-- Quick Actions Dropdown -->
+              <div class="dropdown me-3">
+                <button
+                  class="btn btn-outline-light btn-sm dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                >
+                  <i class="bi bi-speedometer2"></i> Quick Actions
+                </button>
+                <ul class="dropdown-menu">
+                  <li>
+                    <a
+                      class="dropdown-item"
+                      href="{{ url_for('dashboard.index') }}"
+                    >
+                      <i class="bi bi-house"></i> Dashboard
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{{ url_for('orders.new') }}">
+                      <i class="bi bi-cart-plus"></i> New Order
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{{ url_for('menu.index') }}">
+                      <i class="bi bi-list-ul"></i> Menu
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      class="dropdown-item"
+                      href="{{ url_for('tables.index') }}"
+                    >
+                      <i class="bi bi-grid-3x3-gap"></i> Tables
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{{ url_for('kot.index') }}">
+                      <i class="bi bi-receipt"></i> KOT
+                    </a>
+                  </li>
+                  {% if current_user.is_admin() %}
+                  <li><hr class="dropdown-divider" /></li>
+                  <li>
+                    <a
+                      class="dropdown-item"
+                      href="{{ url_for('reports.index') }}"
+                    >
+                      <i class="bi bi-graph-up"></i> Reports
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      class="dropdown-item"
+                      href="{{ url_for('inventory.index') }}"
+                    >
+                      <i class="bi bi-box-seam"></i> Inventory
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      class="dropdown-item"
+                      href="{{ url_for('auth.profile') }}"
+                    >
+                      <i class="bi bi-gear"></i> Settings
+                    </a>
+                  </li>
+                  {% endif %}
+                </ul>
+              </div>
+
+              <a
+                href="{{ url_for('auth.logout') }}"
+                class="btn btn-outline-danger btn-sm"
+              >
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Flash Messages -->
+    <div class="flash-messages">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="alert alert-{{ category or 'info' }} alert-dismissible fade show m-2"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+        ></button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">{% block content %}{% endblock %}</main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center py-3 mt-auto">
+      <div class="container">
+        <small class="text-muted">
+          {{ public_settings.get('restaurant_name', 'Restaurant POS') }} | ©
+          2024 Restaurant POS System | Powered by Flask & Bootstrap
+        </small>
+      </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div
+      class="loading-overlay"
+      x-show="isLoading"
+      x-transition:enter="transition ease-out duration-300"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="transition ease-in duration-200"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+    >
+      <div class="d-flex justify-content-center align-items-center h-100">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/pos.js') }}"></script>
+
+    {% block extra_js %}{% endblock %}
+
+    <script>
+      // Alpine.js POS Application Data
+      function posApp() {
+        return {
+          isLoading: false,
+          activeOrders: {},
+          currentOrderId: null,
+          currentOrder: {},
+
+          init() {
+            // Load orders from session storage
+            const savedOrders = sessionStorage.getItem("activeOrders");
+            if (savedOrders) {
+              this.activeOrders = JSON.parse(savedOrders);
+            }
+
+            const currentOrderId = sessionStorage.getItem("currentOrderId");
+            if (currentOrderId) {
+              this.currentOrderId = currentOrderId;
+              this.loadCurrentOrder();
+            }
+
+            // Start session keep-alive
+            setInterval(() => {
+              fetch("/auth/api/keep_alive");
+            }, 300000); // Every 5 minutes
+          },
+
+          createNewOrder() {
+            const orderId = "ORD" + Date.now();
+            this.activeOrders[orderId] = {
+              orderNumber: this.generateOrderNumber(),
+              orderType: "Dine-in",
+              customerName: "",
+              customerMobile: "",
+              tableId: null,
+              items: [],
+              subtotal: 0,
+              cgst: 0,
+              sgst: 0,
+              discount: 0,
+              total: 0,
+              status: "New",
+              createdAt: new Date().toISOString(),
+            };
+
+            this.currentOrderId = orderId;
+            this.saveToSession();
+            this.loadCurrentOrder();
+
+            // Redirect to orders page if not already there
+            if (!window.location.pathname.includes("/orders")) {
+              window.location.href = "/orders/new";
+            }
+          },
+
+          switchToOrder(orderId) {
+            // Save current order before switching
+            this.saveCurrentOrder();
+
+            this.currentOrderId = orderId;
+            this.loadCurrentOrder();
+          },
+
+          closeOrder(orderId) {
+            if (
+              confirm(
+                "Are you sure you want to close this order? Any unsaved changes will be lost."
+              )
+            ) {
+              delete this.activeOrders[orderId];
+
+              if (this.currentOrderId === orderId) {
+                // Switch to another order or create new one
+                const remainingOrders = Object.keys(this.activeOrders);
+                if (remainingOrders.length > 0) {
+                  this.currentOrderId = remainingOrders[0];
+                  this.loadCurrentOrder();
+                } else {
+                  this.createNewOrder();
+                }
+              }
+
+              this.saveToSession();
+            }
+          },
+
+          saveCurrentOrder() {
+            if (this.currentOrderId && this.activeOrders[this.currentOrderId]) {
+              this.activeOrders[this.currentOrderId] = { ...this.currentOrder };
+              this.saveToSession();
+            }
+          },
+
+          loadCurrentOrder() {
+            if (this.currentOrderId && this.activeOrders[this.currentOrderId]) {
+              this.currentOrder = { ...this.activeOrders[this.currentOrderId] };
+              this.$nextTick(() => {
+                // Trigger any Alpine.js reactivity updates
+                this.updateCalculations();
+              });
+            }
+          },
+
+          saveToSession() {
+            sessionStorage.setItem(
+              "activeOrders",
+              JSON.stringify(this.activeOrders)
+            );
+            sessionStorage.setItem("currentOrderId", this.currentOrderId);
+          },
+
+          generateOrderNumber() {
+            const now = new Date();
+            const dateStr =
+              now.getFullYear() +
+              String(now.getMonth() + 1).padStart(2, "0") +
+              String(now.getDate()).padStart(2, "0");
+            const randomStr = Math.random()
+              .toString(36)
+              .substr(2, 8)
+              .toUpperCase();
+            return "ORD" + dateStr + randomStr;
+          },
+
+          updateCalculations() {
+            // This will be overridden by specific pages
+          },
+        };
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,294 @@
+{% extends "base.html" %} {% block title %}Kitchen Display - Restaurant POS{%
+endblock %} {% block extra_css %}
+<style>
+  .kot-display {
+    height: calc(100vh - 120px);
+    background: #f8f9fa;
+  }
+
+  .order-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+    transition: all 0.2s;
+  }
+
+  .order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .status-new {
+    border-left: 4px solid #007bff;
+  }
+
+  .status-progress {
+    border-left: 4px solid #ffc107;
+  }
+
+  .status-ready {
+    border-left: 4px solid #28a745;
+  }
+
+  .item-row {
+    border-bottom: 1px solid #e9ecef;
+    padding: 8px 0;
+  }
+
+  .item-row:last-child {
+    border-bottom: none;
+  }
+
+  .status-badge {
+    font-size: 0.8em;
+    padding: 4px 8px;
+  }
+
+  .time-display {
+    font-size: 0.9em;
+    color: #6c757d;
+  }
+
+  .auto-refresh {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid kot-display" x-data="kotDisplay()">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Kitchen Display</h1>
+    <div class="d-flex align-items-center gap-3">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" x-model="autoRefresh" />
+        <label class="form-check-label">Auto Refresh</label>
+      </div>
+      <button @click="refreshOrders()" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+      <button @click="toggleSound()" class="btn btn-outline-info btn-sm">
+        <i class="fas fa-volume-up"></i> Sound
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Filters -->
+  <div class="btn-group mb-3" role="group">
+    <button
+      @click="filterStatus = 'all'"
+      :class="{active: filterStatus === 'all'}"
+      class="btn btn-outline-primary"
+    >
+      All Orders
+    </button>
+    <button
+      @click="filterStatus = 'new'"
+      :class="{active: filterStatus === 'new'}"
+      class="btn btn-outline-warning"
+    >
+      New
+    </button>
+    <button
+      @click="filterStatus = 'progress'"
+      :class="{active: filterStatus === 'progress'}"
+      class="btn btn-outline-info"
+    >
+      In Progress
+    </button>
+    <button
+      @click="filterStatus = 'ready'"
+      :class="{active: filterStatus === 'ready'}"
+      class="btn btn-outline-success"
+    >
+      Ready
+    </button>
+  </div>
+
+  <!-- Orders Grid -->
+  <div class="row">
+    <!-- New Orders -->
+    <div
+      class="col-lg-4 mb-4"
+      x-show="filterStatus === 'all' || filterStatus === 'new'"
+    >
+      <h5 class="text-center mb-3 text-warning">New Orders</h5>
+      <div id="newOrders">
+        {% for order in active_orders %} {% if order.status == 'New' %}
+        <div class="order-card status-new" data-order-id="{{ order.id }}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="card-title mb-0">Order #{{ order.order_number }}</h6>
+              <span class="badge bg-warning status-badge">New</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <small class="text-muted">
+                {% if order.table_id %}Table {{ order.table.table_number if
+                order.table else order.table_id }}{% endif %}
+              </small>
+              <small class="time-display"
+                >{{ order.created_at.strftime('%H:%M') }}</small
+              >
+            </div>
+
+            {% for item in order.items %}
+            <div class="item-row">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <strong>{{ item.quantity }}x</strong> {{ item.menu_item.name
+                  if item.menu_item else 'Unknown' }} {% if
+                  item.special_instructions %} <br /><small class="text-muted"
+                    >{{ item.special_instructions }}</small
+                  >
+                  {% endif %}
+                </div>
+                <button
+                  @click="updateItemStatus({{ item.id }}, 'In Progress')"
+                  class="btn btn-sm btn-outline-primary"
+                >
+                  Start
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %} {% endfor %}
+      </div>
+    </div>
+
+    <!-- In Progress Orders -->
+    <div
+      class="col-lg-4 mb-4"
+      x-show="filterStatus === 'all' || filterStatus === 'progress'"
+    >
+      <h5 class="text-center mb-3 text-info">In Progress</h5>
+      <div id="progressOrders">
+        {% for order in active_orders %} {% if order.status == 'In Progress' %}
+        <div class="order-card status-progress" data-order-id="{{ order.id }}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="card-title mb-0">Order #{{ order.order_number }}</h6>
+              <span class="badge bg-info status-badge">In Progress</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <small class="text-muted">
+                {% if order.table_id %}Table {{ order.table.table_number if
+                order.table else order.table_id }}{% endif %}
+              </small>
+              <small class="time-display"
+                >{{ order.created_at.strftime('%H:%M') }}</small
+              >
+            </div>
+
+            {% for item in order.items %}
+            <div class="item-row">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <strong>{{ item.quantity }}x</strong> {{ item.menu_item.name
+                  if item.menu_item else 'Unknown' }} {% if
+                  item.special_instructions %} <br /><small class="text-muted"
+                    >{{ item.special_instructions }}</small
+                  >
+                  {% endif %}
+                </div>
+                <button
+                  @click="updateItemStatus({{ item.id }}, 'Ready')"
+                  class="btn btn-sm btn-outline-success"
+                >
+                  Ready
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %} {% endfor %}
+      </div>
+    </div>
+
+    <!-- Ready Orders -->
+    <div
+      class="col-lg-4 mb-4"
+      x-show="filterStatus === 'all' || filterStatus === 'ready'"
+    >
+      <h5 class="text-center mb-3 text-success">Ready Orders</h5>
+      <div id="readyOrders">
+        {% for order in active_orders %} {% if order.status == 'Ready' %}
+        <div class="order-card status-ready" data-order-id="{{ order.id }}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="card-title mb-0">Order #{{ order.order_number }}</h6>
+              <span class="badge bg-success status-badge">Ready</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <small class="text-muted">
+                {% if order.table_id %}Table {{ order.table.table_number if
+                order.table else order.table_id }}{% endif %}
+              </small>
+              <small class="time-display"
+                >{{ order.created_at.strftime('%H:%M') }}</small
+              >
+            </div>
+
+            {% for item in order.items %}
+            <div class="item-row">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <strong>{{ item.quantity }}x</strong> {{ item.menu_item.name
+                  if item.menu_item else 'Unknown' }} {% if
+                  item.special_instructions %} <br /><small class="text-muted"
+                    >{{ item.special_instructions }}</small
+                  >
+                  {% endif %}
+                </div>
+                <button
+                  @click="updateItemStatus({{ item.id }}, 'Completed')"
+                  class="btn btn-sm btn-outline-secondary"
+                >
+                  Complete
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %} {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div x-show="activeOrders.length === 0" class="text-center mt-5">
+    <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No active orders</h4>
+    <p class="text-muted">New orders will appear here automatically</p>
+  </div>
+
+  <!-- Auto Refresh Indicator -->
+  <div x-show="autoRefresh" class="auto-refresh">
+    <div class="badge bg-primary">
+      <i class="fas fa-sync-alt fa-spin"></i> Auto Refresh
+    </div>
+  </div>
+</div>
+
+<!-- Audio for new orders (optional) -->
+<audio id="notificationSound" preload="auto">
+  <source
+    src="{{ url_for('static', filename='sounds/notification.mp3') }}"
+    type="audio/mpeg"
+  />
+</audio>
+{% endblock %} {% block extra_js %}
+<!-- Pass data from Flask to JavaScript -->
+<script type="text/javascript">
+// Pass data from Flask to JavaScript
+window.activeOrders = {{ active_orders|tojson|safe }};
+window.activeOrdersCount = {{ active_orders|length }};
+</script>
+<script src="{{ url_for('static', filename='js/kot.js') }}"></script>
+{% endblock %}

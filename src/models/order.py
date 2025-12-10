@@ -1,11 +1,13 @@
 from src.utils.helpers import generate_order_number
 from datetime import datetime
+from src.utils.encryption import get_encryption_manager
 
 class Order:
-    """Order model for order management"""
+    """Order model for order management with encrypted sensitive data"""
     
     def __init__(self, db):
         self.db = db
+        self.encryption_manager = get_encryption_manager()
     
     def create(self, order_data):
         """Create a new order"""
@@ -24,6 +26,11 @@ class Order:
                 order_type = order_data.get('order_type')
                 subtotal = order_data.get('subtotal', 0)
                 tax = order_data.get('tax', 0)
+                # GST fields
+                cgst_amount = order_data.get('cgst_amount', 0)
+                sgst_amount = order_data.get('sgst_amount', 0)
+                total_tax = order_data.get('total_tax', tax)
+                gst_rate = order_data.get('gst_rate', 5.0)
                 discount = order_data.get('discount', 0)
                 total = order_data.get('total', 0)
                 items = order_data.get('items', [])
@@ -38,21 +45,29 @@ class Order:
             if not total or total <= 0:
                 raise ValueError("Order total must be greater than 0")
             
+            # Encrypt sensitive customer information
+            encrypted_customer_name = self._encrypt_customer_name(customer_name) if customer_name else None
+            encrypted_customer_mobile = self._encrypt_customer_mobile(customer_mobile) if customer_mobile else None
+            
             # Create order record
             order_query = """
             INSERT INTO orders (order_number, table_id, customer_name, customer_mobile, order_type,
-                               subtotal, tax, discount, total, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               subtotal, tax, cgst_amount, sgst_amount, total_tax, gst_rate, discount, total, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             self.db.execute_query(order_query, (
                 order_number,
                 table_id,
-                customer_name,
-                customer_mobile,
+                encrypted_customer_name,
+                encrypted_customer_mobile,
                 order_type,
                 subtotal,
                 tax,
+                cgst_amount,
+                sgst_amount,
+                total_tax,
+                gst_rate,
                 discount,
                 total,
                 "Pending"  # Start with Pending status for KOT workflow
@@ -167,8 +182,9 @@ class Order:
         """Get detailed order information"""
         # Get order details
         order_query = """
-        SELECT o.order_number, o.table_id, o.customer_name, o.customer_mobile, o.order_type, 
-               o.subtotal, o.tax, o.discount, o.total, o.created_at, o.status
+        SELECT o.order_number, o.table_id, o.customer_name, o.customer_mobile, o.order_type,
+               o.subtotal, o.tax, o.cgst_amount, o.sgst_amount, o.total_tax, o.gst_rate,
+               o.discount, o.total, o.created_at, o.status
         FROM orders o
         WHERE o.id = ?
         """
@@ -177,6 +193,13 @@ class Order:
         
         if not order:
             return None
+        
+        # Decrypt sensitive information
+        if order:
+            order_list = list(order)
+            order_list[2] = self._decrypt_customer_name(order_list[2])  # customer_name
+            order_list[3] = self._decrypt_customer_mobile(order_list[3])  # customer_mobile
+            order = tuple(order_list)
         
         # Get order items
         items_query = """
@@ -268,4 +291,69 @@ class Order:
         query += " ORDER BY o.created_at DESC"
         
         self.db.execute_query(query, params)
-        return self.db.fetch_all()
+        results = self.db.fetch_all()
+        
+        # Decrypt customer information in results
+        decrypted_results = []
+        for result in results:
+            result_list = list(result)
+            if result_list[7]:  # customer_name
+                result_list[7] = self._decrypt_customer_name(result_list[7])
+            decrypted_results.append(tuple(result_list))
+        
+        return decrypted_results
+    
+    def _encrypt_customer_name(self, customer_name):
+        """Encrypt customer name"""
+        if not customer_name:
+            return None
+        return self.encryption_manager.encrypt_field(customer_name)
+    
+    def _decrypt_customer_name(self, encrypted_customer_name):
+        """Decrypt customer name"""
+        if not encrypted_customer_name:
+            return None
+        return self.encryption_manager.decrypt_field(encrypted_customer_name)
+    
+    def _encrypt_customer_mobile(self, customer_mobile):
+        """Encrypt customer mobile number"""
+        if not customer_mobile:
+            return None
+        return self.encryption_manager.encrypt_field(customer_mobile)
+    
+    def _decrypt_customer_mobile(self, encrypted_customer_mobile):
+        """Decrypt customer mobile number"""
+        if not encrypted_customer_mobile:
+            return None
+        return self.encryption_manager.decrypt_field(encrypted_customer_mobile)
+    
+    def _decrypt_payment_details(self, encrypted_payment_details):
+        """Decrypt payment details"""
+        if not encrypted_payment_details:
+            return None
+        
+        try:
+            import json
+            if isinstance(encrypted_payment_details, str):
+                # Try to parse as JSON first
+                try:
+                    details_dict = json.loads(encrypted_payment_details)
+                    decrypted_details = {}
+                    
+                    # Decrypt each field in payment details
+                    for key, value in details_dict.items():
+                        if value:
+                            decrypted_details[key] = self.encryption_manager.decrypt_field(value)
+                        else:
+                            decrypted_details[key] = value
+                    
+                    return json.dumps(decrypted_details)
+                except json.JSONDecodeError:
+                    # If not JSON, decrypt as plain text
+                    return self.encryption_manager.decrypt_field(encrypted_payment_details)
+            else:
+                # If not a string, decrypt as field
+                return self.encryption_manager.decrypt_field(encrypted_payment_details)
+        except Exception as e:
+            print(f"Error decrypting payment details: {e}")
+            return encrypted_payment_details

@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
+from PIL import Image, ImageTk
+import os
 from .base_ui import BaseUI
 from src.utils.constants import *
+from src.utils.image_handler import TkinterImageHandler
 
 class MenuScreen(BaseUI):
     """Menu management screen UI component"""
@@ -137,10 +140,10 @@ class MenuScreen(BaseUI):
         items_card.pack(fill=tk.BOTH, expand=True, pady=(0, SPACING_M))
         
         self.menu_items_tree, menu_scrollbar = self.create_modern_treeview(
-            items_card, 
-            ("name", "category", "price", "stock"), 
-            ("Name", "Category", "Price", "Stock"),
-            (250, 150, 100, 80)
+            items_card,
+            ("name", "category", "price", "stock", "shortcode", "image"),
+            ("Name", "Category", "Price", "Stock", "Shortcode", "Image"),
+            (180, 120, 80, 70, 80, 60)
         )
         self.menu_items_tree.pack(fill=tk.BOTH, expand=True)
         
@@ -190,6 +193,32 @@ class MenuScreen(BaseUI):
         # Load initial data
         self.load_menu_categories()
         self.load_menu_items_management()
+    
+    def show_image_preview(self, image_path, parent_frame):
+        """Show image preview in the given parent frame"""
+        try:
+            # Clear previous preview
+            for widget in parent_frame.winfo_children():
+                widget.destroy()
+            
+            # Load and resize image for preview
+            image = Image.open(image_path)
+            image.thumbnail((150, 150), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+            
+            # Create label with image
+            preview_label = ttk.Label(parent_frame, image=photo)
+            preview_label.image = photo  # Keep a reference
+            preview_label.pack(side=tk.LEFT, padx=(0, SPACING_S))
+            
+            # Add image info
+            info_text = f"Size: {image.size[0]}x{image.size[1]}"
+            info_label = self.create_modern_label(parent_frame, info_text, style="Small.TLabel")
+            info_label.pack(side=tk.LEFT, padx=(SPACING_S, 0))
+            
+        except Exception as e:
+            error_label = self.create_modern_label(parent_frame, f"Preview error: {str(e)}", style="Small.TLabel")
+            error_label.pack(side=tk.LEFT)
     
     def load_menu_categories(self):
         """Load menu categories"""
@@ -277,7 +306,7 @@ class MenuScreen(BaseUI):
             
             # Add items to tree with stock status tags
             for item in items:
-                item_id, name, category, price, stock = item
+                item_id, name, category, price, stock, shortcode = item
                 
                 # Convert stock to integer if it's a string
                 try:
@@ -293,11 +322,18 @@ class MenuScreen(BaseUI):
                 else:
                     stock_tag = "in_stock"
                 
+                # Get image info for display
+                image_display = "No Image"
+                if len(item) > 5 and item[5]:  # Check if image_path exists
+                    image_display = "Has Image"
+                
                 self.menu_items_tree.insert("", tk.END, values=(
                     name,
                     category,
                     f"₹{price:.2f}",
-                    f"{stock_int} units"
+                    f"{stock_int} units",
+                    shortcode or "",
+                    image_display
                 ), tags=(item_id, stock_tag))
                 
         except Exception as e:
@@ -377,6 +413,12 @@ class MenuScreen(BaseUI):
         )
         stock_entry.insert(0, "0")  # Set default value to 0
         
+        # Shortcode field
+        shortcode_entry = self.create_form_field(
+            form_frame, "Shortcode (Optional):", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
+        
         # Image path field
         image_path_var = tk.StringVar()
         image_frame = ttk.Frame(form_frame, style="Card.TFrame")
@@ -396,19 +438,27 @@ class MenuScreen(BaseUI):
         )
         image_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, SPACING_S))
         
+        # Image preview label
+        self.image_preview_label = None
+        
         def browse_image():
-            file_path = filedialog.askopenfilename(
-                title="Select Image",
-                filetypes=[("Image files", "*.jpg *.jpeg *.png *.gif"), ("All files", "*.*")]
-            )
+            file_path, error = TkinterImageHandler.select_image_file(add_window)
             if file_path:
+                # Store the selected file path
                 image_path_var.set(file_path)
+                
+                # Show preview
+                self.show_image_preview(file_path, preview_frame)
         
         browse_button = self.create_modern_button(
-            image_path_frame, "Browse", browse_image, 
+            image_path_frame, "Browse", browse_image,
             style="Secondary.TButton"
         )
         browse_button.pack(side=tk.RIGHT)
+        
+        # Image preview frame
+        preview_frame = ttk.Frame(image_frame, style="Card.TFrame")
+        preview_frame.pack(fill=tk.X, pady=(SPACING_S, 0))
         
         # Configure grid weights
         form_frame.grid_columnconfigure(1, weight=1)
@@ -423,6 +473,7 @@ class MenuScreen(BaseUI):
             price = price_entry.get().strip()
             stock = stock_entry.get().strip()
             image_path = image_path_var.get().strip()
+            shortcode = shortcode_entry.get().strip()
             
             if not name or not category or not price:
                 self.show_message("Warning", "Please fill in all required fields", "warning")
@@ -451,8 +502,30 @@ class MenuScreen(BaseUI):
                 self.show_message("Warning", "Invalid category", "warning")
                 return
             
+            # Validate shortcode uniqueness
+            if not self.app.menu_item_model.is_shortcode_unique(shortcode, category_id):
+                self.show_message("Warning", f"Shortcode '{shortcode}' already exists in this category", "warning")
+                return
+            
+            # Process image if provided
+            processed_image_path = image_path
+            if image_path:
+                # Create storage folder if it doesn't exist
+                storage_folder = os.path.join(os.path.dirname(__file__), '..', '..', 'images', 'menu_items')
+                os.makedirs(storage_folder, exist_ok=True)
+                
+                # Copy and process image
+                success, result = TkinterImageHandler.copy_image_to_storage(
+                    image_path, storage_folder, 'menu_item'
+                )
+                
+                if success:
+                    processed_image_path = result['filename']
+                else:
+                    self.show_message("Warning", f"Image processing failed: {result}. Using original path.", "warning")
+            
             # Insert menu item
-            self.app.menu_item_model.add(name, price, category_id, stock, image_path)
+            self.app.menu_item_model.add(name, price, category_id, stock, processed_image_path, shortcode)
             
             self.show_message("Success", "Menu item added successfully", "info")
             add_window.destroy()
@@ -535,6 +608,16 @@ class MenuScreen(BaseUI):
         )
         stock_entry.insert(0, str(stock))
         
+        # Shortcode field
+        shortcode_entry = self.create_form_field(
+            form_frame, "Shortcode (Optional):", "entry",
+            style="Modern.TEntry", font=(FONT_FAMILY_PRIMARY, 12), width=30
+        )
+        # Note: We need to get the shortcode from the item details, but we need to update get_by_id to include it
+        # For now, we'll leave it empty
+        if len(item_details) > 5:
+            shortcode_entry.insert(0, item_details[5] or "")
+        
         # Image path field
         image_path_var = tk.StringVar(value=image_path or "")
         image_frame = ttk.Frame(form_frame, style="Card.TFrame")
@@ -581,6 +664,7 @@ class MenuScreen(BaseUI):
             price = price_entry.get().strip()
             stock = stock_entry.get().strip()
             image_path = image_path_var.get().strip()
+            shortcode = shortcode_entry.get().strip()
             
             if not name or not category or not price:
                 self.show_message("Warning", "Please fill in all required fields", "warning")
@@ -609,8 +693,13 @@ class MenuScreen(BaseUI):
                 self.show_message("Warning", "Invalid category", "warning")
                 return
             
+            # Validate shortcode uniqueness
+            if not self.app.menu_item_model.is_shortcode_unique(shortcode, new_category_id, item_id):
+                self.show_message("Warning", f"Shortcode '{shortcode}' already exists in this category", "warning")
+                return
+            
             # Update menu item
-            self.app.menu_item_model.update(item_id, name, price, new_category_id, stock, image_path)
+            self.app.menu_item_model.update(item_id, name, price, new_category_id, stock, image_path, shortcode)
             
             self.show_message("Success", "Menu item updated successfully", "info")
             edit_window.destroy()

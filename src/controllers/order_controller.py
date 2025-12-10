@@ -106,21 +106,32 @@ class OrderController:
         self.cart_items = []
     
     def calculate_totals(self, discount_value=0, discount_type="%"):
-        """Calculate order totals"""
+        """Calculate order totals with GST breakdown"""
         subtotal = sum(item['total'] for item in self.cart_items)
-        tax_rate = 5.0 / 100  # Default 5% tax
-        tax = subtotal * tax_rate
+        
+        # GST calculation (5% total: 2.5% CGST + 2.5% SGST)
+        gst_rate = 5.0 / 100  # 5% total GST
+        cgst_rate = 2.5 / 100  # 2.5% CGST
+        sgst_rate = 2.5 / 100  # 2.5% SGST
+        
+        cgst_amount = subtotal * cgst_rate
+        sgst_amount = subtotal * sgst_rate
+        total_tax = cgst_amount + sgst_amount
         
         if discount_type == "%":
             discount = subtotal * (discount_value / 100)
         else:  # Flat
             discount = discount_value
         
-        total = subtotal + tax - discount
+        total = subtotal + total_tax - discount
         
         return {
             'subtotal': subtotal,
-            'tax': tax,
+            'tax': total_tax,  # For backward compatibility
+            'cgst_amount': cgst_amount,
+            'sgst_amount': sgst_amount,
+            'total_tax': total_tax,
+            'gst_rate': 5.0,
             'discount': discount,
             'total': total
         }
@@ -157,6 +168,10 @@ class OrderController:
                 'order_type': self.order_type,
                 'subtotal': totals['subtotal'],
                 'tax': totals['tax'],
+                'cgst_amount': totals['cgst_amount'],
+                'sgst_amount': totals['sgst_amount'],
+                'total_tax': totals['total_tax'],
+                'gst_rate': totals['gst_rate'],
                 'discount': totals['discount'],
                 'total': totals['total'],
                 'payment_mode': payment_mode,

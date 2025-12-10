@@ -8,3 +8,5 @@ openpyxl>=3.0.9
 reportlab>=3.6.0
 qrcode[pil]>=7.3.0
 python-barcode>=0.15.0
+# Backup and scheduling dependencies
+schedule>=1.2.0
