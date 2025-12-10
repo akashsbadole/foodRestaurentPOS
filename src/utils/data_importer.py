@@ -435,18 +435,19 @@ class DataImporter:
                             errors.append(f"Order {order_data.get('order_number')} already exists")
                             continue
                     
-                    # Create order (simplified - would need full implementation)
-                    order_id = self.app.order_model.create((
-                        order_data.get('order_number', ''),
-                        order_data.get('table_id'),
-                        order_data.get('customer_name', ''),
-                        order_data.get('customer_mobile', ''),
-                        order_data.get('order_type', 'Dine-in'),
-                        order_data.get('subtotal', 0),
-                        order_data.get('tax', 0),
-                        order_data.get('discount', 0),
-                        order_data.get('total', 0)
-                    ))
+                    # Create order using dictionary format
+                    order_dict = {
+                        'order_number': order_data.get('order_number', ''),
+                        'table_id': order_data.get('table_id'),
+                        'customer_name': order_data.get('customer_name', ''),
+                        'customer_mobile': order_data.get('customer_mobile', ''),
+                        'order_type': order_data.get('order_type', 'Dine-in'),
+                        'subtotal': order_data.get('subtotal', 0),
+                        'tax': order_data.get('tax', 0),
+                        'discount': order_data.get('discount', 0),
+                        'total': order_data.get('total', 0)
+                    }
+                    order_id = self.app.order_model.create(order_dict)
                     
                     if order_id:
                         imported_count += 1

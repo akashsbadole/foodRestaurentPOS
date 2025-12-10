@@ -78,7 +78,7 @@ class User:
     
     def authenticate(self, username, password):
         """Authenticate user credentials"""
-        from utils.helpers import hash_password
+        from src.utils.helpers import hash_password
         hashed_password = hash_password(password)
         
         query = "SELECT id, username, role FROM users WHERE username = ? AND password = ?"
@@ -93,7 +93,7 @@ class User:
     
     def add(self, username, password, role):
         """Add new user"""
-        from utils.helpers import hash_password
+        from src.utils.helpers import hash_password
         hashed_password = hash_password(password)
         
         query = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)"
@@ -224,26 +224,121 @@ class Order:
     
     def create(self, order_data):
         """Create new order"""
-        order_number = order_data[0]
-        
-        # Check if order number already exists to prevent duplicates
-        check_query = "SELECT id FROM orders WHERE order_number = ?"
-        self.db.execute_query(check_query, (order_number,))
-        existing_order = self.db.fetch_one()
-        
-        if existing_order:
-            print(f"Warning: Order number {order_number} already exists!")
-            return None
-        
-        query = """
-        INSERT INTO orders (order_number, table_id, customer_name, customer_mobile, order_type,
-                           subtotal, tax, discount, total, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        self.db.execute_query(query, order_data)
-        order_id = self.db.lastrowid()
-        self.db.commit()
-        return order_id
+        try:
+            # Validate input
+            if not order_data:
+                raise ValueError("Order data is required")
+            
+            # Handle both dictionary and tuple inputs for backward compatibility
+            if isinstance(order_data, dict):
+                # Dictionary input
+                order_number = order_data.get('order_number')
+                table_id = order_data.get('table_id')
+                customer_name = order_data.get('customer_name')
+                customer_mobile = order_data.get('customer_mobile')
+                order_type = order_data.get('order_type')
+                subtotal = order_data.get('subtotal', 0)
+                tax = order_data.get('tax', 0)
+                discount = order_data.get('discount', 0)
+                total = order_data.get('total', 0)
+                status = order_data.get('status', "Pending")  # Default status for KOT workflow
+                items = order_data.get('items', [])
+                payment_mode = order_data.get('payment_mode')
+            else:
+                # Legacy tuple support
+                if len(order_data) < 1:
+                    raise ValueError("Order data tuple is missing required fields")
+                order_number = order_data[0]
+                table_id = order_data[1] if len(order_data) > 1 else None
+                customer_name = order_data[2] if len(order_data) > 2 else None
+                customer_mobile = order_data[3] if len(order_data) > 3 else None
+                order_type = order_data[4] if len(order_data) > 4 else None
+                subtotal = order_data[5] if len(order_data) > 5 else None
+                tax = order_data[6] if len(order_data) > 6 else None
+                discount = order_data[7] if len(order_data) > 7 else None
+                total = order_data[8] if len(order_data) > 8 else None
+                status = order_data[9] if len(order_data) > 9 else "Pending"
+                items = []  # Items not supported in tuple format
+                payment_mode = None  # Payment mode not supported in tuple format
+            
+            # Validate required fields
+            if not order_number:
+                raise ValueError("Order number is required")
+            if not total or total <= 0:
+                raise ValueError("Order total must be greater than 0")
+            
+            # Check if order number already exists to prevent duplicates
+            check_query = "SELECT id FROM orders WHERE order_number = ?"
+            self.db.execute_query(check_query, (order_number,))
+            existing_order = self.db.fetch_one()
+            
+            if existing_order:
+                print(f"Warning: Order number {order_number} already exists!")
+                return None
+            
+            query = """
+            INSERT INTO orders (order_number, table_id, customer_name, customer_mobile, order_type,
+                               subtotal, tax, discount, total, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            params = (order_number, table_id, customer_name, customer_mobile, order_type,
+                     subtotal, tax, discount, total, status)
+            self.db.execute_query(query, params)
+            order_id = self.db.lastrowid()
+            
+            if not order_id:
+                raise ValueError("Failed to create order record")
+            
+            # If dictionary input contains items, add them to order_items
+            if isinstance(order_data, dict) and items:
+                for item in items:
+                    # Validate item structure
+                    if not isinstance(item, dict):
+                        raise ValueError("Order items must be dictionaries")
+                    
+                    required_item_fields = ['id', 'quantity', 'price', 'total']
+                    for field in required_item_fields:
+                        if field not in item:
+                            raise ValueError(f"Item missing required field: {field}")
+                    
+                    item_query = """
+                    INSERT INTO order_items (order_id, menu_item_id, quantity, price, total, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """
+                    self.db.execute_query(item_query, (
+                        order_id,
+                        item['id'],
+                        item['quantity'],
+                        item['price'],
+                        item['total'],
+                        "Pending"  # Start with Pending status for KOT workflow
+                    ))
+                    
+                    # Update inventory
+                    self.db.execute_query(
+                        "UPDATE menu_items SET stock_quantity = stock_quantity - ? WHERE id = ?",
+                        (item['quantity'], item['id'])
+                    )
+            
+            # If dictionary input contains payment_mode, add payment record
+            if isinstance(order_data, dict) and payment_mode:
+                payment_query = """
+                INSERT INTO payments (order_id, payment_mode, amount)
+                VALUES (?, ?, ?)
+                """
+                self.db.execute_query(payment_query, (order_id, payment_mode, total))
+            
+            self.db.commit()
+            return order_id
+            
+        except Exception as e:
+            # Rollback on error
+            try:
+                self.db.execute_query("ROLLBACK")
+            except:
+                pass
+            print(f"Error creating order: {str(e)}")
+            raise e
     
     def add_item(self, order_id, menu_item_id, quantity, price, total, status="Completed"):
         """Add item to order"""

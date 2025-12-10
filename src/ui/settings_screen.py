@@ -82,6 +82,7 @@ class SettingsScreen(BaseUI):
         self.create_general_settings_tab(notebook)
         self.create_tax_settings_tab(notebook)
         self.create_printer_settings_tab(notebook)
+        self.create_export_settings_tab(notebook)
         self.create_user_management_tab(notebook)
         
         # Save button container with modern styling
@@ -397,6 +398,99 @@ class SettingsScreen(BaseUI):
             entry_type="checkbutton",
             textvariable=self.auto_print_kot_var
         )
+    def create_export_settings_tab(self, notebook):
+        """Create Export Settings tab with improved layout"""
+        # Export settings tab with modern card design
+        export_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
+        notebook.add(export_frame, text="Export Settings")
+        
+        # Tab description
+        desc_label = self.create_modern_label(
+            export_frame, 
+            text="Configure export options for orders and invoices", 
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
+        
+        # Export settings card with shadow effect
+        shadow_container = tk.Frame(export_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        export_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        export_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(export_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        section_title = self.create_modern_label(
+            section_header, 
+            text="📄 Export Configuration", 
+            style="SectionTitle.TLabel"
+        )
+        section_title.pack(side=tk.LEFT)
+        
+        # Form fields with improved layout
+        form_container = ttk.Frame(export_card, style="Panel.TFrame")
+        form_container.pack(fill=tk.X)
+        
+        # Export after payment checkbox
+        self.export_after_payment_var = tk.BooleanVar(
+            value=self.app.settings.get('export_after_payment', 'false').lower() == 'true'
+        )
+        self.create_form_field(
+            form_container,
+            "Export Order After Payment",
+            entry_type="checkbutton",
+            textvariable=self.export_after_payment_var
+        )
+        
+        # Default export format
+        self.default_export_format_var = tk.StringVar(
+            value=self.app.settings.get('default_export_format', 'none')
+        )
+        self.create_form_field(
+            form_container,
+            "Default Export Format",
+            entry_type="combobox",
+            textvariable=self.default_export_format_var,
+            values=["none", "pdf", "text", "both"],
+            state="readonly",
+            width=28
+        )
+        
+        # Show export dialog checkbox
+        self.show_export_dialog_var = tk.BooleanVar(
+            value=self.app.settings.get('show_export_dialog', 'true').lower() == 'true'
+        )
+        self.create_form_field(
+            form_container,
+            "Show Export Dialog After Payment",
+            entry_type="checkbutton",
+            textvariable=self.show_export_dialog_var
+        )
+        
+        # Auto-open exported files checkbox
+        self.auto_open_exported_var = tk.BooleanVar(
+            value=self.app.settings.get('auto_open_exported_files', 'false').lower() == 'true'
+        )
+        self.create_form_field(
+            form_container,
+            "Auto-open Exported Files",
+            entry_type="checkbutton",
+            textvariable=self.auto_open_exported_var
+        )
+        
+        # Information note
+        note_frame = self.create_modern_frame(export_card, style="Card.TFrame", padding=SPACING_M)
+        note_frame.pack(fill=tk.X, pady=(SPACING_M, 0))
+        
+        note_label = self.create_modern_label(
+            note_frame,
+            "💡 Export settings control how orders are exported after payment completion.",
+            style="Small.TLabel"
+        )
+        note_label.pack(anchor=tk.W)
         
         # Test buttons
         test_button_frame = self.create_modern_frame(printer_frame, style="Card.TFrame", padding=SPACING_M)
@@ -430,6 +524,11 @@ class SettingsScreen(BaseUI):
             from src.utils.printer import PrinterManager
             manager = PrinterManager(self.app.settings)
             success = manager.test_printer("standard", printer_name)
+            # Save export settings
+            self.app.update_setting('export_after_payment', str(self.export_after_payment_var.get()))
+            self.app.update_setting('default_export_format', self.default_export_format_var.get())
+            self.app.update_setting('show_export_dialog', str(self.show_export_dialog_var.get()))
+            self.app.update_setting('auto_open_exported_files', str(self.auto_open_exported_var.get()))
             
             if success:
                 self.show_message("Success", "Standard printer test successful!", "info")
@@ -472,8 +571,8 @@ class SettingsScreen(BaseUI):
         section_header.pack(fill=tk.X, pady=(0, SPACING_M))
         
         section_title = self.create_modern_label(
-            section_header, 
-            text="👥 Manage Users", 
+            section_header,
+            text="👥 Manage Users",
             style="SectionTitle.TLabel"
         )
         section_title.pack(side=tk.LEFT)
@@ -526,6 +625,12 @@ class SettingsScreen(BaseUI):
             self.app.update_setting('auto_print_bill', str(self.auto_print_bill_var.get()))
             self.app.update_setting('auto_print_kot', str(self.auto_print_kot_var.get()))
             
+            # Save export settings
+            self.app.update_setting('export_after_payment', str(self.export_after_payment_var.get()))
+            self.app.update_setting('default_export_format', self.default_export_format_var.get())
+            self.app.update_setting('show_export_dialog', str(self.show_export_dialog_var.get()))
+            self.app.update_setting('auto_open_exported_files', str(self.auto_open_exported_var.get()))
+            
             # Save tax settings with validation
             try:
                 tax_rate = float(self.tax_rate_var.get())
@@ -575,6 +680,14 @@ class SettingsScreen(BaseUI):
             self.auto_print_bill_var.set(value == 'True')
         elif key == 'auto_print_kot':
             self.auto_print_kot_var.set(value == 'True')
+        elif key == 'export_after_payment':
+            self.export_after_payment_var.set(value == 'True')
+        elif key == 'default_export_format':
+            self.default_export_format_var.set(value)
+        elif key == 'show_export_dialog':
+            self.show_export_dialog_var.set(value == 'True')
+        elif key == 'auto_open_exported_files':
+            self.auto_open_exported_var.set(value == 'True')
     
     def load_users(self):
         """Load users into the modern user tree"""

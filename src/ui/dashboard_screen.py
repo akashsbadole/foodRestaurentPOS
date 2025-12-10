@@ -72,16 +72,50 @@ class DashboardScreen(BaseUI):
             style.configure("Dashboard.TFrame", background=self.COLORS['background'])
             content_frame.configure(style="Dashboard.TFrame")
         
-        # Set up dashboard shortcuts
-        if hasattr(self.app, 'keyboard_handler'):
-            self.app.keyboard_handler.setup_dashboard_shortcuts()
+        # Dashboard shortcuts have been disabled - no keyboard shortcuts available
+        # Only mouse interaction is now supported on the dashboard
         
-        # Title with modern styling
-        title_label = tk.Label(content_frame, text="Dashboard", 
+        # Title section with date and time
+        title_frame = Frame(content_frame, bg=self.COLORS['background'])
+        title_frame.pack(fill=tk.X, padx=self.SPACING['xl'], pady=self.SPACING['m'])
+        
+        # Dashboard title
+        title_label = tk.Label(title_frame, text="Dashboard", 
                               font=self.FONTS['h1'], 
                               fg=self.COLORS['text_primary'],
                               bg=self.COLORS['background'])
-        title_label.pack(anchor=tk.W, padx=self.SPACING['xl'], pady=self.SPACING['m'])
+        title_label.pack(side=tk.LEFT, anchor=tk.W)
+        
+        # Current date and time on the right
+        datetime_frame = Frame(title_frame, bg=self.COLORS['background'])
+        datetime_frame.pack(side=tk.RIGHT, anchor=tk.E)
+        
+        # Get current date and time
+        from datetime import datetime
+        current_datetime = datetime.now()
+        date_str = current_datetime.strftime('%A, %B %d, %Y')
+        time_str = current_datetime.strftime('%I:%M %p')
+        
+        # Date label
+        date_label = tk.Label(datetime_frame, text=date_str, 
+                           font=self.FONTS['h3'], 
+                           fg=self.COLORS['text_secondary'],
+                           bg=self.COLORS['background'])
+        date_label.pack(anchor=tk.E)
+        
+        # Time label
+        time_label = tk.Label(datetime_frame, text=time_str, 
+                           font=self.FONTS['h2'], 
+                           fg=self.COLORS['primary'],
+                           bg=self.COLORS['background'])
+        time_label.pack(anchor=tk.E)
+        
+        # Store reference for updating time
+        self.time_label = time_label
+        self.date_label = date_label
+        
+        # Start time update timer
+        self.update_datetime()
         
         # Get today's stats
         stats = self.app.report_model.get_dashboard_stats()
@@ -378,12 +412,12 @@ class DashboardScreen(BaseUI):
         parent.configure(bg=self.COLORS['card'])
         
         buttons = [
-            ("New Order (1)", self.app.show_new_order, self.COLORS['primary']),
-            ("View Orders (2)", self.app.show_orders, self.COLORS['secondary']),
-            ("Menu Management (3)", self.app.show_menu, self.COLORS['success']),
-            ("Tables (4)", self.app.show_tables, self.COLORS['warning']),
-            ("Inventory (5)", self.app.show_inventory, self.COLORS['error']),
-            ("Reports (6)", self.app.show_reports, self.COLORS['info'])
+            ("New Order", self.app.show_new_order, self.COLORS['primary']),
+            ("View Orders", self.app.show_orders, self.COLORS['secondary']),
+            ("Menu Management", self.app.show_menu, self.COLORS['success']),
+            ("Tables", self.app.show_tables, self.COLORS['warning']),
+            ("Inventory", self.app.show_inventory, self.COLORS['error']),
+            ("Reports", self.app.show_reports, self.COLORS['info'])
         ]
         
         # Create button grid with proper spacing
@@ -419,3 +453,26 @@ class DashboardScreen(BaseUI):
         # Configure column weights for responsive layout
         for col in range(3):
             button_frame.columnconfigure(col, weight=1)
+    
+    def update_datetime(self):
+        """Update date and time display every second"""
+        try:
+            from datetime import datetime
+            current_datetime = datetime.now()
+            
+            # Update date (only if date changed)
+            date_str = current_datetime.strftime('%A, %B %d, %Y')
+            if hasattr(self, 'date_label'):
+                self.date_label.config(text=date_str)
+            
+            # Update time every second
+            time_str = current_datetime.strftime('%I:%M %S %p')
+            if hasattr(self, 'time_label'):
+                self.time_label.config(text=time_str)
+            
+        except Exception as e:
+            print(f"Error updating datetime: {e}")
+        
+        # Schedule next update in 1 second
+        if hasattr(self, 'content_frame') and self.content_frame:
+            self.content_frame.after(1000, self.update_datetime)

@@ -1,4 +1,5 @@
-from src.models.database import Table, Order
+from src.models.database import Table
+from src.models.order import Order
 from src.models.menu_item import MenuItem
 from src.utils.helpers import generate_order_number, format_currency
 from src.utils.event_dispatcher import event_dispatcher, EventType
@@ -88,7 +89,7 @@ class OrderController:
                 item_data = self.menu_item_model.get_by_id(item_id)
                 if item_data and quantity <= item_data[3]:  # stock is at index 3
                     cart_item['quantity'] = quantity
-                    cart_item['total'] = cart_item['price'] * quantity
+                    cart_item['total'] = cart_item['price'] * cart_item['quantity']
                     return True, "Cart updated"
                 else:
                     return False, f"Only {item_data[3]} items available in stock"
@@ -125,7 +126,8 @@ class OrderController:
         }
     
     def process_payment(self, payment_mode, discount_value=0, discount_type="%",
-                     customer_name=None, customer_mobile=None):
+                     customer_name=None, customer_mobile=None, 
+                     auto_export=False, export_format=None):
         """Process payment and create order"""
         # Validate cart state
         if not self.cart_items:
@@ -146,8 +148,9 @@ class OrderController:
             # Generate order number
             order_number = generate_order_number()
             
-            # Create order data
+            # Create order data with order_number included
             order_data = {
+                'order_number': order_number,  # Include order_number in the data
                 'table_id': self.selected_table,
                 'customer_name': customer_name,
                 'customer_mobile': customer_mobile,
@@ -163,13 +166,8 @@ class OrderController:
             # Create order
             order_id = self.order_model.create(order_data)
             
-            # Add order items with PENDING status for KOT workflow
-            for cart_item in self.cart_items:
-                # Update inventory
-                self.menu_item_model.update_stock(
-                    cart_item['id'],
-                    cart_item['quantity'] * -1  # Subtract from stock
-                )
+            if not order_id:
+                return False, "Failed to create order"
             
             # Add payment record
             self.order_model.add_payment(order_id, payment_mode, totals['total'])
@@ -200,7 +198,13 @@ class OrderController:
             # Reset order
             self.reset_order()
             
-            return True, order_number
+            # Return success with order details for potential export
+            return True, {
+                'order_number': order_number,
+                'order_id': order_id,
+                'order_data': order_data,
+                'totals': totals
+            }
             
         except Exception as e:
             return False, f"Payment processing failed: {str(e)}"

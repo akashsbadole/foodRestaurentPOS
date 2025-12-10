@@ -345,6 +345,16 @@ class BaseUI:
             field = self.create_modern_entry(field_frame, **kwargs)
         elif entry_type == "combobox":
             field = self.create_modern_combobox(field_frame, **kwargs)
+        elif entry_type == "checkbutton":
+            # Handle checkbutton case
+            field = None  # No field to pack for checkbutton
+            # Create checkbutton directly with label
+            checkbutton = ttk.Checkbutton(field_frame, **kwargs)
+            checkbutton.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
+            return checkbutton
+        else:
+            # Default to entry for unknown types
+            field = self.create_modern_entry(field_frame, **kwargs)
         
         field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
         

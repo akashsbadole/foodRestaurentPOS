@@ -161,8 +161,10 @@ class InventoryScreen(BaseUI):
             # Temporarily change background to show hover effect
             tags = self.inventory_tree.item(item)['tags']
             if 'hover' not in tags:
-                new_tags = tags + ('hover',)
-                self.inventory_tree.item(item, tags=new_tags)
+                # Convert tags to list if it's a tuple, then append hover tag
+                tags_list = list(tags) if isinstance(tags, tuple) else tags
+                tags_list.append('hover')
+                self.inventory_tree.item(item, tags=tuple(tags_list))
                 self.inventory_tree.tag_configure('hover', background='#e3f2fd')
     
     def _on_tree_leave(self, event):

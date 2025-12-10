@@ -197,8 +197,8 @@ class DataManagementScreen(BaseUI):
         restore_frame = ttk.LabelFrame(self.backup_frame, text="Restore from Backup", padding=10)
         restore_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        ttk.Label(restore_frame, text="⚠ Warning: Restore will overwrite existing data!").pack(
-            anchor=tk.W, pady=5, foreground='red')
+        ttk.Label(restore_frame, text="⚠ Warning: Restore will overwrite existing data!", foreground='red').pack(
+            anchor=tk.W, pady=5)
         
         ttk.Label(restore_frame, text="Backup File:").pack(anchor=tk.W, padx=5, pady=2)
         self.backup_file_var = tk.StringVar()

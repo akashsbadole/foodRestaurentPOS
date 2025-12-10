@@ -5,6 +5,7 @@ class Settings:
     
     def __init__(self, db):
         self.db = db
+        self._ensure_default_export_settings()
     
     def get_all(self):
         """Get all settings as dictionary"""
@@ -47,3 +48,11 @@ class Settings:
         """Ensure a setting exists, create with default if not"""
         if not self.get(key):
             self.create(key, default_value)
+    
+    def _ensure_default_export_settings(self):
+        """Ensure default export settings exist"""
+        # Export settings
+        self.ensure_exists('export_after_payment', 'false')
+        self.ensure_exists('default_export_format', 'none')  # Options: 'pdf', 'text', 'both', 'none'
+        self.ensure_exists('show_export_dialog', 'true')
+        self.ensure_exists('auto_open_exported_files', 'false')

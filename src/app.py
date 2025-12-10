@@ -28,7 +28,8 @@ from io import StringIO
 import tempfile
 
 # Import our modular components
-from src.models.database import DatabaseManager, User, Category, Table, Order, KOT, Settings
+from src.models.database import DatabaseManager, User, Category, Table, KOT, Settings
+from src.models.order import Order
 from src.models.menu_item import MenuItem
 from src.models.report import Report
 from src.ui.login_screen import LoginScreen

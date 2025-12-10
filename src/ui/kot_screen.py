@@ -193,21 +193,21 @@ class KOTScreen(BaseUI):
             print(f"Error loading KOT items: {e}")
             # Show error message
             error_frame = self.create_modern_frame(self.kot_scrollable_frame, style="Card.TFrame",
-                                                padding=SPACING_XL)
+                                            padding=SPACING_XL)
             error_frame.pack(fill=tk.X, pady=SPACING_L)
             
             error_icon = self.create_modern_label(error_frame, text="⚠",
-                                                style="Title.TLabel")
+                                            style="Title.TLabel")
             error_icon.pack(pady=(0, SPACING_M))
             
             error_label = self.create_modern_label(error_frame,
-                                                text="Failed to load orders",
-                                                style="Subtitle.TLabel")
+                                            text="Failed to load orders",
+                                            style="Subtitle.TLabel")
             error_label.pack()
             
             error_sublabel = self.create_modern_label(error_frame,
-                                                    text="Please try refreshing the screen",
-                                                    style="Small.TLabel")
+                                              text="Please try refreshing the screen",
+                                              style="Small.TLabel")
             error_sublabel.pack(pady=(SPACING_S, 0))
     
     def _create_kot_card(self, item):
@@ -360,25 +360,31 @@ class KOTScreen(BaseUI):
     
     def _select_kot_card(self, card):
         """Handle KOT card selection with enhanced visual feedback"""
-        # Deselect all cards
-        for widget in self.kot_scrollable_frame.winfo_children():
-            if hasattr(widget, 'item_id'):
-                if hasattr(widget, 'card_container'):
-                    widget.card_container.configure(highlightbackground=COLOR_BORDER_LIGHT, 
-                                                  highlightthickness=1)
-                # Reset card background
-                for child in widget.winfo_children():
-                    if hasattr(child, 'configure') and 'background' in child.configure():
-                        try:
-                            child.configure(background=COLOR_CARD_WHITE)
-                        except:
-                            pass
-        
-        # Select clicked card with enhanced styling
-        if hasattr(card, 'card_container'):
-            card.card_container.configure(highlightbackground=COLOR_PRIMARY, 
-                                        highlightthickness=3)
-        self.selected_card = card
+        try:
+            # Deselect all cards
+            for widget in self.kot_scrollable_frame.winfo_children():
+                if hasattr(widget, 'item_id'):
+                    if hasattr(widget, 'card_container'):
+                        widget.card_container.configure(highlightbackground=COLOR_BORDER_LIGHT, 
+                                                      highlightthickness=1)
+                    # Reset card background
+                    for child in widget.winfo_children():
+                        if hasattr(child, 'configure'):
+                            try:
+                                # Only attempt to configure background if the widget supports it
+                                config_options = child.configure()
+                                if 'background' in config_options:
+                                    child.configure(background=COLOR_CARD_WHITE)
+                            except (tk.TclError, AttributeError):
+                                pass
+            
+            # Select clicked card with enhanced styling
+            if hasattr(card, 'card_container'):
+                card.card_container.configure(highlightbackground=COLOR_PRIMARY, 
+                                            highlightthickness=3)
+            self.selected_card = card
+        except Exception as e:
+            print(f"Error selecting KOT card: {e}")
     
     def _update_filter_button_styles(self):
         """Update filter button styles based on selection with enhanced visual feedback"""
