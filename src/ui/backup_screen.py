@@ -66,6 +66,11 @@ class BackupScreen(BaseUI):
         self.restore_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.restore_frame, text="Restore")
         self.setup_restore_tab()
+        
+        # Email tab
+        self.email_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.email_frame, text="Email")
+        self.setup_email_tab()
     
     def setup_operations_tab(self):
         """Setup backup operations tab"""
@@ -364,6 +369,356 @@ class BackupScreen(BaseUI):
         
         # Refresh restore list
         self.refresh_restore_list()
+    
+    def setup_email_tab(self):
+        """Setup email configuration tab"""
+        # Create scrollable frame
+        canvas = tk.Canvas(self.email_frame)
+        scrollbar = ttk.Scrollbar(self.email_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # SMTP Settings frame
+        smtp_frame = ttk.LabelFrame(scrollable_frame, text="SMTP Settings", padding=10)
+        smtp_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # SMTP Server
+        ttk.Label(smtp_frame, text="SMTP Server:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.smtp_server_var = tk.StringVar(value=self.backup_manager.email_service.config.smtp_server)
+        ttk.Entry(smtp_frame, textvariable=self.smtp_server_var, width=40).grid(row=0, column=1, sticky=tk.W+tk.E, padx=5, pady=5)
+        
+        # SMTP Port
+        ttk.Label(smtp_frame, text="SMTP Port:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.smtp_port_var = tk.IntVar(value=self.backup_manager.email_service.config.smtp_port)
+        ttk.Spinbox(smtp_frame, from_=1, to=65535, textvariable=self.smtp_port_var, width=15).grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Encryption
+        self.use_tls_var = tk.BooleanVar(value=self.backup_manager.email_service.config.use_tls)
+        self.use_ssl_var = tk.BooleanVar(value=self.backup_manager.email_service.config.use_ssl)
+        
+        ttk.Checkbutton(smtp_frame, text="Use TLS", variable=self.use_tls_var).grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Checkbutton(smtp_frame, text="Use SSL", variable=self.use_ssl_var).grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Authentication frame
+        auth_frame = ttk.LabelFrame(scrollable_frame, text="Authentication", padding=10)
+        auth_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Username
+        ttk.Label(auth_frame, text="Username:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.username_var = tk.StringVar(value=self.backup_manager.email_service.config.username)
+        ttk.Entry(auth_frame, textvariable=self.username_var, width=40).grid(row=0, column=1, sticky=tk.W+tk.E, padx=5, pady=5)
+        
+        # Password
+        ttk.Label(auth_frame, text="Password:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.password_var = tk.StringVar(value=self.backup_manager.email_service.config.password)
+        ttk.Entry(auth_frame, textvariable=self.password_var, show="*", width=40).grid(row=1, column=1, sticky=tk.W+tk.E, padx=5, pady=5)
+        
+        # From Email
+        ttk.Label(auth_frame, text="From Email:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.from_email_var = tk.StringVar(value=self.backup_manager.email_service.config.from_email)
+        ttk.Entry(auth_frame, textvariable=self.from_email_var, width=40).grid(row=2, column=1, sticky=tk.W+tk.E, padx=5, pady=5)
+        
+        # From Name
+        ttk.Label(auth_frame, text="From Name:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        self.from_name_var = tk.StringVar(value=self.backup_manager.email_service.config.from_name)
+        ttk.Entry(auth_frame, textvariable=self.from_name_var, width=40).grid(row=3, column=1, sticky=tk.W+tk.E, padx=5, pady=5)
+        
+        # Recipients frame
+        recipients_frame = ttk.LabelFrame(scrollable_frame, text="Recipients", padding=10)
+        recipients_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Recipients
+        ttk.Label(recipients_frame, text="Email Recipients:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.recipients_var = tk.StringVar(value=", ".join(self.backup_manager.email_service.config.recipients))
+        recipients_text = tk.Text(recipients_frame, height=4, width=40)
+        recipients_text.grid(row=1, column=0, columnspan=2, sticky=tk.W+tk.E, padx=5, pady=5)
+        recipients_text.insert(1.0, self.recipients_var.get())
+        
+        # Store reference to recipients text widget
+        self.recipients_text = recipients_text
+        
+        # Email Settings frame
+        settings_frame = ttk.LabelFrame(scrollable_frame, text="Email Settings", padding=10)
+        settings_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Backup Notifications
+        self.backup_notifications_var = tk.BooleanVar(value=self.backup_manager.email_service.config.backup_notifications)
+        ttk.Checkbutton(settings_frame, text="Enable Backup Notifications",
+                        variable=self.backup_notifications_var).grid(row=0, column=0, columnspan=2,
+                                                                    sticky=tk.W, padx=5, pady=5)
+        
+        # Test Emails
+        self.test_emails_var = tk.BooleanVar(value=self.backup_manager.email_service.config.test_emails)
+        ttk.Checkbutton(settings_frame, text="Enable Test Emails",
+                        variable=self.test_emails_var).grid(row=1, column=0, columnspan=2,
+                                                           sticky=tk.W, padx=5, pady=5)
+        
+        # Advanced Settings frame
+        advanced_frame = ttk.LabelFrame(scrollable_frame, text="Advanced Settings", padding=10)
+        advanced_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Max Attachment Size
+        ttk.Label(advanced_frame, text="Max Attachment Size (MB):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.max_attachment_size_var = tk.IntVar(value=self.backup_manager.email_service.config.max_attachment_size_mb)
+        ttk.Spinbox(advanced_frame, from_=1, to=100, textvariable=self.max_attachment_size_var, width=15).grid(
+            row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Retry Attempts
+        ttk.Label(advanced_frame, text="Retry Attempts:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.retry_attempts_var = tk.IntVar(value=self.backup_manager.email_service.config.retry_attempts)
+        ttk.Spinbox(advanced_frame, from_=1, to=10, textvariable=self.retry_attempts_var, width=15).grid(
+            row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Retry Delay
+        ttk.Label(advanced_frame, text="Retry Delay (seconds):").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.retry_delay_var = tk.IntVar(value=self.backup_manager.email_service.config.retry_delay_seconds)
+        ttk.Spinbox(advanced_frame, from_=1, to=300, textvariable=self.retry_delay_var, width=15).grid(
+            row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Quick Presets frame
+        presets_frame = ttk.LabelFrame(scrollable_frame, text="Quick Presets", padding=10)
+        presets_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Preset buttons
+        preset_frame = ttk.Frame(presets_frame)
+        preset_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Button(preset_frame, text="Gmail", command=lambda: self.load_preset('gmail')).pack(side=tk.LEFT, padx=5)
+        ttk.Button(preset_frame, text="Outlook", command=lambda: self.load_preset('outlook')).pack(side=tk.LEFT, padx=5)
+        ttk.Button(preset_frame, text="Yahoo", command=lambda: self.load_preset('yahoo')).pack(side=tk.LEFT, padx=5)
+        ttk.Button(preset_frame, text="Office 365", command=lambda: self.load_preset('office365')).pack(side=tk.LEFT, padx=5)
+        
+        # Action buttons frame
+        action_frame = ttk.Frame(scrollable_frame)
+        action_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        ttk.Button(action_frame, text="Save Configuration",
+                  command=self.save_email_config).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Test Connection",
+                  command=self.test_email_connection).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Send Test Email",
+                  command=self.send_test_email).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Reset to Defaults",
+                  command=self.reset_email_config).pack(side=tk.LEFT, padx=5)
+        
+        # Email Status frame
+        status_frame = ttk.LabelFrame(scrollable_frame, text="Email Status", padding=10)
+        status_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Status labels
+        self.email_status_var = tk.StringVar(value="Unknown")
+        ttk.Label(status_frame, text="Queue Status:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_frame, textvariable=self.email_status_var,
+                 font=('Arial', 10, 'bold')).grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        self.email_queue_size_var = tk.StringVar(value="0")
+        ttk.Label(status_frame, text="Queue Size:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_frame, textvariable=self.email_queue_size_var).grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        self.email_sent_var = tk.StringVar(value="0")
+        ttk.Label(status_frame, text="Emails Sent:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_frame, textvariable=self.email_sent_var).grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        self.email_failed_var = tk.StringVar(value="0")
+        ttk.Label(status_frame, text="Emails Failed:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(status_frame, textvariable=self.email_failed_var).grid(row=3, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Email History button
+        ttk.Button(status_frame, text="View Email History",
+                  command=self.show_email_history).grid(row=4, column=0, columnspan=2, pady=10)
+        
+        # Update email status
+        self.update_email_status()
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+    def load_preset(self, provider):
+        """Load email provider preset"""
+        presets = {
+            'gmail': {
+                'smtp_server': 'smtp.gmail.com',
+                'smtp_port': 587,
+                'use_tls': True,
+                'use_ssl': False,
+                'from_name': 'POS Backup System'
+            },
+            'outlook': {
+                'smtp_server': 'smtp-mail.outlook.com',
+                'smtp_port': 587,
+                'use_tls': True,
+                'use_ssl': False,
+                'from_name': 'POS Backup System'
+            },
+            'yahoo': {
+                'smtp_server': 'smtp.mail.yahoo.com',
+                'smtp_port': 587,
+                'use_tls': True,
+                'use_ssl': False,
+                'from_name': 'POS Backup System'
+            },
+            'office365': {
+                'smtp_server': 'smtp.office365.com',
+                'smtp_port': 587,
+                'use_tls': True,
+                'use_ssl': False,
+                'from_name': 'POS Backup System'
+            }
+        }
+        
+        if provider in presets:
+            preset = presets[provider]
+            self.smtp_server_var.set(preset['smtp_server'])
+            self.smtp_port_var.set(preset['smtp_port'])
+            self.use_tls_var.set(preset['use_tls'])
+            self.use_ssl_var.set(preset['use_ssl'])
+            self.from_name_var.set(preset['from_name'])
+            messagebox.showinfo("Preset Loaded", f"{provider.title()} preset loaded successfully!")
+    
+    def save_email_config(self):
+        """Save email configuration"""
+        try:
+            # Get recipients from text widget
+            recipients_text = self.recipients_text.get(1.0, tk.END).strip()
+            recipients = [email.strip() for email in recipients_text.split(',') if email.strip()]
+            
+            # Create new config
+            from src.utils.email_service import EmailConfig
+            new_config = EmailConfig(
+                smtp_server=self.smtp_server_var.get(),
+                smtp_port=self.smtp_port_var.get(),
+                use_tls=self.use_tls_var.get(),
+                use_ssl=self.use_ssl_var.get(),
+                username=self.username_var.get(),
+                password=self.password_var.get(),
+                from_email=self.from_email_var.get(),
+                from_name=self.from_name_var.get(),
+                recipients=recipients,
+                backup_notifications=self.backup_notifications_var.get(),
+                test_emails=self.test_emails_var.get(),
+                max_attachment_size_mb=self.max_attachment_size_var.get(),
+                retry_attempts=self.retry_attempts_var.get(),
+                retry_delay_seconds=self.retry_delay_var.get()
+            )
+            
+            # Save configuration
+            success = self.backup_manager.email_service.save_config(new_config)
+            
+            if success:
+                messagebox.showinfo("Success", "Email configuration saved successfully!")
+                
+                # Restart queue processor if settings changed
+                if new_config.backup_notifications:
+                    self.backup_manager.email_service.start_queue_processor()
+                else:
+                    self.backup_manager.email_service.stop_queue_processor()
+                
+                self.update_email_status()
+            else:
+                messagebox.showerror("Error", "Failed to save email configuration")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Configuration error:\n{str(e)}")
+    
+    def test_email_connection(self):
+        """Test email connection"""
+        try:
+            # Update config first
+            self.save_email_config()
+            
+            # Test connection
+            success, message = self.backup_manager.email_service.test_connection()
+            
+            if success:
+                messagebox.showinfo("Test Success", "Email connection test successful!")
+            else:
+                messagebox.showerror("Test Failed", f"Connection test failed:\n{message}")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Connection test error:\n{str(e)}")
+    
+    def send_test_email(self):
+        """Send test email"""
+        try:
+            # Update config first
+            self.save_email_config()
+            
+            # Send test email
+            success, message = self.backup_manager.email_service.send_test_email()
+            
+            if success:
+                messagebox.showinfo("Test Success", "Test email sent successfully!")
+            else:
+                messagebox.showerror("Test Failed", f"Test email failed:\n{message}")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Test email error:\n{str(e)}")
+    
+    def reset_email_config(self):
+        """Reset email configuration to defaults"""
+        if messagebox.askyesno("Confirm Reset", "Reset email configuration to default values?"):
+            try:
+                from src.utils.email_service import EmailConfig
+                default_config = EmailConfig()
+                
+                # Reset form fields
+                self.smtp_server_var.set(default_config.smtp_server)
+                self.smtp_port_var.set(default_config.smtp_port)
+                self.use_tls_var.set(default_config.use_tls)
+                self.use_ssl_var.set(default_config.use_ssl)
+                self.username_var.set(default_config.username)
+                self.password_var.set(default_config.password)
+                self.from_email_var.set(default_config.from_email)
+                self.from_name_var.set(default_config.from_name)
+                self.recipients_text.delete(1.0, tk.END)
+                self.recipients_text.insert(1.0, ", ".join(default_config.recipients))
+                self.backup_notifications_var.set(default_config.backup_notifications)
+                self.test_emails_var.set(default_config.test_emails)
+                self.max_attachment_size_var.set(default_config.max_attachment_size_mb)
+                self.retry_attempts_var.set(default_config.retry_attempts)
+                self.retry_delay_var.set(default_config.retry_delay_seconds)
+                
+                messagebox.showinfo("Success", "Email configuration reset to defaults")
+                
+                # Restart queue processor if needed
+                if default_config.backup_notifications:
+                    self.backup_manager.email_service.start_queue_processor()
+                else:
+                    self.backup_manager.email_service.stop_queue_processor()
+                
+                self.update_email_status()
+            
+            except Exception as e:
+                messagebox.showerror("Error", f"Reset error:\n{str(e)}")
+    
+    def update_email_status(self):
+        """Update email status display"""
+        try:
+            queue_status = self.backup_manager.email_service.get_queue_status()
+            
+            if queue_status['queue_running']:
+                self.email_status_var.set("Running")
+            else:
+                self.email_status_var.set("Stopped")
+            
+            self.email_queue_size_var.set(str(queue_status['queue_size']))
+            self.email_sent_var.set(str(queue_status['total_sent']))
+            self.email_failed_var.set(str(queue_status['total_failed']))
+        
+        except Exception as e:
+            print(f"Error updating email status: {e}")
+    
+    def show_email_history(self):
+        """Show email history dialog"""
+        EmailHistoryDialog(self.app.root, self.backup_manager.email_service)
     
     def create_full_backup(self):
         """Create a full backup"""
@@ -708,6 +1063,256 @@ class BackupScreen(BaseUI):
         
         except Exception as e:
             print(f"Error updating schedule preview: {e}")
+
+
+class EmailHistoryDialog:
+    """Dialog for showing email history"""
+    
+    def __init__(self, parent, email_service):
+        self.email_service = email_service
+        
+        # Create dialog window
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Email History")
+        self.dialog.geometry("800x600")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Center dialog
+        self.dialog.update_idletasks()
+        x = (self.dialog.winfo_screenwidth() // 2) - (self.dialog.winfo_width() // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (self.dialog.winfo_height() // 2)
+        self.dialog.geometry(f"+{x}+{y}")
+        
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Setup email history dialog UI"""
+        # Main frame with padding
+        main_frame = ttk.Frame(self.dialog, padding=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Statistics frame
+        stats_frame = ttk.LabelFrame(main_frame, text="Statistics", padding=10)
+        stats_frame.pack(fill=tk.X, pady=5)
+        
+        # Get email statistics
+        email_history = self.email_service.get_email_history()
+        total_emails = len(email_history)
+        sent_emails = len([h for h in email_history if h.status == 'sent'])
+        failed_emails = len([h for h in email_history if h.status == 'failed'])
+        pending_emails = len([h for h in email_history if h.status == 'pending'])
+        
+        # Create statistics labels
+        stats_grid = [
+            ("Total Emails:", str(total_emails)),
+            ("Sent:", str(sent_emails)),
+            ("Failed:", str(failed_emails)),
+            ("Pending:", str(pending_emails))
+        ]
+        
+        for i, (label, value) in enumerate(stats_grid):
+            row = i // 2
+            col = (i % 2) * 2
+            
+            ttk.Label(stats_frame, text=label).grid(row=row, column=col, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(stats_frame, text=value, font=('Arial', 10, 'bold')).grid(
+                row=row, column=col+1, sticky=tk.W, padx=5, pady=2)
+        
+        # Email list frame
+        list_frame = ttk.LabelFrame(main_frame, text="Email History", padding=10)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        # Create treeview for email list
+        columns = ("id", "subject", "status", "sent_at", "recipients", "attachments")
+        headers = ("ID", "Subject", "Status", "Sent At", "Recipients", "Attachments")
+        
+        self.email_list = ttk.Treeview(list_frame, columns=columns, show="headings", height=15)
+        
+        for col, header in zip(columns, headers):
+            self.email_list.heading(col, text=header)
+            self.email_list.column(col, width=120)
+        
+        # Scrollbar for email list
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.email_list.yview)
+        self.email_list.configure(yscrollcommand=scrollbar.set)
+        
+        self.email_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Bind double-click for email details
+        self.email_list.bind("<Double-Button-1>", self.show_email_details)
+        
+        # Action buttons frame
+        action_frame = ttk.Frame(main_frame)
+        action_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Button(action_frame, text="Refresh", command=self.refresh_email_list).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Clear History", command=self.clear_email_history).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Close", command=self.dialog.destroy).pack(side=tk.RIGHT, padx=5)
+        
+        # Refresh email list
+        self.refresh_email_list()
+    
+    def refresh_email_list(self):
+        """Refresh email list display"""
+        try:
+            # Clear existing items
+            for item in self.email_list.get_children():
+                self.email_list.delete(item)
+            
+            # Get email history
+            email_history = self.email_service.get_email_history(limit=100)
+            
+            # Add emails to treeview
+            for email in email_history:
+                status_text = email.status.capitalize()
+                status_color = "green" if email.status == "sent" else "red" if email.status == "failed" else "orange"
+                
+                self.email_list.insert("", tk.END, values=(
+                    email.id[:8] + "..." if len(email.id) > 8 else email.id,
+                    email.subject[:30] + "..." if len(email.subject) > 30 else email.subject,
+                    status_text,
+                    email.sent_at.strftime('%Y-%m-%d %H:%M'),
+                    ", ".join(email.recipients[:2]) + ("..." if len(email.recipients) > 2 else ""),
+                    email.attachment_count
+                ))
+        
+        except Exception as e:
+            print(f"Error refreshing email list: {e}")
+    
+    def show_email_details(self, event):
+        """Show detailed information about selected email"""
+        selection = self.email_list.selection()
+        if not selection:
+            return
+        
+        # Get email ID from selection
+        item = self.email_list.item(selection[0])
+        email_id = item['values'][0]
+        
+        # Find full email details
+        email_details = None
+        for email in self.email_service.email_history:
+            if email.id.startswith(email_id):
+                email_details = email
+                break
+        
+        if email_details:
+            EmailDetailsDialog(self.dialog, email_details)
+    
+    def clear_email_history(self):
+        """Clear email history"""
+        try:
+            # Ask for confirmation
+            if messagebox.askyesno("Confirm Clear", "Are you sure you want to clear the email history?"):
+                # Ask for time period
+                dialog = tk.Toplevel(self.dialog)
+                dialog.title("Clear History")
+                dialog.geometry("300x150")
+                dialog.transient(self.dialog)
+                dialog.grab_set()
+                
+                # Center dialog
+                dialog.update_idletasks()
+                x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+                y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+                dialog.geometry(f"+{x}+{y}")
+                
+                # Create widgets
+                ttk.Label(dialog, text="Clear emails older than:").pack(pady=10)
+                
+                days_var = tk.IntVar(value=30)
+                ttk.Spinbox(dialog, from_=0, to=365, textvariable=days_var, width=10).pack(pady=5)
+                
+                def confirm_clear():
+                    older_than_days = days_var.get()
+                    cleared_count = self.email_service.clear_email_history(older_than_days)
+                    messagebox.showinfo("Success", f"Cleared {cleared_count} old email entries")
+                    self.refresh_email_list()
+                    dialog.destroy()
+                
+                button_frame = ttk.Frame(dialog)
+                button_frame.pack(pady=10)
+                
+                ttk.Button(button_frame, text="Clear", command=confirm_clear).pack(side=tk.LEFT, padx=5)
+                ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+                
+                dialog.wait_window()
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Error clearing email history: {str(e)}")
+
+
+class EmailDetailsDialog:
+    """Dialog for showing email details"""
+    
+    def __init__(self, parent, email_details):
+        # Create dialog window
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Email Details")
+        self.dialog.geometry("600x500")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Center dialog
+        self.dialog.update_idletasks()
+        x = (self.dialog.winfo_screenwidth() // 2) - (self.dialog.winfo_width() // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (self.dialog.winfo_height() // 2)
+        self.dialog.geometry(f"+{x}+{y}")
+        
+        self.setup_ui(email_details)
+    
+    def setup_ui(self, email_details):
+        """Setup email details dialog UI"""
+        # Create scrollable frame
+        canvas = tk.Canvas(self.dialog)
+        scrollbar = ttk.Scrollbar(self.dialog, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Email information
+        info_frame = ttk.LabelFrame(scrollable_frame, text="Email Information", padding=10)
+        info_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Display email details
+        details = [
+            ("Email ID:", email_details.id),
+            ("Subject:", email_details.subject),
+            ("Status:", email_details.status.capitalize()),
+            ("Sent At:", email_details.sent_at.strftime('%Y-%m-%d %H:%M:%S')),
+            ("Recipients:", ", ".join(email_details.recipients)),
+            ("Attachments:", str(email_details.attachment_count))
+        ]
+        
+        for i, (label, value) in enumerate(details):
+            ttk.Label(info_frame, text=label).grid(row=i, column=0, sticky=tk.W, padx=5, pady=2)
+            ttk.Label(info_frame, text=str(value), font=('Arial', 10, 'bold')).grid(
+                row=i, column=1, sticky=tk.W, padx=5, pady=2)
+        
+        # Error message frame (if applicable)
+        if email_details.status == "failed" and email_details.error_message:
+            error_frame = ttk.LabelFrame(scrollable_frame, text="Error Message", padding=10)
+            error_frame.pack(fill=tk.X, padx=10, pady=5)
+            
+            error_text = tk.Text(error_frame, height=6, width=60, wrap=tk.WORD)
+            error_text.pack(fill=tk.X, padx=5, pady=5)
+            error_text.insert(1.0, email_details.error_message)
+            error_text.config(state=tk.DISABLED)
+        
+        # Close button
+        ttk.Button(scrollable_frame, text="Close", command=self.dialog.destroy).pack(pady=10)
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
     
     def browse_restore_file(self):
         """Browse for backup file to restore"""

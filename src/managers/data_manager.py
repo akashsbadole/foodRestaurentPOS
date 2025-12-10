@@ -209,7 +209,8 @@ class DataManager:
             formatted_items = []
             
             for item in items:
-                item_id, name, category_name, price, stock_quantity = item
+                # item contains: id, name, category_name, price, stock_quantity, shortcode
+                item_id, name, category_name, price, stock_quantity, shortcode = item
                 
                 formatted_items.append({
                     'id': item_id,
@@ -324,6 +325,7 @@ class DataManager:
             formatted_items = []
             
             for item in items:
+                # item contains: id, name, category_name, stock_quantity
                 item_id, name, category_name, stock_quantity = item
                 
                 formatted_items.append({

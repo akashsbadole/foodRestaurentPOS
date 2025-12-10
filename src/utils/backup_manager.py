@@ -21,6 +21,7 @@ from dataclasses import dataclass, asdict
 import tkinter as tk
 from tkinter import messagebox
 import pickle
+from .email_service import EmailService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -58,6 +59,7 @@ class BackupConfig:
     # Notification settings
     email_notifications: bool = False
     email_address: str = ""
+    email_config: Dict = None
 
 @dataclass
 class BackupInfo:
@@ -87,6 +89,9 @@ class BackupManager:
         self.last_backup_time = None
         self.scheduler_thread = None
         self.scheduler_running = False
+        
+        # Initialize email service
+        self.email_service = EmailService(app)
         
         # Ensure backup directory exists
         self.ensure_backup_directory()
@@ -717,17 +722,48 @@ class BackupManager:
                 
                 # Send notification if enabled
                 if self.config.email_notifications:
-                    self.send_backup_notification(success, message)
+                    # Get backup info for the latest backup
+                    if self.backup_history:
+                        latest_backup = self.backup_history[-1]
+                        backup_info = {
+                            'status': 'success',
+                            'backup_type': latest_backup.backup_type,
+                            'file_size_mb': round(latest_backup.file_size / (1024 * 1024), 2),
+                            'created_at': latest_backup.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                            'includes': latest_backup.includes
+                        }
+                        backup_path = os.path.join(self.config.backup_location, latest_backup.filename)
+                        self.send_backup_notification(success, message, backup_path, backup_info)
+                    else:
+                        self.send_backup_notification(success, message)
             else:
                 logger.error(f"Scheduled backup failed: {message}")
+                # Send failure notification
+                if self.config.email_notifications:
+                    backup_info = {
+                        'status': 'failed',
+                        'backup_type': 'scheduled',
+                        'file_size_mb': 0,
+                        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'includes': []
+                    }
+                    self.send_backup_notification(success, message, None, backup_info)
         
         except Exception as e:
             logger.error(f"Error in scheduled backup: {e}")
     
-    def send_backup_notification(self, success: bool, message: str):
-        """Send backup notification email (placeholder)"""
-        # This is a placeholder for email notification implementation
-        logger.info(f"Backup notification: {'SUCCESS' if success else 'FAILED'} - {message}")
+    def send_backup_notification(self, success: bool, message: str, backup_path: str = None, backup_info: Dict = None):
+        """Send backup notification email"""
+        try:
+            if backup_path and backup_info:
+                # Send detailed backup notification with attachment
+                email_success, email_message = self.email_service.send_backup_notification(backup_path, backup_info)
+                logger.info(f"Backup notification queued: {email_message}")
+            else:
+                # Send simple status notification
+                logger.info(f"Backup notification: {'SUCCESS' if success else 'FAILED'} - {message}")
+        except Exception as e:
+            logger.error(f"Error sending backup notification: {e}")
     
     def get_backup_statistics(self) -> Dict:
         """Get backup statistics"""

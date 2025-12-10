@@ -83,6 +83,7 @@ class SettingsScreen(BaseUI):
         self.create_tax_settings_tab(notebook)
         self.create_printer_settings_tab(notebook)
         self.create_export_settings_tab(notebook)
+        self.create_footer_settings_tab(notebook)
         self.create_user_management_tab(notebook)
         
         # Save button container with modern styling
@@ -642,6 +643,20 @@ class SettingsScreen(BaseUI):
                 self.show_message("Validation Error", f"Invalid tax rate: {str(e)}", "error")
                 return
             
+            # Save footer settings
+            self.app.update_setting('footer_enabled', str(self.footer_enabled_var.get()))
+            self.app.update_setting('footer_template', self.footer_template_var.get())
+            self.app.update_setting('footer_custom_text', self.footer_custom_text_var.get())
+            self.app.update_setting('footer_alignment', self.footer_alignment_var.get())
+            self.app.update_setting('footer_font_size', self.footer_font_size_var.get())
+            self.app.update_setting('footer_show_user_name', str(self.footer_show_user_name_var.get()))
+            self.app.update_setting('footer_show_receipt_info', str(self.footer_show_receipt_info_var.get()))
+            self.app.update_setting('footer_show_business_info', str(self.footer_show_business_info_var.get()))
+            self.app.update_setting('footer_multiline', str(self.footer_multiline_var.get()))
+            self.app.update_setting('footer_line1', self.footer_line1_var.get())
+            self.app.update_setting('footer_line2', self.footer_line2_var.get())
+            self.app.update_setting('footer_line3', self.footer_line3_var.get())
+            
             # Show success message
             self.status_label.configure(text="Settings saved successfully!", foreground=COLOR_SUCCESS)
             self.show_message("Success", "Settings saved successfully", "info")
@@ -688,6 +703,30 @@ class SettingsScreen(BaseUI):
             self.show_export_dialog_var.set(value == 'True')
         elif key == 'auto_open_exported_files':
             self.auto_open_exported_var.set(value == 'True')
+        elif key == 'footer_enabled':
+            self.footer_enabled_var.set(value == 'True')
+        elif key == 'footer_template':
+            self.footer_template_var.set(value)
+        elif key == 'footer_custom_text':
+            self.footer_custom_text_var.set(value)
+        elif key == 'footer_alignment':
+            self.footer_alignment_var.set(value)
+        elif key == 'footer_font_size':
+            self.footer_font_size_var.set(value)
+        elif key == 'footer_show_user_name':
+            self.footer_show_user_name_var.set(value == 'True')
+        elif key == 'footer_show_receipt_info':
+            self.footer_show_receipt_info_var.set(value == 'True')
+        elif key == 'footer_show_business_info':
+            self.footer_show_business_info_var.set(value == 'True')
+        elif key == 'footer_multiline':
+            self.footer_multiline_var.set(value == 'True')
+        elif key == 'footer_line1':
+            self.footer_line1_var.set(value)
+        elif key == 'footer_line2':
+            self.footer_line2_var.set(value)
+        elif key == 'footer_line3':
+            self.footer_line3_var.set(value)
     
     def load_users(self):
         """Load users into the modern user tree"""
@@ -844,3 +883,291 @@ class SettingsScreen(BaseUI):
             
             self.show_message("Success", "User deleted successfully", "info")
             self.load_users()
+    
+    def create_footer_settings_tab(self, notebook):
+        """Create the Footer Settings tab with improved layout"""
+        # Footer settings tab with modern card design
+        footer_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
+        notebook.add(footer_frame, text="Footer Settings")
+        
+        # Tab description
+        desc_label = self.create_modern_label(
+            footer_frame,
+            text="Configure footer text and appearance for receipts and documents",
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
+        
+        # Footer settings card with shadow effect
+        shadow_container = tk.Frame(footer_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        footer_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        footer_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(footer_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        section_title = self.create_modern_label(
+            section_header,
+            text="📝 Footer Configuration",
+            style="SectionTitle.TLabel"
+        )
+        section_title.pack(side=tk.LEFT)
+        
+        # Form fields with improved layout
+        form_container = ttk.Frame(footer_card, style="Panel.TFrame")
+        form_container.pack(fill=tk.X)
+        
+        # Enable footer checkbox
+        self.footer_enabled_var = tk.BooleanVar(
+            value=self.app.settings.get('footer_enabled', 'true').lower() == 'true'
+        )
+        self.create_form_field(
+            form_container,
+            "Enable Footer on Documents",
+            entry_type="checkbutton",
+            textvariable=self.footer_enabled_var
+        )
+        
+        # Footer template
+        self.footer_template_var = tk.StringVar(
+            value=self.app.settings.get('footer_template', 'default')
+        )
+        self.create_form_field(
+            form_container,
+            "Footer Template",
+            entry_type="combobox",
+            textvariable=self.footer_template_var,
+            values=["default", "minimal", "detailed"],
+            state="readonly",
+            width=28
+        )
+        
+        # Custom text
+        self.footer_custom_text_var = tk.StringVar(
+            value=self.app.settings.get('footer_custom_text', 'Thank you for your business!')
+        )
+        self.create_form_field(
+            form_container,
+            "Custom Footer Text",
+            entry_type="entry",
+            textvariable=self.footer_custom_text_var,
+            width=50
+        )
+        
+        # Alignment
+        self.footer_alignment_var = tk.StringVar(
+            value=self.app.settings.get('footer_alignment', 'center')
+        )
+        self.create_form_field(
+            form_container,
+            "Text Alignment",
+            entry_type="combobox",
+            textvariable=self.footer_alignment_var,
+            values=["left", "center", "right"],
+            state="readonly",
+            width=28
+        )
+        
+        # Font size
+        self.footer_font_size_var = tk.StringVar(
+            value=self.app.settings.get('footer_font_size', '10')
+        )
+        self.create_form_field(
+            form_container,
+            "Font Size",
+            entry_type="combobox",
+            textvariable=self.footer_font_size_var,
+            values=["8", "10", "12", "14"],
+            state="readonly",
+            width=28
+        )
+        
+        # Content options frame
+        content_frame = self.create_modern_frame(footer_card, style="Card.TFrame", padding=SPACING_M)
+        content_frame.pack(fill=tk.X, pady=SPACING_S)
+        
+        content_header = ttk.Frame(content_frame, style="Card.TFrame")
+        content_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        content_title = self.create_modern_label(
+            content_header,
+            text="📄 Content Options",
+            style="SectionTitle.TLabel"
+        )
+        content_title.pack(side=tk.LEFT)
+        
+        content_form_container = ttk.Frame(content_frame, style="Panel.TFrame")
+        content_form_container.pack(fill=tk.X)
+        
+        # Show user name checkbox
+        self.footer_show_user_name_var = tk.BooleanVar(
+            value=self.app.settings.get('footer_show_user_name', 'true').lower() == 'true'
+        )
+        self.create_form_field(
+            content_form_container,
+            "Show User Name",
+            entry_type="checkbutton",
+            textvariable=self.footer_show_user_name_var
+        )
+        
+        # Show receipt info checkbox
+        self.footer_show_receipt_info_var = tk.BooleanVar(
+            value=self.app.settings.get('footer_show_receipt_info', 'true').lower() == 'true'
+        )
+        self.create_form_field(
+            content_form_container,
+            "Show Receipt Info",
+            entry_type="checkbutton",
+            textvariable=self.footer_show_receipt_info_var
+        )
+        
+        # Show business info checkbox
+        self.footer_show_business_info_var = tk.BooleanVar(
+            value=self.app.settings.get('footer_show_business_info', 'true').lower() == 'true'
+        )
+        self.create_form_field(
+            content_form_container,
+            "Show Business Info",
+            entry_type="checkbutton",
+            textvariable=self.footer_show_business_info_var
+        )
+        
+        # Multiline footer frame
+        multiline_frame = self.create_modern_frame(footer_card, style="Card.TFrame", padding=SPACING_M)
+        multiline_frame.pack(fill=tk.X, pady=SPACING_S)
+        
+        multiline_header = ttk.Frame(multiline_frame, style="Card.TFrame")
+        multiline_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        multiline_title = self.create_modern_label(
+            multiline_header,
+            text="📝 Multiline Footer",
+            style="SectionTitle.TLabel"
+        )
+        multiline_title.pack(side=tk.LEFT)
+        
+        multiline_form_container = ttk.Frame(multiline_frame, style="Panel.TFrame")
+        multiline_form_container.pack(fill=tk.X)
+        
+        # Enable multiline checkbox
+        self.footer_multiline_var = tk.BooleanVar(
+            value=self.app.settings.get('footer_multiline', 'false').lower() == 'true'
+        )
+        self.create_form_field(
+            multiline_form_container,
+            "Enable Multiline Footer",
+            entry_type="checkbutton",
+            textvariable=self.footer_multiline_var
+        )
+        
+        # Multiline text fields
+        self.footer_line1_var = tk.StringVar(
+            value=self.app.settings.get('footer_line1', '')
+        )
+        self.create_form_field(
+            multiline_form_container,
+            "Line 1",
+            entry_type="entry",
+            textvariable=self.footer_line1_var,
+            width=50
+        )
+        
+        self.footer_line2_var = tk.StringVar(
+            value=self.app.settings.get('footer_line2', '')
+        )
+        self.create_form_field(
+            multiline_form_container,
+            "Line 2",
+            entry_type="entry",
+            textvariable=self.footer_line2_var,
+            width=50
+        )
+        
+        self.footer_line3_var = tk.StringVar(
+            value=self.app.settings.get('footer_line3', '')
+        )
+        self.create_form_field(
+            multiline_form_container,
+            "Line 3",
+            entry_type="entry",
+            textvariable=self.footer_line3_var,
+            width=50
+        )
+        
+        # Preview button
+        preview_button_frame = self.create_modern_frame(footer_frame, style="Card.TFrame", padding=SPACING_M)
+        preview_button_frame.pack(fill=tk.X, pady=SPACING_S)
+        
+        preview_container = ttk.Frame(preview_button_frame, style="Card.TFrame")
+        preview_container.pack(fill=tk.X)
+        
+        def preview_footer():
+            from src.utils.footer_generator import FooterGenerator
+            generator = FooterGenerator(self.app.settings)
+            
+            # Sample order data for preview
+            sample_order = {
+                'order_number': 'TEST001',
+                'created_at': '2024-01-01 12:00:00'
+            }
+            
+            # Sample user data for preview
+            sample_user = {
+                'username': self.app.current_user['username']
+            }
+            
+            footer_lines = generator.generate_footer('receipt', sample_order, sample_user)
+            
+            # Show preview dialog
+            preview_window = tk.Toplevel(self.app.root)
+            preview_window.title("Footer Preview")
+            preview_window.geometry("500x400")
+            preview_window.configure(background=COLOR_BACKGROUND_LIGHT)
+            preview_window.resizable(False, False)
+            
+            # Make window modal
+            preview_window.transient(self.app.root)
+            preview_window.grab_set()
+            
+            # Preview content
+            preview_frame = self.create_modern_frame(preview_window, style="Card.TFrame", padding=SPACING_L)
+            preview_frame.pack(fill=tk.BOTH, expand=True, padx=SPACING_M, pady=SPACING_M)
+            
+            title_label = self.create_modern_label(
+                preview_frame,
+                text="Footer Preview",
+                style="SectionTitle.TLabel"
+            )
+            title_label.pack(anchor=tk.W, pady=(0, SPACING_M))
+            
+            # Text widget for preview
+            preview_text = tk.Text(preview_frame, height=15, width=60, wrap=tk.WORD)
+            preview_text.pack(fill=tk.BOTH, expand=True, pady=SPACING_M)
+            
+            # Insert footer lines
+            for line in footer_lines:
+                preview_text.insert(tk.END, line + "\n")
+            
+            preview_text.config(state=tk.DISABLED)
+            
+            # Close button
+            close_button = self.create_modern_button(
+                preview_frame,
+                text="Close",
+                command=preview_window.destroy,
+                style="Secondary.TButton"
+            )
+            close_button.pack(pady=SPACING_M)
+        
+        self.create_button_group(
+            preview_container,
+            [("👁 Preview Footer", preview_footer, "Primary.TButton")],
+            spacing=SPACING_M
+        )
+    
+    def update_footer_field(self, key, value):
+        """Update footer field in settings"""
+        self.app.settings.update(key, str(value))

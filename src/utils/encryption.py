@@ -12,6 +12,11 @@ import hmac
 import time
 from datetime import datetime, timedelta
 from cryptography.fernet import Fernet
+
+class EncryptionError(Exception):
+    """Custom exception for encryption and decryption errors."""
+    pass
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -62,22 +67,42 @@ class EncryptionManager:
         # Check if key file exists
         if os.path.exists(self.key_file_path):
             try:
-                with open(self.key_file_path, 'rb') as key_file:
+                with open(self.key_file_path, 'r') as key_file: # Changed 'rb' to 'r' for json.load
                     key_data = json.load(key_file)
                     # Derive the actual encryption key from the stored salt and master key
                     self._key = self._derive_key(
                         key_data['master_key'].encode(),
-                        key_data['salt'].encode()
+                        base64.b64decode(key_data['salt'].encode()) # Decode salt from base64
                     )
-                    self._last_key_rotation = key_data.get('last_rotation', None)
+                    # Convert last_rotation to datetime object if it exists
+                    last_rotation_str = key_data.get('last_rotation', None)
+                    if last_rotation_str:
+                        self._last_key_rotation = datetime.fromisoformat(last_rotation_str)
+                    
                     logger.info("Encryption key loaded from file")
+            except (json.JSONDecodeError, KeyError, base64.binascii.Error) as e:
+                logger.error(f"Failed to load encryption key due to corruption or malformed data: {str(e)}. Regenerating key.")
+                self._regenerate_key_on_failure() # Call the new regeneration method
             except Exception as e:
-                logger.error(f"Failed to load encryption key: {str(e)}")
-                raise
+                logger.error(f"An unexpected error occurred while loading encryption key: {str(e)}")
+                self._regenerate_key_on_failure() # Regenerate key for any unexpected errors too
         else:
             # Create new encryption key
             self._create_new_key()
     
+    def _regenerate_key_on_failure(self):
+        """
+        Regenerate the encryption key if loading fails.
+        This includes deleting the old file and creating a new one.
+        """
+        logger.warning("Attempting to regenerate encryption key due to load failure.")
+        if os.path.exists(self.key_file_path):
+            os.remove(self.key_file_path)
+            logger.info(f"Removed corrupted key file: {self.key_file_path}")
+        self._create_new_key()
+        self._cipher_suite = Fernet(self._key) # Re-initialize cipher suite after new key creation
+        logger.info("Encryption key regenerated successfully after previous failure.")
+
     def _create_new_key(self):
         """Create a new encryption key and save it"""
         try:
@@ -110,11 +135,11 @@ class EncryptionManager:
             # Set file permissions (read/write for owner only)
             os.chmod(self.key_file_path, 0o600)
             
-            self._last_key_rotation = datetime.utcnow()
+            self._last_key_rotation = datetime.utcnow().isoformat() # Store as ISO format string
             logger.info("New encryption key created and saved")
         except Exception as e:
             logger.error(f"Failed to create new encryption key: {str(e)}")
-            raise
+            raise # Re-raise only if key creation fails
     
     def _derive_key(self, master_key: bytes, salt: bytes) -> bytes:
         """
@@ -195,14 +220,20 @@ class EncryptionManager:
                 
                 logger.debug(f"Data decrypted successfully (length: {len(decrypted_data)})")
                 return decrypted_data
-            except (base64.binascii.Error, ValueError):
-                # Data might not be encrypted, return as-is
-                logger.debug("Data appears to be unencrypted, returning as-is")
-                return encrypted_data
+            except (base64.binascii.Error, ValueError) as e:
+                # Log error and raise custom exception for bad format or value
+                logger.error(f"Decryption failed due to invalid format or value: {e}")
+                raise EncryptionError(f"Decryption failed: Malformed encrypted data or incorrect padding. Details: {e}")
+            except Exception as e:
+                logger.error(f"An unexpected error occurred during decryption: {e}")
+                raise EncryptionError(f"Decryption failed unexpectedly. Details: {e}")
+        except EncryptionError:
+            # Re-raise EncryptionError without modification
+            raise
         except Exception as e:
-            logger.error(f"Decryption failed: {str(e)}")
-            # Return original data if decryption fails
-            return encrypted_data
+            # Handle any other exceptions
+            logger.error(f"Unexpected error in decrypt method: {e}")
+            raise EncryptionError(f"Decryption failed: {str(e)}")
     
     def encrypt_field(self, field_value) -> str:
         """
@@ -236,11 +267,20 @@ class EncryptionManager:
     
     def _check_key_rotation(self):
         """Check if key rotation is needed and perform it"""
-        if self._last_key_rotation:
-            last_rotation = datetime.fromisoformat(self._last_key_rotation) if isinstance(self._last_key_rotation, str) else self._last_key_rotation
-            if datetime.utcnow() - last_rotation > timedelta(days=self._key_rotation_interval):
+        if self._last_key_rotation and isinstance(self._last_key_rotation, datetime):
+            if datetime.utcnow() - self._last_key_rotation > timedelta(days=self._key_rotation_interval):
                 logger.info("Key rotation interval reached, performing automatic key rotation")
                 self.rotate_key()
+        elif isinstance(self._last_key_rotation, str): # Handle case where it's still a string after refactoring
+            try:
+                last_rotation_dt = datetime.fromisoformat(self._last_key_rotation)
+                if datetime.utcnow() - last_rotation_dt > timedelta(days=self._key_rotation_interval):
+                    logger.info("Key rotation interval reached, performing automatic key rotation (string parsing)")
+                    self.rotate_key()
+            except ValueError:
+                logger.warning(f"Invalid last_key_rotation string format: {self._last_key_rotation}. Skipping rotation check.")
+        elif self._last_key_rotation is None:
+            logger.debug("Last key rotation not set, skipping rotation check.")
     
     def rotate_key(self, new_master_key: str = None):
         """
@@ -338,18 +378,20 @@ class EncryptionManager:
             calculated_hash = hmac_obj.hexdigest()
             
             if not hmac.compare_digest(calculated_hash, received_hash):
-                logger.error("Integrity check failed - data may be tampered with")
-                raise ValueError("Data integrity verification failed")
+                logger.error("Integrity check failed - data may be tampered with.")
+                raise EncryptionError("Data integrity verification failed: Data may have been tampered with or is corrupted.")
             
             # Decrypt the data
             decrypted_data = self.decrypt(encrypted_data)
             
             logger.debug(f"Data decrypted with integrity verification (length: {len(decrypted_data)})")
             return decrypted_data
+        except ValueError as e: # Catch the ValueError from self.decrypt or integrity check split
+            logger.error(f"Decryption with integrity failed due to data format or integrity issue: {e}")
+            raise EncryptionError(f"Decryption with integrity failed: Invalid data format or integrity compromised. Details: {e}")
         except Exception as e:
-            logger.error(f"Decryption with integrity failed: {str(e)}")
-            # Return original data if decryption fails
-            return encrypted_data_with_integrity
+            logger.error(f"An unexpected error occurred during decryption with integrity: {e}")
+            raise EncryptionError(f"Decryption with integrity failed unexpectedly. Details: {e}")
     
     def backup_key(self, backup_path: str = None) -> str:
         """

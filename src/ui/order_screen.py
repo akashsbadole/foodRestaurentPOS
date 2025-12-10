@@ -737,6 +737,7 @@ class OrderScreen(BaseUI):
         """Update the menu combo box with the provided items"""
         menu_list = []
         for item in menu_items:
+            # item contains: id, name, category, price, stock, shortcode
             item_id, name, category, price, stock, shortcode = item
             display_text = f"{name} - ₹{price:.2f}"
             if shortcode:
@@ -875,18 +876,16 @@ class OrderScreen(BaseUI):
         # Look up item by shortcode
         item = self.app.menu_item_model.get_by_shortcode(shortcode)
         if item:
-            # Select the item in the menu combo
-            item_id = item[0]
-            item_name = item[1]
-            price = item[2]
+            # item contains: id, name, price, category_id, stock_quantity, image_path, shortcode, category_name
+            item_id, name, price, category_id, stock, image_path, shortcode, category_name = item
             
             # Update menu combo to show this item
             menu_items = self.app.menu_item_model.get_all()
             for i, menu_item in enumerate(menu_items):
                 if menu_item[0] == item_id:
-                    display_text = f"{item_name} - ₹{price:.2f}"
-                    if item[5]:  # shortcode
-                        display_text += f" [{item[5]}]"
+                    display_text = f"{name} - ₹{price:.2f}"
+                    if shortcode:  # shortcode
+                        display_text += f" [{shortcode}]"
                     
                     # Update combo values and select this item
                     self.menu_combo['values'] = [display_text]
@@ -907,10 +906,8 @@ class OrderScreen(BaseUI):
             return
         
         try:
-            menu_item_id = item[0]
-            item_name = item[1]
-            price = item[2]
-            stock = item[4]
+            # item contains: id, name, price, category_id, stock_quantity, image_path, shortcode, category_name
+            menu_item_id, item_name, price, category_id, stock, image_path, shortcode, category_name = item
             
             # Get quantity
             try:
@@ -1521,7 +1518,9 @@ class OrderScreen(BaseUI):
                 # Update stock
                 menu_item = self.app.menu_item_model.get_by_id(item['menu_item_id'])
                 if menu_item:
-                    new_stock = menu_item[3] - item['quantity']
+                    # menu_item contains: name, price, category_id, stock_quantity, image_path, shortcode, category_name
+                    name, price, category_id, stock_quantity, image_path, shortcode, category_name = menu_item
+                    new_stock = stock_quantity - item['quantity']
                     self.app.menu_item_model.update_stock(item['menu_item_id'], new_stock)
             
             # Add payment with encrypted details using the new payment model
@@ -1644,7 +1643,9 @@ class OrderScreen(BaseUI):
                 # Update stock
                 menu_item = self.app.menu_item_model.get_by_id(item['menu_item_id'])
                 if menu_item:
-                    new_stock = menu_item[3] - item['quantity']
+                    # menu_item contains: name, price, category_id, stock_quantity, image_path, shortcode, category_name
+                    name, price, category_id, stock_quantity, image_path, shortcode, category_name = menu_item
+                    new_stock = stock_quantity - item['quantity']
                     self.app.menu_item_model.update_stock(item['menu_item_id'], new_stock)
             
             # Add payment (default to cash for now)
@@ -2191,4 +2192,3 @@ class EnhancedPaymentDialog:
         """Get payment result"""
         self.dialog.wait_window()
         return self.result
-

@@ -186,7 +186,8 @@ class InventoryScreen(BaseUI):
         
         # Add items to tree with proper styling
         for item in items:
-            item_id, name, category, stock = item
+            # item contains: id, name, category, stock_quantity
+            item_id, name, category, stock_quantity = item
             
             # Convert stock to integer if it's a string
             try:

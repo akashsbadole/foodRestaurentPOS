@@ -489,6 +489,6 @@
 <script src="{{ url_for('static', filename='js/payment-processor.js') }}"></script>
 <script>
   // Pass order data from Flask to JavaScript
-  window.orderData = {{ order.to_dict()|safe }};
+  window.orderData = JSON.parse('{{ order.to_dict()|tojson|safe }}');
 </script>
 {% endblock %}

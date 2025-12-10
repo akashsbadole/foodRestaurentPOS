@@ -241,6 +241,18 @@ class Order:
         # Use existing get_details method
         return self.get_details(order_id)
     
+    def get_items(self, order_id):
+        """Get order items for a specific order"""
+        items_query = """
+        SELECT mi.name, oi.quantity, oi.price, oi.total, oi.status, mi.id as menu_item_id
+        FROM order_items oi
+        JOIN menu_items mi ON oi.menu_item_id = mi.id
+        WHERE oi.order_id = ?
+        """
+        
+        self.db.execute_query(items_query, (order_id,))
+        return self.db.fetch_all()
+    
     def get_items_by_order_number(self, order_number):
         """Get order items by order number"""
         # First get the order ID from the order number

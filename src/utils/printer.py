@@ -84,10 +84,11 @@ class ESCPOS:
 class ThermalPrinter:
     """Thermal printer implementation using ESC/POS commands"""
     
-    def __init__(self, printer_name: str = None, paper_width: int = PaperSize.MM58):
+    def __init__(self, printer_name: str = None, paper_width: int = PaperSize.MM58, settings_manager=None):
         self.printer_name = printer_name
         self.paper_width = paper_width
         self.max_chars_per_line = 32 if paper_width == PaperSize.MM58 else 48
+        self.settings_manager = settings_manager
         
     def _format_text(self, text: str, align: str = 'left', style: str = 'normal') -> bytes:
         """Format text with alignment and style"""
@@ -211,9 +212,7 @@ class ThermalPrinter:
             buffer += self._create_separator('=')
             
             # Footer
-            buffer += ESCPOS.FEED_LINE
-            buffer += self._format_text("Thank you for dining with us!", 'center')
-            buffer += ESCPOS.FEED_3_LINES
+            buffer += self._add_footer_to_print(bill_data)
             
             # Cut paper
             buffer += ESCPOS.PAPER_CUT
@@ -635,3 +634,151 @@ class PrinterManager:
         except Exception as e:
             print(f"Error testing printer: {e}")
             return False
+    
+    def _add_footer_to_print(self, bill_data: Dict) -> bytes:
+        """Add footer to print buffer"""
+        buffer = ESCPOS.FEED_LINE
+        
+        if not self.settings_manager:
+            # Use default footer if no settings manager
+            buffer += self._format_text("Thank you for dining with us!", 'center')
+            buffer += ESCPOS.FEED_3_LINES
+            return buffer
+        
+        # Get footer settings
+        footer_settings = self.settings_manager.get_footer_settings()
+        
+        if not footer_settings.get('footer_enabled', 'true').lower() == 'true':
+            return buffer
+        
+        # Generate footer based on template
+        template = footer_settings.get('footer_template', 'default')
+        
+        if template == 'minimal':
+            buffer += self._add_minimal_footer_print(footer_settings)
+        elif template == 'detailed':
+            buffer += self._add_detailed_footer_print(footer_settings, bill_data)
+        else:
+            buffer += self._add_default_footer_print(footer_settings, bill_data)
+        
+        return buffer
+    
+    def _add_default_footer_print(self, footer_settings: Dict, bill_data: Dict) -> bytes:
+        """Add default footer to print buffer"""
+        buffer = b''
+        
+        # Custom text
+        custom_text = footer_settings.get('footer_custom_text', 'Thank you for your business!')
+        if custom_text:
+            buffer += self._format_text(custom_text, 'center')
+            buffer += ESCPOS.FEED_LINE
+        
+        # User info
+        if footer_settings.get('footer_show_user_name', 'true').lower() == 'true' and bill_data:
+            # For printing, we'll use a generic user since we don't have user info in bill_data
+            buffer += self._format_text("Processed by POS System", 'center')
+            buffer += ESCPOS.FEED_LINE
+        
+        # Receipt info
+        if footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and bill_data:
+            order_number = bill_data.get('order_number', 'N/A')
+            date = bill_data.get('date', '')
+            if order_number and date:
+                buffer += self._format_text(f"Receipt #{order_number} - {date}", 'center')
+                buffer += ESCPOS.FEED_LINE
+        
+        # Business info
+        if footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
+            # Get business info from bill_data or use defaults
+            name = bill_data.get('restaurant_name', '')
+            phone = bill_data.get('restaurant_phone', '')
+            
+            info_parts = []
+            if name:
+                info_parts.append(name)
+            if phone:
+                info_parts.append(phone)
+            
+            if info_parts:
+                buffer += self._format_text(" | ".join(info_parts), 'center')
+                buffer += ESCPOS.FEED_LINE
+        
+        # Multiline footer
+        if footer_settings.get('footer_multiline', 'false').lower() == 'true':
+            lines = [
+                footer_settings.get('footer_line1', ''),
+                footer_settings.get('footer_line2', ''),
+                footer_settings.get('footer_line3', '')
+            ]
+            for line in lines:
+                if line:
+                    buffer += self._format_text(line, 'center')
+                    buffer += ESCPOS.FEED_LINE
+        
+        buffer += ESCPOS.FEED_3_LINES
+        return buffer
+    
+    def _add_minimal_footer_print(self, footer_settings: Dict) -> bytes:
+        """Add minimal footer to print buffer"""
+        buffer = b''
+        custom_text = footer_settings.get('footer_custom_text', 'Thank you!')
+        if custom_text:
+            buffer += self._format_text(custom_text, 'center')
+            buffer += ESCPOS.FEED_LINE
+            buffer += ESCPOS.FEED_2_LINES
+        return buffer
+    
+    def _add_detailed_footer_print(self, footer_settings: Dict, bill_data: Dict) -> bytes:
+        """Add detailed footer to print buffer"""
+        buffer = b''
+        
+        # Custom text
+        custom_text = footer_settings.get('footer_custom_text', 'Thank you for your business!')
+        if custom_text:
+            buffer += self._create_separator('=')
+            buffer += self._format_text(f"*** {custom_text} ***", 'center', 'bold')
+            buffer += self._create_separator('=')
+            buffer += ESCPOS.FEED_LINE
+        
+        # User info
+        if footer_settings.get('footer_show_user_name', 'true').lower() == 'true':
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            buffer += self._format_text(f"Processed by POS System at {timestamp}", 'center')
+            buffer += ESCPOS.FEED_LINE
+        
+        # Receipt info
+        if footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and bill_data:
+            order_number = bill_data.get('order_number', 'N/A')
+            date = bill_data.get('date', '')
+            if order_number:
+                buffer += self._format_text(f"Receipt: {order_number}", 'center')
+            if date:
+                buffer += self._format_text(f"Date: {date}", 'center')
+            buffer += ESCPOS.FEED_LINE
+        
+        # Business info
+        if footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
+            name = bill_data.get('restaurant_name', '')
+            address = bill_data.get('restaurant_address', '')
+            phone = bill_data.get('restaurant_phone', '')
+            
+            if name:
+                buffer += self._format_text(f"Business: {name}", 'center')
+            if address:
+                buffer += self._format_text(f"Address: {address}", 'center')
+            if phone:
+                buffer += self._format_text(f"Phone: {phone}", 'center')
+            buffer += ESCPOS.FEED_LINE
+        
+        # Additional terms
+        buffer += self._create_separator('-')
+        buffer += self._format_text("This is a computer generated document.", 'center')
+        buffer += ESCPOS.FEED_LINE
+        buffer += self._format_text("Goods once sold will not be taken back.", 'center')
+        buffer += ESCPOS.FEED_LINE
+        buffer += self._format_text("All disputes are subject to local jurisdiction.", 'center')
+        buffer += ESCPOS.FEED_LINE
+        
+        buffer += self._create_separator('=')
+        buffer += ESCPOS.FEED_3_LINES
+        return buffer

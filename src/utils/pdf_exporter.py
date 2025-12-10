@@ -51,12 +51,13 @@ class PDFExporter:
     including restaurant branding, order details, item tables, and payment information.
     """
     
-    def __init__(self, restaurant_info: Dict = None):
+    def __init__(self, restaurant_info: Dict = None, settings_manager=None):
         """
         Initialize PDF Exporter
         
         Args:
             restaurant_info: Dictionary containing restaurant details
+            settings_manager: Settings manager for footer configuration
         """
         # Set up logging
         self.logger = logging.getLogger(__name__)
@@ -69,6 +70,9 @@ class PDFExporter:
             'email': 'info@restaurant.com',
             'gst_number': 'GSTIN1234567890'
         }
+        
+        # Settings manager for footer
+        self.settings_manager = settings_manager
         
         # PDF settings
         self.page_size = A4
@@ -175,7 +179,7 @@ class PDFExporter:
             story.append(Spacer(1, 20))
             self._add_payment_info(story, order_data.get('payments', []))
             story.append(Spacer(1, 30))
-            self._add_footer(story)
+            self._add_footer(story, order_data)
             
             # Build PDF
             doc.build(story, onFirstPage=self._add_page_header_footer, onLaterPages=self._add_page_header_footer)
@@ -403,11 +407,137 @@ class PDFExporter:
         
         story.append(table)
     
-    def _add_footer(self, story: List):
+    def _add_footer(self, story: List, order_data: Dict = None):
         """Add footer section"""
+        if not self.settings_manager:
+            # Use default footer if no settings manager
+            self._add_default_footer(story)
+            return
+        
+        # Get footer settings
+        footer_settings = self.settings_manager.get_footer_settings()
+        
+        if not footer_settings.get('footer_enabled', 'true').lower() == 'true':
+            return
+        
+        # Generate footer based on template
+        template = footer_settings.get('footer_template', 'default')
+        
         story.append(Spacer(1, 20))
         
-        # Thank you message
+        if template == 'minimal':
+            self._add_minimal_footer(story, footer_settings)
+        elif template == 'detailed':
+            self._add_detailed_footer(story, footer_settings, order_data)
+        else:
+            self._add_default_footer(story, footer_settings, order_data)
+    
+    def _add_default_footer(self, story: List, footer_settings: Dict = None, order_data: Dict = None):
+        """Add default footer"""
+        if not footer_settings:
+            # Fallback to original default footer
+            self._add_original_default_footer(story)
+            return
+        
+        # Custom text
+        custom_text = footer_settings.get('footer_custom_text', 'Thank you for your business!')
+        if custom_text:
+            story.append(Paragraph(custom_text, self.centered_style))
+        
+        # User info
+        if footer_settings.get('footer_show_user_name', 'true').lower() == 'true' and order_data:
+            # For PDF, we'll use a generic user since we don't have user info in order_data
+            story.append(Paragraph(f"Processed by POS System", self.centered_style))
+        
+        # Receipt info
+        if footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and order_data:
+            order_number = order_data.get('order_number', 'N/A')
+            created_at = order_data.get('created_at', '')
+            if created_at:
+                formatted_date = self._format_datetime(created_at)
+                story.append(Paragraph(f"Receipt #{order_number} - {formatted_date}", self.centered_style))
+        
+        # Business info
+        if footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
+            business_info = []
+            if self.restaurant_info.get('name'):
+                business_info.append(self.restaurant_info['name'])
+            if self.restaurant_info.get('phone'):
+                business_info.append(self.restaurant_info['phone'])
+            if self.restaurant_info.get('gst_number'):
+                business_info.append(f"GST: {self.restaurant_info['gst_number']}")
+            
+            if business_info:
+                story.append(Paragraph(" | ".join(business_info), self.centered_style))
+        
+        # Multiline footer
+        if footer_settings.get('footer_multiline', 'false').lower() == 'true':
+            lines = [
+                footer_settings.get('footer_line1', ''),
+                footer_settings.get('footer_line2', ''),
+                footer_settings.get('footer_line3', '')
+            ]
+            for line in lines:
+                if line:
+                    story.append(Paragraph(line, self.centered_style))
+        
+        # Original default terms
+        story.append(Spacer(1, 10))
+        terms = [
+            "This is a computer generated invoice.",
+            "Goods once sold will not be taken back.",
+            "All disputes are subject to local jurisdiction."
+        ]
+        
+        for term in terms:
+            story.append(Paragraph(term, self.centered_style))
+    
+    def _add_minimal_footer(self, story: List, footer_settings: Dict):
+        """Add minimal footer"""
+        custom_text = footer_settings.get('footer_custom_text', 'Thank you!')
+        if custom_text:
+            story.append(Paragraph(custom_text, self.centered_style))
+    
+    def _add_detailed_footer(self, story: List, footer_settings: Dict, order_data: Dict = None):
+        """Add detailed footer"""
+        # Custom text
+        custom_text = footer_settings.get('footer_custom_text', 'Thank you for your business!')
+        if custom_text:
+            story.append(Paragraph(f"*** {custom_text} ***", self.centered_style))
+        
+        # User info
+        if footer_settings.get('footer_show_user_name', 'true').lower() == 'true':
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            story.append(Paragraph(f"Processed by POS System at {timestamp}", self.centered_style))
+        
+        # Receipt info
+        if footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and order_data:
+            order_number = order_data.get('order_number', 'N/A')
+            created_at = order_data.get('created_at', '')
+            if created_at:
+                formatted_date = self._format_datetime(created_at)
+                story.append(Paragraph(f"Receipt: {order_number}", self.centered_style))
+                story.append(Paragraph(f"Date: {formatted_date}", self.centered_style))
+        
+        # Business info
+        if footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
+            if self.restaurant_info.get('name'):
+                story.append(Paragraph(f"Business: {self.restaurant_info['name']}", self.centered_style))
+            if self.restaurant_info.get('address'):
+                story.append(Paragraph(f"Address: {self.restaurant_info['address']}", self.centered_style))
+            if self.restaurant_info.get('phone'):
+                story.append(Paragraph(f"Phone: {self.restaurant_info['phone']}", self.centered_style))
+            if self.restaurant_info.get('gst_number'):
+                story.append(Paragraph(f"GST: {self.restaurant_info['gst_number']}", self.centered_style))
+        
+        # Additional terms
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("This is a computer generated document.", self.centered_style))
+        story.append(Paragraph("Goods once sold will not be taken back.", self.centered_style))
+        story.append(Paragraph("All disputes are subject to local jurisdiction.", self.centered_style))
+    
+    def _add_original_default_footer(self, story: List):
+        """Add original default footer (fallback)"""
         story.append(Paragraph("Thank you for your business!", self.centered_style))
         story.append(Paragraph("Please visit again!", self.centered_style))
         

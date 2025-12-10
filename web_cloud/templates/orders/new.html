@@ -460,9 +460,9 @@
 </div>
 {% endblock %} {% block extra_js %}
 <script type="text/javascript">
-// Pass data from Flask to JavaScript
-window.menuItems = {{ menu_items|tojson|safe }};
-window.tables = {{ tables|tojson|safe }};
+  // Pass data from Flask to JavaScript
+  window.menuItems = {{ menu_items|tojson|safe }};
+  window.tables = {{ tables|tojson|safe }};
 </script>
 <script src="{{ url_for('static', filename='js/order-screen.js') }}"></script>
 {% endblock %}

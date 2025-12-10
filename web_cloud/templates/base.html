@@ -189,15 +189,39 @@
     <!-- Main Content -->
     <main class="main-content">{% block content %}{% endblock %}</main>
 
-    <!-- Footer -->
-    <footer class="bg-light text-center py-3 mt-auto">
-      <div class="container">
-        <small class="text-muted">
-          {{ public_settings.get('restaurant_name', 'Restaurant POS') }} | ©
-          2024 Restaurant POS System | Powered by Flask & Bootstrap
-        </small>
-      </div>
-    </footer>
+    <!-- Enhanced Footer Component -->
+    {% set footer_config = {
+        'enabled': settings.get('footer_enabled', 'true') == 'true',
+        'business_name': settings.get('footer_business_name', public_settings.get('restaurant_name', 'Restaurant POS')),
+        'address': settings.get('footer_address', ''),
+        'phone': settings.get('footer_phone', public_settings.get('restaurant_phone', '')),
+        'email': settings.get('footer_email', ''),
+        'company_logo': settings.get('footer_company_logo', ''),
+        'show_business_info': settings.get('footer_show_business_info', 'true') == 'true',
+        'show_receipt_info': settings.get('footer_show_receipt_info', 'true') == 'true',
+        'show_user_info': settings.get('footer_show_user_name', 'true') == 'true',
+        'show_user_id': settings.get('footer_show_user_id', 'false') == 'true',
+        'show_timestamp': settings.get('footer_show_timestamp', 'true') == 'true',
+        'show_page_info': settings.get('footer_show_page_info', 'true') == 'true',
+        'show_version': settings.get('footer_show_version', 'false') == 'true',
+        'custom_text': settings.get('footer_custom_text', 'Thank you for your business!'),
+        'background_color': settings.get('footer_background_color', '#2c3e50'),
+        'text_color': settings.get('footer_text_color', '#ecf0f1'),
+        'border_color': settings.get('footer_border_color', '#34495e'),
+        'border_width': settings.get('footer_border_width', '2px'),
+        'font_family': settings.get('footer_font_family', 'Arial, sans-serif'),
+        'font_size': settings.get('footer_font_size', '12px'),
+        'header_font_size': settings.get('footer_header_font_size', '14px'),
+        'header_color': settings.get('footer_header_color', '#3498db'),
+        'header_font_weight': settings.get('footer_header_font_weight', 'bold'),
+        'small_font_size': settings.get('footer_small_font_size', '10px'),
+        'padding': settings.get('footer_padding', '15px 20px'),
+        'logo_height': settings.get('footer_logo_height', '30px'),
+        'fixed_position': settings.get('footer_fixed_position', 'false') == 'true',
+        'version': settings.get('footer_version', '1.0.0'),
+        'default_user': settings.get('footer_default_user', 'Staff')
+    } %}
+    {% include 'components/footer.html' %}
 
     <!-- Loading Overlay -->
     <div
@@ -352,6 +376,72 @@
           updateCalculations() {
             // This will be overridden by specific pages
           },
+        };
+      }
+      
+      // Footer Component
+      function footerComponent() {
+        return {
+          footerSettings: {
+            enabled: false,
+            custom_text: '',
+            show_user_name: false,
+            show_business_info: false,
+            multiline: false,
+            line1: '',
+            line2: '',
+            line3: ''
+          },
+          
+          initFooter() {
+            // Load footer settings from API or use defaults
+            this.loadFooterSettings();
+            
+            // Update time every second
+            setInterval(() => {
+              this.updateTime();
+            }, 1000);
+          },
+          
+          async loadFooterSettings() {
+            try {
+              const response = await fetch('/api/settings/footer');
+              if (response.ok) {
+                const data = await response.json();
+                this.footerSettings = {
+                  enabled: data.footer_enabled === 'true',
+                  custom_text: data.footer_custom_text || 'Thank you for your business!',
+                  show_user_name: data.footer_show_user_name === 'true',
+                  show_business_info: data.footer_show_business_info === 'true',
+                  multiline: data.footer_multiline === 'true',
+                  line1: data.footer_line1 || '',
+                  line2: data.footer_line2 || '',
+                  line3: data.footer_line3 || ''
+                };
+              }
+            } catch (error) {
+              console.error('Error loading footer settings:', error);
+              // Use defaults if API fails
+              this.footerSettings = {
+                enabled: true,
+                custom_text: 'Thank you for your business!',
+                show_user_name: true,
+                show_business_info: true,
+                multiline: false,
+                line1: '',
+                line2: '',
+                line3: ''
+              };
+            }
+          },
+          
+          getCurrentTime() {
+            return new Date().toLocaleString();
+          },
+          
+          updateTime() {
+            // This will be called by setInterval to update time displays
+          }
         };
       }
     </script>

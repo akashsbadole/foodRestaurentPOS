@@ -102,6 +102,25 @@ class Settings(db.Model):
             ('enable_delivery', 'false', 'Enable delivery orders', False),
             ('delivery_charge', '0', 'Default delivery charge', True),
             ('min_delivery_amount', '100', 'Minimum amount for free delivery', True),
+            
+            # Footer settings
+            ('footer_enabled', 'true', 'Enable footer on receipts and documents', True),
+            ('footer_template', 'default', 'Footer template style (default, minimal, detailed)', True),
+            ('footer_show_user_name', 'true', 'Show user name in footer', True),
+            ('footer_show_receipt_info', 'true', 'Show receipt number and date in footer', True),
+            ('footer_show_business_info', 'true', 'Show business info in footer', True),
+            ('footer_custom_text', 'Thank you for your business!', 'Custom footer text', True),
+            ('footer_font_size', '10', 'Footer font size', False),
+            ('footer_alignment', 'center', 'Footer text alignment (left, center, right)', True),
+            ('footer_show_logo', 'false', 'Show company logo in footer', False),
+            ('footer_logo_path', '', 'Path to company logo image', False),
+            ('footer_different_receipts', 'false', 'Use different footer for receipts vs invoices', False),
+            ('footer_invoice_template', 'default', 'Footer template for invoices', True),
+            ('footer_receipt_template', 'default', 'Footer template for receipts', True),
+            ('footer_multiline', 'false', 'Enable multiline footer text', False),
+            ('footer_line1', '', 'Footer line 1 text', True),
+            ('footer_line2', '', 'Footer line 2 text', True),
+            ('footer_line3', '', 'Footer line 3 text', True),
         ]
         
         for key, value, description, is_public in default_settings:
@@ -139,6 +158,18 @@ class Settings(db.Model):
     def get_backup_settings():
         """Get backup-related settings"""
         keys = ['auto_backup', 'backup_interval']
+        settings = Settings.query.filter(Settings.key.in_(keys)).all()
+        return {setting.key: setting._decrypt_value_if_needed(setting.key, setting.value) for setting in settings}
+    
+    @staticmethod
+    def get_footer_settings():
+        """Get footer-related settings"""
+        keys = [
+            'footer_enabled', 'footer_template', 'footer_show_user_name', 'footer_show_receipt_info',
+            'footer_show_business_info', 'footer_custom_text', 'footer_font_size', 'footer_alignment',
+            'footer_show_logo', 'footer_logo_path', 'footer_different_receipts', 'footer_invoice_template',
+            'footer_receipt_template', 'footer_multiline', 'footer_line1', 'footer_line2', 'footer_line3'
+        ]
         settings = Settings.query.filter(Settings.key.in_(keys)).all()
         return {setting.key: setting._decrypt_value_if_needed(setting.key, setting.value) for setting in settings}
     

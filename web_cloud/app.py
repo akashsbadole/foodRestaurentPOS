@@ -57,6 +57,8 @@ def create_app(config_name='default'):
     from routes.kot import kot_bp
     from routes.reports import reports_bp
     from routes.api import api_bp
+    from routes.email import email_bp
+    from routes.footer_settings import footer_settings_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
@@ -67,6 +69,8 @@ def create_app(config_name='default'):
     app.register_blueprint(kot_bp, url_prefix='/kot')
     app.register_blueprint(reports_bp, url_prefix='/reports')
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(email_bp, url_prefix='/email')
+    app.register_blueprint(footer_settings_bp, url_prefix='/footer')
     
     # Main routes
     @app.route('/')
@@ -88,7 +92,8 @@ def create_app(config_name='default'):
     def inject_settings():
         """Inject global settings into templates"""
         public_settings = Settings.get_public()
-        return dict(public_settings=public_settings)
+        all_settings = Settings.get_all_as_dict()
+        return dict(public_settings=public_settings, settings=all_settings)
     
     @app.context_processor
     def inject_user():

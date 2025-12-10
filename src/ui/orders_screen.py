@@ -280,7 +280,8 @@ class OrdersScreen(BaseUI):
                     row_frame = ttk.Frame(buttons_frame)
                     row_frame.pack(fill=tk.X, pady=(0, SPACING_S))
                 
-                item_id, name, category, price, stock = item
+                # item contains: id, name, category, price, stock_quantity, shortcode
+                item_id, name, category, price, stock_quantity, shortcode = item
                 button_text = f"{name[:15]} (₹{price:.0f})"
                 
                 btn = self.create_modern_button(
@@ -876,7 +877,8 @@ class OrdersScreen(BaseUI):
             # Format items for display
             item_list = []
             for item in items:
-                item_id, name, category, price, stock = item
+                # item contains: id, name, category, price, stock_quantity, shortcode
+                item_id, name, category, price, stock_quantity, shortcode = item
                 display_text = f"{name} (₹{price:.0f})"
                 item_list.append((display_text, item_id))
             return item_list

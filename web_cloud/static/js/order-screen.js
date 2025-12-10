@@ -179,7 +179,7 @@ function orderScreen() {
     async saveOrder() {
       if (this.currentOrder.items.length === 0) {
         this.showNotification("Please add items to the order", "error");
-        return;
+        return false;
       }
 
       try {
@@ -210,28 +210,39 @@ function orderScreen() {
         if (result.success) {
           this.currentOrder.id = result.order_id;
           this.showNotification("Order saved successfully", "success");
+          return true;
         } else {
           this.showNotification(
             result.message || "Failed to save order",
             "error"
           );
+          return false;
         }
       } catch (error) {
         console.error("Error saving order:", error);
         this.showNotification("Error saving order", "error");
+        return false;
       }
     },
 
-    proceedToPayment() {
+    async proceedToPayment() {
       if (this.currentOrder.items.length === 0) {
         this.showNotification("Please add items to the order", "error");
         return;
       }
 
-      // For now, just save and show a message
-      this.saveOrder().then(() => {
-        this.showNotification("Payment processing coming soon!", "info");
-      });
+      try {
+        // First save the order
+        const saveResult = await this.saveOrder();
+
+        if (saveResult) {
+          // Redirect to payment page
+          window.location.href = `/orders/payment/${this.currentOrder.id}`;
+        }
+      } catch (error) {
+        console.error("Error proceeding to payment:", error);
+        this.showNotification("Failed to proceed to payment", "error");
+      }
     },
 
     // Notifications

@@ -449,6 +449,9 @@ class EmailService:
             status_color = '#ffc107'
             status_icon = '⚠️'
         
+        # Get footer for emails
+        footer_html = self._get_email_footer()
+        
         return f"""
         <html>
         <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
@@ -500,16 +503,62 @@ class EmailService:
                     </p>
                 </div>
                 
-                <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-                    <p style="margin: 0; color: #999; font-size: 12px;">
-                        Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
-                        POS Backup System v1.0
-                    </p>
-                </div>
+                {footer_html}
             </div>
         </body>
         </html>
         """
+    
+    def _get_email_footer(self) -> str:
+        """Get footer HTML for emails"""
+        try:
+            from models.settings import Settings
+            footer_settings = Settings.get_footer_settings()
+            restaurant_info = Settings.get_restaurant_info()
+            
+            if not footer_settings.get('footer_enabled', 'true').lower() == 'true':
+                return ""
+            
+            # Build footer based on settings
+            footer_lines = []
+            
+            # Custom text
+            custom_text = footer_settings.get('footer_custom_text', 'Thank you for your business!')
+            if custom_text:
+                footer_lines.append(f"<p style='margin: 5px 0; color: #666; font-size: 11px;'>{custom_text}</p>")
+            
+            # Business info
+            if footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
+                business_parts = []
+                if restaurant_info.get('restaurant_name'):
+                    business_parts.append(restaurant_info['restaurant_name'])
+                if restaurant_info.get('restaurant_phone'):
+                    business_parts.append(restaurant_info['restaurant_phone'])
+                if restaurant_info.get('restaurant_email'):
+                    business_parts.append(restaurant_info['restaurant_email'])
+                
+                if business_parts:
+                    footer_lines.append(f"<p style='margin: 5px 0; color: #666; font-size: 10px;'>{' | '.join(business_parts)}</p>")
+            
+            # Timestamp
+            footer_lines.append(f"<p style='margin: 10px 0 0; color: #999; font-size: 9px; border-top: 1px solid #eee; padding-top: 10px;'>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | POS Backup System v1.0</p>")
+            
+            if footer_lines:
+                return f"""
+                <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                    {''.join(footer_lines)}
+                </div>
+                """
+            
+            return ""
+            
+        except Exception as e:
+            # Fallback to basic footer if settings fail
+            return f"""
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                <p style="margin: 10px 0 0; color: #999; font-size: 9px;">Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | POS Backup System v1.0</p>
+            </div>
+            """
     
     def get_email_history(self, limit: int = 50) -> List[Dict]:
         """Get email history"""

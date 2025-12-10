@@ -261,7 +261,7 @@ class MenuScreen(BaseUI):
             # Apply additional filters
             filtered_items = []
             for item in items:
-                item_id, name, item_category, price, stock = item
+                item_id, name, item_category, price, stock, shortcode = item
                 
                 # Price filter
                 if min_price and max_price:
