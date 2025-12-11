@@ -74,20 +74,76 @@ class BaseUI:
         return button_frame
     
     def show_message(self, title, message, message_type="info"):
-        """Show a message dialog"""
-        if message_type == "info":
-            from tkinter import messagebox
-            messagebox.showinfo(title, message)
-        elif message_type == "warning":
-            from tkinter import messagebox
-            messagebox.showwarning(title, message)
-        elif message_type == "error":
-            from tkinter import messagebox
-            messagebox.showerror(title, message)
-        elif message_type == "yesno":
-            from tkinter import messagebox
-            return messagebox.askyesno(title, message)
+        """Show a message dialog with automatic error logging"""
+        try:
+            # Log error messages automatically
+            if message_type == "error":
+                self._log_error(title, message)
+            elif message_type == "warning":
+                self._log_warning(title, message)
+            
+            # Show the message dialog
+            if message_type == "info":
+                from tkinter import messagebox
+                messagebox.showinfo(title, message)
+            elif message_type == "warning":
+                from tkinter import messagebox
+                messagebox.showwarning(title, message)
+            elif message_type == "error":
+                from tkinter import messagebox
+                messagebox.showerror(title, message)
+            elif message_type == "yesno":
+                from tkinter import messagebox
+                return messagebox.askyesno(title, message)
+        except Exception as e:
+            # Fallback logging if the main app is not available
+            print(f"Error in show_message: {str(e)}")
         return False
+    
+    def _log_error(self, title, message):
+        """Log error to bug logger"""
+        try:
+            if hasattr(self.app, 'log_error'):
+                # Get current screen name for context
+                screen_name = self.__class__.__name__
+                error_context = f"Screen: {screen_name}, Title: {title}"
+                self.app.log_error(f"{message}\n\nContext: {error_context}", "high")
+        except Exception as e:
+            print(f"Failed to log error: {str(e)}")
+    
+    def _log_warning(self, title, message):
+        """Log warning to bug logger"""
+        try:
+            if hasattr(self.app, 'log_error'):
+                # Get current screen name for context
+                screen_name = self.__class__.__name__
+                warning_context = f"Screen: {screen_name}, Title: {title}"
+                self.app.log_error(f"WARNING: {message}\n\nContext: {warning_context}", "medium")
+        except Exception as e:
+            print(f"Failed to log warning: {str(e)}")
+    
+    def handle_exception(self, exception, context=""):
+        """Handle and log exceptions with context"""
+        try:
+            import traceback
+            error_details = f"Exception: {str(exception)}\n\nTraceback:\n{traceback.format_exc()}"
+            if context:
+                error_details = f"Context: {context}\n\n{error_details}"
+            
+            # Get current screen name for additional context
+            screen_name = self.__class__.__name__
+            error_details = f"Screen: {screen_name}\n\n{error_details}"
+            
+            if hasattr(self.app, 'log_error'):
+                self.app.log_error(error_details, "high")
+            else:
+                print(error_details)
+            
+            # Show user-friendly error message
+            self.show_message("Error", f"An unexpected error occurred: {str(exception)}", "error")
+        except Exception as e:
+            print(f"Failed to handle exception: {str(e)}")
+            print(f"Original exception: {str(exception)}")
     
     def show_input_dialog(self, title, prompt, initialvalue="", minvalue=None, maxvalue=None):
         """Show an input dialog"""
@@ -300,6 +356,16 @@ class BaseUI:
         """Create a modern styled combobox"""
         combo = ttk.Combobox(parent, textvariable=textvariable, values=values, style=style, **kwargs)
         return combo
+    
+    def create_modern_checkbutton(self, parent, variable, text, **kwargs):
+        """Create a modern styled checkbutton"""
+        checkbutton = ttk.Checkbutton(parent, variable=variable, text=text, **kwargs)
+        return checkbutton
+    
+    def create_modern_radiobutton(self, parent, variable, text, value, **kwargs):
+        """Create a modern styled radiobutton"""
+        radiobutton = ttk.Radiobutton(parent, variable=variable, text=text, value=value, **kwargs)
+        return radiobutton
     
     def create_modern_treeview(self, parent, columns, headings, column_widths=None, style="Modern.Treeview"):
         """Create a modern styled treeview with scrollbar"""

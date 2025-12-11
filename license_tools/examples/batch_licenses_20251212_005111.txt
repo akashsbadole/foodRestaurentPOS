@@ -1,0 +1,46 @@
+POS MVP License Keys Export
+==================================================
+
+Total Licenses: 3
+Exported At: 2025-12-12T00:51:11.439360
+Algorithm: RSA
+
+License #1
+------------------------------
+License Key: 54E6-EAB5-E309-438E06F3
+License ID: b9b76ac7-2279-4430-9d02-7598c2a89545
+Customer: Customer One
+Email: customer1@example.com
+Type: professional
+Issued: 2025-12-12T00:51:10.776500
+Expires: 2026-12-12T00:51:10.776500
+Max Activations: 5
+Features: orders.create, orders.view, orders.edit, orders.delete, menu.view, menu.edit, menu.create, menu.delete, inventory.view, inventory.edit, inventory.manage, reports.basic, reports.advanced, tables.manage, users.create, users.edit, users.manage, export.data, import.data, backup.create, backup.restore
+Hardware Binding: Yes
+
+License #2
+------------------------------
+License Key: 9813-5D87-EF7B-DA9F4AEE
+License ID: 712415fb-8873-4154-b884-f959cd1c286e
+Customer: Customer Two
+Email: customer2@example.com
+Type: professional
+Issued: 2025-12-12T00:51:11.097822
+Expires: 2026-12-12T00:51:11.097822
+Max Activations: 5
+Features: orders.create, orders.view, orders.edit, orders.delete, menu.view, menu.edit, menu.create, menu.delete, inventory.view, inventory.edit, inventory.manage, reports.basic, reports.advanced, tables.manage, users.create, users.edit, users.manage, export.data, import.data, backup.create, backup.restore
+Hardware Binding: Yes
+
+License #3
+------------------------------
+License Key: 952B-FCEA-ED34-E87F4D7F
+License ID: be672e7c-fc82-45ef-8fbc-bf999aa775fc
+Customer: Customer Three
+Email: customer3@example.com
+Type: professional
+Issued: 2025-12-12T00:51:11.434360
+Expires: 2026-12-12T00:51:11.434360
+Max Activations: 5
+Features: orders.create, orders.view, orders.edit, orders.delete, menu.view, menu.edit, menu.create, menu.delete, inventory.view, inventory.edit, inventory.manage, reports.basic, reports.advanced, tables.manage, users.create, users.edit, users.manage, export.data, import.data, backup.create, backup.restore
+Hardware Binding: Yes
+

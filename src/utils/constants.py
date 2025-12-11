@@ -1,5 +1,8 @@
 # Constants for Restaurant POS System
 
+# Database
+DATABASE_PATH = "restaurant_pos.db"
+
 # Window dimensions
 DEFAULT_WINDOW_WIDTH = 1200
 DEFAULT_WINDOW_HEIGHT = 700
@@ -48,44 +51,69 @@ TABLE_GRID_COLS = 4
 # Default capacity for tables
 DEFAULT_TABLE_CAPACITY = 4
 
-# Design System Colors (based on pos_design_system_specification.md)
+# Design System Colors (Google Material Design inspired)
 
-# Primary Colors
-COLOR_PRIMARY = "#3498db"        # Main actions, highlights, primary buttons
-COLOR_PRIMARY_DARK = "#2c3e50"   # Headings, important text, navigation
-COLOR_PRIMARY_LIGHT = "#2980b9"  # Hover state for primary elements
+# Primary Colors (Google Blue)
+COLOR_PRIMARY = "#1a73e8"        # Google Blue - Main actions, highlights, primary buttons
+COLOR_PRIMARY_DARK = "#1557b0"   # Darker blue - Headings, important text, navigation
+COLOR_PRIMARY_LIGHT = "#4285f4"  # Lighter blue - Hover state for primary elements
 
-# Secondary Colors
-COLOR_SECONDARY = "#7f8c8d"      # Secondary text, subtitles
-COLOR_SECONDARY_LIGHT = "#95a5a6" # Disabled text, placeholders
-COLOR_BACKGROUND_LIGHT = "#f0f0f0" # Main background
-COLOR_CARD_WHITE = "#e6e6e6"     # Card backgrounds, content areas
+# Secondary Colors (Google Grey)
+COLOR_SECONDARY = "#5f6368"      # Google grey - Secondary text, subtitles
+COLOR_SECONDARY_LIGHT = "#80868b" # Light grey - Disabled text, placeholders
+COLOR_BACKGROUND_LIGHT = "#f8f9fa" # Google light background - Main background
+COLOR_CARD_WHITE = "#ffffff"     # Pure white - Card backgrounds, content areas
 
-# Dark Theme Colors (for dark mode UI components)
-COLOR_BACKGROUND_DARK = "#2c3e50"    # Main dark background
-COLOR_CARD_DARK = "#34495e"         # Dark card backgrounds
-COLOR_SECONDARY_DARK = "#5d6d7e"    # Dark secondary elements
+# Dark Theme Colors
+COLOR_BACKGROUND_DARK = "#202124"    # Google dark background
+COLOR_CARD_DARK = "#292a2d"         # Dark card backgrounds
+COLOR_SECONDARY_DARK = "#3c4043"    # Dark secondary elements
 
-# Status Colors
-COLOR_SUCCESS = "#27ae60"         # Successful operations, available tables
-COLOR_SUCCESS_LIGHT = "#ccffcc"   # Background for success states
-COLOR_WARNING = "#f39c12"         # Warnings, low stock
-COLOR_WARNING_LIGHT = "#ffffcc"   # Background for warning states
-COLOR_ERROR = "#e74c3c"           # Errors, out of stock
-COLOR_ERROR_LIGHT = "#ffcccc"     # Background for error states
-COLOR_INFO = "#3498db"            # Information messages
+# Status Colors (Google Material colors)
+COLOR_SUCCESS = "#1e8e3e"         # Google Green - Successful operations, available tables
+COLOR_SUCCESS_LIGHT = "#e8f5e9"   # Light green background for success states
+COLOR_WARNING = "#f9ab00"         # Google Yellow - Warnings, low stock
+COLOR_WARNING_LIGHT = "#fff9c4"   # Light yellow background for warning states
+COLOR_ERROR = "#d93025"           # Google Red - Errors, out of stock
+COLOR_ERROR_LIGHT = "#ffebee"     # Light red background for error states
+COLOR_INFO = "#1a73e8"            # Google Blue - Information messages
 
 # Neutral Colors
-COLOR_TEXT_PRIMARY = "#2c3e50"    # Main text content
-COLOR_TEXT_SECONDARY = "#7f8c8d"  # Secondary text
-COLOR_TEXT_DISABLED = "#bdc3c7"   # Disabled elements
-COLOR_BORDER_LIGHT = "#ecf0f1"    # Light borders
-COLOR_BORDER_MEDIUM = "#bdc3c7"   # Medium borders
-COLOR_SHADOW = "#d0d0d0"          # Shadow effects
+COLOR_TEXT_PRIMARY = "#202124"    # Google dark grey - Main text content
+COLOR_TEXT_SECONDARY = "#5f6368"  # Google medium grey - Secondary text
+COLOR_TEXT_DISABLED = "#9aa0a6"   # Google light grey - Disabled elements
+COLOR_BORDER_LIGHT = "#e8eaed"    # Google border light - Light borders
+COLOR_BORDER_MEDIUM = "#dadce0"   # Google border medium - Medium borders
+COLOR_SHADOW = "rgba(60, 64, 67, 0.3)"  # Google shadow - Shadow effects
+
+# Accent Colors (additional Google colors)
+COLOR_ACCENT_RED = "#ea4335"      # Google Red
+COLOR_ACCENT_YELLOW = "#fbbc04"   # Google Yellow
+COLOR_ACCENT_GREEN = "#34a853"    # Google Green
+COLOR_ACCENT_BLUE = "#4285f4"     # Google Blue
+
+# Background variations
+COLOR_BACKGROUND_GREY = "#f1f3f4" # Subtle grey background
+COLOR_HOVER = "#f1f3f4"           # Hover state background
+COLOR_PRESSED = "#e8eaed"         # Pressed state background
+COLOR_SELECTED = "#e8f0fe"        # Selected state background (light blue)
 
 # Typography
-FONT_FAMILY_PRIMARY = "Segoe UI"
-FONT_FAMILY_FALLBACK = "Arial"
+FONT_FAMILY_PRIMARY = "Roboto"    # Google's primary font
+FONT_FAMILY_FALLBACK = "Segoe UI, Arial, sans-serif"
+
+# Font Sizes
+FONT_SIZE_SMALL = 11
+FONT_SIZE_BODY = 13
+FONT_SIZE_MEDIUM = 14
+FONT_SIZE_LARGE = 16
+FONT_SIZE_XLARGE = 20
+FONT_SIZE_HEADING = 24
+
+# Font Weights
+FONT_WEIGHT_REGULAR = "normal"
+FONT_WEIGHT_MEDIUM = "bold"
+FONT_WEIGHT_BOLD = "bold"
 
 # Spacing (based on 8px grid)
 SPACING_XS = 2     # Fine adjustments, tight spacing
@@ -95,10 +123,26 @@ SPACING_L = 10     # Section separation, breathing room
 SPACING_XL = 20    # Major sections, screen divisions
 SPACING_XXL = 25   # Screen margins, large divisions
 
-# Border Radius
-BORDER_RADIUS_SMALL = 2
-BORDER_RADIUS_MEDIUM = 4
-BORDER_RADIUS_LARGE = 6
+# Border Radius (Google Material Design)
+BORDER_RADIUS_SMALL = 4
+BORDER_RADIUS_MEDIUM = 8
+BORDER_RADIUS_LARGE = 12
+BORDER_RADIUS_XLARGE = 16
+
+# Elevation/Shadow levels (Google Material Design)
+SHADOW_LEVEL_1 = "0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15)"
+SHADOW_LEVEL_2 = "0 1px 2px 0 rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15)"
+SHADOW_LEVEL_3 = "0 4px 8px 3px rgba(60,64,67,0.15), 0 1px 3px rgba(60,64,67,0.3)"
+SHADOW_LEVEL_4 = "0 8px 12px 6px rgba(60,64,67,0.15), 0 4px 4px rgba(60,64,67,0.3)"
+
+# Button styles
+BUTTON_PRIMARY_BG = COLOR_PRIMARY
+BUTTON_PRIMARY_FG = "#ffffff"
+BUTTON_PRIMARY_HOVER = COLOR_PRIMARY_DARK
+BUTTON_SECONDARY_BG = "#ffffff"
+BUTTON_SECONDARY_FG = COLOR_PRIMARY
+BUTTON_SECONDARY_HOVER = COLOR_HOVER
+BUTTON_SECONDARY_BORDER = COLOR_BORDER_MEDIUM
 
 # Printer constants
 PRINTER_TYPE_THERMAL = "thermal"
@@ -117,6 +161,66 @@ DEFAULT_BILL_PAPER_WIDTH = 58
 DEFAULT_KOT_PAPER_WIDTH = 58
 DEFAULT_AUTO_PRINT_BILL = False
 DEFAULT_AUTO_PRINT_KOT = True
+
+# Support System Constants
+
+# Support ticket statuses
+TICKET_STATUS_OPEN = "Open"
+TICKET_STATUS_IN_PROGRESS = "In Progress"
+TICKET_STATUS_RESOLVED = "Resolved"
+TICKET_STATUS_CLOSED = "Closed"
+
+# Support ticket priorities
+PRIORITY_LOW = "Low"
+PRIORITY_MEDIUM = "Medium"
+PRIORITY_HIGH = "High"
+PRIORITY_CRITICAL = "Critical"
+
+# Support ticket categories
+TICKET_CATEGORY_GENERAL = "General"
+TICKET_CATEGORY_TECHNICAL = "Technical"
+TICKET_CATEGORY_BILLING = "Billing"
+TICKET_CATEGORY_FEATURE = "Feature Request"
+TICKET_CATEGORY_BUG = "Bug Report"
+
+# Bug report severity
+SEVERITY_LOW = "Low"
+SEVERITY_MEDIUM = "Medium"
+SEVERITY_HIGH = "High"
+SEVERITY_CRITICAL = "Critical"
+
+# Bug report status
+BUG_STATUS_NEW = "New"
+BUG_STATUS_ASSIGNED = "Assigned"
+BUG_STATUS_IN_PROGRESS = "In Progress"
+BUG_STATUS_FIXED = "Fixed"
+BUG_STATUS_VERIFIED = "Verified"
+BUG_STATUS_CLOSED = "Closed"
+
+# Contact form types
+CONTACT_TYPE_GENERAL = "General Inquiry"
+CONTACT_TYPE_SUPPORT = "Support Request"
+CONTACT_TYPE_FEEDBACK = "Feedback"
+CONTACT_TYPE_COMPLAINT = "Complaint"
+
+# Support user roles
+SUPPORT_ROLE_USER = "User"
+SUPPORT_ROLE_STAFF = "Support Staff"
+SUPPORT_ROLE_ADMIN = "Support Admin"
+
+# Attachment types
+ATTACHMENT_TYPE_SCREENSHOT = "Screenshot"
+ATTACHMENT_TYPE_LOG = "Log File"
+ATTACHMENT_TYPE_DOCUMENT = "Document"
+ATTACHMENT_TYPE_IMAGE = "Image"
+ATTACHMENT_TYPE_OTHER = "Other"
+
+# Support system settings
+SUPPORT_EMAIL_NOTIFICATIONS = "support_email_notifications"
+SUPPORT_AUTO_ASSIGN_TICKETS = "support_auto_assign_tickets"
+SUPPORT_DEFAULT_PRIORITY = "support_default_priority"
+SUPPORT_MAX_ATTACHMENT_SIZE = "support_max_attachment_size_mb"
+SUPPORT_ALLOWED_FILE_TYPES = "support_allowed_file_types"
 
 # PIL import status placeholder
 PIL_AVAILABLE = None

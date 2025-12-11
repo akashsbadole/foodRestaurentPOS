@@ -1,7 +1,5 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-
-db = SQLAlchemy()
+from . import db
 
 class Table(db.Model):
     """Table model for restaurant seating"""
@@ -51,7 +49,7 @@ class Table(db.Model):
         from .order import Order
         return Order.query.filter_by(
             table_id=self.id, 
-            status__in=['New', 'In Progress']
+            status='New'
         ).first()
     
     def update_status(self, new_status):

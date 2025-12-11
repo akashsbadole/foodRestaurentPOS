@@ -1,263 +1,544 @@
-{% extends "base.html" %} {% block title %}Inventory Management - Restaurant
-POS{% endblock %} {% block content %}
-<div class="container-fluid" x-data="inventoryManagement()">
-  <!-- Page Header -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Inventory Management</h1>
-    <div>
-      <button @click="showAddModal()" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Add Item
+{% extends "base.html" %} {% block title %}Inventory Management - Restaurant POS{% endblock %} {% block extra_css %}
+<style>
+  .inventory-container {
+    padding: 20px;
+  }
+  
+  .inventory-header {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .stat-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+  
+  .stat-card.success { border-left: 4px solid #28a745; }
+  .stat-card.warning { border-left: 4px solid #ffc107; }
+  .stat-card.danger { border-left: 4px solid #dc3545; }
+  .stat-card.info { border-left: 4px solid #007bff; }
+  
+  .inventory-table {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+  }
+  
+  .table-responsive {
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  
+  .stock-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .stock-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  
+  .stock-normal { background: #d4edda; color: #155724; }
+  .stock-low { background: #fff3cd; color: #856404; }
+  .stock-out { background: #f8d7da; color: #721c24; }
+  
+  .quantity-input {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+  }
+  
+  .btn-sm {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+  
+  .filter-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .filter-tab {
+    padding: 10px 20px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .filter-tab:hover {
+    background: #e9ecef;
+  }
+  
+  .filter-tab.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+  }
+  
+  .search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .search-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
+  
+  .bulk-actions {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .bulk-form {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: end;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="inventory-container" x-data="inventoryManager()">
+  <!-- Header Section -->
+  <div class="inventory-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <h2>Inventory Management</h2>
+      <div>
+        <button @click="refreshData()" class="btn btn-outline-primary btn-sm">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <button @click="exportData()" class="btn btn-outline-success btn-sm">
+          <i class="fas fa-download"></i> Export
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Statistics Cards -->
+  <div class="stats-grid">
+    <div class="stat-card info">
+      <div class="stat-value" x-text="stats.totalItems">0</div>
+      <div class="stat-label">Total Items</div>
+    </div>
+    <div class="stat-card success">
+      <div class="stat-value" x-text="stats.inStock">0</div>
+      <div class="stat-label">In Stock</div>
+    </div>
+    <div class="stat-card warning">
+      <div class="stat-value" x-text="stats.lowStock">0</div>
+      <div class="stat-label">Low Stock</div>
+    </div>
+    <div class="stat-card danger">
+      <div class="stat-value" x-text="stats.outOfStock">0</div>
+      <div class="stat-label">Out of Stock</div>
+    </div>
+  </div>
+  
+  <!-- Bulk Stock Update -->
+  <div class="bulk-actions">
+    <h5>Bulk Stock Update</h5>
+    <div class="bulk-form">
+      <select x-model="bulkUpdate.itemId" class="form-control">
+        <option value="">Select Item</option>
+        <template x-for="item in items" :key="item.id">
+          <option :value="item.id" x-text="`${item.name} (${item.stock_quantity} ${item.unit})`"></option>
+        </template>
+      </select>
+      <input type="number" x-model="bulkUpdate.quantity" class="form-control" placeholder="Quantity to add">
+      <button @click="addBulkStock()" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Stock
       </button>
     </div>
   </div>
-
-  <!-- Filters and Search -->
-  <div class="card shadow mb-4">
-    <div class="card-body">
-      <div class="row">
-        <div class="col-md-4">
-          <label class="form-label">Search</label>
-          <input
-            type="text"
-            x-model="searchQuery"
-            @input="filterItems()"
-            class="form-control"
-            placeholder="Search items..."
-          />
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Category</label>
-          <select
-            x-model="selectedCategory"
-            @change="filterItems()"
-            class="form-select"
-          >
-            <option value="">All Categories</option>
-            {% for category in categories %}
-            <option value="{{ category.id }}">{{ category.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-2">
-          <label class="form-label">Stock Status</label>
-          <select
-            x-model="stockFilter"
-            @change="filterItems()"
-            class="form-select"
-          >
-            <option value="all">All</option>
-            <option value="low_stock">Low Stock</option>
-            <option value="out_of_stock">Out of Stock</option>
-            <option value="in_stock">In Stock</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Actions</label>
-          <div class="btn-group w-100">
-            <button @click="exportData()" class="btn btn-outline-secondary">
-              <i class="fas fa-download"></i> Export
-            </button>
-            <button @click="refreshData()" class="btn btn-outline-primary">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-      </div>
+  
+  <!-- Search and Filter -->
+  <div class="search-bar">
+    <input type="text" x-model="searchQuery" @input="filterItems()" 
+           class="search-input" placeholder="Search items...">
+    <select x-model="filterType" @change="filterItems()" class="form-control" style="width: 200px;">
+      <option value="all">All Items</option>
+      <option value="low_stock">Low Stock</option>
+      <option value="out_of_stock">Out of Stock</option>
+    </select>
+  </div>
+  
+  <!-- Inventory Table -->
+  <div class="inventory-table">
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th>Item Name</th>
+            <th>Category</th>
+            <th>Current Stock</th>
+            <th>Min Stock</th>
+            <th>Unit</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="item in filteredItems" :key="item.id">
+            <tr>
+              <td>
+                <div>
+                  <strong x-text="item.name"></strong>
+                  <div class="text-muted small" x-text="item.description"></div>
+                </div>
+              </td>
+              <td x-text="item.category_name || 'N/A'"></td>
+              <td>
+                <div class="stock-cell">
+                  <input type="number" :value="item.stock_quantity" 
+                         @change="updateStock(item.id, $event.target.value)"
+                         class="quantity-input" min="0">
+                  <span x-text="item.unit"></span>
+                </div>
+              </td>
+              <td x-text="`${item.min_stock_level} ${item.unit}`"></td>
+              <td x-text="item.unit"></td>
+              <td>₹<span x-text="item.price.toFixed(2)"></span></td>
+              <td>
+                <span :class="getStockBadgeClass(item)" 
+                      class="stock-badge" x-text="getStockStatus(item)"></span>
+              </td>
+              <td>
+                <div class="btn-group" role="group">
+                  <button @click="quickAddStock(item.id, 10)" 
+                          class="btn btn-outline-success btn-sm" title="Add 10">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                  <button @click="quickAddStock(item.id, 50)" 
+                          class="btn btn-outline-success btn-sm" title="Add 50">
+                    <i class="fas fa-plus-circle"></i>
+                  </button>
+                  <button @click="viewHistory(item.id)" 
+                          class="btn btn-outline-info btn-sm" title="View History">
+                    <i class="fas fa-history"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
   </div>
-
-  <!-- Inventory Items Grid -->
-  <div class="row" id="inventoryItemsGrid">
-    {% for item in inventory_items.items %}
-    <div
-      class="col-lg-4 col-md-6 mb-4 inventory-item"
-      data-category="{{ item.category_id }}"
-      data-name="{{ item.name|lower }}"
-      data-stock="{% if item.stock_quantity <= item.min_stock_level %}low_stock{% elif item.stock_quantity == 0 %}out_of_stock{% else %}in_stock{% endif %}"
-    >
-      <div class="card h-100">
-        {% if item.image_path %}
-        <img
-          src="{{ url_for('static', filename='uploads/' + item.image_path) }}"
-          class="card-img-top"
-          style="height: 200px; object-fit: cover"
-        />
-        {% endif %}
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <h5 class="card-title">{{ item.name }}</h5>
-            <span
-              class="badge {% if item.stock_quantity <= item.min_stock_level %}bg-warning{% elif item.stock_quantity == 0 %}bg-danger{% else %}bg-success{% endif %}"
-            >
-              {% if item.stock_quantity == 0 %}Out of Stock {% elif
-              item.stock_quantity <= item.min_stock_level %}Low Stock {% else
-              %}In Stock{% endif %}
-            </span>
-          </div>
-          <p class="card-text text-muted">{{ item.description or '' }}</p>
-          <div class="d-flex justify-content-between align-items-center">
-            <h6 class="text-primary">₹{{ "%.2f"|format(item.price) }}</h6>
-            <div class="text-end">
-              <small class="text-muted">Stock:</small><br />
-              <strong>{{ item.stock_quantity }} {{ item.unit }}</strong>
-            </div>
-          </div>
-          <div class="mt-2">
-            <small class="text-muted"
-              >Min Level: {{ item.min_stock_level }} {{ item.unit }}</small
-            >
-            <div class="progress mt-1" style="height: 6px">
-              <div
-                class="progress-bar {% if item.stock_quantity <= item.min_stock_level %}bg-warning{% elif item.stock_quantity == 0 %}bg-danger{% else %}bg-success{% endif %}"
-                style="width: {{ (item.stock_quantity / (item.min_stock_level or 1) * 100)|round(0) }}%"
-              ></div>
-            </div>
-          </div>
-          <div class="mt-2">
-            <small class="text-muted"
-              >Category: {{ item.category.name if item.category else 'N/A'
-              }}</small
-            >
-          </div>
-        </div>
-        <div class="card-footer">
-          <div class="btn-group w-100">
-            <button
-              @click="updateStock({{ item.id }})"
-              class="btn btn-sm btn-outline-primary"
-            >
-              <i class="fas fa-edit"></i> Update Stock
-            </button>
-            <button
-              @click="editItem({{ item.id }})"
-              class="btn btn-sm btn-outline-secondary"
-            >
-              <i class="fas fa-cog"></i> Edit
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-
+  
   <!-- Pagination -->
-  {% if inventory_items.pages > 1 %}
-  <nav aria-label="Inventory items pagination">
-    <ul class="pagination justify-content-center">
-      {% if inventory_items.has_prev %}
-      <li class="page-item">
-        <a
-          class="page-link"
-          href="{{ url_for('inventory.index', page=inventory_items.prev_num, search=search, category=category_filter) }}"
-          >Previous</a
-        >
-      </li>
-      {% endif %} {% for page_num in inventory_items.iter_pages() %} {% if
-      page_num %}
-      <li
-        class="page-item {% if page_num == inventory_items.page %}active{% endif %}"
-      >
-        <a
-          class="page-link"
-          href="{{ url_for('inventory.index', page=page_num, search=search, category=category_filter) }}"
-          >{{ page_num }}</a
-        >
-      </li>
-      {% else %}
-      <li class="page-item disabled">
-        <span class="page-link">...</span>
-      </li>
-      {% endif %} {% endfor %} {% if inventory_items.has_next %}
-      <li class="page-item">
-        <a
-          class="page-link"
-          href="{{ url_for('inventory.index', page=inventory_items.next_num, search=search, category=category_filter) }}"
-          >Next</a
-        >
-      </li>
-      {% endif %}
-    </ul>
-  </nav>
-  {% endif %}
-</div>
-
-<!-- Update Stock Modal -->
-<div class="modal fade" id="stockModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Update Stock</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <form id="stockForm">
-          <div class="mb-3">
-            <label class="form-label">Item</label>
-            <input
-              type="text"
-              x-model="stockData.item_name"
-              class="form-control"
-              readonly
-            />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Current Stock</label>
-            <input
-              type="number"
-              x-model="stockData.current_stock"
-              class="form-control"
-              readonly
-            />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Update Type</label>
-            <select x-model="stockData.update_type" class="form-select">
-              <option value="add">Add Stock</option>
-              <option value="subtract">Remove Stock</option>
-              <option value="set">Set Stock</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Quantity</label>
-            <input
-              type="number"
-              x-model="stockData.quantity"
-              class="form-control"
-              min="0"
-              required
-            />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Reason</label>
-            <textarea
-              x-model="stockData.reason"
-              class="form-control"
-              rows="3"
-              placeholder="Reason for stock update..."
-            ></textarea>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          Cancel
-        </button>
-        <button
-          type="button"
-          @click="saveStockUpdate()"
-          class="btn btn-primary"
-        >
-          <i class="fas fa-save"></i> Update
-        </button>
-      </div>
+  <div class="d-flex justify-content-between align-items-center mt-3">
+    <div class="text-muted">
+      Showing <span x-text="displayedItems.length"></span> of <span x-text="stats.totalItems"></span> items
     </div>
+    <nav>
+      <ul class="pagination pagination-sm">
+        <li class="page-item" :class="{'disabled': currentPage === 1}">
+          <a class="page-link" @click="currentPage > 1 && goToPage(currentPage - 1)">Previous</a>
+        </li>
+        <li class="page-item" :class="{'active': page === currentPage}" 
+            x-for="page in displayedPages" :key="page">
+          <a class="page-link" @click="goToPage(page)" x-text="page"></a>
+        </li>
+        <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+          <a class="page-link" @click="currentPage < totalPages && goToPage(currentPage + 1)">Next</a>
+        </li>
+      </ul>
+    </nav>
   </div>
 </div>
 {% endblock %} {% block extra_js %}
-<script src="{{ url_for('static', filename='js/inventory-management.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+function inventoryManager() {
+  return {
+    // Data
+    items: JSON.parse('{{ items.items | tojson | safe }}'),
+    stats: {
+      totalItems: 0,
+      inStock: 0,
+      lowStock: 0,
+      outOfStock: 0
+    },
+    
+    // Filters
+    searchQuery: '',
+    filterType: 'all',
+    currentPage: 1,
+    itemsPerPage: 20,
+    
+    // Bulk Update
+    bulkUpdate: {
+      itemId: '',
+      quantity: ''
+    },
+    
+    init() {
+      this.calculateStats();
+      this.filterItems();
+    },
+    
+    get filteredItems() {
+      let items = this.items;
+      
+      // Apply search filter
+      if (this.searchQuery) {
+        const query = this.searchQuery.toLowerCase();
+        items = items.filter(item => 
+          item.name.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query) ||
+          (item.category_name && item.category_name.toLowerCase().includes(query))
+        );
+      }
+      
+      // Apply status filter
+      if (this.filterType === 'low_stock') {
+        items = items.filter(item => item.is_low_stock);
+      } else if (this.filterType === 'out_of_stock') {
+        items = items.filter(item => item.is_out_of_stock);
+      }
+      
+      return items;
+    },
+    
+    get displayedItems() {
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      const end = start + this.itemsPerPage;
+      return this.filteredItems.slice(start, end);
+    },
+    
+    get displayedPages() {
+      const totalPages = Math.ceil(this.filteredItems.length / this.itemsPerPage);
+      const pages = [];
+      
+      for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        pages.push(i);
+      }
+      
+      return pages;
+    },
+    
+    get totalPages() {
+      return Math.ceil(this.filteredItems.length / this.itemsPerPage);
+    },
+    
+    calculateStats() {
+      this.stats.totalItems = this.items.length;
+      this.stats.inStock = this.items.filter(item => !item.is_low_stock && !item.is_out_of_stock).length;
+      this.stats.lowStock = this.items.filter(item => item.is_low_stock).length;
+      this.stats.outOfStock = this.items.filter(item => item.is_out_of_stock).length;
+    },
+    
+    filterItems() {
+      this.currentPage = 1;
+    },
+    
+    goToPage(page) {
+      this.currentPage = page;
+    },
+    
+    getStockBadgeClass(item) {
+      if (item.is_out_of_stock) return 'stock-out';
+      if (item.is_low_stock) return 'stock-low';
+      return 'stock-normal';
+    },
+    
+    getStockStatus(item) {
+      if (item.is_out_of_stock) return 'Out of Stock';
+      if (item.is_low_stock) return 'Low Stock';
+      return 'In Stock';
+    },
+    
+    async updateStock(itemId, newQuantity) {
+      try {
+        const response = await fetch('/inventory/update_stock', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            item_id: itemId,
+            quantity: parseInt(newQuantity)
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          const itemIndex = this.items.findIndex(item => item.id === itemId);
+          if (itemIndex !== -1) {
+            this.items[itemIndex] = data.item;
+          }
+          this.calculateStats();
+          this.showNotification(data.message, 'success');
+        } else {
+          this.showNotification(data.message, 'error');
+        }
+      } catch (error) {
+        this.showNotification('Error updating stock', 'error');
+      }
+    },
+    
+    async quickAddStock(itemId, quantity) {
+      await this.updateStock(itemId, this.getCurrentStock(itemId) + quantity);
+    },
+    
+    getCurrentStock(itemId) {
+      const item = this.items.find(item => item.id === itemId);
+      return item ? item.stock_quantity : 0;
+    },
+    
+    async addBulkStock() {
+      if (!this.bulkUpdate.itemId || !this.bulkUpdate.quantity) {
+        this.showNotification('Please select item and quantity', 'warning');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/inventory/add_stock', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            items: [{
+              item_id: parseInt(this.bulkUpdate.itemId),
+              quantity: parseInt(this.bulkUpdate.quantity)
+            }]
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update local items
+          data.items.forEach(update => {
+            const itemIndex = this.items.findIndex(item => item.id === update.item.id);
+            if (itemIndex !== -1) {
+              this.items[itemIndex] = update.item;
+            }
+          });
+          
+          this.calculateStats();
+          this.bulkUpdate = { itemId: '', quantity: '' };
+          this.showNotification(data.message, 'success');
+        } else {
+          this.showNotification(data.message, 'error');
+        }
+      } catch (error) {
+        this.showNotification('Error adding stock', 'error');
+      }
+    },
+    
+    viewHistory(itemId) {
+      // TODO: Implement stock history modal
+      this.showNotification('Stock history feature coming soon', 'info');
+    },
+    
+    async refreshData() {
+      try {
+        const response = await fetch('/inventory/low_stock');
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update low stock indicators
+          data.items.forEach(lowStockItem => {
+            const itemIndex = this.items.findIndex(item => item.id === lowStockItem.id);
+            if (itemIndex !== -1) {
+              this.items[itemIndex].is_low_stock = lowStockItem.is_low_stock;
+              this.items[itemIndex].is_out_of_stock = lowStockItem.is_out_of_stock;
+            }
+          });
+          
+          this.calculateStats();
+          this.showNotification('Data refreshed', 'success');
+        }
+      } catch (error) {
+        this.showNotification('Error refreshing data', 'error');
+      }
+    },
+    
+    exportData() {
+      const csvContent = this.generateCSV();
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      this.showNotification('Inventory exported successfully', 'success');
+    },
+    
+    generateCSV() {
+      const headers = ['Item Name', 'Category', 'Current Stock', 'Min Stock', 'Unit', 'Price', 'Status'];
+      const rows = this.filteredItems.map(item => [
+        item.name,
+        item.category_name || 'N/A',
+        item.stock_quantity,
+        item.min_stock_level,
+        item.unit,
+        item.price,
+        this.getStockStatus(item)
+      ]);
+      
+      return [headers, ...rows].map(row => row.join(',')).join('\n');
+    },
+    
+    showNotification(message, type) {
+      const toast = document.createElement('div');
+      toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+      toast.style.zIndex = '9999';
+      toast.textContent = message;
+      
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+  };
+}
+</script>
 {% endblock %}

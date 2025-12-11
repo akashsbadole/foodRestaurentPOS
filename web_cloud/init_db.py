@@ -11,6 +11,7 @@ from datetime import datetime, date
 # Add the parent directory to the path to import our modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from app import create_app
 from models import db, create_tables
 from models.user import User
 from models.category import Category
@@ -52,9 +53,9 @@ def create_initial_data():
         if not category:
             category = Category(
                 name=cat_data['name'],
-                description=cat_data['description'],
-                is_active=True
+                description=cat_data['description']
             )
+            category.is_active = True
             db.session.add(category)
     
     db.session.commit()
@@ -153,9 +154,9 @@ def create_initial_data():
                 description=item_data['description'],
                 stock_quantity=item_data['stock_quantity'],
                 min_stock_level=item_data['min_stock_level'],
-                unit=item_data['unit'],
-                is_active=True
+                unit=item_data['unit']
             )
+            item.is_active = True
             db.session.add(item)
     
     db.session.commit()
@@ -179,50 +180,32 @@ def create_initial_data():
             table = Table(
                 table_number=table_data['table_number'],
                 capacity=table_data['capacity'],
-                location=table_data['location'],
-                status='Available',
-                is_active=True
+                location=table_data['location']
             )
+            table.status = 'Available'
+            table.is_active = True
             db.session.add(table)
     
     db.session.commit()
     print("Created tables")
-    
-    # Create default settings
-    settings = [
-        {'key': 'restaurant_name', 'value': 'Restaurant POS Demo'},
-        {'key': 'restaurant_address', 'value': '123 Main Street, City'},
-        {'key': 'restaurant_phone', 'value': '+91-1234567890'},
-        {'key': 'restaurant_email', 'value': 'info@restaurant.com'},
-        {'key': 'gst_number', 'value': 'GSTIN1234567890'},
-        {'key': 'currency_symbol', 'value': '₹'},
-        {'key': 'tax_rate', 'value': '5.0'},
-        {'key': 'receipt_footer', 'value': 'Thank you for visiting!'},
-        {'key': 'low_stock_alert', 'value': 'true'}
-    ]
-    
-    for setting_data in settings:
-        setting = Settings.query.filter_by(key=setting_data['key']).first()
-        if not setting:
-            setting = Settings(
-                key=setting_data['key'],
-                value=setting_data['value']
-            )
-            db.session.add(setting)
-    
-    db.session.commit()
-    print("Created default settings")
 
 def main():
     """Main function to initialize the database"""
     print("Starting database initialization...")
     
-    # Create tables
-    create_tables()
-    print("Database tables created successfully")
+    # Create Flask app
+    app = create_app()
     
-    # Create initial data
-    create_initial_data()
+    with app.app_context():
+        # Create tables
+        create_tables()
+        print("Database tables created successfully")
+        
+        # Create initial data
+        create_initial_data()
+        
+        # Create default settings using Settings.create_defaults()
+        Settings.create_defaults()
     
     print("\n✅ Database initialization completed successfully!")
     print("\n📝 Login Credentials:")

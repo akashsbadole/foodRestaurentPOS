@@ -1,8 +1,6 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-from ..utils.encryption import get_encryption_manager
-
-db = SQLAlchemy()
+from utils.encryption import get_encryption_manager
+from . import db
 
 class Settings(db.Model):
     """Settings model for application configuration"""
@@ -47,6 +45,11 @@ class Settings(db.Model):
         """Get all settings as dictionary"""
         settings = Settings.query.all()
         return {setting.key: setting._decrypt_value_if_needed(setting.key, setting.value) for setting in settings}
+    
+    @staticmethod
+    def get_all_as_dict():
+        """Get all settings as dictionary"""
+        return Settings.get_all()
     
     @staticmethod
     def get_public():

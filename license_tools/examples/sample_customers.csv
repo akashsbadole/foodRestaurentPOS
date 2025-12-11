@@ -1,0 +1,6 @@
+name,email,company,phone,max_activations,offline_grace_period_days
+Alice Johnson,alice@restaurant.com,Alice's Cafe,+1-555-0101,3,30
+Bob Smith,bob@dining.com,Bob's Bistro,+1-555-0102,5,45
+Carol Williams,carol@eatery.com,Carol's Kitchen,+1-555-0103,1,15
+David Brown,david@food.com,David's Diner,+1-555-0104,10,60
+Eva Davis,eva@cafe.com,Eva's Eatery,+1-555-0105,3,30

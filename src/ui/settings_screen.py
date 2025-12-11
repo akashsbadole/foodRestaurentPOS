@@ -85,6 +85,8 @@ class SettingsScreen(BaseUI):
         self.create_export_settings_tab(notebook)
         self.create_footer_settings_tab(notebook)
         self.create_user_management_tab(notebook)
+        self.create_license_management_tab(notebook)
+        self.create_support_settings_tab(notebook)
         
         # Save button container with modern styling
         save_container = self.create_modern_frame(main_container, style="Card.TFrame", padding=SPACING_L)
@@ -628,6 +630,13 @@ class SettingsScreen(BaseUI):
             self.app.update_setting('show_export_dialog', str(self.show_export_dialog_var.get()))
             self.app.update_setting('auto_open_exported_files', str(self.auto_open_exported_var.get()))
             
+            # Save support settings
+            self.app.update_setting('auto_report_bugs', str(self.auto_report_bugs_var.get()))
+            self.app.update_setting('enable_notifications', str(self.enable_notifications_var.get()))
+            self.app.update_setting('support_email', self.support_email_var.get())
+            self.app.update_setting('support_phone', self.support_phone_var.get())
+            self.app.update_setting('support_website', self.support_website_var.get())
+            
             # Save tax settings with validation
             try:
                 tax_rate = float(self.tax_rate_var.get())
@@ -1163,6 +1172,344 @@ class SettingsScreen(BaseUI):
             [("👁 Preview Footer", preview_footer, "Primary.TButton")],
             spacing=SPACING_M
         )
+    
+    def create_license_management_tab(self, notebook):
+        """Create License Management tab with improved layout"""
+        # License management tab with modern card design
+        license_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
+        notebook.add(license_frame, text="License Management")
+        
+        # Tab description
+        desc_label = self.create_modern_label(
+            license_frame,
+            text="Manage your license, activation, and transfer settings",
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
+        
+        # License status card with shadow effect
+        shadow_container = tk.Frame(license_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        license_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        license_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(license_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        section_title = self.create_modern_label(
+            section_header,
+            text="🔐 License Information",
+            style="SectionTitle.TLabel"
+        )
+        section_title.pack(side=tk.LEFT)
+        
+        # License status display
+        status_container = ttk.Frame(license_card, style="Panel.TFrame")
+        status_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        # Get license status
+        license_status = self.app.get_license_status()
+        
+        # Create license status display
+        status_text = "Status: "
+        if license_status.get('valid', False):
+            if license_status.get('type') == 'trial':
+                days_left = license_status.get('days_left', 0)
+                status_text += f"Trial ({days_left} days left)"
+                status_color = COLOR_WARNING
+            else:
+                status_text += f"Active ({license_status.get('type', 'Unknown').title()})"
+                status_color = COLOR_SUCCESS
+        else:
+            status_text += "Not Activated"
+            status_color = COLOR_ERROR
+        
+        status_label = self.create_modern_label(
+            status_container,
+            text=status_text,
+            style="Body.TLabel"
+        )
+        status_label.pack(anchor=tk.W)
+        status_label.configure(foreground=status_color)
+        
+        # License key display
+        if license_status.get('license_key'):
+            key_container = ttk.Frame(license_card, style="Panel.TFrame")
+            key_container.pack(fill=tk.X, pady=SPACING_S)
+            
+            key_label = self.create_modern_label(
+                key_container,
+                text=f"License Key: {license_status.get('license_key', 'N/A')}",
+                style="Small.TLabel"
+            )
+            key_label.pack(anchor=tk.W)
+        
+        # License action buttons
+        button_container = self.create_modern_frame(license_card, style="Card.TFrame", padding=SPACING_M)
+        button_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        # License action buttons
+        def activate_license():
+            try:
+                from .license_activation_dialog import LicenseActivationDialog
+                dialog = LicenseActivationDialog(self.app.root, self.app, self.app.license_manager)
+                self.app.root.wait_window(dialog.dialog)
+                # Refresh license status
+                self.app.root.after(100, self.refresh_license_status)
+            except Exception as e:
+                self.show_message("Error", f"Failed to open license activation: {str(e)}", "error")
+        
+        def transfer_license():
+            try:
+                from .license_transfer_dialog import LicenseTransferDialog
+                dialog = LicenseTransferDialog(self.app.root, self.app)
+                self.app.root.wait_window(dialog.dialog)
+                # Refresh license status
+                self.app.root.after(100, self.refresh_license_status)
+            except Exception as e:
+                self.show_message("Error", f"Failed to open license transfer: {str(e)}", "error")
+        
+        def upgrade_license():
+            try:
+                from .license_upgrade_dialog import LicenseUpgradeDialog
+                dialog = LicenseUpgradeDialog(self.app.root, self.app)
+                self.app.root.wait_window(dialog.dialog)
+                # Refresh license status
+                self.app.root.after(100, self.refresh_license_status)
+            except Exception as e:
+                self.show_message("Error", f"Failed to open license upgrade: {str(e)}", "error")
+        
+        def view_license_details():
+            try:
+                from .license_status_screen import LicenseStatusScreen
+                license_screen = LicenseStatusScreen(self.app.root, self.app)
+                self.app.root.wait_window(license_screen.dialog)
+            except Exception as e:
+                self.show_message("Error", f"Failed to open license details: {str(e)}", "error")
+        
+        # Create button group
+        self.create_button_group(
+            button_container,
+            [
+                ("🔑 Activate License", activate_license, "Success.TButton"),
+                ("🔄 Transfer License", transfer_license, "Primary.TButton"),
+                ("⬆️ Upgrade License", upgrade_license, "Warning.TButton"),
+                ("📋 View Details", view_license_details, "Secondary.TButton")
+            ],
+            spacing=SPACING_S
+        )
+        
+        # Store reference for refreshing
+        self.license_status_label = status_label
+        self.license_frame = license_frame
+    
+    def create_support_settings_tab(self, notebook):
+        """Create Support Settings tab with improved layout"""
+        # Support settings tab with modern card design
+        support_frame = self.create_modern_frame(notebook, style="Card.TFrame", padding=SPACING_XL)
+        notebook.add(support_frame, text="Support Settings")
+        
+        # Tab description
+        desc_label = self.create_modern_label(
+            support_frame,
+            text="Configure support system settings and contact information",
+            style="Subtitle.TLabel"
+        )
+        desc_label.pack(anchor=tk.W, pady=(0, SPACING_L))
+        
+        # Support configuration card with shadow effect
+        shadow_container = tk.Frame(support_frame, bg=COLOR_SHADOW)
+        shadow_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        support_card = self.create_modern_frame(shadow_container, style="Panel.TFrame", padding=SPACING_L)
+        support_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        section_header = ttk.Frame(support_card, style="Panel.TFrame")
+        section_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        section_title = self.create_modern_label(
+            section_header,
+            text="🛠️ Support Configuration",
+            style="SectionTitle.TLabel"
+        )
+        section_title.pack(side=tk.LEFT)
+        
+        # Form fields with improved layout
+        form_container = ttk.Frame(support_card, style="Panel.TFrame")
+        form_container.pack(fill=tk.X)
+        
+        # Auto-report bugs checkbox
+        self.auto_report_bugs_var = tk.BooleanVar(
+            value=self.app.settings.get('auto_report_bugs', 'true').lower() == 'true'
+        )
+        self.create_form_field(
+            form_container,
+            "Automatically Report Bugs",
+            entry_type="checkbutton",
+            textvariable=self.auto_report_bugs_var
+        )
+        
+        # Enable notifications checkbox
+        self.enable_notifications_var = tk.BooleanVar(
+            value=self.app.settings.get('enable_notifications', 'true').lower() == 'true'
+        )
+        self.create_form_field(
+            form_container,
+            "Enable Support Notifications",
+            entry_type="checkbutton",
+            textvariable=self.enable_notifications_var
+        )
+        
+        # Support email
+        self.support_email_var = tk.StringVar(
+            value=self.app.settings.get('support_email', 'support@restaurantpos.com')
+        )
+        self.create_form_field(
+            form_container,
+            "Support Email",
+            entry_type="entry",
+            textvariable=self.support_email_var,
+            width=50
+        )
+        
+        # Support phone
+        self.support_phone_var = tk.StringVar(
+            value=self.app.settings.get('support_phone', '+1-800-123-4567')
+        )
+        self.create_form_field(
+            form_container,
+            "Support Phone",
+            entry_type="entry",
+            textvariable=self.support_phone_var,
+            width=20
+        )
+        
+        # Support website
+        self.support_website_var = tk.StringVar(
+            value=self.app.settings.get('support_website', 'https://support.restaurantpos.com')
+        )
+        self.create_form_field(
+            form_container,
+            "Support Website",
+            entry_type="entry",
+            textvariable=self.support_website_var,
+            width=50
+        )
+        
+        # System information card with shadow effect
+        sysinfo_container = tk.Frame(support_frame, bg=COLOR_SHADOW)
+        sysinfo_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        sysinfo_card = self.create_modern_frame(sysinfo_container, style="Panel.TFrame", padding=SPACING_L)
+        sysinfo_card.pack(fill=tk.X, padx=1, pady=1)
+        
+        # Section header with icon
+        sysinfo_header = ttk.Frame(sysinfo_card, style="Panel.TFrame")
+        sysinfo_header.pack(fill=tk.X, pady=(0, SPACING_M))
+        
+        sysinfo_title = self.create_modern_label(
+            sysinfo_header,
+            text="💻 System Information",
+            style="SectionTitle.TLabel"
+        )
+        sysinfo_title.pack(side=tk.LEFT)
+        
+        # System information display
+        sysinfo_container_inner = ttk.Frame(sysinfo_card, style="Panel.TFrame")
+        sysinfo_container_inner.pack(fill=tk.X, pady=SPACING_S)
+        
+        # Get system information
+        import platform
+        import sys
+        
+        sys_info = [
+            f"OS: {platform.system()} {platform.release()}",
+            f"Python: {sys.version}",
+            f"Application: Restaurant POS v1.0",
+            f"Database: SQLite"
+        ]
+        
+        for info in sys_info:
+            info_label = self.create_modern_label(
+                sysinfo_container_inner,
+                text=info,
+                style="Small.TLabel"
+            )
+            info_label.pack(anchor=tk.W)
+        
+        # Support action buttons
+        support_button_container = self.create_modern_frame(sysinfo_card, style="Card.TFrame", padding=SPACING_M)
+        support_button_container.pack(fill=tk.X, pady=SPACING_S)
+        
+        # Support action buttons
+        def create_support_ticket():
+            try:
+                from .support_ticket_dialog import SupportTicketDialog
+                dialog = SupportTicketDialog(self.app.root, self.app)
+                self.app.root.wait_window(dialog.dialog)
+            except Exception as e:
+                self.show_message("Error", f"Failed to open support ticket: {str(e)}", "error")
+        
+        def report_bug():
+            try:
+                from .bug_report_dialog import BugReportDialog
+                dialog = BugReportDialog(self.app.root, self.app)
+                self.app.root.wait_window(dialog.dialog)
+            except Exception as e:
+                self.show_message("Error", f"Failed to open bug report: {str(e)}", "error")
+        
+        def contact_support():
+            try:
+                from .contact_form_dialog import ContactFormDialog
+                dialog = ContactFormDialog(self.app.root, self.app)
+                self.app.root.wait_window(dialog.dialog)
+            except Exception as e:
+                self.show_message("Error", f"Failed to open contact form: {str(e)}", "error")
+        
+        def view_support_history():
+            try:
+                self.app.show_support_screen()
+            except Exception as e:
+                self.show_message("Error", f"Failed to open support history: {str(e)}", "error")
+        
+        # Create button group
+        self.create_button_group(
+            support_button_container,
+            [
+                ("🎫 Create Ticket", create_support_ticket, "Success.TButton"),
+                ("🐛 Report Bug", report_bug, "Warning.TButton"),
+                ("📧 Contact Support", contact_support, "Primary.TButton"),
+                ("📜 View History", view_support_history, "Secondary.TButton")
+            ],
+            spacing=SPACING_S
+        )
+    
+    def refresh_license_status(self):
+        """Refresh license status display"""
+        try:
+            if hasattr(self, 'license_status_label'):
+                license_status = self.app.get_license_status()
+                
+                status_text = "Status: "
+                if license_status.get('valid', False):
+                    if license_status.get('type') == 'trial':
+                        days_left = license_status.get('days_left', 0)
+                        status_text += f"Trial ({days_left} days left)"
+                        status_color = COLOR_WARNING
+                    else:
+                        status_text += f"Active ({license_status.get('type', 'Unknown').title()})"
+                        status_color = COLOR_SUCCESS
+                else:
+                    status_text += "Not Activated"
+                    status_color = COLOR_ERROR
+                
+                self.license_status_label.configure(text=status_text)
+                self.license_status_label.configure(foreground=status_color)
+        except Exception as e:
+            print(f"Error refreshing license status: {str(e)}")
     
     def update_footer_field(self, key, value):
         """Update footer field in settings"""

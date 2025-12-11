@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOT - {{ order.order_number }}</title>
+    <style>
+        @media print {
+            body {
+                margin: 0;
+                padding: 10px;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .kot-header {
+                text-align: center;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .restaurant-name {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            
+            .kot-title {
+                font-size: 16px;
+                font-weight: bold;
+                text-transform: uppercase;
+                margin: 10px 0;
+            }
+            
+            .order-info {
+                margin-bottom: 15px;
+            }
+            
+            .order-info-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 5px;
+            }
+            
+            .items-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 15px;
+            }
+            
+            .items-table th,
+            .items-table td {
+                padding: 5px 2px;
+                text-align: left;
+                border-bottom: 1px dotted #ccc;
+            }
+            
+            .items-table th {
+                font-weight: bold;
+                border-bottom: 2px solid #000;
+            }
+            
+            .item-name {
+                font-weight: bold;
+            }
+            
+            .item-quantity {
+                text-align: center;
+                min-width: 30px;
+            }
+            
+            .item-notes {
+                font-style: italic;
+                color: #666;
+                font-size: 11px;
+                margin-top: 2px;
+            }
+            
+            .section-divider {
+                border-top: 1px dashed #000;
+                margin: 15px 0;
+            }
+            
+            .special-instructions {
+                background: #f9f9f9;
+                padding: 10px;
+                border: 1px solid #ddd;
+                margin: 10px 0;
+                border-radius: 3px;
+            }
+            
+            .instructions-title {
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            
+            .kot-footer {
+                margin-top: 20px;
+                text-align: center;
+                font-size: 10px;
+            }
+            
+            .priority-badge {
+                background: #ff0000;
+                color: white;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-weight: bold;
+                font-size: 10px;
+                display: inline-block;
+                margin-left: 10px;
+            }
+            
+            .timestamp {
+                text-align: right;
+                font-size: 10px;
+                color: #666;
+            }
+        }
+        
+        @media screen {
+            body {
+                margin: 20px;
+                font-family: Arial, sans-serif;
+            }
+            
+            .print-actions {
+                margin-bottom: 20px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 5px;
+                text-align: center;
+            }
+            
+            .preview-container {
+                max-width: 400px;
+                margin: 0 auto;
+                border: 1px solid #ddd;
+                padding: 20px;
+                background: white;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print print-actions">
+        <h3>Kitchen Order Ticket (KOT)</h3>
+        <p>Order Number: <strong>{{ order.order_number }}</strong></p>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fas fa-print"></i> Print KOT
+        </button>
+        <button onclick="window.close()" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Close
+        </button>
+    </div>
+
+    <div class="preview-container">
+        <!-- KOT Header -->
+        <div class="kot-header">
+            <div class="restaurant-name">{{ settings.restaurant_name or 'Restaurant POS' }}</div>
+            <div class="kot-title">
+                KITCHEN ORDER TICKET
+                {% if order.priority == 'High' %}
+                <span class="priority-badge">PRIORITY</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Order Information -->
+        <div class="order-info">
+            <div class="order-info-row">
+                <span><strong>Order #:</strong> {{ order.order_number }}</span>
+                <span><strong>Date:</strong> {{ order.created_at.strftime('%d/%m/%Y') }}</span>
+            </div>
+            <div class="order-info-row">
+                <span><strong>Time:</strong> {{ order.created_at.strftime('%I:%M %p') }}</span>
+                <span><strong>Type:</strong> {{ order.order_type }}</span>
+            </div>
+            {% if order.table_number %}
+            <div class="order-info-row">
+                <span><strong>Table:</strong> {{ order.table_number }}</span>
+            </div>
+            {% endif %}
+            {% if order.customer_name %}
+            <div class="order-info-row">
+                <span><strong>Customer:</strong> {{ order.customer_name }}</span>
+            </div>
+            {% endif %}
+            <div class="timestamp">
+                Printed: {{ moment().format('DD/MM/YYYY HH:mm:ss') }}
+            </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- Order Items -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Qty</th>
+                    <th>Item</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order_items %}
+                <tr>
+                    <td class="item-quantity">{{ item.quantity }}</td>
+                    <td class="item-name">{{ item.item_name }}</td>
+                    <td>
+                        {% if item.special_instructions %}
+                        <div class="item-notes">{{ item.special_instructions }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Special Instructions -->
+        {% if order.special_instructions %}
+        <div class="special-instructions">
+            <div class="instructions-title">Special Instructions:</div>
+            <div>{{ order.special_instructions }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Modifiers/Preferences -->
+        {% if has_modifiers %}
+        <div class="section-divider"></div>
+        <div class="special-instructions">
+            <div class="instructions-title">Item Modifications:</div>
+            {% for item in order_items %}
+                {% if item.modifications %}
+                <div style="margin-bottom: 8px;">
+                    <strong>{{ item.item_name }}:</strong>
+                    <div>{{ item.modifications }}</div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Order Priority/Status -->
+        <div class="section-divider"></div>
+        <div style="text-align: center; margin: 15px 0;">
+            <div style="font-weight: bold; margin-bottom: 5px;">Order Status: {{ order.status }}</div>
+            {% if order.priority %}
+            <div style="font-weight: bold; color: red;">Priority: {{ order.priority }}</div>
+            {% endif %}
+        </div>
+
+        <!-- KOT Footer -->
+        <div class="kot-footer">
+            <div>{{ settings.restaurant_name or 'Restaurant POS' }}</div>
+            {% if settings.restaurant_phone %}
+            <div>{{ settings.restaurant_phone }}</div>
+            {% endif %}
+            <div style="margin-top: 10px; font-size: 8px;">
+                This is an automated KOT. Do not reply.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-print functionality
+        window.addEventListener('load', function() {
+            // Check if we should auto-print (based on URL parameter)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('auto_print') === 'true') {
+                setTimeout(function() {
+                    window.print();
+                }, 500);
+            }
+        });
+
+        // Print and close functionality
+        window.addEventListener('afterprint', function() {
+            setTimeout(function() {
+                if (window.opener) {
+                    window.close();
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

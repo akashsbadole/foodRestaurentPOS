@@ -1,10 +1,8 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from decimal import Decimal
 import uuid
-from ..utils.encryption import get_encryption_manager
-
-db = SQLAlchemy()
+from utils.encryption import get_encryption_manager
+from . import db
 
 class Order(db.Model):
     """Order model for restaurant orders"""

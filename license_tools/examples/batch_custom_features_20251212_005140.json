@@ -1,0 +1,469 @@
+{
+  "export_info": {
+    "total_licenses": 9,
+    "exported_at": "2025-12-12T00:51:40.460169",
+    "generator_version": "1.0.0",
+    "algorithm": "RSA"
+  },
+  "licenses": [
+    {
+      "license_key": "EA5E-B6E2-6512-6EB79A93",
+      "license_data": {
+        "license_key": "EA5E-B6E2-6512-6EB79A93",
+        "license_id": "62b7e8dd-4bbc-494e-af4c-136782ab96e4",
+        "customer_name": "Sarah Johnson",
+        "customer_email": "sarah.johnson@company.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "menu.view",
+          "menu.edit",
+          "inventory.view",
+          "reports.basic",
+          "tables.manage"
+        ],
+        "issued_date": "2025-12-12T00:51:37.293605",
+        "expiry_date": "2026-12-12T00:51:37.293605",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "whIz8jJVKIGyJJvPH01WfA6I9/1+Fj0vXnX1FNsfQOkehVfh5Oe+fdijT7IXJ286e/Y7cwKBuDEVNVwB4aQOTvCuorWyaae73nJY2CQUdCrDs2daXUql1ux2vz38PbdbyRgU1omhn6LmJS7grq0DvurZyY6SpWoMPTnNcNQwmZMutjnKd3JUtnZIPfVCLspjwCOB0TenHMSQx3yuv7wuQR8KYmWwP5GnbmpA3loAvFv12HOAw/vEazLlk6KpHqoElahJNVfvBhJ4Qlcj+CRgvWneqJzFoa5eeInr7YZ5Gu/P5nIGoVR1paEX97kiQcy20gDWbOWdTVtvsFSh0w2O6iRh3KkkLF7D43zhusn4U+lhQHs0ts4+ihK8nS1JddmAjJkw+SZmEZPJsOm9s51whw+ieP6QgefEWONhiGALLyVF8+1CPcG/I4EaNPycKjqP/775IVjGJRiWNnHrpU6Juzcn/z1mJA25t4iHiHl33FjMVLR1KH9UGCEIOfnoYF4GuXZay5w8wcD9v/yRkOITBNUngNNKpaR5Dx3M0+SF6ao1PoDa3RaN1nUYkbyIgpe/uP6dxsJTDldG5JiX7RY+mHQrPy0reTK39cLc/qk74v7uZMtrmfoKrLtC3kPddaZPWBFKps5bG9ZY4EzdOGl1otXR85fSKzJMVzWhgltNuuk=",
+        "validation_hash": "dbfcb3a04a99173f1c4ed628693dff4b57a3c1413592edeec53fa03266bd7f5c",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 10,
+        "offline_grace_period_days": 30,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "whIz8jJVKIGyJJvPH01WfA6I9/1+Fj0vXnX1FNsfQOkehVfh5Oe+fdijT7IXJ286e/Y7cwKBuDEVNVwB4aQOTvCuorWyaae73nJY2CQUdCrDs2daXUql1ux2vz38PbdbyRgU1omhn6LmJS7grq0DvurZyY6SpWoMPTnNcNQwmZMutjnKd3JUtnZIPfVCLspjwCOB0TenHMSQx3yuv7wuQR8KYmWwP5GnbmpA3loAvFv12HOAw/vEazLlk6KpHqoElahJNVfvBhJ4Qlcj+CRgvWneqJzFoa5eeInr7YZ5Gu/P5nIGoVR1paEX97kiQcy20gDWbOWdTVtvsFSh0w2O6iRh3KkkLF7D43zhusn4U+lhQHs0ts4+ihK8nS1JddmAjJkw+SZmEZPJsOm9s51whw+ieP6QgefEWONhiGALLyVF8+1CPcG/I4EaNPycKjqP/775IVjGJRiWNnHrpU6Juzcn/z1mJA25t4iHiHl33FjMVLR1KH9UGCEIOfnoYF4GuXZay5w8wcD9v/yRkOITBNUngNNKpaR5Dx3M0+SF6ao1PoDa3RaN1nUYkbyIgpe/uP6dxsJTDldG5JiX7RY+mHQrPy0reTK39cLc/qk74v7uZMtrmfoKrLtC3kPddaZPWBFKps5bG9ZY4EzdOGl1otXR85fSKzJMVzWhgltNuuk=",
+      "validation_hash": "dbfcb3a04a99173f1c4ed628693dff4b57a3c1413592edeec53fa03266bd7f5c",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:37.297603",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "DFD3-5D87-2025-1D2CD3D8",
+      "license_data": {
+        "license_key": "DFD3-5D87-2025-1D2CD3D8",
+        "license_id": "b6503319-5746-44f6-8abc-98e18e6fca05",
+        "customer_name": "John Hernandez",
+        "customer_email": "john.hernandez@outlook.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "menu.view",
+          "menu.edit",
+          "inventory.view",
+          "reports.basic",
+          "tables.manage"
+        ],
+        "issued_date": "2025-12-12T00:51:37.608934",
+        "expiry_date": "2026-12-12T00:51:37.608934",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "leulXbTbdm2S0f3zmUsS/dmwoP54+bpukTRynYPHUf1RYi7p9xfrR9DYetCG0DlzGzYjYcgPwVh5CZ46BFkaXPoHUPEjkKVZ4mcfgNgpoWux4e1YBjNlLU9inovCId9Yv1aIjxVAdATZzKqRrxw9jHyCGAelu6tQT1VZk4ftbpqH4XaRQDJssw9+a+cWR9/qLdc1Qq5jOqb1yywCMc1xvjII0uSywr26TP6gp10QzCTa4RZ6cdw6q3yxcCGwKVL02op5xwwmC8LcYEZOpgTpPa7g2J3m96Eb93Ca5oHGVeLFT5xlwwCnDUATqiQy1C4AEDtGllxmA2/8hlYBHnoCJRiTKo4E0mQICO9kFHjnFqZEpRwsajyRuHqSMOL7KIaMJg0j6nu5MECHDmIdhZIuBfxnvh5cAi+Xl0gcyhzSv7JzYpOqZ17xtj7nmK4RHKRRvpSZk2Uibv95J85cQ4mgGZt5pX2NHvJGFPzx+oB3exdbCGNI3D6WgetbEMG9KSwEv3Jb/ExcX7aVLWqB36GHY0OR5fplPhHBuvJUOi75IU3ECxdmJp4ycpPm8qBU1ASgpYllcIrT7pq6iDwUZDOH1sKkylCtryf7bakz5JZ82iL8GpwvMmMawJ+eS1+ey16Ocp90k8umT9EA6qKkyVU4boIAbdaNH7XgQKdF61cV8wg=",
+        "validation_hash": "d8be13e61196d929d80849cfd894ed0b4874351bf3aab77f3ecd25252bb65a72",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 3,
+        "offline_grace_period_days": 15,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "leulXbTbdm2S0f3zmUsS/dmwoP54+bpukTRynYPHUf1RYi7p9xfrR9DYetCG0DlzGzYjYcgPwVh5CZ46BFkaXPoHUPEjkKVZ4mcfgNgpoWux4e1YBjNlLU9inovCId9Yv1aIjxVAdATZzKqRrxw9jHyCGAelu6tQT1VZk4ftbpqH4XaRQDJssw9+a+cWR9/qLdc1Qq5jOqb1yywCMc1xvjII0uSywr26TP6gp10QzCTa4RZ6cdw6q3yxcCGwKVL02op5xwwmC8LcYEZOpgTpPa7g2J3m96Eb93Ca5oHGVeLFT5xlwwCnDUATqiQy1C4AEDtGllxmA2/8hlYBHnoCJRiTKo4E0mQICO9kFHjnFqZEpRwsajyRuHqSMOL7KIaMJg0j6nu5MECHDmIdhZIuBfxnvh5cAi+Xl0gcyhzSv7JzYpOqZ17xtj7nmK4RHKRRvpSZk2Uibv95J85cQ4mgGZt5pX2NHvJGFPzx+oB3exdbCGNI3D6WgetbEMG9KSwEv3Jb/ExcX7aVLWqB36GHY0OR5fplPhHBuvJUOi75IU3ECxdmJp4ycpPm8qBU1ASgpYllcIrT7pq6iDwUZDOH1sKkylCtryf7bakz5JZ82iL8GpwvMmMawJ+eS1+ey16Ocp90k8umT9EA6qKkyVU4boIAbdaNH7XgQKdF61cV8wg=",
+      "validation_hash": "d8be13e61196d929d80849cfd894ed0b4874351bf3aab77f3ecd25252bb65a72",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:37.612933",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "C387-EBBA-7E32-F03186BB",
+      "license_data": {
+        "license_key": "C387-EBBA-7E32-F03186BB",
+        "license_id": "83e5eba1-32d9-4889-ad1d-5175e8930864",
+        "customer_name": "James Rodriguez",
+        "customer_email": "james.rodriguez@outlook.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "menu.view",
+          "menu.edit",
+          "inventory.view",
+          "reports.basic",
+          "tables.manage"
+        ],
+        "issued_date": "2025-12-12T00:51:38.004665",
+        "expiry_date": "2026-12-12T00:51:38.004665",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "2NO0IKz7/Q1TjPGfjODJFVHoOPkP57qponO11SU1CAcgJMuAOsrXqnzXnEw/KcpKNAOKO960retcYstqcA0YcfN5bORO0BDcneDdVwfvQb/+XLXf68ssjOGvl7GHc3bO9IqLYYztKHVNSdptdqcimZZv5o+/wpsniz2IwbZGexhw3imR3kNIW8C3RumKd1s4fpvW7ur/zzJvPmKVQlbCYJ5ib09YRWG1W+202T7/nMS3FAptvn5Vg4InBGbk1FO6fvY2jp7CFtmDo9iedj79H+RtzAJ3T4OYVuZmKtBZgAiLse4VRQMdNHoF1CVDVxFKY0fkemuvLevfB/NtSatxlLQatWYBBjr5Ln5VG3uBaGdLJjPfz9ctQxwiYSffdwsU+f3fjrw4xK8SI7nx8KXmCgJ6A0/8pdGFI/xrHv3OJO5L4oBaxbRWvPEo23R4hv5bkI7kpo34rYK1ibpwlD7sQZKVb4X2thxvjHoRB6l31hrk6hVHR0HrSkFbuv1uMbV1zmv4K/Mi5u2ycgu4rz31VUPowV2p3VWRx/qjDsK9LJHJfzzJmMOr3enU+y4SVmYzfGIKhV/kSgd/iBIxk8aj+tdNYNrbeNkMemheV8oB1wjYJ2aizlXaCYo5zxEZFK8DL1n1cQUABgsh7MLR/UkGcJbpwd2++zr+POLYICniKBA=",
+        "validation_hash": "d13ce19373ab7b20f8f3a1e437777bdef7d09074266799357d6cb17a7a11b01d",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 3,
+        "offline_grace_period_days": 45,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "2NO0IKz7/Q1TjPGfjODJFVHoOPkP57qponO11SU1CAcgJMuAOsrXqnzXnEw/KcpKNAOKO960retcYstqcA0YcfN5bORO0BDcneDdVwfvQb/+XLXf68ssjOGvl7GHc3bO9IqLYYztKHVNSdptdqcimZZv5o+/wpsniz2IwbZGexhw3imR3kNIW8C3RumKd1s4fpvW7ur/zzJvPmKVQlbCYJ5ib09YRWG1W+202T7/nMS3FAptvn5Vg4InBGbk1FO6fvY2jp7CFtmDo9iedj79H+RtzAJ3T4OYVuZmKtBZgAiLse4VRQMdNHoF1CVDVxFKY0fkemuvLevfB/NtSatxlLQatWYBBjr5Ln5VG3uBaGdLJjPfz9ctQxwiYSffdwsU+f3fjrw4xK8SI7nx8KXmCgJ6A0/8pdGFI/xrHv3OJO5L4oBaxbRWvPEo23R4hv5bkI7kpo34rYK1ibpwlD7sQZKVb4X2thxvjHoRB6l31hrk6hVHR0HrSkFbuv1uMbV1zmv4K/Mi5u2ycgu4rz31VUPowV2p3VWRx/qjDsK9LJHJfzzJmMOr3enU+y4SVmYzfGIKhV/kSgd/iBIxk8aj+tdNYNrbeNkMemheV8oB1wjYJ2aizlXaCYo5zxEZFK8DL1n1cQUABgsh7MLR/UkGcJbpwd2++zr+POLYICniKBA=",
+      "validation_hash": "d13ce19373ab7b20f8f3a1e437777bdef7d09074266799357d6cb17a7a11b01d",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:38.008664",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "CAA8-55FB-6A66-B0EB05C4",
+      "license_data": {
+        "license_key": "CAA8-55FB-6A66-B0EB05C4",
+        "license_id": "9b71d2c1-b34b-42dd-add4-91a397a22816",
+        "customer_name": "David Brown",
+        "customer_email": "david.brown@email.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "orders.delete",
+          "menu.view",
+          "menu.edit",
+          "menu.create",
+          "menu.delete",
+          "inventory.view",
+          "inventory.edit",
+          "inventory.manage",
+          "reports.basic",
+          "reports.advanced",
+          "tables.manage",
+          "users.create",
+          "users.edit",
+          "users.manage"
+        ],
+        "issued_date": "2025-12-12T00:51:38.453663",
+        "expiry_date": "2026-12-12T00:51:38.453663",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "v27rPcoixMExLaMQq7MBrrTNDk+12nwdWLC8at6pVcS57rW48ZGn90zOuj4B1XVRi8FOIDR+jcu3b4vVdzKjR/U4qV9U0D8Lfbk/pQkDPoauExA1rAbbAYO397vMI8wsk5LjUQpBmeUyIJuQnXBkwvcj9MVjn57vGw8y2Xyn7HI7EVqFZNsJD6p8qGv02EMI+5sL14ALZWFCaDs1dqleoQJE58XHM+rQ8Uox5VAE477PQ2QvUwsFAOpC/cpudod8Rp+IyidIT92o+pMGb3CMOp0JHUmVFJbFcrYG6pULz0+Jzmuul1G9l3ol8ncWji8GaFHKrVcC3hJXSAO72ONGWwN60ENFoEwuokNrU6oSKXC4mF/pI8s02ZXxHr5THkKZ0V4pHNyi4vavGRrHDntRmxcNJtAKmi+obyHhBUxpWnl/nWK0Xd8/ZF5xv8oZW09Hoy2fjy8a5H1FaGoiHO5tUHVw17oObHtw/+uaMol5MXFK1VaglgIgHJZlG27ctSuvNJV5tulwwR7rW77J8nFUSacDSM3ge34Ea3zxH704YJxQWfrH+oNiQR77ydC4TfzXAcVqSlooQAiv5pwF9C4292jlhDHLKbu0FGXgx3ugEROTI1ov3b/T9jjjFMsIXktb2pM/5CsLRouwKKSsm3/NnIap6nnMsg80XdW2MpyK2Z4=",
+        "validation_hash": "4614ae16ddb30875a2361c40fa59e28f9e236e390a7cc858e3f8b2be040daedb",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 3,
+        "offline_grace_period_days": 30,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "v27rPcoixMExLaMQq7MBrrTNDk+12nwdWLC8at6pVcS57rW48ZGn90zOuj4B1XVRi8FOIDR+jcu3b4vVdzKjR/U4qV9U0D8Lfbk/pQkDPoauExA1rAbbAYO397vMI8wsk5LjUQpBmeUyIJuQnXBkwvcj9MVjn57vGw8y2Xyn7HI7EVqFZNsJD6p8qGv02EMI+5sL14ALZWFCaDs1dqleoQJE58XHM+rQ8Uox5VAE477PQ2QvUwsFAOpC/cpudod8Rp+IyidIT92o+pMGb3CMOp0JHUmVFJbFcrYG6pULz0+Jzmuul1G9l3ol8ncWji8GaFHKrVcC3hJXSAO72ONGWwN60ENFoEwuokNrU6oSKXC4mF/pI8s02ZXxHr5THkKZ0V4pHNyi4vavGRrHDntRmxcNJtAKmi+obyHhBUxpWnl/nWK0Xd8/ZF5xv8oZW09Hoy2fjy8a5H1FaGoiHO5tUHVw17oObHtw/+uaMol5MXFK1VaglgIgHJZlG27ctSuvNJV5tulwwR7rW77J8nFUSacDSM3ge34Ea3zxH704YJxQWfrH+oNiQR77ydC4TfzXAcVqSlooQAiv5pwF9C4292jlhDHLKbu0FGXgx3ugEROTI1ov3b/T9jjjFMsIXktb2pM/5CsLRouwKKSsm3/NnIap6nnMsg80XdW2MpyK2Z4=",
+      "validation_hash": "4614ae16ddb30875a2361c40fa59e28f9e236e390a7cc858e3f8b2be040daedb",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:38.457662",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "833A-2540-3EE6-D7B2A07C",
+      "license_data": {
+        "license_key": "833A-2540-3EE6-D7B2A07C",
+        "license_id": "50402e18-6825-4244-b86f-17aec01d0faf",
+        "customer_name": "Jane Rodriguez",
+        "customer_email": "jane.rodriguez@business.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "orders.delete",
+          "menu.view",
+          "menu.edit",
+          "menu.create",
+          "menu.delete",
+          "inventory.view",
+          "inventory.edit",
+          "inventory.manage",
+          "reports.basic",
+          "reports.advanced",
+          "tables.manage",
+          "users.create",
+          "users.edit",
+          "users.manage"
+        ],
+        "issued_date": "2025-12-12T00:51:38.781664",
+        "expiry_date": "2026-12-12T00:51:38.781664",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "5VTCkPUPF0UtS5vbPJjYrCT37O7LwLwq8c4Vc5DpUWSsLf4Yw3lFC3BZP80tPVPqFTUzpaHfBSX2O2cYHF0sfojxJz9r2SkdOviG+Sh952WdvWdLMsbiH0F40qt8I9h4Lr48/mx3d1hxT3r83biTUO5v63wbynlTWOmoQuCTvnaL6PVuRbJJQWfo8hQN86NZMPeAAVVZcew4I6sFIJ5d5ip0LjE8PZ+CSCzWHRz4MlDDCvCFyWYbsHVcuMFhIVZlqHUL/cCSygFWXK/zy41bDU8K3xrXN4q6u1QyEMoOVURtNTM1o9Y1xETsNxSXOSExz4y5pVSnEeDGcHdXj5LKR9zwt9CfRAvEc0wDVdZdl2TyEvHH/c0veguVs3vcwhJYlk+jTzVYC+W+C9pOpHJaR+ecE8yvSaEH65PuBDrqd1Fm2hbLob8zyiQgtMe5g5tVPLXrp2xR5llSnEUjfiZsa0IPgrYHAKOWkBftWTGH4CWX4RX7CiKAivvOLJz8g8WlFbDVV6ACmh9KCuXgNWj0z3MHhXpW4DeQWnODbT6RynyGqlk/jL/3f839EYSBLtjhKm7jvN4sNfjE4Aa7UPnXLUb0sgKixrnPcUSAK5EEI51/DTw4+b8mM4SIqH1ZlGFGxaGGc6JI1IlN1fGFcpq2LkNWXU3MVcm7NydrryOEXxA=",
+        "validation_hash": "752d139ef3478a000c4df2d32e1eb9013b7bb2c1f435b7fa6557fb010ccfeeb0",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 5,
+        "offline_grace_period_days": 60,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "5VTCkPUPF0UtS5vbPJjYrCT37O7LwLwq8c4Vc5DpUWSsLf4Yw3lFC3BZP80tPVPqFTUzpaHfBSX2O2cYHF0sfojxJz9r2SkdOviG+Sh952WdvWdLMsbiH0F40qt8I9h4Lr48/mx3d1hxT3r83biTUO5v63wbynlTWOmoQuCTvnaL6PVuRbJJQWfo8hQN86NZMPeAAVVZcew4I6sFIJ5d5ip0LjE8PZ+CSCzWHRz4MlDDCvCFyWYbsHVcuMFhIVZlqHUL/cCSygFWXK/zy41bDU8K3xrXN4q6u1QyEMoOVURtNTM1o9Y1xETsNxSXOSExz4y5pVSnEeDGcHdXj5LKR9zwt9CfRAvEc0wDVdZdl2TyEvHH/c0veguVs3vcwhJYlk+jTzVYC+W+C9pOpHJaR+ecE8yvSaEH65PuBDrqd1Fm2hbLob8zyiQgtMe5g5tVPLXrp2xR5llSnEUjfiZsa0IPgrYHAKOWkBftWTGH4CWX4RX7CiKAivvOLJz8g8WlFbDVV6ACmh9KCuXgNWj0z3MHhXpW4DeQWnODbT6RynyGqlk/jL/3f839EYSBLtjhKm7jvN4sNfjE4Aa7UPnXLUb0sgKixrnPcUSAK5EEI51/DTw4+b8mM4SIqH1ZlGFGxaGGc6JI1IlN1fGFcpq2LkNWXU3MVcm7NydrryOEXxA=",
+      "validation_hash": "752d139ef3478a000c4df2d32e1eb9013b7bb2c1f435b7fa6557fb010ccfeeb0",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:38.784665",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "B8B9-132B-BEFF-D28E8454",
+      "license_data": {
+        "license_key": "B8B9-132B-BEFF-D28E8454",
+        "license_id": "93ea5ac3-835c-4ce7-8ae4-20929d6ccb1c",
+        "customer_name": "Charles Rodriguez",
+        "customer_email": "charles.rodriguez@mail.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "orders.delete",
+          "menu.view",
+          "menu.edit",
+          "menu.create",
+          "menu.delete",
+          "inventory.view",
+          "inventory.edit",
+          "inventory.manage",
+          "reports.basic",
+          "reports.advanced",
+          "tables.manage",
+          "users.create",
+          "users.edit",
+          "users.manage"
+        ],
+        "issued_date": "2025-12-12T00:51:39.123761",
+        "expiry_date": "2026-12-12T00:51:39.123761",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "KNvyFXFCtViDm/+qq+9MSIi+4pnut5lG2Seq5sn3oWK43lYVzJ8U/0uPIo/hyY7pG/B0F4cdAO8cCn3+8EkXrFfSaPVCGw2scZ9WU6CQ9IEsuYsAKVmXN3QwuD4E7HDAm0YiWbgghrubeTnBpRxg5058mbaL7qPYN3FsZGTuwTDOU7oX4q1InZuIxfjSIOqVJBWPwVS12RH2mI53Fm4M57FExZK6Hv+1+0ntCZPXj1s71lBPfR1MYrnss06kM+UO9F6PqZLfV3tbmaZzFow27klX1okErnwc8p5g76b4kY3agUkmgkiDEH4n5ClLbofr4xrNjRAfMGkEMvzYNzZhnYlZcPZ1B3q/J2VRRbC1/OaeV4CnOAdObatVoc8FphpTwux+nhbz0kdE5NBiK9WY085QYiBY591CdA2jL3bCCxTv6Z5Z1KWgQEL1Xhm3xO7QscaRechmzmRlcXnp3H7JGd4a0oQnL/wfjyWzvCbLSGJ4G7aiTRyQZJIaM9LqqWBJM8sX3IfiDveWasDydxJxYs40euLYp+woLEQqkii1c9bbJuepb5SruyKUxTGYea0sl/LDvzo6uE9zch7Oe+df5pXrUeAffJVb8M4l+rqO0PScrRIXc51ryrf5jY/dJnTvUdsxfswxd1K+N5+1eAZMQ5Mc2/IPNmXtQ5u7/4+7mvw=",
+        "validation_hash": "4ee5562174b4fd1831d19ac7be9287408a7fdebd3c8d94a6b64e975dc7cb8eff",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 5,
+        "offline_grace_period_days": 60,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "KNvyFXFCtViDm/+qq+9MSIi+4pnut5lG2Seq5sn3oWK43lYVzJ8U/0uPIo/hyY7pG/B0F4cdAO8cCn3+8EkXrFfSaPVCGw2scZ9WU6CQ9IEsuYsAKVmXN3QwuD4E7HDAm0YiWbgghrubeTnBpRxg5058mbaL7qPYN3FsZGTuwTDOU7oX4q1InZuIxfjSIOqVJBWPwVS12RH2mI53Fm4M57FExZK6Hv+1+0ntCZPXj1s71lBPfR1MYrnss06kM+UO9F6PqZLfV3tbmaZzFow27klX1okErnwc8p5g76b4kY3agUkmgkiDEH4n5ClLbofr4xrNjRAfMGkEMvzYNzZhnYlZcPZ1B3q/J2VRRbC1/OaeV4CnOAdObatVoc8FphpTwux+nhbz0kdE5NBiK9WY085QYiBY591CdA2jL3bCCxTv6Z5Z1KWgQEL1Xhm3xO7QscaRechmzmRlcXnp3H7JGd4a0oQnL/wfjyWzvCbLSGJ4G7aiTRyQZJIaM9LqqWBJM8sX3IfiDveWasDydxJxYs40euLYp+woLEQqkii1c9bbJuepb5SruyKUxTGYea0sl/LDvzo6uE9zch7Oe+df5pXrUeAffJVb8M4l+rqO0PScrRIXc51ryrf5jY/dJnTvUdsxfswxd1K+N5+1eAZMQ5Mc2/IPNmXtQ5u7/4+7mvw=",
+      "validation_hash": "4ee5562174b4fd1831d19ac7be9287408a7fdebd3c8d94a6b64e975dc7cb8eff",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:39.127763",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "C45B-A268-6773-3B50D53A",
+      "license_data": {
+        "license_key": "C45B-A268-6773-3B50D53A",
+        "license_id": "98416645-e4de-488a-a235-86f5dc48ee5e",
+        "customer_name": "David Brown",
+        "customer_email": "david.brown@gmail.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "orders.delete",
+          "menu.view",
+          "menu.edit",
+          "menu.create",
+          "menu.delete",
+          "inventory.view",
+          "inventory.edit",
+          "inventory.manage",
+          "reports.basic",
+          "reports.advanced",
+          "reports.custom",
+          "tables.manage",
+          "users.create",
+          "users.edit",
+          "users.manage",
+          "export.data",
+          "import.data",
+          "backup.create",
+          "backup.restore",
+          "api.access",
+          "multi_branch",
+          "advanced_analytics",
+          "priority_support"
+        ],
+        "issued_date": "2025-12-12T00:51:39.533929",
+        "expiry_date": "2026-12-12T00:51:39.533929",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "EdNNSt2Pw06MAlp3CFFQDsj/w4ctV6eMDFa65uDMd+gBHdxdUwVifsmJzCccrOb1hfXnSYHDz6sDVefJr7szBiPvALIW3qzDH6s2DycFjMXlynsc+LMU2DEJ5oVcpaTkPn2AGJR4G6deJrzXHg/43wfl8+we2MxHJK/9fmKcWdHK7z6yktMRq3+NbeO0+QodEQVd+bi94npr9A7TsHx3yCGenFKxP8vYUChHCes31ioN5VpeEY/9R52d0TNiU06drs94kNNNGhWwfYWtv92k/Rwi0EeJDiukxYcamqdk6PbbtIPk66dG+QeiTp2r6+WCEcODYrZWmc//WFZF0502OdAy2NsgD8Xt2zRiVhveCcrW2LOnBCG2P9dvD4JmTTRzGa0YBRsqkj9Sc424F/2PDQoHJBni0jtpJdYFptLkiKdDsohe0lsQtir262HaHvv+nR4vd/afoiC6DM8xjXmb0iYdp/jhVv1vtbbfQ5Yumj4/YgkXKOb25Pbp+ZDNtHDe/uLwcTIOGGxaPCymsJE+p0bgNcCvUbYHI2O2/VpTIdbi9b33D7whb2Tz1j+eD8QT1l9lHpBmChiw+5HEFsUa207XaBFf2nQoxBecU7vr3ZYZ9F7zqYoRwzf1e+Ci8J0VAITD83dq9QPE746vLuZfzg1sqRHspfNK7jHBp4/cTL4=",
+        "validation_hash": "a9ffaf54864d80134a732fd8fc5eae087b87e57c2320f96e4f2aaf3ce5c39a49",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 1,
+        "offline_grace_period_days": 15,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "EdNNSt2Pw06MAlp3CFFQDsj/w4ctV6eMDFa65uDMd+gBHdxdUwVifsmJzCccrOb1hfXnSYHDz6sDVefJr7szBiPvALIW3qzDH6s2DycFjMXlynsc+LMU2DEJ5oVcpaTkPn2AGJR4G6deJrzXHg/43wfl8+we2MxHJK/9fmKcWdHK7z6yktMRq3+NbeO0+QodEQVd+bi94npr9A7TsHx3yCGenFKxP8vYUChHCes31ioN5VpeEY/9R52d0TNiU06drs94kNNNGhWwfYWtv92k/Rwi0EeJDiukxYcamqdk6PbbtIPk66dG+QeiTp2r6+WCEcODYrZWmc//WFZF0502OdAy2NsgD8Xt2zRiVhveCcrW2LOnBCG2P9dvD4JmTTRzGa0YBRsqkj9Sc424F/2PDQoHJBni0jtpJdYFptLkiKdDsohe0lsQtir262HaHvv+nR4vd/afoiC6DM8xjXmb0iYdp/jhVv1vtbbfQ5Yumj4/YgkXKOb25Pbp+ZDNtHDe/uLwcTIOGGxaPCymsJE+p0bgNcCvUbYHI2O2/VpTIdbi9b33D7whb2Tz1j+eD8QT1l9lHpBmChiw+5HEFsUa207XaBFf2nQoxBecU7vr3ZYZ9F7zqYoRwzf1e+Ci8J0VAITD83dq9QPE746vLuZfzg1sqRHspfNK7jHBp4/cTL4=",
+      "validation_hash": "a9ffaf54864d80134a732fd8fc5eae087b87e57c2320f96e4f2aaf3ce5c39a49",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:39.542443",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "0267-BA30-6BDE-E723921C",
+      "license_data": {
+        "license_key": "0267-BA30-6BDE-E723921C",
+        "license_id": "cad6ddcc-d365-4dca-9560-4001ec02d65c",
+        "customer_name": "Robert Garcia",
+        "customer_email": "robert.garcia@email.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "orders.delete",
+          "menu.view",
+          "menu.edit",
+          "menu.create",
+          "menu.delete",
+          "inventory.view",
+          "inventory.edit",
+          "inventory.manage",
+          "reports.basic",
+          "reports.advanced",
+          "reports.custom",
+          "tables.manage",
+          "users.create",
+          "users.edit",
+          "users.manage",
+          "export.data",
+          "import.data",
+          "backup.create",
+          "backup.restore",
+          "api.access",
+          "multi_branch",
+          "advanced_analytics",
+          "priority_support"
+        ],
+        "issued_date": "2025-12-12T00:51:40.073263",
+        "expiry_date": "2026-12-12T00:51:40.073263",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "KCVzemUW7uc+oLMP/CK1YLVgAH1F89cCgXmMR9GcK/s3M/ttjkiU1KgNN5Jn64A/YawiWwIFQvtrQK/pYa6exgMa8sIoS7FQaQ9c3L8ZimVDoyql87XpgJ4NNbZDku2CIDH1jtXpaQDiZcuAd32IeszXGvMA/YE8s1vmbpF3yzI81u4hezB739BTDeEBTSQCn1RFG2Cd42yNd8WZOXtYl1gJN4ZCt6PD+HnM5Mc3l44iffNqaSLfl4xDNGfW0Mf3ObI61Iz45rOzlZvwVGEcOLgFt67vteT9KRR3TszCGgLQVCT9wIMIM8YYhQZkzx95x8sxLjwyMgfSjbTOwMz45w9LbFyCwrdTvVCa4eroLWQsHTS+u63YRpc1Pvyh2vxGSZwyUxWB/RauZ1P3m6D2+uFCy3KU+KoTrGcK68LdgmJ5hk1pMCRsAyPJ/GbxaV5niv3YaWxvV4mghyZKThJ1v5/ocVH0kNIO/IYp6Iaseix+5Q4hgVQi/5ole1gOU5cJplRpfI+d4dws1QK6CNH6/Kg6gRxbWa+8bXjtbRT0IUnJV0fqSTweWbet7nIx2BU3BM9Q1rIfOToep79ObTYOB/dZ9IDMKadkmOxBpgPc8c0jWqBkLXlTBfcPfELVoKXskwEvRqancvfzwoPMlMgDFZWKVD4QQzKJCWmxi5exWsA=",
+        "validation_hash": "02f67d4fb402541b641b3a1d1a4b5b2e722da76dc1fb74eb95074ebfecc7290e",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 3,
+        "offline_grace_period_days": 45,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "KCVzemUW7uc+oLMP/CK1YLVgAH1F89cCgXmMR9GcK/s3M/ttjkiU1KgNN5Jn64A/YawiWwIFQvtrQK/pYa6exgMa8sIoS7FQaQ9c3L8ZimVDoyql87XpgJ4NNbZDku2CIDH1jtXpaQDiZcuAd32IeszXGvMA/YE8s1vmbpF3yzI81u4hezB739BTDeEBTSQCn1RFG2Cd42yNd8WZOXtYl1gJN4ZCt6PD+HnM5Mc3l44iffNqaSLfl4xDNGfW0Mf3ObI61Iz45rOzlZvwVGEcOLgFt67vteT9KRR3TszCGgLQVCT9wIMIM8YYhQZkzx95x8sxLjwyMgfSjbTOwMz45w9LbFyCwrdTvVCa4eroLWQsHTS+u63YRpc1Pvyh2vxGSZwyUxWB/RauZ1P3m6D2+uFCy3KU+KoTrGcK68LdgmJ5hk1pMCRsAyPJ/GbxaV5niv3YaWxvV4mghyZKThJ1v5/ocVH0kNIO/IYp6Iaseix+5Q4hgVQi/5ole1gOU5cJplRpfI+d4dws1QK6CNH6/Kg6gRxbWa+8bXjtbRT0IUnJV0fqSTweWbet7nIx2BU3BM9Q1rIfOToep79ObTYOB/dZ9IDMKadkmOxBpgPc8c0jWqBkLXlTBfcPfELVoKXskwEvRqancvfzwoPMlMgDFZWKVD4QQzKJCWmxi5exWsA=",
+      "validation_hash": "02f67d4fb402541b641b3a1d1a4b5b2e722da76dc1fb74eb95074ebfecc7290e",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:40.077275",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    },
+    {
+      "license_key": "8698-E1A9-8DD1-19E29560",
+      "license_data": {
+        "license_key": "8698-E1A9-8DD1-19E29560",
+        "license_id": "5b825e03-7d7c-4d6c-ab91-b56d2302bada",
+        "customer_name": "John Davis",
+        "customer_email": "john.davis@outlook.com",
+        "license_type": "professional",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "orders.delete",
+          "menu.view",
+          "menu.edit",
+          "menu.create",
+          "menu.delete",
+          "inventory.view",
+          "inventory.edit",
+          "inventory.manage",
+          "reports.basic",
+          "reports.advanced",
+          "reports.custom",
+          "tables.manage",
+          "users.create",
+          "users.edit",
+          "users.manage",
+          "export.data",
+          "import.data",
+          "backup.create",
+          "backup.restore",
+          "api.access",
+          "multi_branch",
+          "advanced_analytics",
+          "priority_support"
+        ],
+        "issued_date": "2025-12-12T00:51:40.456169",
+        "expiry_date": "2026-12-12T00:51:40.456169",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "2ngFptcD02GmHFEC7Aw/5duqwsDDQr8bPLE5Ks42VZsUZHOAGz09n7d8MyHb3DHQ98uyGrIP6JEvLT8cnwIMWHILmXhJvgrOfCwLiUw9Tr8SbX8q2XBPWedf6mYhMBYjIDW8+F4+n0RgeNZp+h4iQfY8JyKxqhtzlu8MDHEJuVMX4gIu5zqEBympRVkw1KJlf/1DKJagPX0yNEonaGJgwSqpqRYyoS/wAkkLX+Qk1Hu9WJe+/Rd+GaU5pMw5s8984YVIYkNjg9mv65ohE558oUP+/agBhQ3IuQs0tlpNm1Wdbt6FplJw7WWSXVIAwEEqlZH2NMdKXc9iz8tpxbSVBn9JyJRliwe8oBAFMhGRNr9p7sBd5YPDbcI2eeTBYl01Z+eITGvfVWFq08RxxUp9bRCSElNnm57RWApO0lodn2Xnx1pr7MrRwe7ABN3rtWSi9XumJL4dy3Dc+XciglvCIQ4d0z5fnqGxDDgt7TcjnJdKTm719UqdoXEBuMrwdggMw7cPbh0OegrGgmwgiCGj7FFoXHXH2uW/Sybd456gBH9XoaGprMyHIhOeF0Cip8fT0MaMOk6Od7MzfLdDtspDGQpm4twXiqLcb8T+BGXholAILenozBoOgXu0HuOimUe27d2tzvrib/PRQO5iP/lJ2nflZHxcNEd5CCPuWvvs8ew=",
+        "validation_hash": "8dcb64a1d8488cac3844c5a14e916936357f7e7dce66cc5fe7d49ff44a737ebd",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 5,
+        "offline_grace_period_days": 15,
+        "is_trial": false,
+        "trial_days_used": 0
+      },
+      "signature": "2ngFptcD02GmHFEC7Aw/5duqwsDDQr8bPLE5Ks42VZsUZHOAGz09n7d8MyHb3DHQ98uyGrIP6JEvLT8cnwIMWHILmXhJvgrOfCwLiUw9Tr8SbX8q2XBPWedf6mYhMBYjIDW8+F4+n0RgeNZp+h4iQfY8JyKxqhtzlu8MDHEJuVMX4gIu5zqEBympRVkw1KJlf/1DKJagPX0yNEonaGJgwSqpqRYyoS/wAkkLX+Qk1Hu9WJe+/Rd+GaU5pMw5s8984YVIYkNjg9mv65ohE558oUP+/agBhQ3IuQs0tlpNm1Wdbt6FplJw7WWSXVIAwEEqlZH2NMdKXc9iz8tpxbSVBn9JyJRliwe8oBAFMhGRNr9p7sBd5YPDbcI2eeTBYl01Z+eITGvfVWFq08RxxUp9bRCSElNnm57RWApO0lodn2Xnx1pr7MrRwe7ABN3rtWSi9XumJL4dy3Dc+XciglvCIQ4d0z5fnqGxDDgt7TcjnJdKTm719UqdoXEBuMrwdggMw7cPbh0OegrGgmwgiCGj7FFoXHXH2uW/Sybd456gBH9XoaGprMyHIhOeF0Cip8fT0MaMOk6Od7MzfLdDtspDGQpm4twXiqLcb8T+BGXholAILenozBoOgXu0HuOimUe27d2tzvrib/PRQO5iP/lJ2nflZHxcNEd5CCPuWvvs8ew=",
+      "validation_hash": "8dcb64a1d8488cac3844c5a14e916936357f7e7dce66cc5fe7d49ff44a737ebd",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-12T00:51:40.460169",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    }
+  ]
+}

@@ -11,4 +11,8 @@ from .order import Order, OrderItem
 from .payment import Payment
 from .settings import Settings
 
-__all__ = ['db', 'User', 'Category', 'MenuItem', 'Table', 'Order', 'OrderItem', 'Payment', 'Settings']
+def create_tables():
+    """Create all database tables"""
+    db.create_all()
+
+__all__ = ['db', 'User', 'Category', 'MenuItem', 'Table', 'Order', 'OrderItem', 'Payment', 'Settings', 'create_tables']

@@ -1,0 +1,137 @@
+POS MVP License Keys Export
+==================================================
+
+Total Licenses: 10
+Exported At: 2025-12-12T00:51:27.118117
+Algorithm: RSA
+
+License #1
+------------------------------
+License Key: F7DE-A300-9E46-C809E076
+License ID: 7287fd2c-67db-4413-b786-a3de643918bf
+Customer: James Gonzalez
+Email: james.gonzalez@gmail.com
+Type: trial
+Issued: 2025-12-12T00:51:24.236961
+Expires: 2026-01-11T00:51:24.236961
+Max Activations: 10
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #2
+------------------------------
+License Key: 3719-379A-A1B8-A6FC3952
+License ID: 47e5851a-0ba7-4139-bd2c-e165acae68c7
+Customer: Robert Miller
+Email: robert.miller@restaurant.com
+Type: trial
+Issued: 2025-12-12T00:51:24.561038
+Expires: 2026-01-11T00:51:24.561038
+Max Activations: 1
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #3
+------------------------------
+License Key: C604-8411-CEF7-72299584
+License ID: b4010abf-3613-43a7-9a79-ea82ac904423
+Customer: Michael Davis
+Email: michael.davis@company.com
+Type: trial
+Issued: 2025-12-12T00:51:24.879777
+Expires: 2026-01-11T00:51:24.879777
+Max Activations: 1
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #4
+------------------------------
+License Key: 33C5-155C-7603-A0970D45
+License ID: 0e3125e0-357a-40e0-a5e6-e101879bd1ac
+Customer: Sarah Williams
+Email: sarah.williams@business.com
+Type: trial
+Issued: 2025-12-12T00:51:25.199382
+Expires: 2026-01-11T00:51:25.199382
+Max Activations: 10
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #5
+------------------------------
+License Key: 1A59-A4A9-87F6-B529DDD0
+License ID: 89219953-8c64-40d1-98c1-9f1420f5db02
+Customer: Charles Jones
+Email: charles.jones@mail.com
+Type: trial
+Issued: 2025-12-12T00:51:25.518931
+Expires: 2026-01-11T00:51:25.518931
+Max Activations: 1
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #6
+------------------------------
+License Key: C028-1D8E-4BD1-4055797C
+License ID: b07d43f1-1a54-443c-83bd-162836006dcf
+Customer: James Garcia
+Email: james.garcia@business.com
+Type: trial
+Issued: 2025-12-12T00:51:25.839263
+Expires: 2026-01-11T00:51:25.839263
+Max Activations: 3
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #7
+------------------------------
+License Key: 9DDB-F034-A1EF-9F9CFFC4
+License ID: f408e0eb-10d3-4a1c-be86-f719727ef587
+Customer: Michael Anderson
+Email: michael.anderson@outlook.com
+Type: trial
+Issued: 2025-12-12T00:51:26.159282
+Expires: 2026-01-11T00:51:26.159282
+Max Activations: 1
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #8
+------------------------------
+License Key: F075-B3A6-36C0-23BF74E8
+License ID: 7af84c1a-fc0c-4965-aea4-9c77c5c683c0
+Customer: James Anderson
+Email: james.anderson@restaurant.com
+Type: trial
+Issued: 2025-12-12T00:51:26.478798
+Expires: 2026-01-11T00:51:26.478798
+Max Activations: 10
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #9
+------------------------------
+License Key: 3333-5AF8-7CDF-4AFFF0EA
+License ID: c7810800-6ff3-430b-8ec5-a5e989734e12
+Customer: Sarah Rodriguez
+Email: sarah.rodriguez@restaurant.com
+Type: trial
+Issued: 2025-12-12T00:51:26.796110
+Expires: 2026-01-11T00:51:26.796110
+Max Activations: 5
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+
+License #10
+------------------------------
+License Key: 8C79-B412-1FB6-7BB7337E
+License ID: aea0f547-e82a-4a7b-a4d6-6de10608a3dc
+Customer: James Smith
+Email: james.smith@company.com
+Type: trial
+Issued: 2025-12-12T00:51:27.113112
+Expires: 2026-01-11T00:51:27.113112
+Max Activations: 1
+Features: orders.create, orders.view, orders.edit, menu.view, menu.edit, inventory.view, reports.basic, tables.manage
+Hardware Binding: Yes
+

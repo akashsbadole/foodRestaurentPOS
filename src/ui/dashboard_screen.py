@@ -197,7 +197,7 @@ class DashboardScreen(BaseUI):
                            sticky=tk.W+tk.E+tk.N+tk.S)
         
         self.create_card_header(recent_container, "Recent Orders")
-        recent_content = Frame(recent_container, bg=self.COLORS['card'], relief=tk.RAISED, bd=1)
+        recent_content = Frame(recent_container, bg=self.COLORS['card'], relief=tk.FLAT, bd=0, height=300)
         recent_content.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         self.create_recent_orders_list(recent_content, stats['recent_orders'])
         
@@ -459,7 +459,9 @@ class DashboardScreen(BaseUI):
             ("Menu Management", self.app.show_menu, self.COLORS['success']),
             ("Tables", self.app.show_tables, self.COLORS['warning']),
             ("Inventory", self.app.show_inventory, self.COLORS['error']),
-            ("Reports", self.app.show_reports, self.COLORS['info'])
+            ("Reports", self.app.show_reports, self.COLORS['info']),
+            ("Support", self.app.show_support_screen, '#9b59b6'),
+            ("License", self.show_license_status, '#34495e')
         ]
         
         # Create button grid with proper spacing
@@ -467,8 +469,8 @@ class DashboardScreen(BaseUI):
         button_frame.pack(fill=tk.BOTH, expand=True, padx=self.SPACING['m'], pady=self.SPACING['m'])
         
         for i, (text, command, color) in enumerate(buttons):
-            row = i // 3
-            col = i % 3
+            row = i // 4  # Changed to 4 columns to accommodate more buttons
+            col = i % 4
             
             # Create modern button with custom styling
             button = tk.Button(button_frame, text=text, command=command,
@@ -477,9 +479,9 @@ class DashboardScreen(BaseUI):
                              activebackground=self.COLORS['primary_dark'],
                              activeforeground=self.COLORS['card'],
                              relief=tk.FLAT, bd=0,
-                             padx=self.SPACING['m'], pady=self.SPACING['s'],
+                             padx=self.SPACING['s'], pady=self.SPACING['s'],
                              cursor="hand2")
-            button.grid(row=row, column=col, padx=self.SPACING['s'], 
+            button.grid(row=row, column=col, padx=self.SPACING['s'],
                        pady=self.SPACING['s'], sticky=tk.W+tk.E)
             
             # Add hover effects
@@ -493,8 +495,18 @@ class DashboardScreen(BaseUI):
             button.bind('<Leave>', on_leave)
         
         # Configure column weights for responsive layout
-        for col in range(3):
+        for col in range(4):  # Changed to 4 columns
             button_frame.columnconfigure(col, weight=1)
+    
+    def show_license_status(self):
+        """Show license status dialog"""
+        try:
+            from .license_status_screen import LicenseStatusScreen
+            license_screen = LicenseStatusScreen(self.root, self.app)
+            self.root.wait_window(license_screen.dialog)
+        except Exception as e:
+            from tkinter import messagebox
+            messagebox.showerror("Error", f"Failed to open license status: {str(e)}")
     
     def update_datetime(self):
         """Update date and time display every second"""

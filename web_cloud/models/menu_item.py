@@ -1,8 +1,6 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from decimal import Decimal
-
-db = SQLAlchemy()
+from . import db
 
 class MenuItem(db.Model):
     """Menu item model for restaurant menu"""

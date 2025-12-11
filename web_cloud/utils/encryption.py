@@ -28,10 +28,10 @@ class EncryptionManager:
     
     def __init__(self, key_file_path=None):
         """
-        Initialize the encryption manager
+        Initialize encryption manager
         
         Args:
-            key_file_path: Path to the encryption key file. If None, uses default path.
+            key_file_path: Path to encryption key file. If None, uses default path.
         """
         self.key_file_path = key_file_path or os.path.join(os.path.dirname(__file__), '..', 'config', 'encryption.key')
         self._key = None
@@ -41,11 +41,10 @@ class EncryptionManager:
         self._init_encryption()
     
     def _init_encryption(self):
-        """Initialize encryption by loading or creating the encryption key"""
+        """Initialize encryption by loading or creating encryption key"""
         try:
             self._load_or_create_key()
             self._cipher_suite = Fernet(self._key)
-            self._check_key_rotation()
             logger.info("Encryption system initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize encryption system: {str(e)}")
@@ -56,7 +55,7 @@ class EncryptionManager:
         Load existing encryption key or create a new one
         The key is derived from a master password using PBKDF2
         """
-        # Ensure the config directory exists
+        # Ensure config directory exists
         os.makedirs(os.path.dirname(self.key_file_path), exist_ok=True)
         
         # Check if key file exists
@@ -64,7 +63,7 @@ class EncryptionManager:
             try:
                 with open(self.key_file_path, 'rb') as key_file:
                     key_data = json.load(key_file)
-                    # Derive the actual encryption key from the stored salt and master key
+                    # Derive actual encryption key from stored salt and master key
                     self._key = self._derive_key(
                         key_data['master_key'].encode(),
                         key_data['salt'].encode()
@@ -92,10 +91,10 @@ class EncryptionManager:
                 logger.warning("No master key found in environment. Generated random key.")
                 logger.warning("Store this master key securely: POS_ENCRYPTION_MASTER_KEY=" + master_key)
             
-            # Derive the encryption key
+            # Derive encryption key
             self._key = self._derive_key(master_key.encode(), salt)
             
-            # Save the key data (not the actual key)
+            # Save key data (not the actual key)
             key_data = {
                 'master_key': master_key,
                 'salt': base64.b64encode(salt).decode(),
@@ -156,7 +155,7 @@ class EncryptionManager:
             else:
                 data_bytes = str(data).encode('utf-8')
             
-            # Encrypt the data
+            # Encrypt data
             encrypted_data = self._cipher_suite.encrypt(data_bytes)
             
             # Return as base64 string for storage
@@ -187,7 +186,7 @@ class EncryptionManager:
                 # Decode from base64
                 encrypted_bytes = base64.b64decode(encrypted_data.encode('utf-8'))
                 
-                # Decrypt the data
+                # Decrypt data
                 decrypted_bytes = self._cipher_suite.decrypt(encrypted_bytes)
                 
                 # Convert back to string
@@ -236,7 +235,7 @@ class EncryptionManager:
     
     def rotate_key(self, new_master_key: str = None):
         """
-        Rotate the encryption key
+        Rotate encryption key
         
         Args:
             new_master_key: New master key. If None, generates a random one.
@@ -269,7 +268,7 @@ class EncryptionManager:
     
     def get_key_info(self) -> dict:
         """
-        Get information about the current encryption key
+        Get information about current encryption key
         
         Returns:
             Dictionary with key information

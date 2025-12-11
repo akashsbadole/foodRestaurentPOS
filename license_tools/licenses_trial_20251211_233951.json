@@ -1,0 +1,52 @@
+{
+  "export_info": {
+    "total_licenses": 1,
+    "exported_at": "2025-12-11T23:39:51.328347",
+    "generator_version": "1.0.0",
+    "algorithm": "RSA"
+  },
+  "licenses": [
+    {
+      "license_key": "4B9F-00FF-E93C-B5EE2000",
+      "license_data": {
+        "license_key": "4B9F-00FF-E93C-B5EE2000",
+        "license_id": "2cb05b51-8b87-4d34-b8cb-dc4758f392c5",
+        "customer_name": "Test User",
+        "customer_email": "test@example.com",
+        "license_type": "trial",
+        "features": [
+          "orders.create",
+          "orders.view",
+          "orders.edit",
+          "menu.view",
+          "menu.edit",
+          "inventory.view",
+          "reports.basic",
+          "tables.manage"
+        ],
+        "issued_date": "2025-12-11T23:39:51.320342",
+        "expiry_date": "2026-01-10T23:39:51.320342",
+        "machine_bindings": [
+          "42ed068531efa9b0d8ad14130d276678858f7a8b85726ffc8a2109e052815180"
+        ],
+        "signature": "Zf3HfXIp60caOSWCSkP7iKfCKXOatzo8oWfp/SNJDVAceWvZNXdwVJL/Z+mJ7o03sgq+qCL/DImoyOqFgqlYGZNxpvQTaYvYlPGq0U0I4pdcu0GG5bi0K3ZK3mp5+GCJn8bg96X3DAFXoM+oP3Tv5jHnUBTA3BbdvvtDRDqwD40ciNhyiSALR+INDj4ab7VjVCMTV71nEfdCDOOOV8Oh5GDnbot6Lt1TK4j+CrLOjnW+LfPQkyqAvlvdMPGELqw3mnKCFd6RzohQUjhM4Hzx445DBpSzX4JYeV0Fh+JHEwQ92zJiF8nU6ZVCzG6SQQ5g4H61uB0hhgozhrzRDq/XLHZtgFPs81xOZNo+0GA6SAdSnwV2lpcr/3OBaRr1vBPvQbl3LDBBOdqyvBNFoRaAvR4aEk5rfWateLyNHSLfMT9KmMrhPiTNmSTjdTWCOLaiWogkRKWpVDgjAguZAGHqOU9sFU1gLYY8fgaEerRC7+8ux+i6pmzGKOiMzxMNSku+wmjcRxObjl7Ww/aCWarqdNGrHJVkj39W59ck7rCwLqTpv3DFlFq35cGInkta5Vd4AQPBf/npHZ27KwZ2DcOAOctEfdpsaObu7O9E7e4jRq1wFUTn+qAtG47Ak3Q1eVXUXkt1xyC8yIhB5DXkvp1fU7NEkprGRUcuHjY0fThNnjo=",
+        "validation_hash": "91950a33281da071588aaf5d8e41033571b57f0de11712feb57bcedbc12605b5",
+        "status": "active",
+        "activation_count": 0,
+        "max_activations": 1,
+        "offline_grace_period_days": 7,
+        "is_trial": true,
+        "trial_days_used": 0
+      },
+      "signature": "Zf3HfXIp60caOSWCSkP7iKfCKXOatzo8oWfp/SNJDVAceWvZNXdwVJL/Z+mJ7o03sgq+qCL/DImoyOqFgqlYGZNxpvQTaYvYlPGq0U0I4pdcu0GG5bi0K3ZK3mp5+GCJn8bg96X3DAFXoM+oP3Tv5jHnUBTA3BbdvvtDRDqwD40ciNhyiSALR+INDj4ab7VjVCMTV71nEfdCDOOOV8Oh5GDnbot6Lt1TK4j+CrLOjnW+LfPQkyqAvlvdMPGELqw3mnKCFd6RzohQUjhM4Hzx445DBpSzX4JYeV0Fh+JHEwQ92zJiF8nU6ZVCzG6SQQ5g4H61uB0hhgozhrzRDq/XLHZtgFPs81xOZNo+0GA6SAdSnwV2lpcr/3OBaRr1vBPvQbl3LDBBOdqyvBNFoRaAvR4aEk5rfWateLyNHSLfMT9KmMrhPiTNmSTjdTWCOLaiWogkRKWpVDgjAguZAGHqOU9sFU1gLYY8fgaEerRC7+8ux+i6pmzGKOiMzxMNSku+wmjcRxObjl7Ww/aCWarqdNGrHJVkj39W59ck7rCwLqTpv3DFlFq35cGInkta5Vd4AQPBf/npHZ27KwZ2DcOAOctEfdpsaObu7O9E7e4jRq1wFUTn+qAtG47Ak3Q1eVXUXkt1xyC8yIhB5DXkvp1fU7NEkprGRUcuHjY0fThNnjo=",
+      "validation_hash": "91950a33281da071588aaf5d8e41033571b57f0de11712feb57bcedbc12605b5",
+      "generation_info": {
+        "algorithm": "RSA",
+        "generated_at": "2025-12-11T23:39:51.328347",
+        "generator_version": "1.0.0",
+        "hardware_binding": true,
+        "activation_code": false
+      }
+    }
+  ]
+}

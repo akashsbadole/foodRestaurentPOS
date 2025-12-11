@@ -1,0 +1,28 @@
+{
+  "customers": [
+    {
+      "name": "Frank Miller",
+      "email": "frank@restaurant.com",
+      "company": "Frank's Fine Dining",
+      "phone": "+1-555-0201",
+      "max_activations": 5,
+      "offline_grace_period_days": 45
+    },
+    {
+      "name": "Grace Wilson",
+      "email": "grace@cafe.com",
+      "company": "Grace's Garden Cafe",
+      "phone": "+1-555-0202",
+      "max_activations": 3,
+      "offline_grace_period_days": 30
+    },
+    {
+      "name": "Henry Taylor",
+      "email": "henry@bistro.com",
+      "company": "Henry's Bistro & Bar",
+      "phone": "+1-555-0203",
+      "max_activations": 10,
+      "offline_grace_period_days": 60
+    }
+  ]
+}

@@ -1,9 +1,7 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from decimal import Decimal
-from ..utils.encryption import get_encryption_manager
-
-db = SQLAlchemy()
+from utils.encryption import get_encryption_manager
+from . import db
 
 class Payment(db.Model):
     """Payment model for order payments"""

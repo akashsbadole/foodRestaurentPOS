@@ -62,11 +62,19 @@ from src.ui.reports_screen import ReportsScreen
 from src.ui.gst_reports_screen import GSTReportsScreen
 from src.ui.settings_screen import SettingsScreen
 from src.ui.data_management_screen import DataManagementScreen
+from src.ui.support_screen import SupportScreen
 from src.utils.keyboard_handler import KeyboardHandler
 from src.utils.helpers import generate_order_number, format_currency, format_datetime, export_to_csv, generate_bill_content, generate_kot_content
 from src.utils.constants import *
 from src.utils.event_dispatcher import event_dispatcher, EventType
 from src.managers.data_manager import init_data_manager
+from src.utils.license_integration import LicenseIntegration
+from src.utils.support_manager import SupportManager
+from src.utils.bug_logger import BugLogger
+from src.utils.contact_manager import ContactManager
+from src.utils.email_service import EmailService
+from src.migrations.add_support_tables import migrate_support_tables
+from src.migrations.add_license_tables import run_migration
 
 class RestaurantPOSApp:
     """Main Restaurant POS Application Class"""
@@ -112,6 +120,24 @@ class RestaurantPOSApp:
         # Initialize event dispatcher
         event_dispatcher.set_tk_root(root)
         
+        # Run database migrations for support and license systems
+        self._run_database_migrations()
+        
+        # Initialize email service
+        self.email_service = EmailService(self)
+        
+        # Initialize support system
+        self.support_manager = SupportManager(self.db, self.email_service)
+        
+        # Initialize bug logger
+        self.bug_logger = BugLogger(self.db, auto_capture=True)
+        
+        # Initialize contact manager
+        self.contact_manager = ContactManager(self.db, self.email_service)
+        
+        # Initialize license system
+        self.license_integration = LicenseIntegration(self)
+        
         # Load settings
         self.load_settings()
         
@@ -125,6 +151,97 @@ class RestaurantPOSApp:
         
         # Show login screen
         self.show_login_screen()
+    
+    def _run_database_migrations(self):
+        """Run database migrations for support and license systems"""
+        try:
+            print("Running database migrations...")
+            
+            # Run license tables migration
+            if run_migration():
+                print("License tables migration completed successfully")
+            else:
+                print("License tables migration failed")
+            
+            # Run support tables migration
+            if migrate_support_tables():
+                print("Support tables migration completed successfully")
+            else:
+                print("Support tables migration failed")
+                
+        except Exception as e:
+            print(f"Error running database migrations: {str(e)}")
+    
+    def show_support_screen(self):
+        """Display support screen"""
+        self.clear_content_frame()
+        support_screen = SupportScreen(self.root, self)
+        self.current_screen = support_screen
+        support_screen.show(self.content_frame)
+    
+    def log_error(self, error_message, severity='medium', additional_info=None):
+        """Log an error using the bug logger"""
+        try:
+            if hasattr(self, 'bug_logger'):
+                self.bug_logger.log_error(
+                    error_message,
+                    severity,
+                    self.current_user['id'] if self.current_user else None,
+                    additional_info
+                )
+        except Exception as e:
+            print(f"Error logging error: {str(e)}")
+    
+    def create_support_ticket(self, ticket_data):
+        """Create a support ticket"""
+        try:
+            if hasattr(self, 'support_manager'):
+                return self.support_manager.create_ticket(ticket_data)
+            return None
+        except Exception as e:
+            print(f"Error creating support ticket: {str(e)}")
+            return None
+    
+    def submit_bug_report(self, bug_data):
+        """Submit a bug report"""
+        try:
+            if hasattr(self, 'bug_logger'):
+                return self.bug_logger.create_manual_bug_report(
+                    bug_data,
+                    self.current_user['id'] if self.current_user else None
+                )
+            return None
+        except Exception as e:
+            print(f"Error submitting bug report: {str(e)}")
+            return None
+    
+    def submit_contact_form(self, contact_data):
+        """Submit a contact form"""
+        try:
+            if hasattr(self, 'contact_manager'):
+                return self.contact_manager.create_submission(contact_data)
+            return None
+        except Exception as e:
+            print(f"Error submitting contact form: {str(e)}")
+            return None
+    
+    def get_license_status(self):
+        """Get current license status"""
+        try:
+            if hasattr(self, 'license_integration'):
+                return self.license_integration.get_license_status()
+            return {}
+        except Exception as e:
+            print(f"Error getting license status: {str(e)}")
+            return {}
+    
+    def validate_license_periodically(self):
+        """Validate license periodically"""
+        try:
+            if hasattr(self, 'license_integration'):
+                self.license_integration.validate_license_periodically()
+        except Exception as e:
+            print(f"Error validating license periodically: {str(e)}")
     
     def set_window_icon(self):
         """Set the window icon using the POS logo"""
@@ -226,6 +343,9 @@ class RestaurantPOSApp:
         # Set up global keyboard shortcuts
         self.keyboard_handler.setup_global_keyboard_shortcuts()
         
+        # Restrict UI features based on license
+        self.license_integration.restrict_ui_features()
+        
         # Show dashboard by default
         self.show_dashboard()
     
@@ -249,11 +369,14 @@ class RestaurantPOSApp:
                                   font=('Arial', 14, 'bold'))
         self.top_bar_restaurant_label.pack(side=tk.LEFT)
         
+        # License status
+        self.license_integration.add_license_status_to_top_bar(top_bar)
+        
         # User info
         user_frame = ttk.Frame(top_bar)
         user_frame.pack(side=tk.RIGHT, padx=10)
         
-        ttk.Label(user_frame, 
+        ttk.Label(user_frame,
                  text=f"User: {self.current_user['username']} ({self.current_user['role']})").pack(side=tk.LEFT, padx=5)
         
         # Logout button
@@ -311,11 +434,15 @@ class RestaurantPOSApp:
             ("KOT", self.show_kot),
             ("KOT Window", self.show_kot_window),
             ("Reports", self.show_reports),
-            ("GST Reports", self.show_gst_reports)
+            ("GST Reports", self.show_gst_reports),
+            ("Support", self.show_support_screen)
         ]
         
         for text, command in buttons:
             ttk.Button(sidebar, text=text, command=command).pack(fill=tk.X, pady=5)
+        
+        # License menu items
+        self.license_integration.add_license_menu_items(sidebar)
         
         # Data Management button (only for admin)
         if self.current_user['role'] == ROLE_ADMIN:
@@ -416,6 +543,24 @@ class RestaurantPOSApp:
         settings_screen = SettingsScreen(self.root, self)
         self.current_screen = settings_screen
     
+    def check_feature_access(self, feature: str) -> bool:
+        """
+        Check if a feature is accessible based on license
+        
+        Args:
+            feature: Feature name to check
+            
+        Returns:
+            True if feature is accessible, False otherwise
+        """
+        try:
+            if hasattr(self, 'license_integration'):
+                return self.license_integration.check_feature_access(feature)
+            return True  # Default to True if license system not available
+        except Exception as e:
+            print(f"Error checking feature access: {str(e)}")
+            return True  # Default to True on error
+    
     def logout(self):
         """Logout the current user"""
         self.current_user = None
@@ -424,6 +569,22 @@ class RestaurantPOSApp:
     def on_closing(self):
         """Handle application closing"""
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            # Clean up license integration
+            if hasattr(self, 'license_integration'):
+                self.license_integration.cleanup()
+            
+            # Clean up bug logger
+            if hasattr(self, 'bug_logger'):
+                self.bug_logger.cleanup()
+            
+            # Clean up email service
+            if hasattr(self, 'email_service'):
+                self.email_service.cleanup()
+            
+            # Clean up support manager
+            if hasattr(self, 'support_manager'):
+                self.support_manager.cleanup()
+            
             self.db.close()
             self.root.destroy()
 

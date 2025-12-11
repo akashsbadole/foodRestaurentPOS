@@ -1,0 +1,50 @@
+{
+  "report_info": {
+    "total_licenses": 3,
+    "valid_licenses": 3,
+    "invalid_licenses": 0,
+    "generated_at": "2025-12-12T00:52:43.309550",
+    "validator_version": "1.0.0"
+  },
+  "results": [
+    {
+      "license_key": "2868-273B-5D70-5CFB5A10",
+      "validation_timestamp": "2025-12-12T00:52:41.783023",
+      "validation_level": "standard",
+      "validation_mode": "offline",
+      "valid": true,
+      "status": "success",
+      "message": "Offline validation successful.",
+      "checks": {},
+      "license_info": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "license_key": "C86A-0D1E-8443-9AA37733",
+      "validation_timestamp": "2025-12-12T00:52:42.408589",
+      "validation_level": "standard",
+      "validation_mode": "offline",
+      "valid": true,
+      "status": "success",
+      "message": "Offline validation successful.",
+      "checks": {},
+      "license_info": null,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "license_key": "6C4A-3A5F-752C-70E832E3",
+      "validation_timestamp": "2025-12-12T00:52:42.943311",
+      "validation_level": "standard",
+      "validation_mode": "offline",
+      "valid": true,
+      "status": "success",
+      "message": "Offline validation successful.",
+      "checks": {},
+      "license_info": null,
+      "warnings": [],
+      "errors": []
+    }
+  ]
+}

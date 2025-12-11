@@ -153,7 +153,7 @@
             </div>
             <div class="col-md-3 mb-2">
               <a
-                href="{{ url_for('orders.list_orders') }}"
+                href="{{ url_for('orders.list') }}"
                 class="btn btn-success btn-block"
               >
                 <i class="fas fa-list"></i> View Orders
@@ -193,7 +193,7 @@
         >
           <h6 class="m-0 font-weight-bold text-primary">Recent Orders</h6>
           <a
-            href="{{ url_for('orders.list_orders') }}"
+            href="{{ url_for('orders.list') }}"
             class="btn btn-sm btn-outline-primary"
             >View All</a
           >
@@ -218,20 +218,18 @@
                   <td>{{ order.customer_name or 'N/A' }}</td>
                   <td>
                     <span
-                      class="badge badge-{{ 
-                                            'success' if order.status == 'Completed' else 
-                                            'warning' if order.status == 'In Progress' else 
-                                            'info' if order.status == 'New' else 
-                                            'secondary' 
-                                        }}"
+                      class="badge {% if order.status == 'Completed' %}badge-success{% elif order.status == 'In Progress' %}badge-warning{% elif order.status == 'New' %}badge-info{% else %}badge-secondary{% endif %}"
                     >
                       {{ order.status }}
                     </span>
                   </td>
                   <td>₹{{ "%.2f"|format(order.grand_total or 0) }}</td>
                   <td>
-                    {{ order.created_at.strftime('%H:%M') if order.created_at
-                    else '' }}
+                    {% if order.created_at %}
+                      {{ order.created_at.strftime('%H:%M') }}
+                    {% else %}
+                      ''
+                    {% endif %}
                   </td>
                   <td>
                     <a

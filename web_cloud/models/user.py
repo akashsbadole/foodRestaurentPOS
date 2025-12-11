@@ -1,10 +1,8 @@
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from ..utils.encryption import get_encryption_manager
-
-db = SQLAlchemy()
+from utils.encryption import get_encryption_manager
+from . import db
 
 class User(UserMixin, db.Model):
     """User model for authentication and authorization"""

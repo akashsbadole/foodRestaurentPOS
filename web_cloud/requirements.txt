@@ -1,4 +1,4 @@
-# Flask Web POS Application Dependencies
+ # Flask Web POS Application Dependencies
 
 # Core Flask
 Flask==2.3.3
@@ -12,6 +12,7 @@ SQLAlchemy==2.0.21
 
 # Forms & Validation
 WTForms==3.0.1
+email-validator==2.1.0
 
 # Security
 Flask-Bcrypt==1.0.1

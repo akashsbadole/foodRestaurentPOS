@@ -573,9 +573,23 @@ class EmailService:
         else:
             messagebox.showerror("Test Email Failed", message)
     
+    def cleanup(self):
+        """Clean up resources before shutdown"""
+        try:
+            # Stop the email queue processor
+            self.stop_queue_processor()
+            
+            # Save any pending email history
+            self.save_email_history()
+            
+            print("EmailService cleanup completed successfully")
+            
+        except Exception as e:
+            print(f"Error during EmailService cleanup: {e}")
+    
     def __del__(self):
         """Cleanup when object is destroyed"""
         try:
-            self.stop_queue_processor()
+            self.cleanup()
         except:
             pass
