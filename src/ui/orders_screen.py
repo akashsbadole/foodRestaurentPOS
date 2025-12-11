@@ -615,7 +615,7 @@ class OrdersScreen(BaseUI):
         items = order_details['items']
         payments = order_details['payments']
         
-        order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_data
+        order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, cgst_amount, sgst_amount, total_tax, gst_rate, discount, total, created_at, status = order_data
         
         # Get table number if dine-in
         table_number = None
@@ -674,9 +674,10 @@ class OrdersScreen(BaseUI):
         summary_frame = ttk.LabelFrame(details_frame, text="Order Summary", padding=10)
         summary_frame.pack(fill=tk.X, pady=10)
         
-        tax_rate = float(self.app.settings.get('tax_rate', 5))
         ttk.Label(summary_frame, text=f"Subtotal: ₹{subtotal:.2f}").pack(anchor=tk.W, pady=2)
-        ttk.Label(summary_frame, text=f"Tax ({tax_rate}%): ₹{tax:.2f}").pack(anchor=tk.W, pady=2)
+        ttk.Label(summary_frame, text=f"CGST ({gst_rate/2}%): ₹{cgst_amount:.2f}").pack(anchor=tk.W, pady=2)
+        ttk.Label(summary_frame, text=f"SGST ({gst_rate/2}%): ₹{sgst_amount:.2f}").pack(anchor=tk.W, pady=2)
+        ttk.Label(summary_frame, text=f"Total GST ({gst_rate}%): ₹{total_tax:.2f}").pack(anchor=tk.W, pady=2)
         ttk.Label(summary_frame, text=f"Discount: ₹{discount:.2f}").pack(anchor=tk.W, pady=2)
         ttk.Label(summary_frame, text=f"Total: ₹{total:.2f}", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=2)
         
@@ -713,7 +714,7 @@ class OrdersScreen(BaseUI):
         order_data = order_details['order']
         items = order_details['items']
         
-        order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_data
+        order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, cgst_amount, sgst_amount, total_tax, gst_rate, discount, total, created_at, status = order_data
         
         # Get table number if dine-in
         table_number = None
@@ -759,7 +760,7 @@ class OrdersScreen(BaseUI):
             
             # order_details is a dictionary with 'order', 'items', and 'payments' keys
             order_data = order_details['order']
-            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_data
+            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, cgst_amount, sgst_amount, total_tax, gst_rate, discount, total, created_at, status = order_data
             
             # Show printer selection dialog
             dialog = PrinterSelectionDialog(self.root, self.app.settings, "bill")
@@ -803,7 +804,7 @@ class OrdersScreen(BaseUI):
             order_data = order_details['order']
             items = order_details['items']
             
-            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_data
+            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, cgst_amount, sgst_amount, total_tax, gst_rate, discount, total, created_at, status = order_data
             
             # Get table number if dine-in
             table_number = None
@@ -832,6 +833,10 @@ class OrdersScreen(BaseUI):
                 'items': formatted_items,
                 'subtotal': subtotal,
                 'tax': tax,
+                'cgst_amount': cgst_amount,
+                'sgst_amount': sgst_amount,
+                'total_tax': total_tax,
+                'gst_rate': gst_rate,
                 'discount': discount,
                 'total': total,
                 'tax_rate': float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE))

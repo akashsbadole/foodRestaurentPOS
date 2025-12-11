@@ -18,7 +18,7 @@ from queue import Queue, Empty
 import tkinter as tk
 from tkinter import ttk
 
-from src.config.performance_config import PerformanceConfig
+from src.utils.performance_utils import PerformanceConfig
 
 T = TypeVar('T')
 

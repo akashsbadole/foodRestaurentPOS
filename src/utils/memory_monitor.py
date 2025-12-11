@@ -15,7 +15,7 @@ from collections import deque, OrderedDict
 import tracemalloc
 import os
 
-from src.config.performance_config import PerformanceConfig
+from src.utils.performance_utils import PerformanceConfig
 
 class MemoryMonitor:
     """Real-time memory monitoring and optimization"""

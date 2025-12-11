@@ -195,7 +195,7 @@ class EncryptionManager:
     
     def decrypt(self, encrypted_data: str) -> str:
         """
-        Decrypt sensitive data
+        Decrypt sensitive data with enhanced error handling for malformed data
         
         Args:
             encrypted_data: Base64 encoded encrypted data
@@ -206,26 +206,46 @@ class EncryptionManager:
         if not encrypted_data or encrypted_data.strip() == "":
             return encrypted_data  # Return empty/null data as-is
         
+        # Add comprehensive logging to debug malformed data
+        logger.debug(f"Attempting to decrypt data: '{encrypted_data}' (length: {len(encrypted_data)})")
+        logger.debug(f"Data type: {type(encrypted_data)}")
+        logger.debug(f"Data repr: {repr(encrypted_data)}")
+        
+        # Check if data looks like valid base64
+        if len(encrypted_data) % 4 != 0:
+            logger.warning(f"Invalid base64 length: {len(encrypted_data)} (should be multiple of 4)")
+        
+        # Check for common base64 characters
+        import re
+        if not re.match(r'^[A-Za-z0-9+/=]+$', encrypted_data):
+            logger.warning(f"Invalid base64 characters detected in: {encrypted_data}")
+        
         try:
             # Check if data is encrypted (base64 format)
             try:
                 # Decode from base64
+                logger.debug("Attempting base64 decode...")
                 encrypted_bytes = base64.b64decode(encrypted_data.encode('utf-8'))
+                logger.debug(f"Base64 decode successful, got {len(encrypted_bytes)} bytes")
                 
                 # Decrypt the data
+                logger.debug("Attempting decryption...")
                 decrypted_bytes = self._cipher_suite.decrypt(encrypted_bytes)
+                logger.debug(f"Decryption successful, got {len(decrypted_bytes)} bytes")
                 
                 # Convert back to string
                 decrypted_data = decrypted_bytes.decode('utf-8')
+                logger.debug(f"Data converted to string successfully: '{decrypted_data}' (length: {len(decrypted_data)})")
                 
-                logger.debug(f"Data decrypted successfully (length: {len(decrypted_data)})")
                 return decrypted_data
             except (base64.binascii.Error, ValueError) as e:
                 # Log error and raise custom exception for bad format or value
                 logger.error(f"Decryption failed due to invalid format or value: {e}")
+                logger.error(f"Problematic encrypted data: '{encrypted_data}' (length: {len(encrypted_data)})")
                 raise EncryptionError(f"Decryption failed: Malformed encrypted data or incorrect padding. Details: {e}")
             except Exception as e:
                 logger.error(f"An unexpected error occurred during decryption: {e}")
+                logger.error(f"Problematic encrypted data: '{encrypted_data}' (length: {len(encrypted_data)})")
                 raise EncryptionError(f"Decryption failed unexpectedly. Details: {e}")
         except EncryptionError:
             # Re-raise EncryptionError without modification
@@ -233,7 +253,175 @@ class EncryptionManager:
         except Exception as e:
             # Handle any other exceptions
             logger.error(f"Unexpected error in decrypt method: {e}")
+            logger.error(f"Problematic encrypted data: '{encrypted_data}' (length: {len(encrypted_data)})")
             raise EncryptionError(f"Decryption failed: {str(e)}")
+    
+    def safe_decrypt(self, encrypted_data: str, fallback_value: str = None) -> str:
+        """
+        Safely decrypt data with graceful error handling for malformed data
+        
+        Args:
+            encrypted_data: Base64 encoded encrypted data
+            fallback_value: Value to return if decryption fails
+            
+        Returns:
+            Decrypted data or fallback value if decryption fails
+        """
+        try:
+            return self.decrypt(encrypted_data)
+        except EncryptionError as e:
+            logger.warning(f"Failed to decrypt data, using fallback: {e}")
+            logger.warning(f"Problematic data: '{encrypted_data}' (length: {len(encrypted_data)})")
+            return fallback_value or encrypted_data  # Return original data if no fallback provided
+        except Exception as e:
+            logger.error(f"Unexpected error during safe decryption: {e}")
+            return fallback_value or encrypted_data
+    
+    def is_valid_encrypted_data(self, encrypted_data: str) -> bool:
+        """
+        Check if encrypted data appears to be valid
+        
+        Args:
+            encrypted_data: The encrypted data to validate
+            
+        Returns:
+            True if data appears valid, False otherwise
+        """
+        if not encrypted_data or encrypted_data.strip() == "":
+            return False
+        
+        # Check length is multiple of 4 (base64 requirement)
+        if len(encrypted_data) % 4 != 0:
+            return False
+        
+        # Check for valid base64 characters
+        import re
+        if not re.match(r'^[A-Za-z0-9+/=]+$', encrypted_data):
+            return False
+        
+        # Try to decode as base64
+        try:
+            base64.b64decode(encrypted_data.encode('utf-8'))
+            return True
+        except (base64.binascii.Error, ValueError):
+            return False
+    
+    def repair_encrypted_data(self, encrypted_data: str) -> str:
+        """
+        Attempt to repair malformed encrypted data
+        
+        Args:
+            encrypted_data: The potentially malformed encrypted data
+            
+        Returns:
+            Repaired encrypted data or original if repair fails
+        """
+        if not encrypted_data or encrypted_data.strip() == "":
+            return encrypted_data
+        
+        original_data = encrypted_data
+        
+        # Try common repair scenarios
+        
+        # 1. Fix padding issues (add missing padding characters)
+        if len(encrypted_data) % 4 != 0:
+            missing_padding = len(encrypted_data) % 4
+            if missing_padding == 1:
+                # Can't fix single character, likely corrupted
+                logger.warning(f"Cannot repair encrypted data with single extra character: '{encrypted_data}'")
+                return original_data
+            
+            # Add padding characters
+            repaired = encrypted_data + '=' * (4 - missing_padding)
+            logger.debug(f"Attempted padding repair: '{encrypted_data}' -> '{repaired}'")
+            
+            if self.is_valid_encrypted_data(repaired):
+                logger.info(f"Successfully repaired encrypted data with padding fix")
+                return repaired
+        
+        # 2. Try to fix common character substitutions
+        char_substitutions = {
+            # Common character mapping errors
+            '0': 'O',  # zero to letter O
+            '1': 'I',  # one to letter I
+            '5': 'S',  # five to letter S
+            '$': 'S',  # dollar sign to letter S
+            '@': 'A',  # at sign to letter A
+        }
+        
+        for old_char, new_char in char_substitutions.items():
+            if old_char in encrypted_data:
+                repaired = encrypted_data.replace(old_char, new_char)
+                if repaired != encrypted_data and self.is_valid_encrypted_data(repaired):
+                    logger.info(f"Successfully repaired encrypted data with character substitution: '{old_char}' -> '{new_char}'")
+                    return repaired
+        
+        # 3. Try to remove invalid characters
+        import re
+        invalid_chars = re.compile(r'[^A-Za-z0-9+/=]')
+        if invalid_chars.search(encrypted_data):
+            repaired = invalid_chars.sub('', encrypted_data)
+            if repaired != encrypted_data and self.is_valid_encrypted_data(repaired):
+                logger.info(f"Successfully repaired encrypted data by removing invalid characters")
+                return repaired
+        
+        # 4. Try base64 cleanup (remove extra whitespace, etc.)
+        repaired = encrypted_data.strip()
+        if repaired != encrypted_data and self.is_valid_encrypted_data(repaired):
+            logger.info(f"Successfully repaired encrypted data by removing whitespace")
+            return repaired
+        
+        # If no repair worked, return original
+        logger.warning(f"Could not repair encrypted data: '{encrypted_data}'")
+        return original_data
+    
+    def diagnose_encrypted_data(self, encrypted_data: str) -> dict:
+        """
+        Diagnose issues with encrypted data
+        
+        Args:
+            encrypted_data: The encrypted data to diagnose
+            
+        Returns:
+            Dictionary with diagnosis information
+        """
+        diagnosis = {
+            'original_data': encrypted_data,
+            'length': len(encrypted_data),
+            'is_empty': not encrypted_data or encrypted_data.strip() == "",
+            'is_valid_base64': self.is_valid_encrypted_data(encrypted_data),
+            'issues': [],
+            'suggestions': []
+        }
+        
+        if diagnosis['is_empty']:
+            diagnosis['issues'].append('Data is empty or whitespace only')
+            diagnosis['suggestions'].append('Check if data should be empty or if this is missing data')
+            return diagnosis
+        
+        # Check length issues
+        if len(encrypted_data) % 4 != 0:
+            diagnosis['issues'].append(f'Invalid length ({len(encrypted_data)}), should be multiple of 4')
+            diagnosis['suggestions'].append('Data may be truncated or have padding issues')
+        
+        # Check for invalid characters
+        import re
+        if not re.match(r'^[A-Za-z0-9+/=]+$', encrypted_data):
+            invalid_chars = re.findall(r'[^A-Za-z0-9+/=]', encrypted_data)
+            diagnosis['issues'].append(f'Invalid characters detected: {set(invalid_chars)}')
+            diagnosis['suggestions'].append('Data may be corrupted or not properly base64 encoded')
+        
+        # Check if it looks like unencrypted data
+        if len(encrypted_data) < 50 and not diagnosis['is_valid_base64']:
+            # Check if it looks like a name, phone number, or email
+            if re.match(r'^[A-Za-z\s]+$', encrypted_data):
+                diagnosis['suggestions'].append('Data appears to be an unencrypted name')
+            elif re.match(r'^[\d\s\-+()]+$', encrypted_data):
+                diagnosis['suggestions'].append('Data appears to be an unencrypted phone number')
+            elif '@' in encrypted_data and '.' in encrypted_data:
+                diagnosis['suggestions'].append('Data appears to be an unencrypted email address')
+        
+        return diagnosis
     
     def encrypt_field(self, field_value) -> str:
         """

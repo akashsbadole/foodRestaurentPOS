@@ -1,278 +1,324 @@
 """
-Footer Generator for Desktop POS Version
-Handles dynamic footer generation for receipts, invoices, and documents
+Footer Generator for Desktop POS System
+Handles dynamic footer generation for receipts and documents
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any, Optional
+from models.settings import Settings
 
 
 class FooterGenerator:
-    """Footer generator for POS documents"""
+    """
+    Footer Generator for creating dynamic footers in desktop version
+    """
     
-    def __init__(self, settings_manager):
-        self.settings = settings_manager
-        self.footer_settings = self.settings.get_footer_settings()
-        self.restaurant_info = self.settings.get_all()
-    
-    def generate_footer(self, document_type: str = 'receipt', order_data: Dict = None, user_data: Dict = None) -> List[str]:
+    def __init__(self, settings_manager=None):
         """
-        Generate footer content based on settings and context
+        Initialize footer generator
         
         Args:
-            document_type: Type of document (receipt, invoice, report, etc.)
+            settings_manager: Settings manager instance
+        """
+        self.settings_manager = settings_manager
+        self.load_settings()
+    
+    def load_settings(self):
+        """Load footer settings"""
+        if self.settings_manager:
+            self.footer_settings = self.settings_manager.get_footer_settings()
+        else:
+            # Use default settings if no settings manager
+            self.footer_settings = {
+                'footer_enabled': 'true',
+                'footer_template': 'default',
+                'footer_custom_text': 'Thank you for your business!',
+                'footer_alignment': 'center',
+                'footer_font_size': '10',
+                'footer_show_user_name': 'true',
+                'footer_show_receipt_info': 'true',
+                'footer_show_business_info': 'true',
+                'footer_multiline': 'false',
+                'footer_line1': '',
+                'footer_line2': '',
+                'footer_line3': '',
+                'footer_show_logo': 'false',
+                'footer_logo_path': '',
+                'footer_different_receipts': 'false',
+                'footer_invoice_template': 'default',
+                'footer_receipt_template': 'default'
+            }
+    
+    def generate_footer(self, document_type: str = 'receipt', 
+                      order_data: Dict = None, 
+                      user_data: Dict = None) -> List[str]:
+        """
+        Generate footer lines for specified document type
+        
+        Args:
+            document_type: Type of document (receipt, invoice, kot, etc.)
             order_data: Order information for dynamic content
             user_data: User information for dynamic content
             
         Returns:
-            List of formatted footer lines
+            List of footer lines
         """
         if not self.footer_settings.get('footer_enabled', 'true').lower() == 'true':
             return []
         
-        # Determine which template to use
-        template = self._get_template(document_type)
+        footer_lines = []
+        template = self.footer_settings.get('footer_template', 'default')
         
-        # Generate footer content based on template
-        if template == 'minimal':
-            return self._generate_minimal_footer(document_type, order_data, user_data)
-        elif template == 'detailed':
-            return self._generate_detailed_footer(document_type, order_data, user_data)
-        else:
-            return self._generate_default_footer(document_type, order_data, user_data)
-    
-    def _get_template(self, document_type: str) -> str:
-        """Get appropriate template for document type"""
+        # Use specific template if configured for different receipts
         if self.footer_settings.get('footer_different_receipts', 'false').lower() == 'true':
-            if document_type in ['receipt', 'bill']:
-                return self.footer_settings.get('footer_receipt_template', 'default')
-            elif document_type == 'invoice':
-                return self.footer_settings.get('footer_invoice_template', 'default')
+            if document_type == 'invoice':
+                template = self.footer_settings.get('footer_invoice_template', 'default')
+            elif document_type == 'receipt':
+                template = self.footer_settings.get('footer_receipt_template', 'default')
         
-        return self.footer_settings.get('footer_template', 'default')
+        if template == 'minimal':
+            footer_lines = self._generate_minimal_footer(order_data, user_data)
+        elif template == 'detailed':
+            footer_lines = self._generate_detailed_footer(order_data, user_data)
+        else:
+            footer_lines = self._generate_default_footer(order_data, user_data)
+        
+        return footer_lines
     
-    def _generate_default_footer(self, document_type: str, order_data: Dict = None, user_data: Dict = None) -> List[str]:
+    def _generate_default_footer(self, order_data: Dict = None, user_data: Dict = None) -> List[str]:
         """Generate default footer"""
-        lines = []
-        
-        # Add separator
-        lines.append("-" * 40)
-        
-        # Add custom text or default
-        custom_text = self.footer_settings.get('footer_custom_text', 'Thank you for your business!')
-        if custom_text:
-            lines.append(custom_text)
-        
-        # Add user name if enabled
-        if self.footer_settings.get('footer_show_user_name', 'true').lower() == 'true' and user_data:
-            user_name = user_data.get('username', 'Staff')
-            lines.append(f"Served by: {user_name}")
-        
-        # Add receipt info if enabled
-        if self.footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and order_data:
-            receipt_lines = self._generate_receipt_info(order_data)
-            lines.extend(receipt_lines)
-        
-        # Add business info if enabled
-        if self.footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
-            business_lines = self._generate_business_info()
-            lines.extend(business_lines)
-        
-        # Add multiline footer if enabled
-        if self.footer_settings.get('footer_multiline', 'false').lower() == 'true':
-            multiline_lines = self._generate_multiline_footer()
-            lines.extend(multiline_lines)
-        
-        # Add final separator
-        lines.append("-" * 40)
-        
-        return lines
-    
-    def _generate_minimal_footer(self, document_type: str, order_data: Dict = None, user_data: Dict = None) -> List[str]:
-        """Generate minimal footer"""
-        lines = []
-        
-        # Add separator
-        lines.append("-" * 30)
-        
-        # Just custom text for minimal
-        custom_text = self.footer_settings.get('footer_custom_text', 'Thank you!')
-        if custom_text:
-            lines.append(custom_text)
-        
-        # Add separator
-        lines.append("-" * 30)
-        
-        return lines
-    
-    def _generate_detailed_footer(self, document_type: str, order_data: Dict = None, user_data: Dict = None) -> List[str]:
-        """Generate detailed footer"""
-        lines = []
-        
-        # Add separator
-        lines.append("=" * 50)
+        footer_lines = []
         
         # Custom text
         custom_text = self.footer_settings.get('footer_custom_text', 'Thank you for your business!')
         if custom_text:
-            lines.append(f"*** {custom_text} ***")
+            processed_text = self._process_placeholders(custom_text, order_data, user_data)
+            footer_lines.append(processed_text)
         
         # User info
         if self.footer_settings.get('footer_show_user_name', 'true').lower() == 'true' and user_data:
-            user_name = user_data.get('username', 'Staff')
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            lines.append(f"Processed by: {user_name} at {timestamp}")
+            username = user_data.get('username', user_data.get('name', 'Staff'))
+            footer_lines.append(f"Served by: {username}")
         
         # Receipt info
         if self.footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and order_data:
-            receipt_lines = self._generate_receipt_info(order_data, detailed=True)
-            lines.extend(receipt_lines)
+            order_number = order_data.get('order_number', order_data.get('order_id', 'N/A'))
+            created_at = order_data.get('created_at', '')
+            if created_at:
+                formatted_date = self._format_datetime(created_at)
+                footer_lines.append(f"Receipt #{order_number} - {formatted_date}")
         
         # Business info
         if self.footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
-            business_lines = self._generate_business_info(detailed=True)
-            lines.extend(business_lines)
+            business_info = []
+            # Use default values when no settings manager is provided
+            restaurant_name = 'Restaurant POS'
+            if restaurant_name:
+                business_info.append(restaurant_name)
+            
+            restaurant_phone = '+91-9876543210'
+            if restaurant_phone:
+                business_info.append(restaurant_phone)
+            
+            gst_number = 'GSTIN1234567890'
+            if gst_number:
+                business_info.append(f"GST: {gst_number}")
+            
+            if business_info:
+                footer_lines.append(" | ".join(business_info))
+        
+        # Multiline footer
+        if self.footer_settings.get('footer_multiline', 'false').lower() == 'true':
+            lines = [
+                self.footer_settings.get('footer_line1', ''),
+                self.footer_settings.get('footer_line2', ''),
+                self.footer_settings.get('footer_line3', '')
+            ]
+            for line in lines:
+                if line:
+                    footer_lines.append(line)
+        
+        # Default terms
+        footer_lines.extend([
+            "This is a computer generated receipt.",
+            "Goods once sold will not be taken back.",
+            "All disputes are subject to local jurisdiction."
+        ])
+        
+        return footer_lines
+    
+    def _generate_minimal_footer(self, order_data: Dict = None, user_data: Dict = None) -> List[str]:
+        """Generate minimal footer"""
+        footer_lines = []
+        
+        custom_text = self.footer_settings.get('footer_custom_text', 'Thank you!')
+        if custom_text:
+            processed_text = self._process_placeholders(custom_text, order_data, user_data)
+            footer_lines.append(processed_text)
+        
+        return footer_lines
+    
+    def _generate_detailed_footer(self, order_data: Dict = None, user_data: Dict = None) -> List[str]:
+        """Generate detailed footer"""
+        footer_lines = []
+        
+        # Custom text with emphasis
+        custom_text = self.footer_settings.get('footer_custom_text', 'Thank you for your business!')
+        if custom_text:
+            processed_text = self._process_placeholders(custom_text, order_data, user_data)
+            footer_lines.append(f"*** {processed_text} ***")
+        
+        # User info with timestamp
+        if self.footer_settings.get('footer_show_user_name', 'true').lower() == 'true':
+            username = user_data.get('username', user_data.get('name', 'Staff')) if user_data else 'Staff'
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            footer_lines.append(f"Processed by {username} at {timestamp}")
+        
+        # Receipt info
+        if self.footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and order_data:
+            order_number = order_data.get('order_number', order_data.get('order_id', 'N/A'))
+            created_at = order_data.get('created_at', '')
+            if created_at:
+                formatted_date = self._format_datetime(created_at)
+                footer_lines.append(f"Receipt: {order_number}")
+                footer_lines.append(f"Date: {formatted_date}")
+        
+        # Business info
+        if self.footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
+            # Use default values when no settings manager is provided
+            restaurant_name = 'Restaurant POS'
+            if restaurant_name:
+                footer_lines.append(f"Business: {restaurant_name}")
+            
+            restaurant_address = '123 Main Street, City, State 123456'
+            if restaurant_address:
+                footer_lines.append(f"Address: {restaurant_address}")
+            
+            restaurant_phone = '+91-9876543210'
+            if restaurant_phone:
+                footer_lines.append(f"Phone: {restaurant_phone}")
+            
+            gst_number = 'GSTIN1234567890'
+            if gst_number:
+                footer_lines.append(f"GST: {gst_number}")
         
         # Additional terms
-        lines.append("-" * 50)
-        lines.append("This is a computer generated document.")
-        lines.append("Goods once sold will not be taken back.")
-        lines.append("All disputes are subject to local jurisdiction.")
+        footer_lines.extend([
+            "This is a computer generated document.",
+            "Goods once sold will not be taken back.",
+            "All disputes are subject to local jurisdiction."
+        ])
         
-        # Add final separator
-        lines.append("=" * 50)
-        
-        return lines
+        return footer_lines
     
-    def _generate_receipt_info(self, order_data: Dict, detailed: bool = False) -> List[str]:
-        """Generate receipt information lines"""
-        lines = []
+    def _process_placeholders(self, text: str, order_data: Dict = None, user_data: Dict = None) -> str:
+        """Process placeholders in text"""
+        placeholders = {
+            '{{user_name}}': user_data.get('username', user_data.get('name', 'Staff')) if user_data else 'Staff',
+            '{{date}}': datetime.now().strftime('%Y-%m-%d'),
+            '{{time}}': datetime.now().strftime('%H:%M:%S'),
+            '{{restaurant_name}}': 'Restaurant POS',
+            '{{order_id}}': str(order_data.get('order_id', order_data.get('order_number', ''))) if order_data else '',
+            '{{table_name}}': str(order_data.get('table_name', order_data.get('table_number', ''))) if order_data else ''
+        }
         
-        if not order_data:
-            return lines
+        for placeholder, value in placeholders.items():
+            text = text.replace(placeholder, value)
         
-        order_number = order_data.get('order_number', 'N/A')
-        created_at = order_data.get('created_at', '')
-        
-        if created_at:
-            try:
-                if isinstance(created_at, str):
-                    dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                else:
-                    dt = created_at
-                formatted_date = dt.strftime('%d-%m-%Y %H:%M:%S')
-            except:
-                formatted_date = str(created_at)
-        else:
-            formatted_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
-        
-        if detailed:
-            lines.append(f"Receipt: {order_number}")
-            lines.append(f"Date: {formatted_date}")
-        else:
-            lines.append(f"Receipt #{order_number} - {formatted_date}")
-        
-        return lines
+        return text
     
-    def _generate_business_info(self, detailed: bool = False) -> List[str]:
-        """Generate business information lines"""
-        lines = []
+    def _format_datetime(self, date_str: str) -> str:
+        """Format datetime string for display"""
+        if not date_str:
+            return ""
         
-        name = self.restaurant_info.get('restaurant_name', '')
-        address = self.restaurant_info.get('restaurant_address', '')
-        phone = self.restaurant_info.get('restaurant_phone', '')
-        email = self.restaurant_info.get('restaurant_email', '')
-        gst = self.restaurant_info.get('gst_number', '')
-        
-        if detailed:
-            if name:
-                lines.append(f"Business: {name}")
-            if address:
-                lines.append(f"Address: {address}")
-            if phone:
-                lines.append(f"Phone: {phone}")
-            if email:
-                lines.append(f"Email: {email}")
-            if gst:
-                lines.append(f"GST: {gst}")
-        else:
-            # Compact format
-            info_parts = []
-            if name:
-                info_parts.append(name)
-            if phone:
-                info_parts.append(phone)
-            if gst:
-                info_parts.append(f"GST: {gst}")
-            
-            if info_parts:
-                lines.append(" | ".join(info_parts))
-        
-        return lines
+        try:
+            # Try to parse datetime string
+            if isinstance(date_str, str):
+                # Handle different datetime formats
+                for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d']:
+                    try:
+                        dt = datetime.strptime(date_str, fmt)
+                        return dt.strftime('%d-%m-%Y %H:%M:%S')
+                    except ValueError:
+                        continue
+                return date_str  # Return original if parsing fails
+            else:
+                # Handle datetime objects
+                return date_str.strftime('%d-%m-%Y %H:%M:%S')
+        except Exception:
+            return str(date_str)
     
-    def _generate_multiline_footer(self) -> List[str]:
-        """Generate multiline footer text"""
-        lines = []
-        
-        line1 = self.footer_settings.get('footer_line1', '')
-        line2 = self.footer_settings.get('footer_line2', '')
-        line3 = self.footer_settings.get('footer_line3', '')
-        
-        if line1:
-            lines.append(line1)
-        if line2:
-            lines.append(line2)
-        if line3:
-            lines.append(line3)
-        
-        return lines
-    
-    def format_for_thermal_printer(self, lines: List[str], paper_width: int = 58) -> List[str]:
+    def get_footer_for_printing(self, document_type: str = 'receipt', 
+                               order_data: Dict = None, 
+                               user_data: Dict = None,
+                               max_width: int = 40) -> List[str]:
         """
-        Format footer lines for thermal printer
+        Get footer formatted for printing with line wrapping
         
         Args:
-            lines: Footer lines to format
-            paper_width: Paper width in mm (58 or 80)
+            document_type: Type of document
+            order_data: Order information
+            user_data: User information
+            max_width: Maximum line width for printing
             
         Returns:
-            Formatted lines for thermal printer
+            List of formatted footer lines
         """
-        max_chars = 32 if paper_width == 58 else 48
-        formatted_lines = []
+        footer_lines = self.generate_footer(document_type, order_data, user_data)
         
-        alignment = self.footer_settings.get('footer_alignment', 'center')
-        
-        for line in lines:
-            if len(line) <= max_chars:
-                # Apply alignment
-                if alignment == 'center':
-                    spaces = (max_chars - len(line)) // 2
-                    formatted_line = ' ' * spaces + line
-                elif alignment == 'right':
-                    spaces = max_chars - len(line)
-                    formatted_line = ' ' * spaces + line
-                else:  # left
-                    formatted_line = line
-                
-                formatted_lines.append(formatted_line)
+        # Wrap lines to fit within max_width
+        wrapped_lines = []
+        for line in footer_lines:
+            if len(line) <= max_width:
+                wrapped_lines.append(line)
             else:
                 # Wrap long lines
                 words = line.split(' ')
-                current_line = ''
+                current_line = ""
                 for word in words:
-                    if len(current_line + word) <= max_chars:
-                        current_line += word + ' '
+                    if len(current_line + word) <= max_width:
+                        current_line += word + " "
                     else:
                         if current_line:
-                            formatted_lines.append(current_line.rstrip())
-                        current_line = word + ' '
+                            wrapped_lines.append(current_line.strip())
+                        current_line = word + " "
                 if current_line:
-                    formatted_lines.append(current_line.rstrip())
+                    wrapped_lines.append(current_line.strip())
         
-        return formatted_lines
+        return wrapped_lines
     
-    def update_settings(self):
-        """Update footer settings from settings manager"""
-        self.footer_settings = self.settings.get_footer_settings()
-        self.restaurant_info = self.settings.get_all()
+    def get_footer_css_styles(self) -> Dict:
+        """
+        Get CSS styles for footer (for web integration)
+        
+        Returns:
+            Dictionary of CSS styles
+        """
+        font_size = self.footer_settings.get('footer_font_size', '10')
+        alignment = self.footer_settings.get('footer_alignment', 'center')
+        
+        css_styles = {
+            'font-size': f"{font_size}pt",
+            'text-align': alignment,
+            'margin-top': '20px',
+            'padding-top': '10px',
+            'border-top': '1px dashed #ccc',
+            'color': '#666'
+        }
+        
+        return css_styles
+    
+    def reload_settings(self):
+        """Reload footer settings"""
+        self.load_settings()
+    
+    def update_setting(self, key: str, value: str):
+        """Update a specific footer setting"""
+        if self.settings_manager:
+            self.settings_manager.update_setting(key, value)
+        else:
+            Settings.set(key, value)
+        
+        # Reload settings
+        self.load_settings()

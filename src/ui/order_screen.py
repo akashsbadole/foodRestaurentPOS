@@ -610,6 +610,15 @@ class OrderScreen(BaseUI):
         )
         self.payment_btn.pack(side=tk.RIGHT, padx=5)
         
+        # KOT Window button
+        self.kot_window_btn = ttk.Button(
+            self.action_frame,
+            text="🍳 KOT Window",
+            command=self.open_kot_window,
+            width=15
+        )
+        self.kot_window_btn.pack(side=tk.RIGHT, padx=5)
+        
     def load_initial_data(self):
         """Load initial data for components"""
         # Load categories
@@ -1426,8 +1435,11 @@ class OrderScreen(BaseUI):
             
             # Show payment dialog with multiple options
             from src.ui.order_screen import EnhancedPaymentDialog
+            print(f"[DEBUG] Creating payment dialog...")
             payment_dialog = EnhancedPaymentDialog(self.root, total_amount, self.payment_methods)
+            print(f"[DEBUG] Payment dialog created, waiting for result...")
             payment_result = payment_dialog.get_result()
+            print(f"[DEBUG] Payment dialog result: {payment_result}")
             
             if not payment_result:
                 return
@@ -1960,6 +1972,15 @@ class OrderScreen(BaseUI):
         if hasattr(self, 'order_tree'):
             self.order_tree = None
         pass
+    
+    def open_kot_window(self):
+        """Open KOT window"""
+        try:
+            from src.ui.kot_window import KOTWindow
+            kot_window = KOTWindow(self.root, self.app)
+            kot_window.show()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open KOT window: {e}")
 
 
 class EnhancedPaymentDialog:
@@ -1973,129 +1994,172 @@ class EnhancedPaymentDialog:
         # Create dialog window
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Process Payment")
-        self.dialog.geometry("500x400")
+        
+        # Set minimum size and initial geometry
+        self.dialog.minsize(400, 350)
+        self.dialog.geometry("500x650")
+        
+        # Make dialog modal
         self.dialog.transient(parent)
         self.dialog.grab_set()
         
-        # Center dialog
-        self.dialog.update_idletasks()
-        x = (self.dialog.winfo_screenwidth() // 2) - (self.dialog.winfo_width() // 2)
-        y = (self.dialog.winfo_screenheight() // 2) - (self.dialog.winfo_height() // 2)
-        self.dialog.geometry(f"+{x}+{y}")
+        # Center dialog with error handling
+        try:
+            self.dialog.update_idletasks()
+            screen_width = self.dialog.winfo_screenwidth()
+            screen_height = self.dialog.winfo_screenheight()
+            dialog_width = self.dialog.winfo_width()
+            dialog_height = self.dialog.winfo_height()
+            
+            # Calculate center position with bounds checking
+            x = max(0, min((screen_width // 2) - (dialog_width // 2), screen_width - dialog_width))
+            y = max(0, min((screen_height // 2) - (dialog_height // 2), screen_height - dialog_height))
+            
+            self.dialog.geometry(f"+{x}+{y}")
+        except Exception as e:
+            print(f"[DEBUG] Error centering dialog: {e}")
+            # Fallback to default position
+            self.dialog.geometry("+100+100")
         
         self.setup_ui()
     
     def setup_ui(self):
         """Setup payment dialog UI"""
-        # Main frame with padding
-        main_frame = ttk.Frame(self.dialog, padding=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Title and amount
-        title_frame = ttk.Frame(main_frame)
-        title_frame.pack(fill=tk.X, pady=(0, 20))
-        
-        ttk.Label(title_frame, text="Payment Processing", 
-                 font=('Arial', 16, 'bold')).pack(anchor=tk.W)
-        ttk.Label(title_frame, text=f"Total Amount: Rs.{self.total_amount:.2f}",
-                 font=('Arial', 14, 'bold')).pack(anchor=tk.W, pady=(10, 0))
-        
-        # Payment method selection
-        method_frame = ttk.LabelFrame(main_frame, text="Payment Method", padding=10)
-        method_frame.pack(fill=tk.X, pady=(0, 15))
-        
-        self.payment_method_var = tk.StringVar(value=self.payment_methods[0])
-        
-        # Create radio buttons for payment methods
-        for i, method in enumerate(self.payment_methods):
-            row = i // 2
-            col = i % 2
-            ttk.Radiobutton(method_frame, text=method, variable=self.payment_method_var, 
-                           value=method, command=self.on_payment_method_change).grid(
-                row=row, column=col, sticky=tk.W, padx=10, pady=5)
-        
-        # Amount details
-        details_frame = ttk.LabelFrame(main_frame, text="Payment Details", padding=10)
-        details_frame.pack(fill=tk.X, pady=(0, 15))
-        
-        # Discount
-        ttk.Label(details_frame, text="Discount (Rs):").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.discount_var = tk.StringVar(value="0")
-        discount_entry = ttk.Entry(details_frame, textvariable=self.discount_var, width=15)
-        discount_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
-        
-        # Amount paid
-        ttk.Label(details_frame, text="Amount Paid (Rs):").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.amount_paid_var = tk.StringVar(value=str(self.total_amount))
-        amount_paid_entry = ttk.Entry(details_frame, textvariable=self.amount_paid_var, width=15)
-        amount_paid_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
-        
-        # Balance
-        ttk.Label(details_frame, text="Balance (Rs):").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.balance_label = ttk.Label(details_frame, text="Rs.0.00", font=('Arial', 10, 'bold'))
-        self.balance_label.grid(row=2, column=1, sticky=tk.W, pady=5)
-        
-        # Update calculations when values change
-        self.discount_var.trace('w', self.update_calculations)
-        self.amount_paid_var.trace('w', self.update_calculations)
-        
-        # Payment method specific fields
-        self.method_fields_frame = ttk.LabelFrame(main_frame, text="Payment Details", padding=10)
-        self.method_fields_frame.pack(fill=tk.X, pady=(0, 15))
-        
-        # Initialize with first payment method
-        self.on_payment_method_change()
-        
-        # Buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        ttk.Button(button_frame, text="Cancel", command=self.cancel).pack(side=tk.RIGHT, padx=(5, 0))
-        ttk.Button(button_frame, text="Process Payment", command=self.process).pack(side=tk.RIGHT)
-        
-        # Initial calculation
-        self.update_calculations()
+        try:
+            # Main frame with padding
+            main_frame = ttk.Frame(self.dialog, padding=20)
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # Title and amount
+            title_frame = ttk.Frame(main_frame)
+            title_frame.pack(fill=tk.X, pady=(0, 20))
+            
+            ttk.Label(title_frame, text="Payment Processing",
+                     font=('Arial', 16, 'bold')).pack(anchor=tk.W)
+            ttk.Label(title_frame, text=f"Total Amount: Rs.{self.total_amount:.2f}",
+                     font=('Arial', 14, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+            
+            # Payment method selection
+            method_frame = ttk.LabelFrame(main_frame, text="Payment Method", padding=10)
+            method_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            self.payment_method_var = tk.StringVar(value=self.payment_methods[0])
+            
+            # Create radio buttons for payment methods
+            for i, method in enumerate(self.payment_methods):
+                row = i // 2
+                col = i % 2
+                ttk.Radiobutton(method_frame, text=method, variable=self.payment_method_var,
+                               value=method, command=self.on_payment_method_change).grid(
+                    row=row, column=col, sticky=tk.W, padx=10, pady=5)
+            
+            # Amount details
+            details_frame = ttk.LabelFrame(main_frame, text="Payment Details", padding=10)
+            details_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            # Discount
+            ttk.Label(details_frame, text="Discount (Rs):").grid(row=0, column=0, sticky=tk.W, pady=5)
+            self.discount_var = tk.StringVar(value="0")
+            discount_entry = ttk.Entry(details_frame, textvariable=self.discount_var, width=15)
+            discount_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+            
+            # Amount paid
+            ttk.Label(details_frame, text="Amount Paid (Rs):").grid(row=1, column=0, sticky=tk.W, pady=5)
+            self.amount_paid_var = tk.StringVar(value=str(self.total_amount))
+            amount_paid_entry = ttk.Entry(details_frame, textvariable=self.amount_paid_var, width=15)
+            amount_paid_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
+            
+            # Balance
+            ttk.Label(details_frame, text="Balance (Rs):").grid(row=2, column=0, sticky=tk.W, pady=5)
+            self.balance_label = ttk.Label(details_frame, text="Rs.0.00", font=('Arial', 10, 'bold'))
+            self.balance_label.grid(row=2, column=1, sticky=tk.W, pady=5)
+            
+            # Update calculations when values change
+            self.discount_var.trace('w', self.update_calculations)
+            self.amount_paid_var.trace('w', self.update_calculations)
+            
+            # Payment method specific fields
+            self.method_fields_frame = ttk.LabelFrame(main_frame, text="Payment Details", padding=10)
+            self.method_fields_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            # Initialize with first payment method
+            self.on_payment_method_change()
+            
+            # Buttons - Ensure they're always visible
+            button_frame = ttk.Frame(main_frame)
+            button_frame.pack(fill=tk.X, pady=(10, 0))
+            
+            # Create buttons with explicit side and padding
+            cancel_btn = ttk.Button(button_frame, text="Cancel", command=self.cancel)
+            cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
+            
+            process_btn = ttk.Button(button_frame, text="Process Payment", command=self.process)
+            process_btn.pack(side=tk.RIGHT)
+            
+            # Force UI update to ensure buttons are visible
+            self.dialog.update_idletasks()
+            
+            # Initial calculation
+            self.update_calculations()
+            
+        except Exception as e:
+            print(f"[DEBUG] Error in setup_ui: {e}")
+            # Ensure buttons are still created even if other parts fail
+            try:
+                button_frame = ttk.Frame(main_frame)
+                button_frame.pack(fill=tk.X, pady=(10, 0))
+                ttk.Button(button_frame, text="Cancel", command=self.cancel).pack(side=tk.RIGHT, padx=(5, 0))
+                ttk.Button(button_frame, text="Process Payment", command=self.process).pack(side=tk.RIGHT)
+            except:
+                pass
     
     def on_payment_method_change(self):
         """Handle payment method change"""
-        # Clear existing method-specific fields
-        for widget in self.method_fields_frame.winfo_children():
-            widget.destroy()
-        
-        method = self.payment_method_var.get()
-        
-        if method == "Card":
-            ttk.Label(self.method_fields_frame, text="Card Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
-            self.card_number_var = tk.StringVar()
-            ttk.Entry(self.method_fields_frame, textvariable=self.card_number_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+        try:
+            # Clear existing method-specific fields
+            for widget in self.method_fields_frame.winfo_children():
+                widget.destroy()
             
-            ttk.Label(self.method_fields_frame, text="Expiry:").grid(row=1, column=0, sticky=tk.W, pady=5)
-            self.expiry_var = tk.StringVar()
-            ttk.Entry(self.method_fields_frame, textvariable=self.expiry_var, width=10).grid(row=1, column=1, sticky=tk.W, pady=5)
+            method = self.payment_method_var.get()
             
-        elif method == "UPI":
-            ttk.Label(self.method_fields_frame, text="UPI ID:").grid(row=0, column=0, sticky=tk.W, pady=5)
-            self.upi_id_var = tk.StringVar()
-            ttk.Entry(self.method_fields_frame, textvariable=self.upi_id_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+            if method == "Card":
+                ttk.Label(self.method_fields_frame, text="Card Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.card_number_var = tk.StringVar()
+                ttk.Entry(self.method_fields_frame, textvariable=self.card_number_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                
+                ttk.Label(self.method_fields_frame, text="Expiry:").grid(row=1, column=0, sticky=tk.W, pady=5)
+                self.expiry_var = tk.StringVar()
+                ttk.Entry(self.method_fields_frame, textvariable=self.expiry_var, width=10).grid(row=1, column=1, sticky=tk.W, pady=5)
+                
+            elif method == "UPI":
+                ttk.Label(self.method_fields_frame, text="UPI ID:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.upi_id_var = tk.StringVar()
+                ttk.Entry(self.method_fields_frame, textvariable=self.upi_id_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                
+            elif method == "Wallet":
+                ttk.Label(self.method_fields_frame, text="Wallet Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.wallet_number_var = tk.StringVar()
+                ttk.Entry(self.method_fields_frame, textvariable=self.wallet_number_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                
+            elif method == "Credit":
+                ttk.Label(self.method_fields_frame, text="Customer Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.credit_customer_var = tk.StringVar()
+                ttk.Entry(self.method_fields_frame, textvariable=self.credit_customer_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                
+            elif method == "Cash":
+                ttk.Label(self.method_fields_frame, text="Cash Received:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.cash_received_var = tk.StringVar(value=str(self.total_amount))
+                ttk.Entry(self.method_fields_frame, textvariable=self.cash_received_var, width=15).grid(row=0, column=1, sticky=tk.W, pady=5)
+                
+                ttk.Label(self.method_fields_frame, text="Change:").grid(row=1, column=0, sticky=tk.W, pady=5)
+                self.change_label = ttk.Label(self.method_fields_frame, text="Rs.0.00", font=('Arial', 10, 'bold'))
+                self.change_label.grid(row=1, column=1, sticky=tk.W, pady=5)
             
-        elif method == "Wallet":
-            ttk.Label(self.method_fields_frame, text="Wallet Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
-            self.wallet_number_var = tk.StringVar()
-            ttk.Entry(self.method_fields_frame, textvariable=self.wallet_number_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+            # Force UI update to ensure layout is correct
+            self.dialog.update_idletasks()
             
-        elif method == "Credit":
-            ttk.Label(self.method_fields_frame, text="Customer Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
-            self.credit_customer_var = tk.StringVar()
-            ttk.Entry(self.method_fields_frame, textvariable=self.credit_customer_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
-            
-        elif method == "Cash":
-            ttk.Label(self.method_fields_frame, text="Cash Received:").grid(row=0, column=0, sticky=tk.W, pady=5)
-            self.cash_received_var = tk.StringVar(value=str(self.total_amount))
-            ttk.Entry(self.method_fields_frame, textvariable=self.cash_received_var, width=15).grid(row=0, column=1, sticky=tk.W, pady=5)
-            
-            ttk.Label(self.method_fields_frame, text="Change:").grid(row=1, column=0, sticky=tk.W, pady=5)
-            self.change_label = ttk.Label(self.method_fields_frame, text="Rs.0.00", font=('Arial', 10, 'bold'))
-            self.change_label.grid(row=1, column=1, sticky=tk.W, pady=5)
+        except Exception as e:
+            print(f"[DEBUG] Error in on_payment_method_change: {e}")
     
     def update_calculations(self, *args):
         """Update payment calculations"""
@@ -2190,5 +2254,11 @@ class EnhancedPaymentDialog:
     
     def get_result(self):
         """Get payment result"""
-        self.dialog.wait_window()
-        return self.result
+        print(f"[DEBUG] Waiting for dialog window to close...")
+        try:
+            self.dialog.wait_window()
+            print(f"[DEBUG] Dialog window closed, returning result: {self.result}")
+            return self.result
+        except Exception as e:
+            print(f"[DEBUG] Error in wait_window: {e}")
+            return None

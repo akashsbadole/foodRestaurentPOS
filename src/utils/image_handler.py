@@ -93,7 +93,8 @@ class ImageHandler:
             base_name = os.path.splitext(image_path)[0]
             thumbnail_path = f"{base_name}_thumb.jpg"
         
-        return ImageHandler.resize_image(image_path, thumbnail_path, ImageHandler.THUMBNAIL_SIZE, quality=75)
+        success, result = ImageHandler.resize_image(image_path, thumbnail_path, ImageHandler.THUMBNAIL_SIZE, quality=75)
+        return result if success else None
     
     @staticmethod
     def generate_unique_filename(original_filename, prefix="menu_item"):

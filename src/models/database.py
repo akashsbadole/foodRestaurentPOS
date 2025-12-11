@@ -334,7 +334,7 @@ class Order:
         except Exception as e:
             # Rollback on error
             try:
-                self.db.execute_query("ROLLBACK")
+                self.db.conn.rollback() if hasattr(self.db, 'conn') and self.db.conn else None
             except:
                 pass
             print(f"Error creating order: {str(e)}")

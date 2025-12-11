@@ -113,7 +113,7 @@
       }
     }
   },
-  "current_profile": "balanced",
+  "current_profile": "medium_resource",
   "auto_optimization": {
     "enabled": true,
     "detect_resources": true,

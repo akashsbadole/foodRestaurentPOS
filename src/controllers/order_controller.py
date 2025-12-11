@@ -47,11 +47,19 @@ class OrderController:
         if len(item_data) < 6:
             return False, "Invalid item data structure"
             
-        name, price, category_id, stock, image_path, category_name = item_data
+        # Handle both 6 and 7 field responses (category_name may or may not be included)
+        if len(item_data) == 6:
+            name, price, category_id, stock, image_path, category_name = item_data
+        else:
+            name, price, category_id, stock, image_path, shortcode, category_name = item_data
         
-        # Check stock
-        if stock <= 0:
-            return False, f"{name} is out of stock"
+        # Check stock (handle both numeric and string values)
+        try:
+            stock_value = int(stock) if stock is not None else 0
+            if stock_value <= 0:
+                return False, f"{name} is out of stock"
+        except (ValueError, TypeError):
+            return False, f"{name} has invalid stock data"
         
         # Check if adding quantity exceeds stock
         existing_quantity = 0
@@ -60,8 +68,12 @@ class OrderController:
                 existing_quantity = cart_item['quantity']
                 break
         
-        if existing_quantity + quantity > stock:
-            return False, f"Only {stock} items available in stock"
+        try:
+            stock_value = int(stock) if stock is not None else 0
+            if existing_quantity + quantity > stock_value:
+                return False, f"Only {stock_value} items available in stock"
+        except (ValueError, TypeError):
+            return False, f"Invalid stock data for {name}"
         
         # Check if item already in cart
         for cart_item in self.cart_items:
@@ -87,12 +99,19 @@ class OrderController:
             if cart_item['id'] == item_id:
                 # Check stock
                 item_data = self.menu_item_model.get_by_id(item_id)
-                if item_data and quantity <= item_data[3]:  # stock is at index 3
-                    cart_item['quantity'] = quantity
-                    cart_item['total'] = cart_item['price'] * cart_item['quantity']
-                    return True, "Cart updated"
+                if item_data:
+                    try:
+                        stock_value = int(item_data[3]) if item_data[3] is not None else 0
+                        if quantity <= stock_value:
+                            cart_item['quantity'] = quantity
+                            cart_item['total'] = cart_item['price'] * cart_item['quantity']
+                            return True, "Cart updated"
+                        else:
+                            return False, f"Only {stock_value} items available in stock"
+                    except (ValueError, TypeError):
+                        return False, "Invalid stock data"
                 else:
-                    return False, f"Only {item_data[3]} items available in stock"
+                    return False, "Item not found"
         return False, "Item not found in cart"
     
     def remove_from_cart(self, item_id):

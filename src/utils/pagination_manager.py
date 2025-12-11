@@ -12,8 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 
-from src.config.performance_config import PerformanceConfig
-from src.utils.performance_utils import get_performance_manager
+from src.utils.performance_utils import PerformanceConfig, get_performance_manager
 
 T = TypeVar('T')
 

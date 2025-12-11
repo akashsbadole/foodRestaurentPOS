@@ -144,6 +144,14 @@
               </a>
             </div>
             <div class="col-md-3 mb-2">
+              <button
+                onclick="window.open('{{ url_for('kot.kot_window') }}', 'kot_window', 'width=1400,height=800,scrollbars=yes,resizable=yes')"
+                class="btn btn-warning btn-block"
+              >
+                <i class="fas fa-window-restore"></i> KOT Window
+              </button>
+            </div>
+            <div class="col-md-3 mb-2">
               <a
                 href="{{ url_for('orders.list_orders') }}"
                 class="btn btn-success btn-block"
@@ -159,6 +167,16 @@
                 <i class="fas fa-edit"></i> Manage Menu
               </a>
             </div>
+            {% if current_user.is_admin() %}
+            <div class="col-md-3 mb-2">
+              <a
+                href="{{ url_for('footer_settings.index') }}"
+                class="btn btn-secondary btn-block"
+              >
+                <i class="bi bi-gear"></i> Footer Settings
+              </a>
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>

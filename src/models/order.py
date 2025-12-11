@@ -53,7 +53,7 @@ class Order:
             order_query = """
             INSERT INTO orders (order_number, table_id, customer_name, customer_mobile, order_type,
                                subtotal, tax, cgst_amount, sgst_amount, total_tax, gst_rate, discount, total, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             self.db.execute_query(order_query, (
@@ -124,7 +124,7 @@ class Order:
         except Exception as e:
             # Rollback on error
             try:
-                self.db.execute_query("ROLLBACK")
+                self.conn.rollback() if hasattr(self.db, 'conn') and self.db.conn else None
             except:
                 pass
             print(f"Error creating order: {str(e)}")
@@ -322,10 +322,41 @@ class Order:
         return self.encryption_manager.encrypt_field(customer_name)
     
     def _decrypt_customer_name(self, encrypted_customer_name):
-        """Decrypt customer name"""
+        """Decrypt customer name with enhanced error handling and repair"""
         if not encrypted_customer_name:
             return None
-        return self.encryption_manager.decrypt_field(encrypted_customer_name)
+        
+        # First, try to decrypt normally
+        decrypted = self.encryption_manager.safe_decrypt(encrypted_customer_name, None)
+        
+        # If decryption failed, try to repair the data
+        if decrypted is None:
+            print(f"WARNING: Decryption failed for customer name, attempting repair: '{encrypted_customer_name}'")
+            
+            # Diagnose the data to understand the issue
+            diagnosis = self.encryption_manager.diagnose_encrypted_data(encrypted_customer_name)
+            print(f"Diagnosis: {diagnosis}")
+            
+            # Try to repair the data
+            repaired_data = self.encryption_manager.repair_encrypted_data(encrypted_customer_name)
+            
+            if repaired_data != encrypted_customer_name:
+                print(f"INFO: Repaired encrypted data: '{encrypted_customer_name}' -> '{repaired_data}'")
+                # Try to decrypt the repaired data
+                decrypted = self.encryption_manager.safe_decrypt(repaired_data, None)
+                
+                if decrypted is not None:
+                    print(f"SUCCESS: Successfully decrypted repaired customer name: '{decrypted}'")
+                    return decrypted
+                else:
+                    print(f"WARNING: Repair failed to enable decryption")
+            
+            # If repair didn't work, check if this might be unencrypted data
+            if len(encrypted_customer_name) < 50 and not self.encryption_manager.is_valid_encrypted_data(encrypted_customer_name):
+                print(f"INFO: Data appears to be unencrypted customer name: '{encrypted_customer_name}'")
+                return encrypted_customer_name
+        
+        return decrypted
     
     def _encrypt_customer_mobile(self, customer_mobile):
         """Encrypt customer mobile number"""
@@ -334,13 +365,44 @@ class Order:
         return self.encryption_manager.encrypt_field(customer_mobile)
     
     def _decrypt_customer_mobile(self, encrypted_customer_mobile):
-        """Decrypt customer mobile number"""
+        """Decrypt customer mobile number with enhanced error handling and repair"""
         if not encrypted_customer_mobile:
             return None
-        return self.encryption_manager.decrypt_field(encrypted_customer_mobile)
+        
+        # First, try to decrypt normally
+        decrypted = self.encryption_manager.safe_decrypt(encrypted_customer_mobile, None)
+        
+        # If decryption failed, try to repair the data
+        if decrypted is None:
+            print(f"WARNING: Decryption failed for customer mobile, attempting repair: '{encrypted_customer_mobile}'")
+            
+            # Diagnose the data to understand the issue
+            diagnosis = self.encryption_manager.diagnose_encrypted_data(encrypted_customer_mobile)
+            print(f"Diagnosis: {diagnosis}")
+            
+            # Try to repair the data
+            repaired_data = self.encryption_manager.repair_encrypted_data(encrypted_customer_mobile)
+            
+            if repaired_data != encrypted_customer_mobile:
+                print(f"INFO: Repaired encrypted data: '{encrypted_customer_mobile}' -> '{repaired_data}'")
+                # Try to decrypt the repaired data
+                decrypted = self.encryption_manager.safe_decrypt(repaired_data, None)
+                
+                if decrypted is not None:
+                    print(f"SUCCESS: Successfully decrypted repaired customer mobile: '{decrypted}'")
+                    return decrypted
+                else:
+                    print(f"WARNING: Repair failed to enable decryption")
+            
+            # If repair didn't work, check if this might be unencrypted data
+            if len(encrypted_customer_mobile) < 20 and not self.encryption_manager.is_valid_encrypted_data(encrypted_customer_mobile):
+                print(f"INFO: Data appears to be unencrypted customer mobile: '{encrypted_customer_mobile}'")
+                return encrypted_customer_mobile
+        
+        return decrypted
     
     def _decrypt_payment_details(self, encrypted_payment_details):
-        """Decrypt payment details"""
+        """Decrypt payment details with safe error handling"""
         if not encrypted_payment_details:
             return None
         
@@ -355,17 +417,17 @@ class Order:
                     # Decrypt each field in payment details
                     for key, value in details_dict.items():
                         if value:
-                            decrypted_details[key] = self.encryption_manager.decrypt_field(value)
+                            decrypted_details[key] = self.encryption_manager.safe_decrypt(value, value)
                         else:
                             decrypted_details[key] = value
                     
                     return json.dumps(decrypted_details)
                 except json.JSONDecodeError:
                     # If not JSON, decrypt as plain text
-                    return self.encryption_manager.decrypt_field(encrypted_payment_details)
+                    return self.encryption_manager.safe_decrypt(encrypted_payment_details, encrypted_payment_details)
             else:
                 # If not a string, decrypt as field
-                return self.encryption_manager.decrypt_field(encrypted_payment_details)
+                return self.encryption_manager.safe_decrypt(encrypted_payment_details, encrypted_payment_details)
         except Exception as e:
             print(f"Error decrypting payment details: {e}")
             return encrypted_payment_details

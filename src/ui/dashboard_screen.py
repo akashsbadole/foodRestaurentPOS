@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, Canvas, Frame
+from PIL import Image, ImageTk
+import os
 from .base_ui import BaseUI
 from src.utils.helpers import format_currency
 
@@ -58,6 +60,37 @@ class DashboardScreen(BaseUI):
         super().__init__(root, app)
         self.content_frame = None
     
+    def create_logo_label(self, parent):
+        """Create and return a logo label with POS logo"""
+        try:
+            # Path to the logo image
+            logo_path = os.path.join(os.path.dirname(__file__), '..', '..', 'images', 'pos-logo.png')
+            
+            # Check if logo file exists
+            if not os.path.exists(logo_path):
+                print(f"Logo file not found at: {logo_path}")
+                return None
+            
+            # Load and resize image
+            image = Image.open(logo_path)
+            
+            # Resize logo to appropriate size for dashboard (smaller than login)
+            max_size = (40, 40)
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage
+            photo = ImageTk.PhotoImage(image)
+            
+            # Create label with logo
+            logo_label = tk.Label(parent, image=photo, bg=self.COLORS['background'])
+            logo_label.image = photo  # Keep a reference to prevent garbage collection
+            
+            return logo_label
+            
+        except Exception as e:
+            print(f"Error loading logo: {e}")
+            return None
+    
     def show(self, content_frame):
         """Display dashboard"""
         self.content_frame = content_frame
@@ -79,8 +112,17 @@ class DashboardScreen(BaseUI):
         title_frame = Frame(content_frame, bg=self.COLORS['background'])
         title_frame.pack(fill=tk.X, padx=self.SPACING['xl'], pady=self.SPACING['m'])
         
+        # Add logo and title container
+        logo_title_frame = Frame(title_frame, bg=self.COLORS['background'])
+        logo_title_frame.pack(side=tk.LEFT, anchor=tk.W)
+        
+        # Add logo
+        logo_label = self.create_logo_label(logo_title_frame)
+        if logo_label:
+            logo_label.pack(side=tk.LEFT, padx=(0, self.SPACING['m']))
+        
         # Dashboard title
-        title_label = tk.Label(title_frame, text="Dashboard", 
+        title_label = tk.Label(logo_title_frame, text="Dashboard", 
                               font=self.FONTS['h1'], 
                               fg=self.COLORS['text_primary'],
                               bg=self.COLORS['background'])

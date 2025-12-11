@@ -411,7 +411,7 @@ class PDFExporter:
         """Add footer section"""
         if not self.settings_manager:
             # Use default footer if no settings manager
-            self._add_default_footer(story)
+            self._add_original_default_footer(story)
             return
         
         # Get footer settings

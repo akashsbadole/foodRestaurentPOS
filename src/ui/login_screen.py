@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, Canvas
+from PIL import Image, ImageTk
+import os
 from .base_ui import BaseUI
 
 class LoginScreen(BaseUI):
@@ -52,36 +54,41 @@ class LoginScreen(BaseUI):
         self.login_frame.columnconfigure(0, weight=1)
         self.login_frame.columnconfigure(1, weight=1)
         
+        # Add logo
+        logo_label = self.create_logo_label()
+        if logo_label:
+            logo_label.grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky='n')
+        
         # Title with modern styling
         title_label = ttk.Label(self.login_frame, text="Restaurant POS System",
                              font=('Segoe UI', 28, 'bold'), foreground='#2c3e50')
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky='n')
+        title_label.grid(row=1, column=0, columnspan=2, pady=(0, 10), sticky='n')
         
         # Restaurant name with subtle styling
         restaurant_label = ttk.Label(self.login_frame,
                                   text=self.app.settings.get('restaurant_name', 'My Restaurant'),
                                   font=('Segoe UI', 16), foreground='#7f8c8d')
-        restaurant_label.grid(row=1, column=0, columnspan=2, pady=(0, 30), sticky='n')
+        restaurant_label.grid(row=2, column=0, columnspan=2, pady=(0, 30), sticky='n')
         
         # Separator line
         separator = ttk.Separator(self.login_frame, orient='horizontal')
-        separator.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0, 30))
+        separator.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 30))
         
         # Username with custom styling
         username_label = ttk.Label(self.login_frame, text="Username:",
                                   font=('Segoe UI', 12), foreground='#34495e')
-        username_label.grid(row=3, column=0, sticky=tk.W, pady=(0, 5))
+        username_label.grid(row=4, column=0, sticky=tk.W, pady=(0, 5))
         
         self.username_entry = ttk.Entry(self.login_frame, width=30, font=('Segoe UI', 12))
-        self.username_entry.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(0, 20))
+        self.username_entry.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(0, 20))
         
         # Password with custom styling
         password_label = ttk.Label(self.login_frame, text="Password:",
                                   font=('Segoe UI', 12), foreground='#34495e')
-        password_label.grid(row=5, column=0, sticky=tk.W, pady=(0, 5))
+        password_label.grid(row=6, column=0, sticky=tk.W, pady=(0, 5))
         
         self.password_entry = ttk.Entry(self.login_frame, width=30, show="*", font=('Segoe UI', 12))
-        self.password_entry.grid(row=6, column=0, columnspan=2, sticky='ew', pady=(0, 30))
+        self.password_entry.grid(row=7, column=0, columnspan=2, sticky='ew', pady=(0, 30))
         
         # Modern login button with styling
         login_button_style = ttk.Style()
@@ -99,7 +106,7 @@ class LoginScreen(BaseUI):
         
         login_button = ttk.Button(self.login_frame, text="Login", command=self.login,
                                  style='Login.TButton', width=20)
-        login_button.grid(row=7, column=0, columnspan=2, pady=(10, 20))
+        login_button.grid(row=8, column=0, columnspan=2, pady=(10, 20))
         
         # Create status bar
         self.status_bar, _, _ = self.create_status_bar(self.root)
@@ -139,6 +146,37 @@ class LoginScreen(BaseUI):
             
             color = f'#{r:02x}{g:02x}{b:02x}'
             canvas.create_rectangle(0, i, width, i+2, fill=color, outline=color)
+    
+    def create_logo_label(self):
+        """Create and return a logo label with the POS logo"""
+        try:
+            # Path to the logo image
+            logo_path = os.path.join(os.path.dirname(__file__), '..', '..', 'images', 'pos-logo.png')
+            
+            # Check if logo file exists
+            if not os.path.exists(logo_path):
+                print(f"Logo file not found at: {logo_path}")
+                return None
+            
+            # Load and resize the image
+            image = Image.open(logo_path)
+            
+            # Resize logo to appropriate size for login screen (maintain aspect ratio)
+            max_size = (120, 120)
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage
+            photo = ImageTk.PhotoImage(image)
+            
+            # Create label with logo
+            logo_label = ttk.Label(self.login_frame, image=photo, background='white')
+            logo_label.image = photo  # Keep a reference to prevent garbage collection
+            
+            return logo_label
+            
+        except Exception as e:
+            print(f"Error loading logo: {e}")
+            return None
     
     def setup_login_navigation(self):
         """Setup keyboard navigation for login screen"""

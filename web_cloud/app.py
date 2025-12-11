@@ -6,10 +6,10 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from config import config
+from web_cloud.config import config
 
 # Import models
-from models import db, User, Category, MenuItem, Table, Order, OrderItem, Payment, Settings
+from web_cloud.models import db, User, Category, MenuItem, Table, Order, OrderItem, Payment, Settings
 
 # Create Flask app
 def create_app(config_name='default'):

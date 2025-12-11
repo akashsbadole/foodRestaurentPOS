@@ -61,6 +61,11 @@ COLOR_SECONDARY_LIGHT = "#95a5a6" # Disabled text, placeholders
 COLOR_BACKGROUND_LIGHT = "#f0f0f0" # Main background
 COLOR_CARD_WHITE = "#e6e6e6"     # Card backgrounds, content areas
 
+# Dark Theme Colors (for dark mode UI components)
+COLOR_BACKGROUND_DARK = "#2c3e50"    # Main dark background
+COLOR_CARD_DARK = "#34495e"         # Dark card backgrounds
+COLOR_SECONDARY_DARK = "#5d6d7e"    # Dark secondary elements
+
 # Status Colors
 COLOR_SUCCESS = "#27ae60"         # Successful operations, available tables
 COLOR_SUCCESS_LIGHT = "#ccffcc"   # Background for success states

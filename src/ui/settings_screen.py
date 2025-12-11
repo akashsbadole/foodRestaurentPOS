@@ -399,6 +399,55 @@ class SettingsScreen(BaseUI):
             entry_type="checkbutton",
             textvariable=self.auto_print_kot_var
         )
+        
+        # Test buttons for printer functionality
+        test_button_frame = self.create_modern_frame(printer_frame, style="Card.TFrame", padding=SPACING_M)
+        test_button_frame.pack(fill=tk.X, pady=SPACING_S)
+        
+        test_container = ttk.Frame(test_button_frame, style="Card.TFrame")
+        test_container.pack(fill=tk.X)
+        
+        # Test buttons
+        def test_thermal_printer():
+            printer_name = self.thermal_printer_var.get()
+            if not printer_name:
+                self.show_message("Warning", "Please enter thermal printer name", "warning")
+                return
+            
+            from src.utils.printer import PrinterManager
+            manager = PrinterManager(self.app.settings)
+            success = manager.test_printer("thermal", printer_name)
+            
+            if success:
+                self.show_message("Success", "Thermal printer test successful!", "info")
+            else:
+                self.show_message("Error", "Thermal printer test failed", "error")
+        
+        def test_standard_printer():
+            printer_name = self.standard_printer_var.get()
+            if not printer_name:
+                self.show_message("Warning", "Please enter standard printer name", "warning")
+                return
+            
+            from src.utils.printer import PrinterManager
+            manager = PrinterManager(self.app.settings)
+            success = manager.test_printer("standard", printer_name)
+            
+            if success:
+                self.show_message("Success", "Standard printer test successful!", "info")
+            else:
+                self.show_message("Error", "Standard printer test failed", "error")
+        
+        # Create test button group
+        self.create_button_group(
+            test_container,
+            [
+                ("🧪 Test Thermal Printer", test_thermal_printer, "Primary.TButton"),
+                ("🖨️ Test Standard Printer", test_standard_printer, "Secondary.TButton")
+            ],
+            spacing=SPACING_M
+        )
+    
     def create_export_settings_tab(self, notebook):
         """Create Export Settings tab with improved layout"""
         # Export settings tab with modern card design
@@ -492,59 +541,6 @@ class SettingsScreen(BaseUI):
             style="Small.TLabel"
         )
         note_label.pack(anchor=tk.W)
-        
-        # Test buttons
-        test_button_frame = self.create_modern_frame(printer_frame, style="Card.TFrame", padding=SPACING_M)
-        test_button_frame.pack(fill=tk.X, pady=SPACING_S)
-        
-        test_container = ttk.Frame(test_button_frame, style="Card.TFrame")
-        test_container.pack(fill=tk.X)
-        
-        # Test buttons
-        def test_thermal_printer():
-            printer_name = self.thermal_printer_var.get()
-            if not printer_name:
-                self.show_message("Warning", "Please enter thermal printer name", "warning")
-                return
-            
-            from src.utils.printer import PrinterManager
-            manager = PrinterManager(self.app.settings)
-            success = manager.test_printer("thermal", printer_name)
-            
-            if success:
-                self.show_message("Success", "Thermal printer test successful!", "info")
-            else:
-                self.show_message("Error", "Thermal printer test failed", "error")
-        
-        def test_standard_printer():
-            printer_name = self.standard_printer_var.get()
-            if not printer_name:
-                self.show_message("Warning", "Please enter standard printer name", "warning")
-                return
-            
-            from src.utils.printer import PrinterManager
-            manager = PrinterManager(self.app.settings)
-            success = manager.test_printer("standard", printer_name)
-            # Save export settings
-            self.app.update_setting('export_after_payment', str(self.export_after_payment_var.get()))
-            self.app.update_setting('default_export_format', self.default_export_format_var.get())
-            self.app.update_setting('show_export_dialog', str(self.show_export_dialog_var.get()))
-            self.app.update_setting('auto_open_exported_files', str(self.auto_open_exported_var.get()))
-            
-            if success:
-                self.show_message("Success", "Standard printer test successful!", "info")
-            else:
-                self.show_message("Error", "Standard printer test failed", "error")
-        
-        # Create test button group
-        self.create_button_group(
-            test_container,
-            [
-                ("🧪 Test Thermal Printer", test_thermal_printer, "Primary.TButton"),
-                ("🖨️ Test Standard Printer", test_standard_printer, "Secondary.TButton")
-            ],
-            spacing=SPACING_M
-        )
     
     def create_user_management_tab(self, notebook):
         """Create the User Management tab with improved layout"""

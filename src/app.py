@@ -57,6 +57,7 @@ from src.ui.orders_screen import OrdersScreen
 from src.ui.tables_screen import TablesScreen
 from src.ui.inventory_screen import InventoryScreen
 from src.ui.kot_screen import KOTScreen
+from src.ui.kot_window import KOTWindow
 from src.ui.reports_screen import ReportsScreen
 from src.ui.gst_reports_screen import GSTReportsScreen
 from src.ui.settings_screen import SettingsScreen
@@ -75,6 +76,9 @@ class RestaurantPOSApp:
         self.root.title("Restaurant POS System")
         self.root.geometry(f"{DEFAULT_WINDOW_WIDTH}x{DEFAULT_WINDOW_HEIGHT}")
         self.root.state('zoomed')  # Maximize window
+        
+        # Set window icon
+        self.set_window_icon()
         
         # Initialize database connection
         self.db = DatabaseManager()
@@ -121,6 +125,40 @@ class RestaurantPOSApp:
         
         # Show login screen
         self.show_login_screen()
+    
+    def set_window_icon(self):
+        """Set the window icon using the POS logo"""
+        if not PIL_AVAILABLE:
+            print("PIL not available - cannot set window icon")
+            return
+        
+        try:
+            # Path to the logo image
+            logo_path = os.path.join(project_root, 'images', 'pos-logo.png')
+            
+            # Check if logo file exists
+            if not os.path.exists(logo_path):
+                print(f"Logo file not found at: {logo_path}")
+                return
+            
+            # Load and resize image for icon (typical icon size is 32x32)
+            image = Image.open(logo_path)
+            
+            # Resize to appropriate icon size
+            icon_size = (32, 32)
+            image.thumbnail(icon_size, Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage and set as window icon
+            photo = ImageTk.PhotoImage(image)
+            self.root.iconphoto(True, photo)
+            
+            # Keep a reference to prevent garbage collection
+            self.window_icon = photo
+            
+            print("Window icon set successfully")
+            
+        except Exception as e:
+            print(f"Error setting window icon: {e}")
     
     def load_settings(self):
         """Load application settings from database"""
@@ -192,14 +230,24 @@ class RestaurantPOSApp:
         self.show_dashboard()
     
     def create_top_bar(self, parent):
-        """Create the top navigation bar"""
+        """Create top navigation bar"""
         top_bar = ttk.Frame(parent)
+        top_bar.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+        
+        # Left side - Logo and Restaurant name
+        left_frame = ttk.Frame(top_bar)
+        left_frame.pack(side=tk.LEFT, padx=10)
+        
+        # Add logo
+        logo_label = self.create_top_bar_logo(left_frame)
+        if logo_label:
+            logo_label.pack(side=tk.LEFT, padx=(0, 10))
+        
         # Restaurant name
-        self.top_bar_restaurant_label = ttk.Label(top_bar,
+        self.top_bar_restaurant_label = ttk.Label(left_frame,
                                   text=self.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
                                   font=('Arial', 14, 'bold'))
-        self.top_bar_restaurant_label.pack(side=tk.LEFT, padx=10)
-        top_bar.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+        self.top_bar_restaurant_label.pack(side=tk.LEFT)
         
         # User info
         user_frame = ttk.Frame(top_bar)
@@ -211,6 +259,40 @@ class RestaurantPOSApp:
         # Logout button
         logout_button = ttk.Button(user_frame, text="Logout", command=self.logout)
         logout_button.pack(side=tk.LEFT, padx=5)
+    
+    def create_top_bar_logo(self, parent):
+        """Create and return a logo label for the top bar"""
+        if not PIL_AVAILABLE:
+            return None
+        
+        try:
+            # Path to the logo image
+            logo_path = os.path.join(project_root, 'images', 'pos-logo.png')
+            
+            # Check if logo file exists
+            if not os.path.exists(logo_path):
+                print(f"Logo file not found at: {logo_path}")
+                return None
+            
+            # Load and resize image
+            image = Image.open(logo_path)
+            
+            # Resize logo to appropriate size for top bar (smaller than dashboard)
+            max_size = (32, 32)
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage
+            photo = ImageTk.PhotoImage(image)
+            
+            # Create label with logo
+            logo_label = ttk.Label(parent, image=photo)
+            logo_label.image = photo  # Keep a reference to prevent garbage collection
+            
+            return logo_label
+            
+        except Exception as e:
+            print(f"Error loading top bar logo: {e}")
+            return None
     
     def create_sidebar(self, parent):
         """Create the sidebar navigation"""
@@ -227,6 +309,7 @@ class RestaurantPOSApp:
             ("Tables", self.show_tables),
             ("Inventory", self.show_inventory),
             ("KOT", self.show_kot),
+            ("KOT Window", self.show_kot_window),
             ("Reports", self.show_reports),
             ("GST Reports", self.show_gst_reports)
         ]
@@ -303,6 +386,11 @@ class RestaurantPOSApp:
         self.clear_content_frame()
         kot_screen = KOTScreen(self.root, self)
         self.current_screen = kot_screen
+    
+    def show_kot_window(self):
+        """Open KOT screen in a new window"""
+        kot_window = KOTWindow(self.root, self)
+        kot_window.show()
     
     def show_reports(self):
         """Display reports screen"""

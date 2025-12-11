@@ -1,23 +1,27 @@
 """
-Footer Generator for Flask Web Version
-Handles dynamic footer generation for receipts, invoices, and documents
+Footer Generator for Web Version
+Handles dynamic footer generation for different document types
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
-from models.settings import Settings
+from typing import Dict, List, Any, Optional
+from models import Settings
 
 
 class FooterGenerator:
-    """Footer generator for POS documents"""
+    """
+    Footer Generator for creating dynamic footers
+    """
     
     def __init__(self):
-        self.footer_settings = Settings.get_footer_settings()
-        self.restaurant_info = Settings.get_restaurant_info()
+        """Initialize footer generator"""
+        self.settings = Settings.get_all_as_dict()
     
-    def generate_footer(self, document_type: str = 'receipt', order_data: Dict = None, user_data: Dict = None) -> str:
+    def generate_footer(self, document_type: str = 'receipt', 
+                      order_data: Dict = None, 
+                      user_data: Dict = None) -> str:
         """
-        Generate footer content based on settings and context
+        Generate footer HTML for specified document type
         
         Args:
             document_type: Type of document (receipt, invoice, report, etc.)
@@ -25,284 +29,381 @@ class FooterGenerator:
             user_data: User information for dynamic content
             
         Returns:
-            Formatted footer HTML
+            HTML string for footer
         """
-        if not self.footer_settings.get('footer_enabled', 'true').lower() == 'true':
-            return ""
+        if not self.settings.get('footer_enabled', 'true').lower() == 'true':
+            return ''
         
-        # Determine which template to use
-        template = self._get_template(document_type)
+        footer_config = self._get_footer_config()
         
-        # Generate footer content based on template
-        if template == 'minimal':
-            return self._generate_minimal_footer(document_type, order_data, user_data)
-        elif template == 'detailed':
-            return self._generate_detailed_footer(document_type, order_data, user_data)
-        else:
-            return self._generate_default_footer(document_type, order_data, user_data)
-    
-    def _get_template(self, document_type: str) -> str:
-        """Get the appropriate template for the document type"""
-        if self.footer_settings.get('footer_different_receipts', 'false').lower() == 'true':
-            if document_type in ['receipt', 'bill']:
-                return self.footer_settings.get('footer_receipt_template', 'default')
-            elif document_type == 'invoice':
-                return self.footer_settings.get('footer_invoice_template', 'default')
+        # Prepare template data
+        template_data = {
+            'footer_config': footer_config,
+            'document_type': document_type,
+            'order_data': order_data or {},
+            'user_data': user_data or {},
+            'current_receipt': order_data or {},
+            'current_user': user_data or {},
+            'page_title': self._get_page_title(document_type),
+            'moment': self._get_moment_object()
+        }
         
-        return self.footer_settings.get('footer_template', 'default')
-    
-    def _generate_default_footer(self, document_type: str, order_data: Dict = None, user_data: Dict = None) -> str:
-        """Generate default footer"""
-        lines = []
-        
-        # Add custom text or default
-        custom_text = self.footer_settings.get('footer_custom_text', 'Thank you for your business!')
-        if custom_text:
-            lines.append(f"<p class='footer-custom'>{custom_text}</p>")
-        
-        # Add user name if enabled
-        if self.footer_settings.get('footer_show_user_name', 'true').lower() == 'true' and user_data:
-            user_name = user_data.get('username', 'Staff')
-            lines.append(f"<p class='footer-user'>Served by: {user_name}</p>")
-        
-        # Add receipt info if enabled
-        if self.footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and order_data:
-            receipt_lines = self._generate_receipt_info(order_data)
-            lines.extend(receipt_lines)
-        
-        # Add business info if enabled
-        if self.footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
-            business_lines = self._generate_business_info()
-            lines.extend(business_lines)
-        
-        # Add multiline footer if enabled
-        if self.footer_settings.get('footer_multiline', 'false').lower() == 'true':
-            multiline_lines = self._generate_multiline_footer()
-            lines.extend(multiline_lines)
-        
-        return self._wrap_footer_html(lines, document_type)
-    
-    def _generate_minimal_footer(self, document_type: str, order_data: Dict = None, user_data: Dict = None) -> str:
-        """Generate minimal footer"""
-        lines = []
-        
-        # Just custom text for minimal
-        custom_text = self.footer_settings.get('footer_custom_text', 'Thank you!')
-        if custom_text:
-            lines.append(f"<p class='footer-custom'>{custom_text}</p>")
-        
-        return self._wrap_footer_html(lines, document_type, 'minimal')
-    
-    def _generate_detailed_footer(self, document_type: str, order_data: Dict = None, user_data: Dict = None) -> str:
-        """Generate detailed footer"""
-        lines = []
-        
-        # Custom text
-        custom_text = self.footer_settings.get('footer_custom_text', 'Thank you for your business!')
-        if custom_text:
-            lines.append(f"<p class='footer-custom'><strong>{custom_text}</strong></p>")
-        
-        # User info
-        if self.footer_settings.get('footer_show_user_name', 'true').lower() == 'true' and user_data:
-            user_name = user_data.get('username', 'Staff')
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            lines.append(f"<p class='footer-user'>Processed by: {user_name} at {timestamp}</p>")
-        
-        # Receipt info
-        if self.footer_settings.get('footer_show_receipt_info', 'true').lower() == 'true' and order_data:
-            receipt_lines = self._generate_receipt_info(order_data, detailed=True)
-            lines.extend(receipt_lines)
-        
-        # Business info
-        if self.footer_settings.get('footer_show_business_info', 'true').lower() == 'true':
-            business_lines = self._generate_business_info(detailed=True)
-            lines.extend(business_lines)
-        
-        # Additional terms
-        lines.append("<hr class='footer-divider'>")
-        lines.append("<p class='footer-terms'>This is a computer generated document. Goods once sold will not be taken back.</p>")
-        lines.append("<p class='footer-jurisdiction'>All disputes are subject to local jurisdiction.</p>")
-        
-        return self._wrap_footer_html(lines, document_type, 'detailed')
-    
-    def _generate_receipt_info(self, order_data: Dict, detailed: bool = False) -> List[str]:
-        """Generate receipt information lines"""
-        lines = []
-        
-        if not order_data:
-            return lines
-        
-        order_number = order_data.get('order_number', 'N/A')
-        created_at = order_data.get('created_at', '')
-        
-        if created_at:
-            try:
-                if isinstance(created_at, str):
-                    dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                else:
-                    dt = created_at
-                formatted_date = dt.strftime('%d-%m-%Y %H:%M:%S')
-            except:
-                formatted_date = str(created_at)
-        else:
-            formatted_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
-        
-        if detailed:
-            lines.append(f"<p class='footer-receipt'><strong>Receipt:</strong> {order_number}</p>")
-            lines.append(f"<p class='footer-date'><strong>Date:</strong> {formatted_date}</p>")
-        else:
-            lines.append(f"<p class='footer-receipt'>Receipt #{order_number} - {formatted_date}</p>")
-        
-        return lines
-    
-    def _generate_business_info(self, detailed: bool = False) -> List[str]:
-        """Generate business information lines"""
-        lines = []
-        
-        name = self.restaurant_info.get('restaurant_name', '')
-        address = self.restaurant_info.get('restaurant_address', '')
-        phone = self.restaurant_info.get('restaurant_phone', '')
-        email = self.restaurant_info.get('restaurant_email', '')
-        gst = self.restaurant_info.get('gst_number', '')
-        
-        if detailed:
-            if name:
-                lines.append(f"<p class='footer-business-name'><strong>{name}</strong></p>")
-            if address:
-                lines.append(f"<p class='footer-address'>{address}</p>")
-            contact_info = []
-            if phone:
-                contact_info.append(f"Phone: {phone}")
-            if email:
-                contact_info.append(f"Email: {email}")
-            if contact_info:
-                lines.append(f"<p class='footer-contact'>{' | '.join(contact_info)}</p>")
-            if gst:
-                lines.append(f"<p class='footer-gst'>GST: {gst}</p>")
-        else:
-            # Compact format
-            info_parts = []
-            if name:
-                info_parts.append(name)
-            if phone:
-                info_parts.append(phone)
-            if gst:
-                info_parts.append(f"GST: {gst}")
-            
-            if info_parts:
-                lines.append(f"<p class='footer-business-compact'>{' | '.join(info_parts)}</p>")
-        
-        return lines
-    
-    def _generate_multiline_footer(self) -> List[str]:
-        """Generate multiline footer text"""
-        lines = []
-        
-        line1 = self.footer_settings.get('footer_line1', '')
-        line2 = self.footer_settings.get('footer_line2', '')
-        line3 = self.footer_settings.get('footer_line3', '')
-        
-        if line1:
-            lines.append(f"<p class='footer-line1'>{line1}</p>")
-        if line2:
-            lines.append(f"<p class='footer-line2'>{line2}</p>")
-        if line3:
-            lines.append(f"<p class='footer-line3'>{line3}</p>")
-        
-        return lines
-    
-    def _wrap_footer_html(self, lines: List[str], document_type: str, style: str = 'default') -> str:
-        """Wrap footer lines in HTML with appropriate styling"""
-        if not lines:
-            return ""
-        
-        alignment = self.footer_settings.get('footer_alignment', 'center')
-        font_size = self.footer_settings.get('footer_font_size', '10')
-        
-        # Determine CSS classes
-        css_classes = [f'footer-{document_type}', f'footer-{style}']
-        css_classes.append(f'text-{alignment}')
-        css_classes.append(f'font-size-{font_size}')
-        
-        # Add logo if enabled
-        logo_html = ""
-        if self.footer_settings.get('footer_show_logo', 'false').lower() == 'true':
-            logo_path = self.footer_settings.get('footer_logo_path', '')
-            if logo_path:
-                logo_html = f'<div class="footer-logo"><img src="{logo_path}" alt="Company Logo" style="max-height: 50px;"></div>'
-        
-        # Build footer HTML
-        footer_html = f"""
-        <div class="footer {' '.join(css_classes)}">
-            {logo_html}
-            <div class="footer-content">
-                {''.join(lines)}
-            </div>
-            <div class="footer-timestamp">
-                <small>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</small>
-            </div>
-        </div>
-        """
+        # Generate footer HTML
+        footer_html = self._render_footer_template(template_data)
         
         return footer_html
     
     def get_footer_css(self) -> str:
-        """Get CSS styles for footer"""
-        return """
-        <style>
-        .footer {
-            border-top: 1px solid #ddd;
-            padding: 20px 0;
-            margin-top: 30px;
-            text-align: center;
-            font-size: 10px;
-            color: #666;
-        }
-        .footer-logo {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .footer-content p {
-            margin: 5px 0;
-        }
-        .footer-custom {
-            font-weight: bold;
-            font-size: 12px;
-            margin-bottom: 10px;
-        }
-        .footer-user {
-            font-style: italic;
-        }
-        .footer-receipt {
-            font-family: monospace;
-        }
-        .footer-business-name {
-            font-weight: bold;
-            font-size: 11px;
-        }
-        .footer-divider {
-            border: none;
-            border-top: 1px solid #eee;
-            margin: 10px 0;
-        }
-        .footer-timestamp {
-            margin-top: 15px;
-            font-size: 9px;
-            color: #999;
-        }
-        .footer-minimal {
-            padding: 10px 0;
-        }
-        .footer-detailed {
-            padding: 30px 0;
-            border-top: 2px solid #ddd;
-        }
-        .text-left { text-align: left; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .font-size-8 { font-size: 8px; }
-        .font-size-10 { font-size: 10px; }
-        .font-size-12 { font-size: 12px; }
-        .font-size-14 { font-size: 14px; }
-        </style>
         """
+        Get CSS styles for footer
+        
+        Returns:
+            CSS string for footer styling
+        """
+        footer_config = self._get_footer_config()
+        
+        css = f"""
+        .app-footer {{
+            background-color: {footer_config.get('background_color', '#2c3e50')};
+            color: {footer_config.get('text_color', '#ecf0f1')};
+            padding: {footer_config.get('padding', '15px 20px')};
+            border-top: {footer_config.get('border_width', '2px')} solid {footer_config.get('border_color', '#34495e')};
+            font-family: {footer_config.get('font_family', 'Arial, sans-serif')};
+            font-size: {footer_config.get('font_size', '12px')};
+            margin-top: auto;
+            width: 100%;
+        }}
+
+        .app-footer.fixed-footer {{
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            z-index: 1000;
+        }}
+
+        .footer-container {{
+            max-width: 100%;
+            margin: 0 auto;
+        }}
+
+        .footer-sections {{
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 10px;
+        }}
+
+        .footer-section {{
+            flex: 1;
+            min-width: 200px;
+        }}
+
+        .footer-section h4 {{
+            margin: 0 0 5px 0;
+            font-size: {footer_config.get('header_font_size', '14px')};
+            color: {footer_config.get('header_color', '#3498db')};
+            font-weight: {footer_config.get('header_font_weight', 'bold')};
+        }}
+
+        .footer-section p {{
+            margin: 2px 0;
+            line-height: 1.4;
+        }}
+
+        .footer-bottom {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid {footer_config.get('border_color', '#34495e')};
+            padding-top: 8px;
+            margin-top: 8px;
+            font-size: {footer_config.get('small_font_size', '10px')};
+            opacity: 0.8;
+        }}
+
+        .footer-left, .footer-center, .footer-right {{
+            flex: 1;
+        }}
+
+        .footer-center {{
+            text-align: center;
+        }}
+
+        .footer-right {{
+            text-align: right;
+        }}
+
+        .footer-logo img {{
+            margin-bottom: 5px;
+            max-height: {footer_config.get('logo_height', '30px')};
+        }}
+
+        /* Responsive Design */
+        @media (max-width: 768px) {{
+            .footer-sections {{
+                flex-direction: column;
+                gap: 10px;
+            }}
+            
+            .footer-section {{
+                min-width: 100%;
+            }}
+            
+            .footer-bottom {{
+                flex-direction: column;
+                gap: 5px;
+                text-align: center;
+            }}
+            
+            .footer-left, .footer-center, .footer-right {{
+                text-align: center;
+                flex: none;
+            }}
+        }}
+
+        @media print {{
+            .app-footer {{
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                page-break-inside: avoid;
+            }}
+        }}
+        """
+        
+        return css
+    
+    def _get_footer_config(self) -> Dict:
+        """Get footer configuration from settings"""
+        return {
+            'enabled': self.settings.get('footer_enabled', 'true').lower() == 'true',
+            'business_name': self.settings.get('footer_business_name', ''),
+            'address': self.settings.get('footer_address', ''),
+            'phone': self.settings.get('footer_phone', ''),
+            'email': self.settings.get('footer_email', ''),
+            'company_logo': self.settings.get('footer_company_logo', ''),
+            'logo_height': self.settings.get('footer_logo_height', '30px'),
+            'show_business_info': self.settings.get('footer_show_business_info', 'true').lower() == 'true',
+            'show_receipt_info': self.settings.get('footer_show_receipt_info', 'true').lower() == 'true',
+            'show_user_info': self.settings.get('footer_show_user_name', 'true').lower() == 'true',
+            'show_user_id': self.settings.get('footer_show_user_id', 'false').lower() == 'true',
+            'show_timestamp': self.settings.get('footer_show_timestamp', 'true').lower() == 'true',
+            'show_page_info': self.settings.get('footer_show_page_info', 'true').lower() == 'true',
+            'show_version': self.settings.get('footer_show_version', 'false').lower() == 'true',
+            'custom_text': self.settings.get('footer_custom_text', 'Thank you for your business!'),
+            'background_color': self.settings.get('footer_background_color', '#2c3e50'),
+            'text_color': self.settings.get('footer_text_color', '#ecf0f1'),
+            'border_color': self.settings.get('footer_border_color', '#34495e'),
+            'border_width': self.settings.get('footer_border_width', '2px'),
+            'font_family': self.settings.get('footer_font_family', 'Arial, sans-serif'),
+            'font_size': self.settings.get('footer_font_size', '12px'),
+            'header_font_size': self.settings.get('footer_header_font_size', '14px'),
+            'header_color': self.settings.get('footer_header_color', '#3498db'),
+            'header_font_weight': self.settings.get('footer_header_font_weight', 'bold'),
+            'small_font_size': self.settings.get('footer_small_font_size', '10px'),
+            'padding': self.settings.get('footer_padding', '15px 20px'),
+            'fixed_position': self.settings.get('footer_fixed_position', 'false').lower() == 'true',
+            'version': self.settings.get('footer_version', '1.0.0'),
+            'default_user': self.settings.get('footer_default_user', 'Staff')
+        }
+    
+    def _get_page_title(self, document_type: str) -> str:
+        """Get page title based on document type"""
+        titles = {
+            'receipt': 'Receipt',
+            'invoice': 'Invoice',
+            'order': 'Order',
+            'report': 'Report',
+            'kot': 'Kitchen Order Ticket',
+            'payment': 'Payment Receipt'
+        }
+        return titles.get(document_type, 'Document')
+    
+    def _get_moment_object(self):
+        """Get moment-like object for date formatting"""
+        class Moment:
+            @staticmethod
+            def format(fmt):
+                return datetime.now().strftime(fmt.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
+                                               .replace('HH', '%H').replace('mm', '%M').replace('ss', '%S'))
+        return Moment()
+    
+    def _render_footer_template(self, data: Dict) -> str:
+        """Render footer template with data"""
+        footer_config = data['footer_config']
+        order_data = data['order_data']
+        user_data = data['user_data']
+        
+        # Process custom text with placeholders
+        custom_text = self._process_placeholders(footer_config.get('custom_text', ''), data)
+        
+        html = f"""
+        <div id="app-footer" class="app-footer {'fixed-footer' if footer_config.get('fixed_position', False) else ''}">
+            <div class="footer-container">
+                <div class="footer-sections">
+        """
+        
+        # Business Information Section
+        if footer_config.get('show_business_info', True):
+            html += self._render_business_section(footer_config)
+        
+        # Receipt Information Section
+        if footer_config.get('show_receipt_info', True) and order_data:
+            html += self._render_receipt_section(footer_config, order_data)
+        
+        # User Information Section
+        if footer_config.get('show_user_info', True):
+            html += self._render_user_section(footer_config, user_data)
+        
+        # Custom Text Section
+        if custom_text:
+            html += f"""
+                    <div class="footer-section custom-text">
+                        <p class="custom-message">{custom_text}</p>
+                    </div>
+            """
+        
+        html += """
+                </div>
+                
+                <div class="footer-bottom">
+                    <div class="footer-left">
+            """
+        
+        # Timestamp
+        if footer_config.get('show_timestamp', True):
+            html += f'<span class="timestamp" id="footer-timestamp">{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</span>'
+        
+        html += """
+                    </div>
+                    <div class="footer-center">
+            """
+        
+        # Page Info
+        if footer_config.get('show_page_info', True):
+            html += f'<span class="page-info">{data.get("page_title", "Document")}</span>'
+        
+        html += """
+                    </div>
+                    <div class="footer-right">
+            """
+        
+        # Version
+        if footer_config.get('show_version', False):
+            html += f'<span class="version">v{footer_config.get("version", "1.0.0")}</span>'
+        
+        html += """
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+        
+        return html
+    
+    def _render_business_section(self, footer_config: Dict) -> str:
+        """Render business information section"""
+        html = """
+                    <div class="footer-section business-info">
+        """
+        
+        if footer_config.get('company_logo', ''):
+            html += f"""
+                        <div class="footer-logo">
+                            <img src="{footer_config['company_logo']}" alt="Company Logo" 
+                                 style="max-height: {footer_config.get('logo_height', '30px')};">
+                        </div>
+            """
+        
+        business_name = footer_config.get('business_name', 'Restaurant POS')
+        html += f'<div class="business-details"><h4>{business_name}</h4>'
+        
+        if footer_config.get('address', ''):
+            html += f'<p class="footer-address">{footer_config["address"]}</p>'
+        
+        if footer_config.get('phone', ''):
+            html += f'<p class="footer-phone">📞 {footer_config["phone"]}</p>'
+        
+        if footer_config.get('email', ''):
+            html += f'<p class="footer-email">✉️ {footer_config["email"]}</p>'
+        
+        html += '</div></div>'
+        return html
+    
+    def _render_receipt_section(self, footer_config: Dict, order_data: Dict) -> str:
+        """Render receipt information section"""
+        order_id = order_data.get('order_id', order_data.get('order_number', 'N/A'))
+        order_date = order_data.get('order_date', order_data.get('created_at', ''))
+        order_time = order_data.get('order_time', '')
+        table_name = order_data.get('table_name', order_data.get('table_number', ''))
+        
+        html = """
+                    <div class="footer-section receipt-info">
+                        <h4>Receipt Details</h4>
+                        <p class="receipt-number">Receipt #: {order_id}</p>
+        """.format(order_id=order_id)
+        
+        if order_date:
+            formatted_date = self._format_date(order_date)
+            html += f'<p class="receipt-date">Date: {formatted_date}</p>'
+        
+        if order_time:
+            html += f'<p class="receipt-time">Time: {order_time}</p>'
+        
+        if table_name:
+            html += f'<p class="receipt-table">Table: {table_name}</p>'
+        
+        html += '</div>'
+        return html
+    
+    def _render_user_section(self, footer_config: Dict, user_data: Dict) -> str:
+        """Render user information section"""
+        user_name = user_data.get('name', user_data.get('username', footer_config.get('default_user', 'Staff')))
+        user_id = user_data.get('id', '')
+        
+        html = f"""
+                    <div class="footer-section user-info">
+                        <h4>Staff Information</h4>
+                        <p class="user-name">Served by: {user_name}</p>
+        """
+        
+        if footer_config.get('show_user_id', False) and user_id:
+            html += f'<p class="user-id">ID: {user_id}</p>'
+        
+        html += '</div>'
+        return html
+    
+    def _process_placeholders(self, text: str, data: Dict) -> str:
+        """Process placeholders in custom text"""
+        placeholders = {
+            '{{user_name}}': data.get('user_data', {}).get('name', data.get('user_data', {}).get('username', 'Staff')),
+            '{{date}}': datetime.now().strftime('%Y-%m-%d'),
+            '{{time}}': datetime.now().strftime('%H:%M:%S'),
+            '{{restaurant_name}}': data.get('footer_config', {}).get('business_name', 'Restaurant POS'),
+            '{{order_id}}': str(data.get('order_data', {}).get('order_id', '')),
+            '{{table_name}}': str(data.get('order_data', {}).get('table_name', ''))
+        }
+        
+        for placeholder, value in placeholders.items():
+            text = text.replace(placeholder, value)
+        
+        return text
+    
+    def _format_date(self, date_str: str) -> str:
+        """Format date string"""
+        try:
+            if isinstance(date_str, str):
+                # Try different date formats
+                for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d']:
+                    try:
+                        dt = datetime.strptime(date_str, fmt)
+                        return dt.strftime('%d-%m-%Y')
+                    except ValueError:
+                        continue
+                return date_str
+            else:
+                return date_str.strftime('%d-%m-%Y') if hasattr(date_str, 'strftime') else str(date_str)
+        except Exception:
+            return str(date_str)
