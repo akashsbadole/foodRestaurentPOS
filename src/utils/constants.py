@@ -94,9 +94,9 @@ COLOR_ACCENT_BLUE = "#4285f4"     # Google Blue
 
 # Background variations
 COLOR_BACKGROUND_GREY = "#f1f3f4" # Subtle grey background
-COLOR_HOVER = "#f1f3f4"           # Hover state background
-COLOR_PRESSED = "#e8eaed"         # Pressed state background
-COLOR_SELECTED = "#e8f0fe"        # Selected state background (light blue)
+COLOR_HOVER = "#282828"           # Hover state background
+COLOR_PRESSED = "#295ba6"         # Pressed state background
+COLOR_SELECTED = "#505050"        # Selected state background (light blue)
 
 # Typography
 FONT_FAMILY_PRIMARY = "Roboto"    # Google's primary font
@@ -109,6 +109,13 @@ FONT_SIZE_MEDIUM = 14
 FONT_SIZE_LARGE = 16
 FONT_SIZE_XLARGE = 20
 FONT_SIZE_HEADING = 24
+
+# Left Panel Enhanced Font Sizes
+LEFT_PANEL_HEADER = 18           # For section titles (Customer Info, Add Items, Order Status)
+LEFT_PANEL_MEDIUM = 16           # For control labels and combo boxes  
+LEFT_PANEL_LARGE = 14            # For button text and important info
+LEFT_PANEL_REGULAR = 13          # For standard text
+LEFT_PANEL_SMALL = 12            # For minor details and placeholders
 
 # Font Weights
 FONT_WEIGHT_REGULAR = "normal"

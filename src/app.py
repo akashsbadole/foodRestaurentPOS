@@ -63,6 +63,7 @@ from src.ui.gst_reports_screen import GSTReportsScreen
 from src.ui.settings_screen import SettingsScreen
 from src.ui.data_management_screen import DataManagementScreen
 from src.ui.support_screen import SupportScreen
+from src.ui.tab_navigation import TabNavigation
 from src.utils.keyboard_handler import KeyboardHandler
 from src.utils.helpers import generate_order_number, format_currency, format_datetime, export_to_csv, generate_bill_content, generate_kot_content
 from src.utils.constants import *
@@ -108,6 +109,9 @@ class RestaurantPOSApp:
         
         # Track current OrderScreen instance
         self.current_order_screen = None
+        
+        # Initialize tab navigation
+        self.tab_navigation = None
         
         # Initialize variables
         self.current_user = None
@@ -282,7 +286,7 @@ class RestaurantPOSApp:
         self.login_screen.show()
     
     def show_main_app(self):
-        """Display the main application interface"""
+        """Display the main application interface with top tab navigation"""
         # Clear window
         for widget in self.root.winfo_children():
             widget.destroy()
@@ -294,16 +298,12 @@ class RestaurantPOSApp:
         # Create top bar
         self.create_top_bar(main_container)
         
-        # Create content area
-        content_container = ttk.Frame(main_container)
-        content_container.pack(fill=tk.BOTH, expand=True)
-        
-        # Create sidebar
-        self.create_sidebar(content_container)
+        # Create tab navigation
+        self.tab_navigation = TabNavigation(main_container, self)
         
         # Create main content area
-        self.content_frame = ttk.Frame(content_container)
-        self.content_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.content_frame = ttk.Frame(main_container)
+        self.content_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
         # Create status bar
         self.create_status_bar(self.root)
@@ -314,8 +314,9 @@ class RestaurantPOSApp:
         # Set up global keyboard shortcuts
         self.keyboard_handler.setup_global_keyboard_shortcuts()
         
-        # Show dashboard by default
+        # Show dashboard by default and set active tab
         self.show_dashboard()
+        self.tab_navigation.set_active_tab('dashboard')
     
     def create_top_bar(self, parent):
         """Create top navigation bar"""
@@ -382,34 +383,11 @@ class RestaurantPOSApp:
             print(f"Error loading top bar logo: {e}")
             return None
     
-    def create_sidebar(self, parent):
-        """Create the sidebar navigation"""
-        sidebar = ttk.Frame(parent, width=200)
-        sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
-        sidebar.pack_propagate(False)
-        
-        # Navigation buttons
-        buttons = [
-            ("Dashboard", self.show_dashboard),
-            ("New Order", self.show_new_order),
-            ("Orders", self.show_orders),
-            ("Menu", self.show_menu),
-            ("Tables", self.show_tables),
-            ("Inventory", self.show_inventory),
-            ("KOT", self.show_kot),
-            ("KOT Window", self.show_kot_window),
-            ("Reports", self.show_reports),
-            ("GST Reports", self.show_gst_reports),
-            ("Support", self.show_support_screen)
-        ]
-        
-        for text, command in buttons:
-            ttk.Button(sidebar, text=text, command=command).pack(fill=tk.X, pady=5)
-        
-        # Data Management button (only for admin)
-        if self.current_user['role'] == ROLE_ADMIN:
-            ttk.Button(sidebar, text="Data Management", command=self.show_data_management).pack(fill=tk.X, pady=5)
-            ttk.Button(sidebar, text="Settings", command=self.show_settings).pack(fill=tk.X, pady=5)
+    def create_tab_navigation(self, parent):
+        """Create the top tab navigation"""
+        if self.tab_navigation is None:
+            self.tab_navigation = TabNavigation(parent, self)
+        return self.tab_navigation
     
     def create_status_bar(self, parent):
         """Create a status bar at the bottom of the window"""
@@ -432,7 +410,11 @@ class RestaurantPOSApp:
     
     def show_dashboard(self):
         """Display dashboard"""
+        self.clear_content_frame()
         self.dashboard_screen.show(self.content_frame)
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('dashboard')
+        self.current_screen = self.dashboard_screen
     
     def show_new_order(self):
         """Display new order screen"""
@@ -445,36 +427,55 @@ class RestaurantPOSApp:
         # Create new OrderScreen instance
         self.current_order_screen = OrderScreen(self.root, self)
         self.current_order_screen.setup_ui()
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('new_order')
+        self.current_screen = self.current_order_screen
     
     def show_orders(self):
         """Display orders screen"""
         self.clear_content_frame()
         orders_screen = OrdersScreen(self.root, self)
         self.current_screen = orders_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('orders')
     
     def show_menu(self):
         """Display menu management screen"""
         self.clear_content_frame()
         menu_screen = MenuScreen(self.root, self)
         self.current_screen = menu_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('menu')
     
     def show_tables(self):
         """Display tables management screen"""
         self.clear_content_frame()
         tables_screen = TablesScreen(self.root, self)
         self.current_screen = tables_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('tables')
     
     def show_inventory(self):
         """Display inventory management screen"""
         self.clear_content_frame()
         inventory_screen = InventoryScreen(self.root, self)
         self.current_screen = inventory_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('inventory')
     
     def show_kot(self):
         """Display Kitchen Order Ticket screen"""
         self.clear_content_frame()
         kot_screen = KOTScreen(self.root, self)
         self.current_screen = kot_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('kot')
     
     def show_kot_window(self):
         """Open KOT screen in a new window"""
@@ -486,24 +487,36 @@ class RestaurantPOSApp:
         self.clear_content_frame()
         reports_screen = ReportsScreen(self.root, self)
         self.current_screen = reports_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('reports')
     
     def show_gst_reports(self):
         """Display GST reports screen"""
         self.clear_content_frame()
         gst_reports_screen = GSTReportsScreen(self.root, self)
         self.current_screen = gst_reports_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('gst_reports')
     
     def show_data_management(self):
         """Display data management screen (Admin only)"""
         self.clear_content_frame()
         data_management_screen = DataManagementScreen(self.root, self)
         self.current_screen = data_management_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('data_management')
     
     def show_settings(self):
         """Display settings screen (Admin only)"""
         self.clear_content_frame()
         settings_screen = SettingsScreen(self.root, self)
         self.current_screen = settings_screen
+        
+        if self.tab_navigation:
+            self.tab_navigation.set_active_tab('settings')
     
     def check_feature_access(self, feature: str) -> bool:
         """
@@ -521,11 +534,18 @@ class RestaurantPOSApp:
     def logout(self):
         """Logout the current user"""
         self.current_user = None
+        if self.tab_navigation:
+            self.tab_navigation.cleanup()
+            self.tab_navigation = None
         self.show_login_screen()
     
     def on_closing(self):
         """Handle application closing"""
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            # Clean up tab navigation
+            if self.tab_navigation:
+                self.tab_navigation.cleanup()
+            
             # Clean up bug logger
             if hasattr(self, 'bug_logger'):
                 self.bug_logger.cleanup()

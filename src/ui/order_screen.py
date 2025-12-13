@@ -275,7 +275,7 @@ class OrderScreen(BaseUI):
         self.create_right_panel_components()
         
     def create_left_panel_components(self):
-        """Create all left panel components"""
+        """Create all left panel components with enhanced fonts"""
         # Customer details frame
         self.create_customer_details_frame()
         
@@ -286,7 +286,7 @@ class OrderScreen(BaseUI):
         self.create_status_control_frame()
         
     def create_customer_details_frame(self):
-        """Create customer details in 2x2 grid layout"""
+        """Create customer details in 2x2 grid layout with enhanced fonts"""
         self.customer_frame = ttk.LabelFrame(
             self.left_panel, 
             text="Customer Info", 
@@ -295,8 +295,8 @@ class OrderScreen(BaseUI):
         self.customer_frame.pack(fill=tk.X, pady=(0, 10))
         
         # Order type (row 0, col 0-1)
-        ttk.Label(self.customer_frame, text="Order Type:").grid(
-            row=0, column=0, sticky=tk.W, padx=5
+        self.create_left_panel_label(self.customer_frame, text="Order Type:").grid(
+            row=0, column=0, sticky=tk.W, padx=5, pady=5
         )
         
         self.dine_radio = ttk.Radiobutton(
@@ -304,55 +304,55 @@ class OrderScreen(BaseUI):
             text="Dine-in", 
             variable=self.order_type, 
             value="Dine-in",
-            command=self.on_order_type_changed
+            command=self.on_order_type_changed,
+            style="Modern.TButton"
         )
-        self.dine_radio.grid(row=0, column=1, sticky=tk.W, padx=5)
+        self.dine_radio.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
         
         self.takeaway_radio = ttk.Radiobutton(
             self.customer_frame, 
             text="Takeaway", 
             variable=self.order_type, 
             value="Takeaway",
-            command=self.on_order_type_changed
+            command=self.on_order_type_changed,
+            style="Modern.TButton"
         )
-        self.takeaway_radio.grid(row=0, column=2, sticky=tk.W, padx=5)
+        self.takeaway_radio.grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
         
         # Table selection (row 0, col 3)
-        ttk.Label(self.customer_frame, text="Table:").grid(
-            row=0, column=3, sticky=tk.W, padx=5
+        self.create_left_panel_label(self.customer_frame, text="Table:").grid(
+            row=0, column=3, sticky=tk.W, padx=5, pady=5
         )
-        self.table_combo = ttk.Combobox(
-            self.customer_frame, 
-            width=15, 
-            state="readonly"
+        self.table_combo = self.create_left_panel_combobox(
+            self.customer_frame, width=15
         )
-        self.table_combo.grid(row=0, column=4, padx=5, sticky=tk.W)
+        self.table_combo.grid(row=0, column=4, padx=5, pady=5, sticky=tk.W)
         self.table_combo.bind("<<ComboboxSelected>>", self.on_table_changed)
         
         # Customer name (row 1, col 0-2)
-        ttk.Label(self.customer_frame, text="Name:").grid(
-            row=1, column=0, sticky=tk.W, padx=5
+        self.create_left_panel_label(self.customer_frame, text="Name:").grid(
+            row=1, column=0, sticky=tk.W, padx=5, pady=5
         )
-        self.customer_entry = ttk.Entry(self.customer_frame, width=25)
+        self.customer_entry = self.create_left_panel_entry(self.customer_frame, width=25)
         self.customer_entry.grid(
             row=1, column=1, columnspan=2, 
-            padx=5, sticky=tk.W+tk.E
+            padx=5, pady=5, sticky=tk.W+tk.E
         )
         self.customer_entry.bind("<KeyRelease>", self.on_customer_info_changed)
         
         # Mobile number (row 1, col 3-4)
-        ttk.Label(self.customer_frame, text="Mobile:").grid(
-            row=1, column=3, sticky=tk.W, padx=5
+        self.create_left_panel_label(self.customer_frame, text="Mobile:").grid(
+            row=1, column=3, sticky=tk.W, padx=5, pady=5
         )
-        self.mobile_entry = ttk.Entry(self.customer_frame, width=15)
+        self.mobile_entry = self.create_left_panel_entry(self.customer_frame, width=15)
         self.mobile_entry.grid(
             row=1, column=4, 
-            padx=5, sticky=tk.W+tk.E
+            padx=5, pady=5, sticky=tk.W+tk.E
         )
         self.mobile_entry.bind("<KeyRelease>", self.on_customer_info_changed)
         
     def create_item_selection_frame(self):
-        """Create compact item selection frame"""
+        """Create compact item selection frame with enhanced fonts"""
         self.item_frame = ttk.LabelFrame(
             self.left_panel,
             text="Add Items",
@@ -361,41 +361,56 @@ class OrderScreen(BaseUI):
         self.item_frame.pack(fill=tk.X, pady=(0, 10))
         
         # Row 0: Category | Item | Quantity | Add
-        self.category_combo = ttk.Combobox(
-            self.item_frame,
-            width=20,
-            state="readonly"
+        self.create_left_panel_label(self.item_frame, text="Category:").grid(
+            row=0, column=0, padx=5, pady=5, sticky=tk.W
         )
-        self.category_combo.grid(row=0, column=0, padx=5, sticky=tk.W)
+        
+        self.category_combo = self.create_left_panel_combobox(
+            self.item_frame,
+            width=20
+        )
+        self.category_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         self.category_combo.bind("<<ComboboxSelected>>", self.on_category_changed)
         
-        self.menu_combo = ttk.Combobox(
-            self.item_frame,
-            width=35,
-            state="readonly"
+        self.create_left_panel_label(self.item_frame, text="Item:").grid(
+            row=0, column=2, padx=5, pady=5, sticky=tk.W
         )
-        self.menu_combo.grid(row=0, column=1, padx=5, sticky=tk.W+tk.E)
+        
+        self.menu_combo = self.create_left_panel_combobox(
+            self.item_frame,
+            width=35
+        )
+        self.menu_combo.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W+tk.E)
+        
+        self.create_left_panel_label(self.item_frame, text="Qty:").grid(
+            row=0, column=4, padx=5, pady=5, sticky=tk.W
+        )
         
         self.quantity_var = tk.StringVar(value="1")
         self.quantity_spin = ttk.Spinbox(
             self.item_frame,
             from_=1, to=99,
             textvariable=self.quantity_var,
-            width=8
+            width=8,
+            font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE)
         )
-        self.quantity_spin.grid(row=0, column=2, padx=5)
+        self.quantity_spin.grid(row=0, column=5, padx=5, pady=5)
         
-        self.add_btn = ttk.Button(
+        self.add_btn = self.create_left_panel_button(
             self.item_frame,
             text="ADD",
             command=self.add_item,
-            width=10
+            button_type="primary"
         )
-        self.add_btn.grid(row=0, column=3, padx=5)
+        self.add_btn.grid(row=0, column=6, padx=5, pady=5)
         
         # Row 1: Shortcode | Search | Clear | Clear Order
+        self.create_left_panel_label(self.item_frame, text="Shortcode:", style_type="small").grid(
+            row=1, column=0, padx=5, pady=5, sticky=tk.W
+        )
+        
         self.shortcode_var = tk.StringVar()
-        self.shortcode_entry = ttk.Entry(
+        self.shortcode_entry = self.create_left_panel_entry(
             self.item_frame,
             textvariable=self.shortcode_var,
             width=15
@@ -407,44 +422,39 @@ class OrderScreen(BaseUI):
         self.shortcode_entry.bind("<KeyRelease>", self.on_shortcode_changed)
         self.shortcode_entry.bind("<Return>", self.add_item_by_shortcode)
         
-        # Add shortcode label
-        shortcode_label = ttk.Label(
-            self.item_frame,
-            text="Shortcode:",
-            font=('Arial', 9)
-        )
-        shortcode_label.grid(
-            row=1, column=0,
-            padx=5, sticky=tk.W, pady=(5, 0)
+        self.create_left_panel_label(self.item_frame, text="Search:").grid(
+            row=1, column=1, padx=5, pady=5, sticky=tk.W
         )
         
         self.search_var = tk.StringVar()
-        self.search_entry = ttk.Entry(
+        self.search_entry = self.create_left_panel_entry(
             self.item_frame,
             textvariable=self.search_var
         )
         self.search_entry.grid(
             row=1, column=1,
-            padx=5, pady=5, sticky=tk.W+tk.E
+            padx=5, pady=5, sticky=tk.W+tk.E, columnspan=2
         )
         self.search_entry.bind("<KeyRelease>", self.search_menu_items)
         
-        self.clear_search_btn = ttk.Button(
+        self.clear_search_btn = self.create_left_panel_button(
             self.item_frame,
             text="Clear",
-            command=self.clear_menu_search
+            command=self.clear_menu_search,
+            button_type="secondary"
         )
-        self.clear_search_btn.grid(row=1, column=2, padx=5, pady=5)
+        self.clear_search_btn.grid(row=1, column=3, padx=5, pady=5)
         
-        self.clear_order_btn = ttk.Button(
+        self.clear_order_btn = self.create_left_panel_button(
             self.item_frame,
             text="Clear Order",
-            command=self.clear_current_order
+            command=self.clear_current_order,
+            button_type="danger"
         )
-        self.clear_order_btn.grid(row=1, column=3, padx=5, pady=5)
+        self.clear_order_btn.grid(row=1, column=4, padx=5, pady=5, columnspan=3)
         
     def create_status_control_frame(self):
-        """Create status control strip with clickable buttons"""
+        """Create status control strip with clickable buttons using enhanced fonts"""
         self.status_frame = ttk.LabelFrame(
             self.left_panel, 
             text="Order Status", 
@@ -455,18 +465,18 @@ class OrderScreen(BaseUI):
         # Status buttons
         self.status_buttons = {}
         status_options = [
-            ("new", "New", "#808080"),
-            ("in_progress", "In Progress", "#FFA500"),
-            ("ready", "Ready", "#008000"),
-            ("completed", "Completed", "#0000FF")
+            ("new", "New"),
+            ("in_progress", "In Progress"),
+            ("ready", "Ready"),
+            ("completed", "Completed")
         ]
         
-        for i, (key, text, color) in enumerate(status_options):
-            btn = ttk.Button(
+        for i, (key, text) in enumerate(status_options):
+            btn = self.create_left_panel_status_button(
                 self.status_frame,
                 text=text,
                 command=lambda k=key: self.set_order_status(k),
-                width=15
+                is_active=(key == "new")  # New order starts as active
             )
             btn.grid(row=0, column=i, padx=5, pady=5)
             self.status_buttons[key] = btn
@@ -483,7 +493,7 @@ class OrderScreen(BaseUI):
         self.create_action_buttons_frame()
         
     def create_active_orders_frame(self):
-        """Create active orders treeview"""
+        """Create active orders treeview with enhanced styling"""
         self.orders_frame = ttk.LabelFrame(
             self.right_panel, 
             text="Active Orders", 
@@ -496,7 +506,8 @@ class OrderScreen(BaseUI):
             self.orders_frame,
             columns=("item", "quantity", "price", "total"),
             show="headings",
-            height=8
+            height=8,
+            style="Modern.Treeview"
         )
         
         # Configure columns
@@ -521,11 +532,11 @@ class OrderScreen(BaseUI):
         self.order_tree.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Info strip
-        self.info_label = ttk.Label(
+        # Info strip with enhanced font
+        self.info_label = self.create_left_panel_label(
             self.orders_frame,
             text="Items: 0 | Status: New",
-            font=('Arial', 9, 'bold')
+            style_type="medium"
         )
         self.info_label.pack(fill=tk.X, pady=(5, 0))
         
@@ -533,36 +544,36 @@ class OrderScreen(BaseUI):
         self.order_tree.bind("<Button-3>", self.show_item_context_menu)
         
     def create_financial_breakdown_frame(self):
-        """Create receipt-style financial breakdown"""
+        """Create receipt-style financial breakdown with enhanced fonts"""
         self.financial_frame = ttk.Frame(self.right_panel)
         self.financial_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Right-aligned labels
-        self.subtotal_label = ttk.Label(
+        # Right-aligned labels with enhanced fonts
+        self.subtotal_label = self.create_left_panel_label(
             self.financial_frame, 
-            text="Subtotal:     Rs.0.00", 
-            font=('Arial', 10)
+            text=f"Subtotal:     Rs.{self.subtotal:.2f}", 
+            style_type="large"
         )
         self.subtotal_label.pack(anchor=tk.E, pady=2)
         
-        self.cgst_label = ttk.Label(
+        self.cgst_label = self.create_left_panel_label(
             self.financial_frame, 
             text="CGST (2.5%):  Rs.0.00", 
-            font=('Arial', 9)
+            style_type="medium"
         )
         self.cgst_label.pack(anchor=tk.E, pady=1)
         
-        self.sgst_label = ttk.Label(
+        self.sgst_label = self.create_left_panel_label(
             self.financial_frame, 
             text="SGST (2.5%):  Rs.0.00", 
-            font=('Arial', 9)
+            style_type="medium"
         )
         self.sgst_label.pack(anchor=tk.E, pady=1)
         
-        self.discount_label = ttk.Label(
+        self.discount_label = self.create_left_panel_label(
             self.financial_frame, 
             text="Discount:   - Rs.0.00", 
-            font=('Arial', 10)
+            style_type="large"
         )
         self.discount_label.pack(anchor=tk.E, pady=2)
         
@@ -570,52 +581,51 @@ class OrderScreen(BaseUI):
         separator = ttk.Separator(self.financial_frame, orient='horizontal')
         separator.pack(fill=tk.X, pady=5)
         
-        self.total_label = ttk.Label(
+        self.total_label = self.create_left_panel_label(
             self.financial_frame, 
-            text="TOTAL:        Rs.0.00", 
-            font=('Arial', 12, 'bold')
+            text=f"TOTAL:        Rs.{self.total:.2f}", 
+            style_type="large"
         )
         self.total_label.pack(anchor=tk.E, pady=2)
         
     def create_action_buttons_frame(self):
-        """Create action buttons row"""
+        """Create action buttons row with enhanced fonts"""
         self.action_frame = ttk.Frame(self.right_panel)
         self.action_frame.pack(fill=tk.X)
         
         # Discount button
-        self.discount_btn = ttk.Button(
+        self.discount_btn = self.create_left_panel_button(
             self.action_frame,
             text="Apply Discount",
             command=self.apply_discount,
-            width=15
+            button_type="secondary"
         )
         self.discount_btn.pack(side=tk.LEFT, padx=5)
         
         # Export button
-        self.export_btn = ttk.Button(
+        self.export_btn = self.create_left_panel_button(
             self.action_frame,
             text="Export Order",
             command=self.export_order,
-            width=15
+            button_type="secondary"
         )
         self.export_btn.pack(side=tk.LEFT, padx=5)
         
         # Process payment button (emphasized)
-        self.payment_btn = ttk.Button(
+        self.payment_btn = self.create_left_panel_button(
             self.action_frame,
             text="PROCESS PAYMENT",
             command=self.process_payment,
-            width=18,
-            style='Accent.TButton'
+            button_type="primary"
         )
         self.payment_btn.pack(side=tk.RIGHT, padx=5)
         
         # KOT Window button
-        self.kot_window_btn = ttk.Button(
+        self.kot_window_btn = self.create_left_panel_button(
             self.action_frame,
             text="🍳 KOT Window",
             command=self.open_kot_window,
-            width=15
+            button_type="secondary"
         )
         self.kot_window_btn.pack(side=tk.RIGHT, padx=5)
         
@@ -669,10 +679,15 @@ class OrderScreen(BaseUI):
         current_status = current_order['status']
         
         for status_key, button in self.status_buttons.items():
-            if status_key == current_status:
-                button.configure(style='ActiveStatus.TButton')
-            else:
-                button.configure(style='TButton')
+            is_active = (status_key == current_status)
+            button = self.create_left_panel_status_button(
+                button.master,
+                text=c["text"],  # We need to get the original text
+                command=button['command'],
+                is_active=is_active
+            )
+            # Update the reference
+            self.status_buttons[status_key] = button
                 
     def logout(self):
         """Handle user logout"""
@@ -1044,13 +1059,6 @@ class OrderScreen(BaseUI):
                 self.info_label.config(text=info_text)
             else:
                 self.info_label.config(text="Items: 0 | Status: New")
-            
-            # Update payment button state based on order items
-            if hasattr(self, 'payment_btn'):
-                if current_order and current_order['items']:
-                    self.payment_btn.config(state='normal')
-                else:
-                    self.payment_btn.config(state='disabled')
             
             # Update payment button state based on order items
             if hasattr(self, 'payment_btn'):
@@ -1568,7 +1576,6 @@ class OrderScreen(BaseUI):
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save order: {e}")
             print(f"Save order with payment error: {e}")
-    # Remove duplicate method - real implementation is above
     
     def export_order(self):
         """Export current order without saving"""
@@ -1586,375 +1593,6 @@ class OrderScreen(BaseUI):
         
         if result:
             self._process_export(order_data, result)
-    def save_order(self, print_bill=False, export_order=False):
-        """Save the order"""
-        try:
-            if not self.order_items:
-                messagebox.showwarning("Warning", "No items in order")
-                return
-            
-            # Get order details
-            order_type = self.order_type.get()
-            table_id = None
-            
-            if order_type == "Dine-in":
-                table_selection = self.table_combo.get()
-                if table_selection:
-                    table_number = table_selection.split(" ")[1]
-                    tables = self.app.table_model.get_all()
-                    for table in tables:
-                        if str(table[1]) == table_number:
-                            table_id = table[0]
-                            break
-                
-                if not table_id:
-                    messagebox.showwarning("Warning", "Please select a table")
-                    return
-            
-            customer_name = self.customer_entry.get().strip()
-            customer_mobile = self.mobile_entry.get().strip()
-            
-            if order_type == "Takeaway" and not customer_name:
-                messagebox.showwarning("Warning", "Please enter customer name for takeaway order")
-                return
-            
-            # Generate order number
-            order_number = generate_order_number()
-            
-            # Create order using dictionary format
-            order_data = {
-                'order_number': order_number,
-                'table_id': table_id,
-                'customer_name': customer_name,
-                'customer_mobile': customer_mobile,
-                'order_type': order_type,
-                'subtotal': self.subtotal,
-                'tax': self.tax,
-                'discount': self.discount,
-                'total': self.total,
-                'items': [{'id': item['menu_item_id'], 'quantity': item['quantity'],
-                          'price': item['price'], 'total': item['total']}
-                         for item in self.order_items]
-            }
-            
-            order_id = self.app.order_model.create(order_data)
-            if not order_id:
-                messagebox.showerror("Error", "Failed to create order")
-                return
-            
-            # Add order items
-            for item in self.order_items:
-                self.app.order_model.add_item(
-                    order_id,
-                    item['menu_item_id'],
-                    item['quantity'],
-                    item['price'],
-                    item['total']
-                )
-                
-                # Update stock
-                menu_item = self.app.menu_item_model.get_by_id(item['menu_item_id'])
-                if menu_item:
-                    # menu_item contains: name, price, category_id, stock_quantity, image_path, shortcode, category_name
-                    name, price, category_id, stock_quantity, image_path, shortcode, category_name = menu_item
-                    new_stock = stock_quantity - item['quantity']
-                    self.app.menu_item_model.update_stock(item['menu_item_id'], new_stock)
-            
-            # Add payment (default to cash for now)
-            self.app.order_model.add_payment(order_id, "Cash", self.total)
-            
-            # Update table status if dine-in
-            if order_type == "Dine-in" and table_id:
-                self.app.table_model.update_status(table_id, "Occupied")
-            
-            # Show success message
-            messagebox.showinfo("Success", f"Order {order_number} saved successfully!")
-            
-            # Print bill if requested
-            if print_bill:
-                self.print_bill(order_id)
-            
-            # Handle export based on settings and parameters
-            self._handle_post_payment_export(order_id, export_order)
-            
-            # Clear order and refresh
-            self.clear_order()
-            
-            # Dispatch events
-            event_dispatcher.order_created(order_id)
-            event_dispatcher.inventory_updated(None, None)  # Trigger inventory refresh
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to save order: {e}")
-    
-    def save_and_print_order(self):
-        """Save order and print bill"""
-        self.save_order(print_bill=True)
-    
-    def save_and_export_order(self):
-        """Save order and export with options"""
-        self.save_order(export_order=True)
-    
-    def print_bill(self, order_id):
-        """Print bill for the order"""
-        try:
-            from src.ui.printer_dialog import PrinterSelectionDialog
-            from src.utils.printer import PrinterManager
-            
-            # Show printer selection dialog
-            dialog = PrinterSelectionDialog(self.root, self.app.settings, "bill")
-            result = dialog.get_result()
-            
-            if result:
-                # Prepare bill data
-                bill_data = self._prepare_bill_data(order_id)
-                
-                # Print the bill
-                printer_manager = PrinterManager(self.app.settings)
-                success = printer_manager.print_bill(
-                    bill_data,
-                    result['printer_type'],
-                    result['printer_name']
-                )
-                
-                if success:
-                    messagebox.showinfo("Success", "Bill printed successfully!")
-                else:
-                    messagebox.showerror("Error", "Failed to print bill")
-                    
-        except Exception as e:
-            messagebox.showerror("Error", f"Print error: {e}")
-    
-    def _prepare_bill_data(self, order_id):
-        """Prepare bill data for printing"""
-        try:
-            # Get order details
-            order_details = self.app.order_model.get_details(order_id)
-            if not order_details:
-                return {}
-            
-            order_number, table_id, customer_name, customer_mobile, order_type, subtotal, tax, discount, total, created_at, status = order_details
-            
-            # Get table number if dine-in
-            table_number = None
-            if table_id:
-                tables = self.app.table_model.get_all()
-                for table in tables:
-                    if table[0] == table_id:
-                        table_number = table[1]
-                        break
-            
-            # Get order items
-            items = self.app.order_model.get_items(order_id)
-            
-            # Format items for printing
-            formatted_items = []
-            for item in items:
-                name, quantity, price, item_total, item_status = item
-                formatted_items.append((name, quantity, price, item_total))
-            
-            return {
-                'restaurant_name': self.app.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
-                'restaurant_address': self.app.settings.get('restaurant_address', DEFAULT_RESTAURANT_ADDRESS),
-                'order_number': order_number,
-                'date': created_at,
-                'order_type': order_type,
-                'table_number': table_number,
-                'customer_name': customer_name,
-                'customer_mobile': customer_mobile,
-                'items': formatted_items,
-                'subtotal': subtotal,
-                'tax': tax,
-                'discount': discount,
-                'total': total,
-                'tax_rate': float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE))
-            }
-            
-        except Exception as e:
-            print(f"Error preparing bill data: {e}")
-            return {}
-    
-    def _handle_post_payment_export(self, order_id, manual_export=False):
-        """Handle export after payment completion based on settings"""
-        try:
-            # Get export settings
-            export_after_payment = self.app.settings.get('export_after_payment', 'false').lower() == 'true'
-            default_export_format = self.app.settings.get('default_export_format', 'none')
-            show_export_dialog = self.app.settings.get('show_export_dialog', 'true').lower() == 'true'
-            
-            # Skip if auto-export is disabled and this is not a manual export
-            if not export_after_payment and not manual_export:
-                return
-            
-            # If manual export or dialog is enabled, show export dialog
-            if manual_export or show_export_dialog:
-                self.export_order_with_id(order_id)
-            else:
-                # Auto-export with default format
-                if default_export_format != 'none':
-                    self._auto_export_order(order_id, default_export_format)
-                    
-        except Exception as e:
-            # Export failures should not affect payment completion
-            print(f"Export error (non-critical): {e}")
-    
-    def _auto_export_order(self, order_id, export_format):
-        """Automatically export order in specified format"""
-        try:
-            # Get order details
-            order_details = self.app.order_model.get_details(order_id)
-            if not order_details:
-                print(f"Order {order_id} not found for auto-export")
-                return
-            
-            # Prepare order data for export
-            order_data = self._prepare_export_data_from_details(order_details)
-            
-            # Export based on format
-            if export_format == 'pdf':
-                if self.pdf_exporter is None:
-                    print(f"Cannot auto-export order {order_id} to PDF: ReportLab library is not installed")
-                    return
-                success, result = self.pdf_exporter.export_order(order_data)
-                if success:
-                    print(f"Order {order_id} auto-exported to PDF: {result}")
-                else:
-                    print(f"Failed to auto-export order {order_id} to PDF: {result}")
-                    
-            elif export_format == 'text':
-                success, result = self.text_exporter.export_order(order_data)
-                if success:
-                    print(f"Order {order_id} auto-exported to Text: {result}")
-                else:
-                    print(f"Failed to auto-export order {order_id} to Text: {result}")
-                    
-            elif export_format == 'both':
-                # Export both formats
-                if self.pdf_exporter is None:
-                    print(f"Cannot auto-export order {order_id} to PDF: ReportLab library is not installed")
-                    pdf_success = False
-                    pdf_result = "ReportLab not available"
-                else:
-                    pdf_success, pdf_result = self.pdf_exporter.export_order(order_data)
-                
-                text_success, text_result = self.text_exporter.export_order(order_data)
-                
-                if pdf_success:
-                    print(f"Order {order_id} auto-exported to PDF: {pdf_result}")
-                else:
-                    print(f"Failed to auto-export order {order_id} to PDF: {pdf_result}")
-                    
-                if text_success:
-                    print(f"Order {order_id} auto-exported to Text: {text_result}")
-                else:
-                    print(f"Failed to auto-export order {order_id} to Text: {text_result}")
-                    
-        except Exception as e:
-            print(f"Auto-export error for order {order_id}: {e}")
-    
-    def _prepare_export_data_from_details(self, order_details):
-        """Prepare order data for export from order details"""
-        order = order_details['order']
-        items = order_details['items']
-        payments = order_details['payments']
-        
-        # Get table number if dine-in
-        table_number = None
-        if order[1]:  # table_id exists
-            tables = self.app.table_model.get_all()
-            for table in tables:
-                if table[0] == order[1]:
-                    table_number = table[1]
-                    break
-        
-        return {
-            'order_number': order[0],
-            'table_number': table_number,
-            'customer_name': order[2],
-            'customer_mobile': order[3],
-            'order_type': order[4],
-            'status': order[10],
-            'subtotal': order[5],
-            'tax': order[6],
-            'discount': order[7],
-            'total': order[8],
-            'tax_rate': float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE)),
-            'items': items,
-            'payments': payments,
-            'created_at': order[9]
-        }
-    
-    def export_order_with_id(self, order_id):
-        """Export saved order by ID"""
-        try:
-            # Get order details
-            order_details = self.app.order_model.get_details(order_id)
-            if not order_details:
-                messagebox.showerror("Error", "Order not found")
-                return
-            
-            # Prepare order data for export
-            order_data = self._prepare_export_data_from_details(order_details)
-            
-            # Show export dialog
-            dialog = ExportDialog(self.root, self.app.settings, order_data)
-            result = dialog.get_result()
-            
-            if result:
-                self._process_export(order_data, result)
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to export order: {e}")
-    
-    def _process_export(self, order_data, export_options):
-        """Process the export with selected options"""
-        try:
-            exported_files = []
-            
-            # Export to PDF if selected
-            if export_options['export_pdf']:
-                success, result = self.pdf_exporter.export_order(order_data)
-                if success:
-                    exported_files.append(result)
-                    if export_options.get('auto_open'):
-                        self._open_file(result)
-                else:
-                    messagebox.showerror("Export Error", f"Failed to export PDF: {result}")
-                    return
-            
-            # Export to Text if selected
-            if export_options['export_text']:
-                success, result = self.text_exporter.export_order(order_data)
-                if success:
-                    exported_files.append(result)
-                    if export_options.get('auto_open'):
-                        self._open_file(result)
-                else:
-                    messagebox.showerror("Export Error", f"Failed to export Text: {result}")
-                    return
-            
-            # Show success message
-            if exported_files:
-                file_count = len(exported_files)
-                messagebox.showinfo(
-                    "Export Successful",
-                    f"Order exported successfully to {file_count} file{'s' if file_count > 1 else ''}!"
-                )
-            else:
-                messagebox.showwarning("Export Warning", "No files were exported")
-                
-        except Exception as e:
-            messagebox.showerror("Export Error", f"An error occurred during export: {e}")
-    
-    def _open_file(self, filepath):
-        """Open file with default application"""
-        try:
-            if os.name == 'nt':  # Windows
-                os.startfile(filepath)
-            elif os.name == 'posix':  # macOS and Linux
-                subprocess.run(['open', filepath], check=True)
-        except Exception as e:
-            print(f"Failed to open file: {e}")
     
     def clear_order(self):
         """Clear current order (legacy method - redirects to clear_current_order)"""
@@ -2034,10 +1672,9 @@ class EnhancedPaymentDialog:
             title_frame = ttk.Frame(main_frame)
             title_frame.pack(fill=tk.X, pady=(0, 20))
             
-            ttk.Label(title_frame, text="Payment Processing",
-                     font=('Arial', 16, 'bold')).pack(anchor=tk.W)
-            ttk.Label(title_frame, text=f"Total Amount: Rs.{self.total_amount:.2f}",
-                     font=('Arial', 14, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+            self.create_left_panel_header(title_frame, text="Payment Processing").pack(anchor=tk.W)
+            self.create_left_panel_label(title_frame, text=f"Total Amount: Rs.{self.total_amount:.2f}", 
+                                      style_type="large").pack(anchor=tk.W, pady=(10, 0))
             
             # Payment method selection
             method_frame = ttk.LabelFrame(main_frame, text="Payment Method", padding=10)
@@ -2045,33 +1682,34 @@ class EnhancedPaymentDialog:
             
             self.payment_method_var = tk.StringVar(value=self.payment_methods[0])
             
-            # Create radio buttons for payment methods
+            # Create radio buttons for payment methods with enhanced fonts
             for i, method in enumerate(self.payment_methods):
                 row = i // 2
                 col = i % 2
-                ttk.Radiobutton(method_frame, text=method, variable=self.payment_method_var,
-                               value=method, command=self.on_payment_method_change).grid(
-                    row=row, column=col, sticky=tk.W, padx=10, pady=5)
+                radiobutton = ttk.Radiobutton(method_frame, text=method, variable=self.payment_method_var, 
+                                           value=method, command=self.on_payment_method_change)
+                radiobutton.grid(row=row, column=col, sticky=tk.W, padx=10, pady=5)
             
             # Amount details
             details_frame = ttk.LabelFrame(main_frame, text="Payment Details", padding=10)
             details_frame.pack(fill=tk.X, pady=(0, 15))
             
             # Discount
-            ttk.Label(details_frame, text="Discount (Rs):").grid(row=0, column=0, sticky=tk.W, pady=5)
+            self.create_left_panel_label(details_frame, text="Discount (Rs):").grid(row=0, column=0, sticky=tk.W, pady=5)
             self.discount_var = tk.StringVar(value="0")
-            discount_entry = ttk.Entry(details_frame, textvariable=self.discount_var, width=15)
+            discount_entry = self.create_left_panel_entry(details_frame, textvariable=self.discount_var, width=15)
             discount_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
             
             # Amount paid
-            ttk.Label(details_frame, text="Amount Paid (Rs):").grid(row=1, column=0, sticky=tk.W, pady=5)
+            self.create_left_panel_label(details_frame, text="Amount Paid (Rs):").grid(row=1, column=0, sticky=tk.W, pady=5)
             self.amount_paid_var = tk.StringVar(value=str(self.total_amount))
-            amount_paid_entry = ttk.Entry(details_frame, textvariable=self.amount_paid_var, width=15)
+            amount_paid_entry = self.create_left_panel_entry(details_frame, textvariable=self.amount_paid_var, width=15)
             amount_paid_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
             
             # Balance
-            ttk.Label(details_frame, text="Balance (Rs):").grid(row=2, column=0, sticky=tk.W, pady=5)
-            self.balance_label = ttk.Label(details_frame, text="Rs.0.00", font=('Arial', 10, 'bold'))
+            self.create_left_panel_label(details_frame, text="Balance (Rs):").grid(row=2, column=0, sticky=tk.W, pady=5)
+            self.balance_label = self.create_left_panel_label(details_frame, text="Rs.0.00", 
+                                                           style_type="large")
             self.balance_label.grid(row=2, column=1, sticky=tk.W, pady=5)
             
             # Update calculations when values change
@@ -2089,12 +1727,12 @@ class EnhancedPaymentDialog:
             button_frame = ttk.Frame(main_frame)
             button_frame.pack(fill=tk.X, pady=(10, 0))
             
-            # Create buttons with explicit side and padding
-            cancel_btn = ttk.Button(button_frame, text="Cancel", command=self.cancel)
-            cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
+            # Create buttons with enhanced fonts
+            self.create_left_panel_button(button_frame, text="Cancel", command=self.cancel, 
+                                        button_type="secondary").pack(side=tk.RIGHT, padx=(5, 0))
             
-            process_btn = ttk.Button(button_frame, text="Process Payment", command=self.process)
-            process_btn.pack(side=tk.RIGHT)
+            self.create_left_panel_button(button_frame, text="Process Payment", command=self.process, 
+                                        button_type="primary").pack(side=tk.RIGHT)
             
             # Force UI update to ensure buttons are visible
             self.dialog.update_idletasks()
@@ -2123,36 +1761,43 @@ class EnhancedPaymentDialog:
             method = self.payment_method_var.get()
             
             if method == "Card":
-                ttk.Label(self.method_fields_frame, text="Card Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.create_left_panel_label(self.method_fields_frame, text="Card Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.card_number_var = tk.StringVar()
-                ttk.Entry(self.method_fields_frame, textvariable=self.card_number_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                card_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.card_number_var, width=20)
+                card_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
                 
-                ttk.Label(self.method_fields_frame, text="Expiry:").grid(row=1, column=0, sticky=tk.W, pady=5)
+                self.create_left_panel_label(self.method_fields_frame, text="Expiry:").grid(row=1, column=0, sticky=tk.W, pady=5)
                 self.expiry_var = tk.StringVar()
-                ttk.Entry(self.method_fields_frame, textvariable=self.expiry_var, width=10).grid(row=1, column=1, sticky=tk.W, pady=5)
+                expiry_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.expiry_var, width=10)
+                expiry_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
                 
             elif method == "UPI":
-                ttk.Label(self.method_fields_frame, text="UPI ID:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.create_left_panel_label(self.method_fields_frame, text="UPI ID:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.upi_id_var = tk.StringVar()
-                ttk.Entry(self.method_fields_frame, textvariable=self.upi_id_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                upi_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.upi_id_var, width=20)
+                upi_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
                 
             elif method == "Wallet":
-                ttk.Label(self.method_fields_frame, text="Wallet Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.create_left_panel_label(self.method_fields_frame, text="Wallet Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.wallet_number_var = tk.StringVar()
-                ttk.Entry(self.method_fields_frame, textvariable=self.wallet_number_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                wallet_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.wallet_number_var, width=20)
+                wallet_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
                 
             elif method == "Credit":
-                ttk.Label(self.method_fields_frame, text="Customer Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.create_left_panel_label(self.method_fields_frame, text="Customer Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.credit_customer_var = tk.StringVar()
-                ttk.Entry(self.method_fields_frame, textvariable=self.credit_customer_var, width=20).grid(row=0, column=1, sticky=tk.W, pady=5)
+                credit_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.credit_customer_var, width=20)
+                credit_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
                 
             elif method == "Cash":
-                ttk.Label(self.method_fields_frame, text="Cash Received:").grid(row=0, column=0, sticky=tk.W, pady=5)
+                self.create_left_panel_label(self.method_fields_frame, text="Cash Received:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.cash_received_var = tk.StringVar(value=str(self.total_amount))
-                ttk.Entry(self.method_fields_frame, textvariable=self.cash_received_var, width=15).grid(row=0, column=1, sticky=tk.W, pady=5)
+                cash_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.cash_received_var, width=15)
+                cash_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
                 
-                ttk.Label(self.method_fields_frame, text="Change:").grid(row=1, column=0, sticky=tk.W, pady=5)
-                self.change_label = ttk.Label(self.method_fields_frame, text="Rs.0.00", font=('Arial', 10, 'bold'))
+                self.create_left_panel_label(self.method_fields_frame, text="Change:").grid(row=1, column=0, sticky=tk.W, pady=5)
+                self.change_label = self.create_left_panel_label(self.method_fields_frame, text="Rs.0.00", 
+                                                               style_type="large")
                 self.change_label.grid(row=1, column=1, sticky=tk.W, pady=5)
             
             # Force UI update to ensure layout is correct
@@ -2206,19 +1851,19 @@ class EnhancedPaymentDialog:
             # Validate payment method specific fields
             method = self.payment_method_var.get()
             if method == "Card":
-                if not self.card_number_var.get().strip():
+                if not getattr(self, 'card_number_var', None) or not self.card_number_var.get().strip():
                     messagebox.showerror("Error", "Please enter card number")
                     return
             elif method == "UPI":
-                if not self.upi_id_var.get().strip():
+                if not getattr(self, 'upi_id_var', None) or not self.upi_id_var.get().strip():
                     messagebox.showerror("Error", "Please enter UPI ID")
                     return
             elif method == "Wallet":
-                if not self.wallet_number_var.get().strip():
+                if not getattr(self, 'wallet_number_var', None) or not self.wallet_number_var.get().strip():
                     messagebox.showerror("Error", "Please enter wallet number")
                     return
             elif method == "Credit":
-                if not self.credit_customer_var.get().strip():
+                if not getattr(self, 'credit_customer_var', None) or not self.credit_customer_var.get().strip():
                     messagebox.showerror("Error", "Please enter customer name")
                     return
             

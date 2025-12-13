@@ -184,6 +184,9 @@ class BaseUI:
         
         # Configure modern styles based on design system
         self._configure_modern_styles(style)
+        
+        # Configure left panel enhanced styles
+        self._configure_left_panel_styles(style)
     
     def _configure_modern_styles(self, style):
         """Configure modern styling based on design system"""
@@ -288,7 +291,7 @@ class BaseUI:
                        font=(FONT_FAMILY_PRIMARY, 12))
         style.map("Modern.TEntry",
                  bordercolor=[('focus', COLOR_PRIMARY),
-                            ('!focus', COLOR_BORDER_MEDIUM)],
+                            ('!focus', COLOR_BORDER_MEDIUM) ],
                  borderwidth=[('focus', 2),
                             ('!focus', 1)])
         
@@ -301,7 +304,7 @@ class BaseUI:
                        font=(FONT_FAMILY_PRIMARY, 12))
         style.map("Modern.TCombobox",
                  bordercolor=[('focus', COLOR_PRIMARY),
-                            ('!focus', COLOR_BORDER_MEDIUM)],
+                            ('!focus', COLOR_BORDER_MEDIUM) ],
                  borderwidth=[('focus', 2),
                             ('!focus', 1)])
         
@@ -321,14 +324,139 @@ class BaseUI:
                        font=(FONT_FAMILY_PRIMARY, 10, 'bold'))
         
         style.map("Modern.Treeview",
-                 background=[('selected', COLOR_PRIMARY_LIGHT)],
-                 foreground=[('selected', COLOR_CARD_WHITE)])
+                 background=[('selected', COLOR_PRIMARY_LIGHT) ],
+                 foreground=[('selected', COLOR_CARD_WHITE) ])
         
         # Table Card Shadow Effect
         style.configure("Shadow.TFrame",
                        background=COLOR_SHADOW,
                        borderwidth=0,
                        relief='flat')
+    
+    def _configure_left_panel_styles(self, style):
+        """Configure enhanced left panel styles for better readability"""
+        
+        # Left Panel Enhanced Label Styles
+        style.configure("LeftPanel.Header.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_PRIMARY_DARK,
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_HEADER, 'bold'))
+        
+        style.configure("LeftPanel.Medium.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_PRIMARY,
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_MEDIUM, 'normal'))
+        
+        style.configure("LeftPanel.Large.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_PRIMARY,
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE, 'bold'))
+        
+        style.configure("LeftPanel.Regular.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_PRIMARY,
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_REGULAR, 'normal'))
+        
+        style.configure("LeftPanel.Small.TLabel",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_SECONDARY,
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_SMALL, 'normal'))
+        
+        # Left Panel Enhanced Entry Styles
+        style.configure("LeftPanel.Entry.TEntry",
+                       fieldbackground=COLOR_CARD_WHITE,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=COLOR_BORDER_MEDIUM,
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE))
+        style.map("LeftPanel.Entry.TEntry",
+                 bordercolor=[('focus', COLOR_PRIMARY),
+                            ('!focus', COLOR_BORDER_MEDIUM) ],
+                 borderwidth=[('focus', 2),
+                            ('!focus', 1)])
+        
+        # Left Panel Enhanced Combobox Styles
+        style.configure("LeftPanel.Combobox.TCombobox",
+                       fieldbackground=COLOR_CARD_WHITE,
+                       borderwidth=1,
+                       relief='solid',
+                       bordercolor=COLOR_BORDER_MEDIUM,
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE))
+        style.map("LeftPanel.Combobox.TCombobox",
+                 bordercolor=[('focus', COLOR_PRIMARY),
+                            ('!focus', COLOR_BORDER_MEDIUM) ],
+                 borderwidth=[('focus', 2),
+                            ('!focus', 1)])
+        
+        # Left Panel Enhanced Button Styles
+        style.configure("LeftPanel.Primary.TButton",
+                       background=COLOR_PRIMARY,
+                       foreground=COLOR_CARD_WHITE,
+                       borderwidth=0,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE, 'bold'),
+                       padding=(12, 8))
+        style.map("LeftPanel.Primary.TButton",
+                 background=[('active', COLOR_PRIMARY_LIGHT),
+                           ('pressed', COLOR_PRIMARY_DARK)])
+        
+        style.configure("LeftPanel.Secondary.TButton",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_PRIMARY,
+                       borderwidth=1,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE, 'bold'),
+                       padding=(12, 8))
+        style.map("LeftPanel.Secondary.TButton",
+                 background=[('active', COLOR_PRIMARY),
+                           ('pressed', COLOR_PRIMARY_DARK)],
+                 foreground=[('active', COLOR_CARD_WHITE),
+                           ('pressed', COLOR_CARD_WHITE)])
+        
+        style.configure("LeftPanel.Success.TButton",
+                       background=COLOR_SUCCESS,
+                       foreground=COLOR_CARD_WHITE,
+                       borderwidth=0,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE, 'bold'),
+                       padding=(12, 8))
+        style.map("LeftPanel.Success.TButton",
+                 background=[('active', '#229954'),
+                           ('pressed', '#1e8449')])
+        
+        style.configure("LeftPanel.Danger.TButton",
+                       background=COLOR_ERROR,
+                       foreground=COLOR_CARD_WHITE,
+                       borderwidth=0,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE, 'bold'),
+                       padding=(12, 8))
+        style.map("LeftPanel.Danger.TButton",
+                 background=[('active', '#c0392b'),
+                           ('pressed', '#a93226')])
+        
+        # Left Panel Status Button Styles
+        style.configure("LeftPanel.Status.TButton",
+                       background=COLOR_CARD_WHITE,
+                       foreground=COLOR_TEXT_PRIMARY,
+                       borderwidth=1,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE, 'bold'),
+                       padding=(12, 8))
+        style.map("LeftPanel.Status.TButton",
+                 background=[('active', COLOR_SELECTED),
+                           ('pressed', COLOR_PRIMARY)],
+                 foreground=[('active', COLOR_CARD_WHITE),
+                           ('pressed', COLOR_CARD_WHITE)])
+        
+        # Left Panel Active Status Button Styles
+        style.configure("LeftPanel.ActiveStatus.TButton",
+                       background=COLOR_PRIMARY,
+                       foreground=COLOR_CARD_WHITE,
+                       borderwidth=0,
+                       focuscolor='none',
+                       font=(FONT_FAMILY_PRIMARY, LEFT_PANEL_LARGE, 'bold'),
+                       padding=(12, 8))
     
     def create_modern_frame(self, parent, style="Card.TFrame", padding=SPACING_M):
         """Create a modern styled frame"""
@@ -425,6 +553,57 @@ class BaseUI:
         field.pack(fill=tk.X, padx=(SPACING_M, SPACING_M))
         
         return field
+    
+    def create_left_panel_header(self, parent, text):
+        """Create a left panel header label"""
+        return self.create_modern_label(parent, text, style="LeftPanel.Header.TLabel")
+    
+    def create_left_panel_label(self, parent, text, style_type="medium"):
+        """Create a left panel label with specified font size"""
+        style_map = {
+            "medium": "LeftPanel.Medium.TLabel",
+            "large": "LeftPanel.Large.TLabel", 
+            "regular": "LeftPanel.Regular.TLabel",
+            "small": "LeftPanel.Small.TLabel"
+        }
+        style = style_map.get(style_type, "LeftPanel.Medium.TLabel")
+        return self.create_modern_label(parent, text, style=style)
+    
+    def create_left_panel_entry(self, parent, **kwargs):
+        """Create a left panel enhanced entry widget"""
+        return ttk.Entry(parent, style="LeftPanel.Entry.TEntry", **kwargs)
+    
+    def create_left_panel_combobox(self, parent, textvariable=None, values=None, **kwargs):
+        """Create a left panel enhanced combobox widget"""
+        if textvariable is None:
+            textvariable = tk.StringVar()
+        
+        if values is None:
+            values = []
+        
+        return ttk.Combobox(parent, textvariable=textvariable, values=values, 
+                          state="readonly", style="LeftPanel.Combobox.TCombobox", **kwargs)
+    
+    def create_left_panel_button(self, parent, text, command, button_type="primary"):
+        """Create a left panel enhanced button widget"""
+        style_map = {
+            "primary": "LeftPanel.Primary.TButton",
+            "secondary": "LeftPanel.Secondary.TButton",
+            "success": "LeftPanel.Success.TButton",
+            "danger": "LeftPanel.Danger.TButton",
+            "status": "LeftPanel.Status.TButton"
+        }
+        style = style_map.get(button_type, "LeftPanel.Primary.TButton")
+        return ttk.Button(parent, text=text, command=command, style=style)
+    
+    def create_left_panel_status_button(self, parent, text, command, is_active=False):
+        """Create a left panel status button with active/inactive state"""
+        if is_active:
+            style = "LeftPanel.ActiveStatus.TButton"
+        else:
+            style = "LeftPanel.Status.TButton"
+        
+        return ttk.Button(parent, text=text, command=command, style=style)
     
     def create_separator(self, parent, orient=tk.HORIZONTAL, padding=SPACING_M):
         """Create a visual separator"""
