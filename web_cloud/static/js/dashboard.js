@@ -3,7 +3,7 @@ function dashboardData() {
     stats: window.dashboardStats || {},
 
     refreshStats() {
-      fetch("/stats")
+      fetch("/dashboard/stats")
         .then((response) => response.json())
         .then((data) => {
           this.stats = data;

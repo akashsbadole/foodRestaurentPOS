@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from datetime import datetime
 from models import db, Table, Order
 
 tables_bp = Blueprint('tables', __name__)
@@ -28,7 +29,7 @@ def add_table():
     try:
         data = request.get_json()
         table_number = data.get('table_number', '').strip()
-        capacity = data.get('capacity', type=int)
+        capacity = int(data.get('capacity', 0)) if data.get('capacity') else 0
         
         if not table_number or not capacity:
             return jsonify({'success': False, 'message': 'Table number and capacity are required'}), 400
@@ -57,7 +58,7 @@ def update_table():
         data = request.get_json()
         table_id = data.get('table_id')
         table_number = data.get('table_number', '').strip()
-        capacity = data.get('capacity', type=int)
+        capacity = int(data.get('capacity', 0)) if data.get('capacity') else 0
         
         if not table_id or not table_number or not capacity:
             return jsonify({'success': False, 'message': 'All fields are required'}), 400
@@ -118,30 +119,58 @@ def delete_table():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@tables_bp.route('/toggle_status', methods=['POST'])
+@tables_bp.route('/update_status/<int:table_id>', methods=['POST'])
 @login_required
-def toggle_status():
-    """Toggle table availability"""
+def update_status(table_id):
+    """Update table status"""
     try:
         data = request.get_json()
-        table_id = data.get('table_id')
+        new_status = data.get('status')
         
-        if not table_id:
-            return jsonify({'success': False, 'message': 'Table ID required'}), 400
+        if not new_status:
+            return jsonify({'success': False, 'message': 'Status is required'}), 400
+        
+        valid_statuses = ['Available', 'Occupied', 'Reserved', 'Maintenance']
+        if new_status not in valid_statuses:
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
         
         table = Table.query.get(table_id)
         if not table:
             return jsonify({'success': False, 'message': 'Table not found'}), 404
         
-        table.is_available = not table.is_available
+        old_status = table.status
+        table.status = new_status
+        table.updated_at = datetime.utcnow()
         db.session.commit()
-        
-        status = 'available' if table.is_available else 'occupied'
         
         return jsonify({
             'success': True,
             'table': table.to_dict(),
-            'message': f'Table marked as {status}'
+            'message': f'Table {table.table_number} status changed from {old_status} to {new_status}'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@tables_bp.route('/toggle_status/<int:table_id>', methods=['POST'])
+@login_required
+def toggle_status(table_id):
+    """Toggle table availability (legacy endpoint)"""
+    try:
+        table = Table.query.get(table_id)
+        if not table:
+            return jsonify({'success': False, 'message': 'Table not found'}), 404
+        
+        new_status = 'Occupied' if table.status == 'Available' else 'Available'
+        old_status = table.status
+        table.status = new_status
+        table.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'table': table.to_dict(),
+            'message': f'Table {table.table_number} status changed from {old_status} to {new_status}'
         })
         
     except Exception as e:

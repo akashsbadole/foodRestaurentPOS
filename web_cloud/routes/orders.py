@@ -15,12 +15,17 @@ def new_order():
     # Get menu items and categories for left panel
     menu_items = MenuItem.query.filter_by(is_active=True).all()
     categories = [cat for cat in Category.query.filter_by(is_active=True).all()]
-    tables = Table.query.filter_by(is_available=True).all()
+    tables = Table.query.filter_by(status='Available', is_active=True).all()
+    
+    # Convert objects to dictionaries for JSON serialization
+    categories_dict = [{'id': cat.id, 'name': cat.name, 'description': cat.description, 'is_active': cat.is_active} for cat in categories]
+    menu_items_dict = [{'id': item.id, 'name': item.name, 'description': item.description, 'price': float(item.price), 'category_id': item.category_id, 'stock_quantity': item.stock_quantity, 'min_stock_level': item.min_stock_level, 'is_active': item.is_active} for item in menu_items]
+    tables_dict = [{'id': table.id, 'table_number': table.table_number, 'capacity': table.capacity, 'status': table.status, 'location': table.location, 'is_active': table.is_active} for table in tables]
     
     return render_template('orders/new.html',
-                        menu_items=menu_items,
-                        categories=categories,
-                        tables=tables)
+                        menu_items=menu_items_dict,
+                        categories=categories_dict,
+                        tables=tables_dict)
 
 @orders_bp.route('/list')
 @login_required
@@ -566,6 +571,47 @@ def generate_invoice(order_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@orders_bp.route('/print/<int:order_id>')
+@login_required
+def print_order(order_id):
+    """Print optimized bill for thermal printer"""
+    try:
+        order = Order.query.get_or_404(order_id)
+        settings = Settings.get_all_as_dict()
+        
+        # Get order items with menu item names
+        order_items = []
+        for item in order.items:
+            order_items.append({
+                'id': item.id,
+                'menu_item_id': item.menu_item_id,
+                'item_name': item.menu_item.name if item.menu_item else 'Unknown',
+                'quantity': item.quantity,
+                'price': float(item.price),
+                'total': float(item.price * item.quantity),
+                'special_instructions': item.special_instructions
+            })
+        
+        # Get payments
+        payments = []
+        for payment in order.payments:
+            payments.append({
+                'id': payment.id,
+                'payment_mode': payment.payment_mode,
+                'amount': float(payment.amount),
+                'created_at': payment.created_at,
+                'reference_number': payment.reference_number
+            })
+        
+        return render_template('orders/print.html',
+                            order=order,
+                            order_items=order_items,
+                            payments=payments,
+                            settings=settings)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 def generate_order_number():
     """Generate unique order number"""
     prefix = Settings.get('order_prefix', 'ORD')
@@ -587,3 +633,9 @@ def update_order_totals(order):
     order.sgst_amount = subtotal * Decimal('0.025')  # 2.5%
     order.grand_total = subtotal + order.cgst_amount + order.sgst_amount - order.discount_amount
     order.item_count = len(items)
+
+@orders_bp.route('/print-management')
+@login_required
+def print_management():
+    """Print management interface"""
+    return render_template('orders/print_management.html')

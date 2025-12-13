@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 from models import db, MenuItem
+from datetime import datetime
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -21,16 +22,24 @@ def index():
         )
     
     if filter_type == 'low_stock':
-        query = query.filter_by(is_low_stock=True)
+        query = query.filter(
+            MenuItem.stock_quantity <= MenuItem.min_stock_level,
+            MenuItem.stock_quantity > 0
+        )
     elif filter_type == 'out_of_stock':
-        query = query.filter_by(is_out_of_stock=True)
+        query = query.filter_by(stock_quantity=0)
     
     items = query.order_by(MenuItem.name).paginate(
         page=page, per_page=20, error_out=False
     )
     
-    return render_template('inventory/index.html', 
-                        items=items, 
+    # Convert items to dict before passing to template
+    items_dict = [item.to_dict() for item in items.items]
+    return render_template('inventory/index.html',
+                        items={'items': items_dict,
+                                'pages': items.pages,
+                                'has_next': items.has_next,
+                                'has_prev': items.has_prev},
                         search=search,
                         filter_type=filter_type)
 
@@ -41,7 +50,7 @@ def update_stock():
     try:
         data = request.get_json()
         item_id = data.get('item_id')
-        new_quantity = data.get('quantity', type=int)
+        new_quantity = int(data.get('quantity', 0)) if data.get('quantity') else 0
         
         if item_id is None or new_quantity is None:
             return jsonify({'success': False, 'message': 'Item ID and quantity required'}), 400
@@ -77,7 +86,7 @@ def add_stock():
         updated_items = []
         for item_data in items:
             item_id = item_data.get('item_id')
-            quantity = item_data.get('quantity', type=int)
+            quantity = int(item_data.get('quantity', 0)) if item_data.get('quantity') else 0
             
             if item_id and quantity:
                 menu_item = MenuItem.query.get(item_id)
@@ -104,13 +113,27 @@ def add_stock():
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@inventory_bp.route('/data')
+@login_required
+def get_data():
+    """Get all inventory items via AJAX"""
+    try:
+        items = MenuItem.query.filter_by(is_active=True).order_by(MenuItem.name).all()
+        return jsonify({
+            'success': True,
+            'items': [item.to_dict() for item in items]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @inventory_bp.route('/low_stock')
 @login_required
 def low_stock():
     """Get low stock items via AJAX"""
-    low_stock_items = MenuItem.query.filter_by(
-        is_low_stock=True, 
-        is_active=True
+    low_stock_items = MenuItem.query.filter(
+        MenuItem.stock_quantity <= MenuItem.min_stock_level,
+        MenuItem.stock_quantity > 0,
+        MenuItem.is_active == True
     ).order_by(MenuItem.stock_quantity).all()
     
     return jsonify({

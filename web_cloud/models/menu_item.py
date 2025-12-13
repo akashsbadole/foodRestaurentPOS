@@ -64,9 +64,18 @@ class MenuItem(db.Model):
         if new_quantity < 0:
             return False
         self.stock_quantity = new_quantity
+        self.update_stock_status()
         self.updated_at = datetime.utcnow()
         db.session.commit()
         return True
+    
+    def update_stock_status(self):
+        """Update stock status flags based on current stock level"""
+        # This method updates the status flags based on stock levels
+        # The actual status is determined by is_low_stock() and is_out_of_stock() methods
+        # No database fields to update since status is calculated dynamically
+        # Just update the timestamp to indicate status was checked
+        self.updated_at = datetime.utcnow()
     
     def to_dict(self):
         """Convert menu item to dictionary"""

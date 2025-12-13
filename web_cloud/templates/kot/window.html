@@ -1,428 +1,125 @@
-{% extends "base.html" %} {% block title %}Kitchen Order Tickets - Restaurant POS{%
-endblock %} {% block extra_css %}
+{% extends "base.html" %} 
+{% block title %}Kitchen Order Tickets - Restaurant POS{% endblock %} 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kot-modern.css') }}">
 <style>
+  /* Window-specific overrides */
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  
   .kot-window {
     height: 100vh;
-    background: #1a1a1a;
-    color: #ffffff;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    overflow: hidden;
+    background: var(--kot-dark);
+    color: var(--kot-light);
   }
-
+  
   .kot-header {
-    background: #2c3e50;
-    padding: 15px 20px;
-    border-bottom: 3px solid #3498db;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
+    background: var(--kot-primary);
+    border-bottom: 3px solid var(--kot-accent);
   }
-
-  .kot-title {
-    font-size: 24px;
-    font-weight: bold;
-    margin: 0;
-    color: #ecf0f1;
-  }
-
-  .kot-controls {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    margin-top: 10px;
-  }
-
-  .control-btn {
-    background: #3498db;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s ease;
-  }
-
-  .control-btn:hover {
-    background: #2980b9;
-    transform: translateY(-1px);
-  }
-
-  .control-btn.active {
-    background: #27ae60;
-  }
-
-  .filter-btn {
-    background: #34495e;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-right: 5px;
-    transition: all 0.3s ease;
-  }
-
-  .filter-btn:hover {
-    background: #2c3e50;
-  }
-
-  .filter-btn.active {
-    background: #3498db;
-  }
-
+  
   .kot-content {
-    display: flex;
-    height: calc(100vh - 120px);
-    overflow: hidden;
+    height: calc(100vh - 140px);
   }
-
+  
   .orders-column {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-    border-right: 1px solid #34495e;
+    background: rgba(44, 62, 80, 0.1);
   }
-
-  .orders-column:last-child {
-    border-right: none;
-  }
-
-  .column-header {
-    background: #34495e;
-    padding: 15px;
-    margin-bottom: 20px;
-    border-radius: 8px;
-    text-align: center;
-    font-size: 18px;
-    font-weight: bold;
-    position: sticky;
-    top: 0;
-  }
-
-  .new-orders .column-header {
-    background: #e74c3c;
-  }
-
-  .progress-orders .column-header {
-    background: #f39c12;
-  }
-
-  .ready-orders .column-header {
-    background: #27ae60;
-  }
-
+  
   .order-card {
-    background: #2c3e50;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    padding: 15px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    transition: all 0.3s ease;
-    cursor: pointer;
-    border-left: 5px solid #3498db;
+    background: var(--kot-secondary);
+    color: var(--kot-light);
+    border-left: 5px solid var(--time-green);
   }
-
+  
   .order-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    background: rgba(52, 73, 94, 0.8);
   }
-
-  .order-card.urgent {
-    border-left-color: #e74c3c;
-    background: #3d2c2c;
-  }
-
-  .order-card.medium-urgency {
-    border-left-color: #f39c12;
-    background: #3d3a2c;
-  }
-
+  
   .order-header {
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #34495e;
-    padding-bottom: 10px;
+    border-bottom-color: rgba(236, 240, 241, 0.1);
   }
-
+  
   .order-number {
-    font-size: 16px;
-    font-weight: bold;
-    color: #3498db;
+    color: var(--kot-accent);
   }
-
+  
   .order-time {
-    font-size: 12px;
-    color: #95a5a6;
+    color: var(--kot-gray);
   }
-
-  .order-meta {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    font-size: 14px;
-  }
-
+  
   .table-info {
-    color: #3498db;
-    font-weight: bold;
+    background: rgba(52, 152, 219, 0.2);
+    color: var(--kot-accent);
   }
-
-  .urgency-badge {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: bold;
-  }
-
-  .urgency-high {
-    background: #e74c3c;
-    color: white;
-  }
-
-  .urgency-medium {
-    background: #f39c12;
-    color: white;
-  }
-
-  .urgency-normal {
-    background: #27ae60;
-    color: white;
-  }
-
-  .order-items {
-    margin-bottom: 10px;
-  }
-
+  
   .item-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #34495e;
+    border-bottom-color: rgba(236, 240, 241, 0.1);
   }
-
-  .item-row:last-child {
-    border-bottom: none;
+  
+  .item-row:hover {
+    background: rgba(52, 152, 219, 0.1);
   }
-
+  
   .item-name {
-    flex: 1;
-    font-size: 14px;
+    color: var(--kot-light);
   }
-
+  
   .item-quantity {
-    background: #3498db;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
-    margin-right: 10px;
+    background: var(--kot-accent);
   }
-
-  .item-status {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-
-  .item-status:hover {
-    transform: scale(1.05);
-  }
-
-  .status-pending {
-    background: #95a5a6;
-    color: white;
-  }
-
-  .status-progress {
-    background: #f39c12;
-    color: white;
-  }
-
-  .status-ready {
-    background: #27ae60;
-    color: white;
-  }
-
-  .status-completed {
-    background: #3498db;
-    color: white;
-  }
-
-  .order-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-  }
-
-  .action-btn {
-    flex: 1;
-    padding: 8px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s ease;
-  }
-
-  .action-btn:hover {
-    transform: translateY(-1px);
-  }
-
-  .start-btn {
-    background: #f39c12;
-    color: white;
-  }
-
-  .ready-btn {
-    background: #27ae60;
-    color: white;
-  }
-
-  .complete-btn {
-    background: #3498db;
-    color: white;
-  }
-
-  .print-btn {
-    background: #9b59b6;
-    color: white;
-  }
-
+  
   .special-instructions {
-    background: #34495e;
-    padding: 8px;
-    border-radius: 5px;
-    margin-top: 10px;
-    font-size: 12px;
-    font-style: italic;
-    color: #ecf0f1;
+    background: rgba(243, 156, 18, 0.1);
+    color: #f39c12;
+    border-left-color: var(--kot-warning);
   }
-
+  
   .bulk-actions {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #2c3e50;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    z-index: 1000;
+    background: var(--kot-secondary);
+    border: 2px solid var(--kot-accent);
   }
-
-  .bulk-select {
-    margin-bottom: 10px;
-  }
-
-  .notification-toast {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 15px 20px;
-    border-radius: 8px;
-    color: white;
-    font-weight: bold;
-    z-index: 2000;
-    animation: slideIn 0.3s ease;
-  }
-
-  .notification-success {
-    background: #27ae60;
-  }
-
-  .notification-error {
-    background: #e74c3c;
-  }
-
-  .notification-info {
-    background: #3498db;
-  }
-
-  @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 40px;
-    color: #95a5a6;
-  }
-
-  .empty-state i {
-    font-size: 48px;
-    margin-bottom: 15px;
-  }
-
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #1a1a1a;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #34495e;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #4a5f7a;
-  }
-
-  /* Responsive design */
-  @media (max-width: 1200px) {
-    .kot-content {
-      flex-direction: column;
-    }
-    
-    .orders-column {
-      border-right: none;
-      border-bottom: 1px solid #34495e;
-    }
+  
+  .bulk-actions h5 {
+    color: var(--kot-light);
   }
 </style>
-{% endblock %} {% block content %}
+{% endblock %} 
+
+{% block content %}
 <div class="kot-window" x-data="kotWindow()">
   <!-- Header -->
   <div class="kot-header">
     <h1 class="kot-title">🍳 Kitchen Order Tickets</h1>
     <div class="kot-controls">
       <button @click="toggleAutoRefresh()" :class="{active: autoRefresh}" class="control-btn">
-        <i class="fas fa-sync-alt" :class="{ 'fa-spin': autoRefresh }"></i> Auto Refresh
+        <i class="fas fa-sync-alt" :class="{ 'fa-spin': autoRefresh }"></i> 
+        Auto Refresh
       </button>
       <button @click="toggleSound()" :class="{active: soundEnabled}" class="control-btn">
-        <i class="fas fa-volume-up"></i> Sound
+        <i class="fas fa-volume-up"></i> 
+        Sound
       </button>
       <button @click="refreshOrders()" class="control-btn">
-        <i class="fas fa-sync"></i> Refresh Now
+        <i class="fas fa-sync"></i> 
+        Refresh Now
       </button>
       <button @click="openBulkActions()" class="control-btn">
-        <i class="fas fa-tasks"></i> Bulk Actions
+        <i class="fas fa-tasks"></i> 
+        Bulk Actions
       </button>
       <button @click="printAllPending()" class="control-btn">
-        <i class="fas fa-print"></i> Print All
+        <i class="fas fa-print"></i> 
+        Print All
       </button>
     </div>
   </div>
 
   <!-- Filter Controls -->
-  <div class="kot-controls" style="padding: 0 20px; background: #2c3e50;">
+  <div class="kot-controls" style="padding: 0 var(--kot-spacing-lg); background: var(--kot-secondary);">
     <button @click="setFilter('all')" :class="{active: currentFilter === 'all'}" class="filter-btn">
       All Orders
     </button>
@@ -465,6 +162,13 @@ endblock %} {% block extra_css %}
                   x-text="order.urgency.toUpperCase()"></span>
           </div>
           
+          <div class="time-display">
+            <i class="fas fa-hourglass-half"></i>
+            <span>Age: </span>
+            <span class="countdown-timer" x-text="getOrderAge(order)"></span>
+            <span class="time-indicator" :class="getTimeIndicatorClass(order)" x-text="getTimeStatus(order)"></span>
+          </div>
+          
           <div class="order-items">
             <template x-for="item in order.items" :key="item.id">
               <div class="item-row">
@@ -484,10 +188,12 @@ endblock %} {% block extra_css %}
           
           <div class="order-actions">
             <button @click.stop="startOrder(order.id)" class="action-btn start-btn">
-              <i class="fas fa-play"></i> Start
+              <i class="fas fa-play"></i> 
+              Start
             </button>
             <button @click.stop="printKOT(order.id)" class="action-btn print-btn">
-              <i class="fas fa-print"></i> Print
+              <i class="fas fa-print"></i> 
+              Print
             </button>
           </div>
         </div>
@@ -522,6 +228,13 @@ endblock %} {% block extra_css %}
                   x-text="order.urgency.toUpperCase()"></span>
           </div>
           
+          <div class="time-display">
+            <i class="fas fa-hourglass-half"></i>
+            <span>Age: </span>
+            <span class="countdown-timer" x-text="getOrderAge(order)"></span>
+            <span class="time-indicator" :class="getTimeIndicatorClass(order)" x-text="getTimeStatus(order)"></span>
+          </div>
+          
           <div class="order-items">
             <template x-for="item in order.items" :key="item.id">
               <div class="item-row">
@@ -541,10 +254,12 @@ endblock %} {% block extra_css %}
           
           <div class="order-actions">
             <button @click.stop="markReady(order.id)" class="action-btn ready-btn">
-              <i class="fas fa-check"></i> Ready
+              <i class="fas fa-check"></i> 
+              Ready
             </button>
             <button @click.stop="printKOT(order.id)" class="action-btn print-btn">
-              <i class="fas fa-print"></i> Print
+              <i class="fas fa-print"></i> 
+              Print
             </button>
           </div>
         </div>
@@ -579,6 +294,13 @@ endblock %} {% block extra_css %}
                   x-text="order.urgency.toUpperCase()"></span>
           </div>
           
+          <div class="time-display">
+            <i class="fas fa-hourglass-half"></i>
+            <span>Age: </span>
+            <span class="countdown-timer" x-text="getOrderAge(order)"></span>
+            <span class="time-indicator" :class="getTimeIndicatorClass(order)" x-text="getTimeStatus(order)"></span>
+          </div>
+          
           <div class="order-items">
             <template x-for="item in order.items" :key="item.id">
               <div class="item-row">
@@ -598,10 +320,12 @@ endblock %} {% block extra_css %}
           
           <div class="order-actions">
             <button @click.stop="completeOrder(order.id)" class="action-btn complete-btn">
-              <i class="fas fa-check-double"></i> Complete
+              <i class="fas fa-check-double"></i> 
+              Complete
             </button>
             <button @click.stop="printKOT(order.id)" class="action-btn print-btn">
-              <i class="fas fa-print"></i> Print
+              <i class="fas fa-print"></i> 
+              Print
             </button>
           </div>
         </div>
@@ -657,5 +381,5 @@ endblock %} {% block extra_css %}
   window.activeOrders = {{ active_orders|tojson|safe }};
   window.recentOrders = {{ recent_orders|tojson|safe }};
 </script>
-<script src="{{ url_for('static', filename='js/kot-window.js') }}"></script>
+<script src="{{ url_for('static', filename='js/kot-window-enhanced.js') }}"></script>
 {% endblock %}

@@ -1,44 +1,96 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, User
+from forms import LoginForm
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
+@auth_bp.route('/test')
+def test():
+    """Simple test route to debug"""
+    return "Test route working!"
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """Handle user login"""
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
-    
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        remember = request.form.get('remember', False) == 'on'
-        
-        # Validate input
-        if not username or not password:
-            flash('Please enter both username and password', 'error')
-            return render_template('auth/login.html')
-        
-        # Authenticate user
-        user = User.get_by_username(username)
-        if user and user.check_password(password) and user.is_active:
-            login_user(user, remember=remember)
-            user.update_last_login()
-            
-            # Redirect to requested page or dashboard
-            next_page = request.args.get('next')
-            if next_page and next_page.startswith('/'):
-                return redirect(next_page)
-            
-            flash(f'Welcome back, {user.username}!', 'success')
+    """Handle user login with enhanced features"""
+    try:
+        if current_user.is_authenticated:
             return redirect(url_for('dashboard.index'))
         
-        flash('Invalid username or password', 'error')
-        return render_template('auth/login.html')
+        form = LoginForm()
+        
+        if request.method == 'POST':
+            # Handle AJAX requests for better UX
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                if form.validate_on_submit():
+                    login_user(form.user, remember=form.remember.data)
+                    form.user.update_last_login()
+                    
+                    # Determine redirect URL
+                    next_page = request.args.get('next')
+                    redirect_url = next_page if next_page and next_page.startswith('/') else url_for('dashboard.index')
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'Welcome back, {form.user.username}!',
+                        'redirect': redirect_url
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'errors': form.errors,
+                        'message': 'Invalid username or password'
+                    }), 400
+            
+            # Regular form submission
+            if form.validate_on_submit():
+                login_user(form.user, remember=form.remember.data)
+                form.user.update_last_login()
+                
+                # Redirect to requested page or dashboard
+                next_page = request.args.get('next')
+                if next_page and next_page.startswith('/'):
+                    return redirect(next_page)
+                
+                flash(f'Welcome back, {form.user.username}!', 'success')
+                return redirect(url_for('dashboard.index'))
+            else:
+                # Provide more specific error messages
+                if form.username.errors:
+                    for error in form.username.errors:
+                        flash(error, 'error')
+                elif form.password.errors:
+                    for error in form.password.errors:
+                        flash(error, 'error')
+                else:
+                    flash('Invalid username or password', 'error')
+        
+        return render_template('auth/login.html', form=form)
     
-    return render_template('auth/login.html')
+    except Exception as e:
+        # Log error for debugging
+        import traceback
+        error_details = {
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+            'form_data': dict(request.form) if request.method == 'POST' else None,
+            'csrf_token': request.form.get('csrf_token', 'Not found') if request.method == 'POST' else None
+        }
+        
+        # In production, you'd log this properly instead of printing
+        print(f"Login error details: {error_details}")
+        
+        # Handle AJAX error response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'message': 'An unexpected error occurred. Please try again.',
+                'debug': str(e) if current_app.debug else None
+            }), 500
+        
+        flash('An unexpected error occurred. Please try again.', 'error')
+        return render_template('auth/login.html', form=form)
 
 @auth_bp.route('/logout')
 @login_required
@@ -52,7 +104,30 @@ def logout():
 @login_required
 def profile():
     """User profile page"""
-    return render_template('auth/profile.html')
+    try:
+        return render_template('auth/profile.html')
+    except Exception as e:
+        # Log error for debugging
+        import traceback
+        error_details = {
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+            'user_id': current_user.id if current_user.is_authenticated else None
+        }
+        
+        # In production, you'd log this properly instead of printing
+        print(f"Profile page error details: {error_details}")
+        
+        # Handle AJAX error response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'message': 'Error loading profile page',
+                'debug': str(e) if current_app.debug else None
+            }), 500
+        
+        flash('Error loading profile page', 'error')
+        return redirect(url_for('dashboard.index'))
 
 @auth_bp.route('/change_password', methods=['GET', 'POST'])
 @login_required

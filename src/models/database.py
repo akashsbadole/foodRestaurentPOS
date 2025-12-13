@@ -69,6 +69,11 @@ class DatabaseManager:
         if self.cursor:
             return self.cursor.lastrowid
         return None
+    
+    def get_session(self):
+        """Get a database session for ORM operations"""
+        # For SQLite, we'll use the connection directly
+        return self.conn
 
 class User:
     """User model"""

@@ -259,8 +259,14 @@ class LoginScreen(BaseUI):
                                 font=('Segoe UI', 10), foreground=status_color)
         license_label.pack(side=tk.LEFT, padx=5)
         
-        # Activate license button if not activated
+        # Show buttons if not activated
         if not license_status.get('valid', False):
+            # Trial button
+            trial_button = ttk.Button(self.license_status_frame, text="Start Trial",
+                                   command=self.start_trial)
+            trial_button.pack(side=tk.RIGHT, padx=5)
+            
+            # Activate license button
             activate_button = ttk.Button(self.license_status_frame, text="Activate License",
                                       command=self.activate_license)
             activate_button.pack(side=tk.RIGHT, padx=5)
@@ -283,7 +289,7 @@ class LoginScreen(BaseUI):
     def activate_license(self):
         """Show license activation dialog"""
         try:
-            dialog = LicenseActivationDialog(self.root, self.app, self.app.license_manager)
+            dialog = LicenseActivationDialog(self.root, self.app, self.app.license_integration.license_manager)
             self.root.wait_window(dialog.dialog)
            
             # Update license status after activation
@@ -293,6 +299,31 @@ class LoginScreen(BaseUI):
            
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open license activation: {str(e)}")
+    
+    def start_trial(self):
+        """Start a trial license"""
+        try:
+            # Get username from login form to use as customer name
+            username = self.username_entry.get().strip() if self.username_entry else ""
+            customer_name = username if username else "Trial User"
+            customer_email = f"{customer_name.lower().replace(' ', '.')}@example.com"
+            
+            # Create trial license with customer information
+            result = self.app.license_integration.create_trial_license(
+                customer_name=customer_name,
+                customer_email=customer_email
+            )
+            
+            if result['success']:
+                messagebox.showinfo("Success", "Trial license created successfully!")
+                # Update license status after trial creation
+                if hasattr(self, 'license_status_frame'):
+                    self.license_status_frame.destroy()
+                self.create_license_status_frame()
+            else:
+                messagebox.showerror("Trial Failed", f"Failed to create trial license: {result.get('message')}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to start trial: {str(e)}")
     
     def show_support_dialog(self):
         """Show support ticket dialog"""
@@ -320,30 +351,7 @@ class LoginScreen(BaseUI):
             self.show_message("Error", "Please enter username and password", "error")
             return
         
-        # Check license status before allowing login
-        license_status = self.app.get_license_status()
-        if not license_status.get('valid', False):
-            # Show license activation dialog for new installations
-            if not license_status.get('activated_once', False):
-                result = messagebox.askyesno("License Required",
-                                           "A valid license is required to use this application.\n\n"
-                                           "Would you like to activate your license now?")
-                if result:
-                    self.activate_license()
-                    # Check license status again after activation attempt
-                    license_status = self.app.get_license_status()
-                    if not license_status.get('valid', False):
-                        self.show_message("License Error",
-                                        "Please activate a valid license to continue.", "error")
-                        return
-                else:
-                    return
-            else:
-                self.show_message("License Error",
-                                "Your license is not valid. Please activate a valid license to continue.", "error")
-                return
-        
-        # Authenticate using User model
+        # Authenticate using User model first
         user = self.app.user_model.authenticate(username, password)
         
         if user:
@@ -358,6 +366,24 @@ class LoginScreen(BaseUI):
             
             # Log successful login
             self.app.log_error(f"User {username} logged in successfully", 'info')
+            
+            # Now check license status after successful authentication
+            license_status = self.app.get_license_status()
+            if not license_status.get('valid', False):
+                # Show license activation dialog for new installations
+                result = messagebox.askyesno("License Required",
+                                           "A valid license is required to use this application.\n\n"
+                                           "Would you like to activate your license now?")
+                if result:
+                    self.activate_license()
+                    # Check license status again after activation attempt
+                    license_status = self.app.get_license_status()
+                    if not license_status.get('valid', False):
+                        self.show_message("License Error",
+                                        "Please activate a valid license to continue.", "error")
+                        return
+                else:
+                    return
             
             # Start periodic license validation
             self.app.validate_license_periodically()

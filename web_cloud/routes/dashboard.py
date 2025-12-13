@@ -19,7 +19,7 @@ def index():
     low_stock_items = MenuItem.query.filter_by(is_low_stock=True, is_active=True).limit(5).all()
     
     # Get available tables
-    available_tables = Table.query.filter_by(is_available=True).count()
+    available_tables = Table.query.filter_by(status='Available', is_active=True).count()
     
     return render_template('dashboard/index.html', 
                         stats=stats, 
@@ -89,6 +89,6 @@ def get_dashboard_stats():
         },
         'tables': {
             'total': total_tables,
-            'available': Table.query.filter_by(is_available=True).count()
+            'available': Table.query.filter_by(status='Available', is_active=True).count()
         }
     }

@@ -387,6 +387,11 @@ class LicenseActivationDialog(BaseUI):
                 messagebox.showerror("Error", "Please enter a license key")
                 return
             
+            # For trial activation, allow empty activation code
+            if not activation_code and not license_key.lower().startswith('trial'):
+                messagebox.showerror("Error", "Please enter an activation code")
+                return
+            
             # Start activation
             self._start_activation(license_key, activation_code, online)
         except Exception as e:

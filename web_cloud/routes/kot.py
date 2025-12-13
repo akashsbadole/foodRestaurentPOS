@@ -5,6 +5,28 @@ from datetime import datetime, timedelta
 
 kot_bp = Blueprint('kot', __name__)
 
+def calculate_order_age(created_at):
+    """Calculate order age in minutes"""
+    if not created_at:
+        return 0
+    now = datetime.utcnow()
+    diff = now - created_at
+    return int(diff.total_seconds() / 60)
+
+def calculate_urgency(age_minutes):
+    """Calculate urgency level based on order age"""
+    if age_minutes > 20:
+        return 'high'
+    elif age_minutes > 10:
+        return 'medium'
+    else:
+        return 'normal'
+
+def get_urgency_class(order):
+    """Get CSS class for urgency based on order age"""
+    age_minutes = calculate_order_age(order.created_at)
+    return calculate_urgency(age_minutes)
+
 @kot_bp.route('/')
 @login_required
 def index():
@@ -14,6 +36,11 @@ def index():
         Order.status.in_(['New', 'In Progress', 'Ready'])
     ).order_by(Order.created_at.desc()).all()
     
+    # Calculate time-based urgency for each order
+    for order in active_orders:
+        order.age_minutes = calculate_order_age(order.created_at)
+        order.urgency = calculate_urgency(order.age_minutes)
+    
     # Get completed orders in last 24 hours
     yesterday = datetime.utcnow() - timedelta(days=1)
     recent_orders = Order.query.filter(
@@ -21,8 +48,8 @@ def index():
         Order.created_at >= yesterday
     ).order_by(Order.created_at.desc()).limit(20).all()
     
-    return render_template('kot/index.html', 
-                        active_orders=active_orders, 
+    return render_template('kot/index.html',
+                        active_orders=active_orders,
                         recent_orders=recent_orders)
 
 @kot_bp.route('/active')
@@ -93,10 +120,24 @@ def update_item_status():
 @login_required
 def print_kot(order_id):
     """Print KOT for order"""
+    from models import Settings
     order = Order.query.get_or_404(order_id)
     items = OrderItem.query.filter_by(order_id=order_id).all()
+    settings = Settings.get_all_as_dict()
     
-    return render_template('kot/print.html', order=order, items=items)
+    # Calculate time-based urgency
+    order.age_minutes = calculate_order_age(order.created_at)
+    order.urgency = calculate_urgency(order.age_minutes)
+    
+    # Check for modifiers
+    has_modifiers = any(item.modifications for item in items if item.modifications)
+    
+    return render_template('kot/print.html',
+                        order=order,
+                        order_items=items,
+                        settings=settings,
+                        has_modifiers=has_modifiers,
+                        get_urgency_class=get_urgency_class)
 
 @kot_bp.route('/kitchen_display')
 @login_required

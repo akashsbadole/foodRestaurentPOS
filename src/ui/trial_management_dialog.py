@@ -512,10 +512,38 @@ class TrialManagementDialog(BaseUI):
     def _on_continue_trial(self) -> None:
         """Handle continue trial button click"""
         try:
-            self.result = {'success': True, 'action': 'continue_trial'}
-            self.dialog.destroy()
+            # Show progress
+            self._show_progress("Creating trial license...")
+            
+            # Collect customer information for trial license
+            customer_name = "Trial User"
+            customer_email = "trial@example.com"
+            
+            # Try to get user information from the application if available
+            if hasattr(self, 'app') and hasattr(self.app, 'current_user'):
+                current_user = self.app.current_user
+                if current_user and 'username' in current_user:
+                    customer_name = current_user['username']
+                    customer_email = f"{current_user['username']}@example.com"
+            
+            # Create trial license with customer information
+            result = self.license_manager.create_trial_license(
+                customer_name=customer_name,
+                customer_email=customer_email
+            )
+            
+            # Hide progress
+            self._hide_progress()
+            
+            if result['success']:
+                messagebox.showinfo("Success", "Trial license created successfully")
+                self.result = {'success': True, 'action': 'continue_trial'}
+                self.dialog.destroy()
+            else:
+                messagebox.showerror("Trial Creation Failed", f"Failed to create trial license: {result.get('message')}")
         except Exception as e:
-            messagebox.showerror("Error", f"Error continuing trial: {str(e)}")
+            self._hide_progress()
+            messagebox.showerror("Error", f"Error creating trial license: {str(e)}")
     
     def _on_purchase_license(self) -> None:
         """Handle purchase license button click"""

@@ -47,8 +47,22 @@ def create_app(config_name='default'):
             if admin_user:
                 print("Default admin user created: username=admin, password=admin123")
     
+    # Simple test route first
+    @app.route('/simple-test')
+    def simple_test():
+        return "Simple test working!"
+    
     # Register blueprints
-    from routes.auth import auth_bp
+    try:
+        from routes.auth import auth_bp
+        print("Auth blueprint imported successfully")
+        app.register_blueprint(auth_bp, url_prefix='/auth')
+        print("Auth blueprint registered successfully")
+    except Exception as e:
+        print(f"Error importing/registering auth blueprint: {e}")
+        import traceback
+        traceback.print_exc()
+    
     from routes.dashboard import dashboard_bp
     from routes.orders import orders_bp
     from routes.menu import menu_bp
@@ -60,7 +74,6 @@ def create_app(config_name='default'):
     from routes.email import email_bp
     from routes.footer_settings import footer_settings_bp
     
-    app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(orders_bp, url_prefix='/orders')
     app.register_blueprint(menu_bp, url_prefix='/menu')
@@ -121,6 +134,16 @@ def create_app(config_name='default'):
         if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
             return jsonify({'error': 'Forbidden'}), 403
         return render_template('errors/403.html'), 403
+    
+    @app.errorhandler(400)
+    def bad_request_error(error):
+        app.logger.error(f"Bad request error: {str(error)}")
+        app.logger.error(f"Request data: {request.form}")
+        app.logger.error(f"Request method: {request.method}")
+        app.logger.error(f"Request URL: {request.url}")
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({'error': 'Bad request', 'details': str(error)}), 400
+        return render_template('errors/400.html'), 400
     
     # Template filters
     @app.template_filter('currency')

@@ -76,8 +76,7 @@ def create_initial_data():
             'price': 30.00,
             'description': 'Crispy vegetable samosas with mint chutney',
             'stock_quantity': 50,
-            'min_stock_level': 10,
-            'unit': 'pcs'
+            'min_stock_level': 10
         },
         {
             'name': 'Paneer Tikka',
@@ -85,8 +84,7 @@ def create_initial_data():
             'price': 120.00,
             'description': 'Grilled cottage cheese with spices',
             'stock_quantity': 30,
-            'min_stock_level': 5,
-            'unit': 'pcs'
+            'min_stock_level': 5
         },
         {
             'name': 'Butter Chicken',
@@ -94,8 +92,7 @@ def create_initial_data():
             'price': 180.00,
             'description': 'Tender chicken in creamy tomato curry',
             'stock_quantity': 25,
-            'min_stock_level': 5,
-            'unit': 'pcs'
+            'min_stock_level': 5
         },
         {
             'name': 'Veg Biryani',
@@ -103,8 +100,7 @@ def create_initial_data():
             'price': 140.00,
             'description': 'Fragrant basmati rice with mixed vegetables',
             'stock_quantity': 20,
-            'min_stock_level': 5,
-            'unit': 'plates'
+            'min_stock_level': 5
         },
         {
             'name': 'Fresh Lime Soda',
@@ -112,8 +108,7 @@ def create_initial_data():
             'price': 40.00,
             'description': 'Refreshing lime soda with mint',
             'stock_quantity': 100,
-            'min_stock_level': 20,
-            'unit': 'glasses'
+            'min_stock_level': 20
         },
         {
             'name': 'Mango Lassi',
@@ -121,8 +116,7 @@ def create_initial_data():
             'price': 60.00,
             'description': 'Sweet yogurt drink with mango flavor',
             'stock_quantity': 80,
-            'min_stock_level': 15,
-            'unit': 'glasses'
+            'min_stock_level': 15
         },
         {
             'name': 'Gulab Jamun',
@@ -130,8 +124,7 @@ def create_initial_data():
             'price': 25.00,
             'description': 'Sweet milk dumplings in sugar syrup',
             'stock_quantity': 60,
-            'min_stock_level': 10,
-            'unit': 'pcs'
+            'min_stock_level': 10
         },
         {
             'name': 'French Fries',
@@ -139,8 +132,7 @@ def create_initial_data():
             'price': 80.00,
             'description': 'Crispy golden french fries',
             'stock_quantity': 40,
-            'min_stock_level': 8,
-            'unit': 'plates'
+            'min_stock_level': 8
         }
     ]
     
@@ -153,8 +145,7 @@ def create_initial_data():
                 price=item_data['price'],
                 description=item_data['description'],
                 stock_quantity=item_data['stock_quantity'],
-                min_stock_level=item_data['min_stock_level'],
-                unit=item_data['unit']
+                min_stock_level=item_data['min_stock_level']
             )
             item.is_active = True
             db.session.add(item)
@@ -207,11 +198,11 @@ def main():
         # Create default settings using Settings.create_defaults()
         Settings.create_defaults()
     
-    print("\n✅ Database initialization completed successfully!")
-    print("\n📝 Login Credentials:")
+    print("\nDatabase initialization completed successfully!")
+    print("\nLogin Credentials:")
     print("   Username: admin")
     print("   Password: admin123")
-    print("\n⚠️  Please change the default password after first login!")
+    print("\nPlease change the default password after first login!")
 
 if __name__ == '__main__':
     main()

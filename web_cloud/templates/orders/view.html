@@ -92,9 +92,26 @@
           <button class="btn btn-light btn-sm me-2" @click="refreshOrder()">
             <i class="fas fa-sync-alt"></i> Refresh
           </button>
-          <button class="btn btn-light btn-sm" @click="printOrder()">
-            <i class="fas fa-print"></i> Print
-          </button>
+          <div class="btn-group" role="group">
+            <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-print"></i> Print
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" @click="printOrder()">
+                <i class="fas fa-file-pdf"></i> PDF Invoice
+              </a></li>
+              <li><a class="dropdown-item" href="#" @click="printThermalBill()">
+                <i class="fas fa-receipt"></i> Thermal Bill
+              </a></li>
+              <li><a class="dropdown-item" href="#" @click="printKOT()">
+                <i class="fas fa-ticket-alt"></i> KOT
+              </a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" @click="printManagement()">
+                <i class="fas fa-cog"></i> Print Management
+              </a></li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -483,6 +500,18 @@ function orderView() {
 
     printOrder() {
       window.open(`/reports/invoice/${this.orderId}`, '_blank');
+    },
+    
+    printThermalBill() {
+      window.open(`/orders/print/${this.orderId}`, '_blank');
+    },
+    
+    printKOT() {
+      window.open(`/kot/print/${this.orderId}`, '_blank');
+    },
+    
+    printManagement() {
+      window.open('/orders/print-management', '_blank');
     },
 
     mergeOrder() {

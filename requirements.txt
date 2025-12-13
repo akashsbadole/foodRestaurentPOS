@@ -11,4 +11,8 @@ python-barcode>=0.15.0
 # Backup and scheduling dependencies
 schedule>=1.2.0
 
-cryptography
+# Security dependencies
+cryptography>=41.0.0
+
+# Web scraping and HTML parsing
+beautifulsoup4>=4.12.0

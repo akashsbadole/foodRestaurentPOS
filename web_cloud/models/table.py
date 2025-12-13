@@ -98,6 +98,35 @@ class Table(db.Model):
         }
     
     @staticmethod
+    def get_status_summary():
+        """Get summary of table statuses"""
+        statuses = db.session.query(
+            Table.status,
+            db.func.count(Table.id)
+        ).filter_by(is_active=True).group_by(Table.status).all()
+        
+        return dict(statuses)
+    
+    @staticmethod
+    def get_by_status(status):
+        """Get tables by status"""
+        return Table.query.filter_by(is_active=True, status=status).order_by(Table.table_number).all()
+    
+    @staticmethod
+    def bulk_update_status(table_ids, new_status):
+        """Update status for multiple tables"""
+        valid_statuses = ['Available', 'Occupied', 'Reserved', 'Maintenance']
+        if new_status not in valid_statuses:
+            return False
+        
+        Table.query.filter(Table.id.in_(table_ids)).update({
+            'status': new_status,
+            'updated_at': datetime.utcnow()
+        })
+        db.session.commit()
+        return True
+    
+    @staticmethod
     def get_all_active():
         """Get all active tables"""
         return Table.query.filter_by(is_active=True).order_by(Table.table_number).all()

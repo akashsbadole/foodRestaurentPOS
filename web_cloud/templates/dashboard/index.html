@@ -145,7 +145,8 @@
             </div>
             <div class="col-md-3 mb-2">
               <button
-                onclick="window.open('{{ url_for('kot.kot_window') }}', 'kot_window', 'width=1400,height=800,scrollbars=yes,resizable=yes')"
+                data-kot-url="{{ url_for('kot.kot_window') }}"
+                onclick="window.open(this.getAttribute('data-kot-url'), 'kot_window', 'width=1400,height=800,scrollbars=yes,resizable=yes')"
                 class="btn btn-warning btn-block"
               >
                 <i class="fas fa-window-restore"></i> KOT Window
@@ -153,7 +154,7 @@
             </div>
             <div class="col-md-3 mb-2">
               <a
-                href="{{ url_for('orders.list') }}"
+                href="{{ url_for('orders.list_orders') }}"
                 class="btn btn-success btn-block"
               >
                 <i class="fas fa-list"></i> View Orders
@@ -167,7 +168,7 @@
                 <i class="fas fa-edit"></i> Manage Menu
               </a>
             </div>
-            {% if current_user.is_admin() %}
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
             <div class="col-md-3 mb-2">
               <a
                 href="{{ url_for('footer_settings.index') }}"
@@ -193,7 +194,7 @@
         >
           <h6 class="m-0 font-weight-bold text-primary">Recent Orders</h6>
           <a
-            href="{{ url_for('orders.list') }}"
+            href="{{ url_for('orders.list_orders') }}"
             class="btn btn-sm btn-outline-primary"
             >View All</a
           >
@@ -291,9 +292,24 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<!-- Pass data from Flask to JavaScript -->
+<script type="text/template" id="dashboard-stats-template">
+{{ stats|tojson|safe }}
+</script>
 <script type="text/javascript">
-// Pass data from Flask to JavaScript
-window.dashboardStats = {{ stats|tojson|safe }};
+// Parse dashboard stats from template
+try {
+  const statsTemplate = document.getElementById('dashboard-stats-template');
+  if (statsTemplate) {
+    window.dashboardStats = JSON.parse(statsTemplate.textContent);
+  } else {
+    window.dashboardStats = {};
+  }
+} catch (e) {
+  window.dashboardStats = {};
+  console.error('Error parsing dashboard stats:', e);
+}
 </script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

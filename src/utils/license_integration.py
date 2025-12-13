@@ -49,7 +49,7 @@ class LicenseIntegration:
             # Run database migration if needed
             self._ensure_license_tables()
             
-            # Initialize license manager
+            # Initialize license manager (no longer needs db_manager parameter)
             self.license_manager = LicenseManager()
             
             # Check license status on startup
@@ -107,7 +107,8 @@ class LicenseIntegration:
                 print("No license status available")
                 self.is_licensed = False
                 self.trial_mode = False
-                self._show_license_activation_dialog()
+                # Don't show license activation dialog on startup
+                # Let the user see the login screen first
                 return
             
             # Check if license is valid
@@ -150,18 +151,14 @@ class LicenseIntegration:
                 self.is_licensed = False
                 self.trial_mode = False
                 print("No valid license found")
-                
-                # Show license activation dialog
-                self._show_license_activation_dialog()
+                # Don't show license activation dialog on startup
+                # Let the user see the login screen first
         except Exception as e:
             print(f"Error checking license on startup: {str(e)}")
             self.is_licensed = False
             self.trial_mode = False
-            # Show license activation dialog even on error
-            try:
-                self._show_license_activation_dialog()
-            except Exception as dialog_error:
-                print(f"Error showing license activation dialog: {str(dialog_error)}")
+            # Don't show license activation dialog on error
+            # Let the user see the login screen first
     
     def _initialize_feature_access(self) -> None:
         """Initialize feature access based on license"""
@@ -551,6 +548,54 @@ class LicenseIntegration:
                 event_dispatcher.feature_access_denied('custom_themes', current_license, 'professional')
         except Exception as e:
             print(f"Error restricting UI features: {str(e)}")
+    
+    def create_trial_license(self) -> Dict[str, Any]:
+        """
+        Create a trial license using the license manager
+        
+        Returns:
+            Dictionary with trial creation result
+        """
+        try:
+            if not self.license_manager:
+                return {
+                    'success': False,
+                    'message': 'License manager not initialized',
+                    'license_info': None,
+                    'activation_info': None
+                }
+            
+            # Create trial license through license manager
+            result = self.license_manager.create_trial_license()
+            
+            if result['success']:
+                # Update internal state
+                self.is_licensed = True
+                self.trial_mode = True
+                self.license_status = self.license_manager.get_license_status()
+                
+                # Initialize feature access for trial
+                self._initialize_feature_access()
+                
+                # Dispatch trial started event
+                license_info = result.get('license_info', {})
+                activation_info = result.get('activation_info', {})
+                license_key = license_info.get('license_key', '')
+                license_type = license_info.get('license_type', 'trial')
+                expiry_date = activation_info.get('expires_at', '')
+                
+                event_dispatcher.trial_started(30, expiry_date)
+                event_dispatcher.license_activated(license_key, license_type, expiry_date)
+            
+            return result
+        except Exception as e:
+            print(f"Error creating trial license: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Trial license creation error: {str(e)}',
+                'license_info': None,
+                'activation_info': None
+            }
     
     def cleanup(self) -> None:
         """Clean up license integration resources"""
