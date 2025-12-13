@@ -101,9 +101,8 @@ function posBillingManager() {
     },
     
     generateOrderNumber: function() {
-      const timestamp = new Date().toISOString().replace(/[-T:.]/g, '').slice(0, -1);
-      const random = Math.floor(Math.random() * 1000);
-      return 'ORD' + timestamp + random;
+      // Use global generateOrderNumber function from utils.js
+      return window.generateOrderNumber();
     },
     
     // Menu Management
@@ -277,17 +276,8 @@ function posBillingManager() {
     
     // Notifications
     showNotification: function(message, type) {
-      type = type || 'info';
-      const toast = document.createElement('div');
-      toast.className = 'alert alert-' + type + ' position-fixed top-0 end-0 m-3';
-      toast.style.zIndex = '9999';
-      toast.textContent = message;
-      
-      document.body.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.remove();
-      }, 3000);
+      // Use global showNotification function from utils.js
+      return window.showNotification(message, type);
     }
   };
 }

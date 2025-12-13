@@ -505,10 +505,8 @@ window.POS = {
 
   // Format currency
   formatCurrency: function (amount) {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
+    // Use global formatCurrency function from utils.js
+    return window.formatCurrency(amount);
   },
 
   // Show alert message

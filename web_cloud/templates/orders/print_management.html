@@ -568,9 +568,8 @@
                 },
                 
                 formatDateTime(dateString) {
-                    if (!dateString) return 'N/A';
-                    const date = new Date(dateString);
-                    return date.toLocaleString('en-IN', {
+                    // Use global formatDateTime function from utils.js
+                    return window.formatDateTime(dateString, {
                         day: '2-digit',
                         month: '2-digit',
                         year: 'numeric',
@@ -581,16 +580,8 @@
                 },
                 
                 showNotification(message, type = 'info') {
-                    const toast = document.createElement('div');
-                    toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
-                    toast.style.zIndex = '9999';
-                    toast.textContent = message;
-                    
-                    document.body.appendChild(toast);
-                    
-                    setTimeout(() => {
-                        toast.remove();
-                    }, 3000);
+                    // Use global showNotification function from utils.js
+                    return window.showNotification(message, type);
                 }
             };
         }

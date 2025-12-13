@@ -353,7 +353,7 @@
   }
 </style>
 {% endblock %} {% block content %}
-<div class="inventory-container" x-data="inventoryManager()">
+<div class="inventory-container" x-data="inventoryManagement()">
   <!-- Header Section -->
   <div class="inventory-header">
     <div class="d-flex justify-content-between align-items-center">
@@ -507,7 +507,7 @@
 {% endblock %} {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
-function inventoryManager() {
+function inventoryManagement() {
   return {
     // Data
     items: [],
@@ -1006,7 +1006,7 @@ function inventoryManager() {
   // Execute the inventory manager function
   document.addEventListener('alpine:init', () => {
     try {
-      Alpine.data('inventoryManager', inventoryManager);
+      Alpine.data('inventoryManager', inventoryManagement);
     } catch (error) {
       console.error('Error initializing Alpine.js data:', error);
     }

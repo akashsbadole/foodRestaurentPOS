@@ -404,14 +404,13 @@ function orderView() {
     },
 
     getStatusClass(status) {
-      const classes = {
-        'New': 'bg-primary',
-        'In Progress': 'bg-warning text-dark',
-        'Ready': 'bg-info',
-        'Completed': 'bg-success',
-        'Cancelled': 'bg-danger'
-      };
-      return classes[status] || 'bg-secondary';
+      // Use global getStatusClass function from utils.js with custom overrides
+      const globalClass = window.getStatusClass(status);
+      // Special case for In Progress to add text-dark class
+      if (status === 'In Progress') {
+        return globalClass + ' text-dark';
+      }
+      return globalClass;
     },
 
     getItemStatusClass(status) {
@@ -441,9 +440,8 @@ function orderView() {
     },
 
     formatDateTime(dateString) {
-      if (!dateString) return 'N/A';
-      const date = new Date(dateString);
-      return date.toLocaleString('en-IN');
+      // Use global formatDateTime function from utils.js
+      return window.formatDateTime(dateString);
     },
 
     canEditOrder() {
@@ -585,18 +583,20 @@ function orderView() {
     },
 
     showNotification(message, type = 'info') {
-      const toast = document.createElement('div');
-      toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
-      toast.style.zIndex = '9999';
-      toast.textContent = message;
-
-      document.body.appendChild(toast);
-
-      setTimeout(() => {
-        toast.remove();
-      }, 3000);
+      // Use global showNotification function from utils.js
+      return window.showNotification(message, type);
     }
   };
 }
+</script>
+<script>
+  // Execute the order view function
+  document.addEventListener('alpine:init', () => {
+    try {
+      Alpine.data('orderView', orderView);
+    } catch (error) {
+      console.error('Error initializing Alpine.js data:', error);
+    }
+  });
 </script>
 {% endblock %}

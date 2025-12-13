@@ -248,17 +248,21 @@ function reportsDashboard() {
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: {
+              duration: 1000,
+              easing: 'easeInOutQuart',
+              onComplete: function() {
+                // Ensure animation completes properly
+              }
+            },
             plugins: {
               legend: {
                 display: false,
-                // Ensure legend object has all required properties
                 position: 'top',
                 labels: {
                   display: false,
                   color: '#666',
-                  font: {
-                    size: 12
-                  }
+                  font: { size: 12 }
                 }
               },
               tooltip: {
@@ -270,7 +274,6 @@ function reportsDashboard() {
                 borderWidth: 1,
                 displayColors: false,
                 enabled: true,
-                // Ensure tooltip has proper structure
                 mode: 'index',
                 intersect: false,
                 callbacks: {
@@ -287,36 +290,21 @@ function reportsDashboard() {
             scales: {
               y: {
                 beginAtZero: true,
-                grid: {
-                  color: 'rgba(0, 0, 0, 0.05)',
-                  drawBorder: false
-                },
+                grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
                 ticks: {
                   precision: 0,
-                  // Add null checks for tick callbacks
                   callback: function(value) {
                     return value !== null && value !== undefined ? value.toString() : '0';
                   }
                 }
               },
               x: {
-                grid: {
-                  display: false
-                },
+                grid: { display: false },
                 ticks: {
-                  // Add null checks for tick callbacks
                   callback: function(value) {
                     return value !== null && value !== undefined ? value.toString() : '';
                   }
                 }
-              }
-            },
-            animation: {
-              duration: 1000,
-              easing: 'easeInOutQuart',
-              // Add animation completion callback
-              onComplete: function() {
-                // Ensure animation completes properly
               }
             }
           }
@@ -366,16 +354,19 @@ function reportsDashboard() {
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: {
+              animateRotate: true,
+              animateScale: true,
+              duration: 1000,
+              easing: 'easeInOutQuart'
+            },
             plugins: {
               legend: {
                 position: 'bottom',
                 labels: {
                   padding: 15,
                   usePointStyle: true,
-                  font: {
-                    size: 12
-                  },
-                  // Add color property to prevent undefined errors
+                  font: { size: 12 },
                   color: '#666'
                 }
               },
@@ -405,12 +396,6 @@ function reportsDashboard() {
                   }
                 }
               }
-            },
-            animation: {
-              animateRotate: true,
-              animateScale: true,
-              duration: 1000,
-              easing: 'easeInOutQuart'
             }
           }
         });
@@ -457,16 +442,19 @@ function reportsDashboard() {
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: {
+              animateRotate: true,
+              animateScale: true,
+              duration: 1000,
+              easing: 'easeInOutQuart'
+            },
             plugins: {
               legend: {
                 position: 'bottom',
                 labels: {
                   padding: 15,
                   usePointStyle: true,
-                  font: {
-                    size: 12
-                  },
-                  // Add color property to prevent undefined errors
+                  font: { size: 12 },
                   color: '#666'
                 }
               },
@@ -494,12 +482,6 @@ function reportsDashboard() {
                   }
                 }
               }
-            },
-            animation: {
-              animateRotate: true,
-              animateScale: true,
-              duration: 1000,
-              easing: 'easeInOutQuart'
             }
           }
         });
@@ -563,6 +545,10 @@ function reportsDashboard() {
               mode: 'index',
               intersect: false
             },
+            animation: {
+              duration: 1500,
+              easing: 'easeInOutQuart'
+            },
             plugins: {
               legend: {
                 position: 'top',
@@ -606,10 +592,7 @@ function reportsDashboard() {
                 type: 'linear',
                 display: true,
                 position: 'left',
-                grid: {
-                  color: 'rgba(0, 0, 0, 0.05)',
-                  drawBorder: false
-                },
+                grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
                 ticks: {
                   callback: function(value) {
                     return '₹' + value.toLocaleString();
@@ -620,19 +603,11 @@ function reportsDashboard() {
                 type: 'linear',
                 display: true,
                 position: 'right',
-                grid: {
-                  drawOnChartArea: false
-                }
+                grid: { drawOnChartArea: false }
               },
               x: {
-                grid: {
-                  display: false
-                }
+                grid: { display: false }
               }
-            },
-            animation: {
-              duration: 1500,
-              easing: 'easeInOutQuart'
             }
           }
         });
@@ -671,27 +646,22 @@ function reportsDashboard() {
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              animation: { duration: 0 }, // Disable animation to prevent recursion
               plugins: {
                 legend: {
                   display: false,
-                  // Ensure legend object has all required properties
                   position: 'top',
                   labels: {
                     display: false,
                     color: '#666',
-                    font: {
-                      size: 12
-                    }
+                    font: { size: 12 }
                   }
                 }
               },
               scales: {
                 y: {
                   beginAtZero: true,
-                  grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
-                    drawBorder: false
-                  },
+                  grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
                   ticks: {
                     callback: function(value) {
                       return '₹' + value.toLocaleString();
@@ -699,9 +669,7 @@ function reportsDashboard() {
                   }
                 },
                 x: {
-                  grid: {
-                    display: false
-                  }
+                  grid: { display: false }
                 }
               }
             }
@@ -735,27 +703,22 @@ function reportsDashboard() {
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              animation: { duration: 0 }, // Disable animation to prevent recursion
               plugins: {
                 legend: {
                   display: false,
-                  // Ensure legend object has all required properties
                   position: 'top',
                   labels: {
                     display: false,
                     color: '#666',
-                    font: {
-                      size: 12
-                    }
+                    font: { size: 12 }
                   }
                 }
               },
               scales: {
                 y: {
                   beginAtZero: true,
-                  grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
-                    drawBorder: false
-                  },
+                  grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
                   ticks: {
                     callback: function(value) {
                       return '₹' + value.toLocaleString();
@@ -763,9 +726,7 @@ function reportsDashboard() {
                   }
                 },
                 x: {
-                  grid: {
-                    display: false
-                  }
+                  grid: { display: false }
                 }
               }
             }
@@ -848,6 +809,16 @@ function reportsDashboard() {
           // Ensure plugins object exists
           if (!chart.options.plugins) {
             chart.options.plugins = {};
+          }
+          
+          // Ensure plugins.legend exists with proper structure
+          if (!chart.options.plugins.legend) {
+            chart.options.plugins.legend = { display: false };
+          }
+          
+          // Ensure plugins.tooltip exists with proper structure
+          if (!chart.options.plugins.tooltip) {
+            chart.options.plugins.tooltip = { enabled: false };
           }
           
           // Update chart data safely

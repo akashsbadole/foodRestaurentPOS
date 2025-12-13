@@ -58,7 +58,6 @@
       <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
         <i class="fas fa-plus"></i> New Order
       </a>
-  +++++++ REPLACE
     </div>
   </div>
 
@@ -263,44 +262,76 @@
 </div>
 
 <!-- Order Details Modal -->
-<div class="modal fade" id="orderModal" tabindex="-1">
+<div class="modal fade" id="orderModal" tabindex="-1" x-data="{
+  modalOrder: null,
+  
+  init() {
+    // Listen for custom event to set modal order
+    this.$el.addEventListener('setModalOrder', (event) => {
+      this.modalOrder = event.detail.order;
+    });
+  },
+  
+  printModalOrder() {
+    if (this.modalOrder && this.modalOrder.id) {
+      window.open(`/kot/print/${this.modalOrder.id}`, '_blank');
+    }
+  },
+  
+  payModalOrder() {
+    if (this.modalOrder && this.modalOrder.id) {
+      window.location.href = `/orders/payment/${this.modalOrder.id}`;
+    }
+  },
+  
+  // Wrapper methods for global functions
+  getStatusClass(status) {
+    return window.getStatusClass ? window.getStatusClass(status) : '';
+  },
+  formatTime(dateString) {
+    return window.formatTime ? window.formatTime(dateString) : '';
+  },
+  formatDateTime(dateString) {
+    return window.formatDateTime ? window.formatDateTime(dateString) : '';
+  }
+}">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Order Details</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" x-show="selectedOrder">
+      <div class="modal-body" x-show="modalOrder && modalOrder.id">
         <!-- Order Header -->
         <div class="row mb-3">
           <div class="col-md-6">
-            <strong>Order Number:</strong> <span x-text="selectedOrder.order_number"></span>
+            <strong>Order Number:</strong> <span x-text="modalOrder?.order_number || 'N/A'"></span>
           </div>
           <div class="col-md-6">
-            <strong>Status:</strong> 
-            <span class="badge" :class="getStatusClass(selectedOrder.status)" x-text="selectedOrder.status"></span>
+            <strong>Status:</strong>
+            <span class="badge" :class="getStatusClass(modalOrder?.status)" x-text="modalOrder?.status || 'Unknown'"></span>
           </div>
         </div>
         
         <div class="row mb-3">
           <div class="col-md-4">
-            <strong>Order Type:</strong> <span x-text="selectedOrder.order_type"></span>
+            <strong>Order Type:</strong> <span x-text="modalOrder?.order_type || 'N/A'"></span>
           </div>
           <div class="col-md-4">
-            <strong>Table:</strong> <span x-text="selectedOrder.table_number || 'N/A'"></span>
+            <strong>Table:</strong> <span x-text="modalOrder?.table_number || 'N/A'"></span>
           </div>
           <div class="col-md-4">
-            <strong>Created:</strong> <span x-text="formatDateTime(selectedOrder.created_at)"></span>
+            <strong>Created:</strong> <span x-text="formatDateTime(modalOrder?.created_at)"></span>
           </div>
         </div>
 
         <!-- Customer Info -->
         <div class="row mb-3">
           <div class="col-md-6">
-            <strong>Customer:</strong> <span x-text="selectedOrder.customer_name || 'Walk-in'"></span>
+            <strong>Customer:</strong> <span x-text="modalOrder?.customer_name || 'Walk-in'"></span>
           </div>
           <div class="col-md-6">
-            <strong>Mobile:</strong> <span x-text="selectedOrder.customer_mobile || 'N/A'"></span>
+            <strong>Mobile:</strong> <span x-text="modalOrder?.customer_mobile || 'N/A'"></span>
           </div>
         </div>
 
@@ -317,14 +348,17 @@
               </tr>
             </thead>
             <tbody>
-              <template x-for="item in selectedOrder.items" :key="item.id">
+              <template x-for="item in (modalOrder?.items || [])" :key="item?.id">
                 <tr>
-                  <td x-text="item.name"></td>
-                  <td x-text="item.quantity"></td>
-                  <td x-text="'₹' + item.price.toFixed(2)"></td>
-                  <td x-text="'₹' + (item.price * item.quantity).toFixed(2)"></td>
+                  <td x-text="item?.name || 'Unknown Item'"></td>
+                  <td x-text="item?.quantity || 0"></td>
+                  <td x-text="'₹' + (item?.price || 0).toFixed(2)"></td>
+                  <td x-text="'₹' + ((item?.price || 0) * (item?.quantity || 0)).toFixed(2)"></td>
                 </tr>
               </template>
+              <tr x-show="!modalOrder?.items || modalOrder.items.length === 0">
+                <td colspan="4" class="text-center text-muted">No items found</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -334,34 +368,42 @@
           <div class="col-md-6 ms-auto">
             <div class="d-flex justify-content-between">
               <span>Subtotal:</span>
-              <span x-text="'₹' + selectedOrder.subtotal.toFixed(2)"></span>
+              <span x-text="'₹' + (modalOrder?.subtotal || 0).toFixed(2)"></span>
             </div>
             <div class="d-flex justify-content-between">
               <span>CGST (2.5%):</span>
-              <span x-text="'₹' + selectedOrder.cgst_amount.toFixed(2)"></span>
+              <span x-text="'₹' + (modalOrder?.cgst_amount || 0).toFixed(2)"></span>
             </div>
             <div class="d-flex justify-content-between">
               <span>SGST (2.5%):</span>
-              <span x-text="'₹' + selectedOrder.sgst_amount.toFixed(2)"></span>
+              <span x-text="'₹' + (modalOrder?.sgst_amount || 0).toFixed(2)"></span>
             </div>
-            <div class="d-flex justify-content-between" x-show="selectedOrder.discount_amount > 0">
+            <div class="d-flex justify-content-between" x-show="modalOrder?.discount_amount > 0">
               <span>Discount:</span>
-              <span x-text="'-₹' + selectedOrder.discount_amount.toFixed(2)"></span>
+              <span x-text="'-₹' + (modalOrder?.discount_amount || 0).toFixed(2)"></span>
             </div>
             <hr>
             <div class="d-flex justify-content-between h5">
               <strong>Total:</strong>
-              <strong x-text="'₹' + selectedOrder.grand_total.toFixed(2)"></strong>
+              <strong x-text="'₹' + (modalOrder?.grand_total || 0).toFixed(2)"></strong>
             </div>
           </div>
         </div>
       </div>
+      <div class="modal-body text-center py-5" x-show="!modalOrder || !modalOrder.id">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading order details...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading order details...</p>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary" @click="printOrder(selectedOrder)">
+        <button type="button" class="btn btn-primary" @click="printModalOrder()" :disabled="!modalOrder || !modalOrder.id">
           <i class="fas fa-print"></i> Print
         </button>
-        <button type="button" class="btn btn-success" @click="proceedToPayment(selectedOrder)" x-show="['New', 'In Progress'].includes(selectedOrder?.status)">
+        <button type="button" class="btn btn-success" @click="payModalOrder()"
+                x-show="modalOrder && ['New', 'In Progress'].includes(modalOrder?.status)"
+                :disabled="!modalOrder || !modalOrder.id">
           <i class="fas fa-credit-card"></i> Process Payment
         </button>
       </div>
@@ -369,7 +411,6 @@
   </div>
 </div>
 {% endblock %} {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
 function orderList() {
   return {
@@ -395,23 +436,16 @@ function orderList() {
     totalPages: 0,
     selectedOrder: null,
     searchTimeout: null,
-    
-    // Initialize formatDateTime function
+
+    // Wrapper methods for global functions
+    getStatusClass(status) {
+      return window.getStatusClass ? window.getStatusClass(status) : '';
+    },
+    formatTime(dateString) {
+      return window.formatTime ? window.formatTime(dateString) : '';
+    },
     formatDateTime(dateString) {
-      if (!dateString) return 'N/A';
-      try {
-        const date = new Date(dateString);
-        return date.toLocaleString('en-IN', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      } catch (error) {
-        console.error('Error formatting date:', error);
-        return 'Invalid Date';
-      }
+      return window.formatDateTime ? window.formatDateTime(dateString) : '';
     },
 
     init() {
@@ -597,49 +631,106 @@ function orderList() {
       }
     },
 
-    getStatusClass(status) {
-      const classes = {
-        'New': 'bg-primary',
-        'In Progress': 'bg-warning',
-        'Ready': 'bg-info',
-        'Completed': 'bg-success',
-        'Cancelled': 'bg-danger'
-      };
-      return classes[status] || 'bg-secondary';
-    },
-
-    formatTime(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleTimeString('en-IN', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-    },
-
-    formatDateTime(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleString('en-IN');
-    },
-
     viewOrder(order) {
-      this.selectedOrder = order;
-      const modal = new bootstrap.Modal(document.getElementById('orderModal'));
-      modal.show();
+      try {
+        if (!order) {
+          this.showNotification('Invalid order data', 'error');
+          return;
+        }
+        
+        // Store the order in the main component
+        this.selectedOrder = order;
+        
+        // Get the modal element
+        const modalElement = document.getElementById('orderModal');
+        if (!modalElement) {
+          this.showNotification('Modal not found', 'error');
+          return;
+        }
+        
+        // Set the modalOrder directly using Alpine's magic
+        // This approach ensures the modal's x-data is updated
+        setTimeout(() => {
+          try {
+            const modalData = Alpine.$data(modalElement);
+            if (modalData) {
+              modalData.modalOrder = { ...order };
+            }
+          } catch (err) {
+            console.error('Error setting modal order:', err);
+            // Fallback: use a custom event to communicate with the modal
+            const event = new CustomEvent('setModalOrder', { detail: { order: { ...order } } });
+            modalElement.dispatchEvent(event);
+          }
+        }, 10);
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        // Add event listener to clean up when modal is hidden
+        modalElement.addEventListener('hidden.bs.modal', function() {
+          try {
+            const modalData = Alpine.$data(modalElement);
+            if (modalData) {
+              modalData.modalOrder = null;
+            }
+          } catch (err) {
+            console.error('Error clearing modal order:', err);
+          }
+        }, { once: true });
+        
+      } catch (error) {
+        console.error('Error viewing order:', error);
+        this.showNotification('Error opening order details', 'error');
+      }
     },
 
     printOrder(order) {
-      window.open(`/kot/print/${order.id}`, '_blank');
+      try {
+        if (!order || !order.id) {
+          this.showNotification('Invalid order data for printing', 'error');
+          return;
+        }
+        
+        window.open(`/kot/print/${order.id}`, '_blank');
+      } catch (error) {
+        console.error('Error printing order:', error);
+        this.showNotification('Error printing order', 'error');
+      }
     },
 
     exportOrder(order) {
-      window.location.href = `/reports/export/order/${order.id}`;
+      try {
+        if (!order || !order.id) {
+          this.showNotification('Invalid order data for export', 'error');
+          return;
+        }
+        
+        window.location.href = `/reports/export/order/${order.id}`;
+      } catch (error) {
+        console.error('Error exporting order:', error);
+        this.showNotification('Error exporting order', 'error');
+      }
     },
 
     proceedToPayment(order) {
-      window.location.href = `/orders/payment/${order.id}`;
+      try {
+        if (!order || !order.id) {
+          this.showNotification('Invalid order data for payment', 'error');
+          return;
+        }
+        
+        window.location.href = `/orders/payment/${order.id}`;
+      } catch (error) {
+        console.error('Error proceeding to payment:', error);
+        this.showNotification('Error processing payment', 'error');
+      }
     },
 
     async cancelOrder(order) {
+      if (!order || !order.id) return;
+      
       if (!confirm(`Are you sure you want to cancel order ${order.order_number}?`)) {
         return;
       }
@@ -671,19 +762,27 @@ function orderList() {
     },
 
     showNotification(message, type = 'info') {
-      // Create toast notification
-      const toast = document.createElement('div');
-      toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
-      toast.style.zIndex = '9999';
-      toast.textContent = message;
-
-      document.body.appendChild(toast);
-
-      setTimeout(() => {
-        toast.remove();
-      }, 3000);
+      // Use global showNotification function from utils.js
+      return window.showNotification(message, type);
     }
   };
 }
+</script>
+<script>
+  // Execute the order list function
+  document.addEventListener('alpine:init', () => {
+    try {
+      // Store reference to the component for modal access
+      window.orderListComponent = null;
+      
+      Alpine.data('orderList', () => {
+        const component = orderList();
+        window.orderListComponent = component; // Store reference globally
+        return component;
+      });
+    } catch (error) {
+      console.error('Error initializing Alpine.js data:', error);
+    }
+  });
 </script>
 {% endblock %}
