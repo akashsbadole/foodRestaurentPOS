@@ -4,9 +4,7 @@ from datetime import datetime
 from .base_ui import BaseUI
 from src.utils.constants import *
 from src.utils.helpers import export_to_csv, export_report_to_csv, create_export_options_dialog
-from src.utils.license_decorator import require_license_feature, LicenseFeatureMixin
-
-class ReportsScreen(BaseUI, LicenseFeatureMixin):
+class ReportsScreen(BaseUI):
     """Reports screen UI component with modern design"""
     
     def __init__(self, root, app):
@@ -440,7 +438,6 @@ class ReportsScreen(BaseUI, LicenseFeatureMixin):
         else:
             self.show_message("Error", "Failed to export report", "error")
     
-    @require_license_feature('advanced_reports', "Advanced export features require a Professional or Enterprise license.")
     def advanced_export_csv(self):
         """Show advanced export dialog with modern styling"""
         if not self.report_tree.get_children():

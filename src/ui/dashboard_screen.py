@@ -461,7 +461,6 @@ class DashboardScreen(BaseUI):
             ("Inventory", self.app.show_inventory, self.COLORS['error']),
             ("Reports", self.app.show_reports, self.COLORS['info']),
             ("Support", self.app.show_support_screen, '#9b59b6'),
-            ("License", self.show_license_status, '#34495e')
         ]
         
         # Create button grid with proper spacing
@@ -497,16 +496,6 @@ class DashboardScreen(BaseUI):
         # Configure column weights for responsive layout
         for col in range(4):  # Changed to 4 columns
             button_frame.columnconfigure(col, weight=1)
-    
-    def show_license_status(self):
-        """Show license status dialog"""
-        try:
-            from .license_status_screen import LicenseStatusScreen
-            license_screen = LicenseStatusScreen(self.root, self.app)
-            self.root.wait_window(license_screen.dialog)
-        except Exception as e:
-            from tkinter import messagebox
-            messagebox.showerror("Error", f"Failed to open license status: {str(e)}")
     
     def update_datetime(self):
         """Update date and time display every second"""

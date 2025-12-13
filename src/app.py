@@ -68,13 +68,11 @@ from src.utils.helpers import generate_order_number, format_currency, format_dat
 from src.utils.constants import *
 from src.utils.event_dispatcher import event_dispatcher, EventType
 from src.managers.data_manager import init_data_manager
-from src.utils.license_integration import LicenseIntegration
 from src.utils.support_manager import SupportManager
 from src.utils.bug_logger import BugLogger
 from src.utils.contact_manager import ContactManager
 from src.utils.email_service import EmailService
 from src.migrations.add_support_tables import migrate_support_tables
-from src.migrations.add_license_tables import run_migration
 
 class RestaurantPOSApp:
     """Main Restaurant POS Application Class"""
@@ -120,7 +118,7 @@ class RestaurantPOSApp:
         # Initialize event dispatcher
         event_dispatcher.set_tk_root(root)
         
-        # Run database migrations for support and license systems
+        # Run database migrations for support system
         self._run_database_migrations()
         
         # Initialize email service
@@ -134,9 +132,6 @@ class RestaurantPOSApp:
         
         # Initialize contact manager
         self.contact_manager = ContactManager(self.db, self.email_service)
-        
-        # Initialize license system
-        self.license_integration = LicenseIntegration(self)
         
         # Load settings
         self.load_settings()
@@ -153,15 +148,9 @@ class RestaurantPOSApp:
         self.show_login_screen()
     
     def _run_database_migrations(self):
-        """Run database migrations for support and license systems"""
+        """Run database migrations for support system"""
         try:
             print("Running database migrations...")
-            
-            # Run license tables migration
-            if run_migration():
-                print("License tables migration completed successfully")
-            else:
-                print("License tables migration failed")
             
             # Run support tables migration
             if migrate_support_tables():
@@ -224,24 +213,6 @@ class RestaurantPOSApp:
         except Exception as e:
             print(f"Error submitting contact form: {str(e)}")
             return None
-    
-    def get_license_status(self):
-        """Get current license status"""
-        try:
-            if hasattr(self, 'license_integration'):
-                return self.license_integration.get_license_status()
-            return {}
-        except Exception as e:
-            print(f"Error getting license status: {str(e)}")
-            return {}
-    
-    def validate_license_periodically(self):
-        """Validate license periodically"""
-        try:
-            if hasattr(self, 'license_integration'):
-                self.license_integration.validate_license_periodically()
-        except Exception as e:
-            print(f"Error validating license periodically: {str(e)}")
     
     def set_window_icon(self):
         """Set the window icon using the POS logo"""
@@ -343,9 +314,6 @@ class RestaurantPOSApp:
         # Set up global keyboard shortcuts
         self.keyboard_handler.setup_global_keyboard_shortcuts()
         
-        # Restrict UI features based on license
-        self.license_integration.restrict_ui_features()
-        
         # Show dashboard by default
         self.show_dashboard()
     
@@ -368,9 +336,6 @@ class RestaurantPOSApp:
                                   text=self.settings.get('restaurant_name', DEFAULT_RESTAURANT_NAME),
                                   font=('Arial', 14, 'bold'))
         self.top_bar_restaurant_label.pack(side=tk.LEFT)
-        
-        # License status
-        self.license_integration.add_license_status_to_top_bar(top_bar)
         
         # User info
         user_frame = ttk.Frame(top_bar)
@@ -440,9 +405,6 @@ class RestaurantPOSApp:
         
         for text, command in buttons:
             ttk.Button(sidebar, text=text, command=command).pack(fill=tk.X, pady=5)
-        
-        # License menu items
-        self.license_integration.add_license_menu_items(sidebar)
         
         # Data Management button (only for admin)
         if self.current_user['role'] == ROLE_ADMIN:
@@ -545,7 +507,7 @@ class RestaurantPOSApp:
     
     def check_feature_access(self, feature: str) -> bool:
         """
-        Check if a feature is accessible based on license
+        Check if a feature is accessible
         
         Args:
             feature: Feature name to check
@@ -553,13 +515,8 @@ class RestaurantPOSApp:
         Returns:
             True if feature is accessible, False otherwise
         """
-        try:
-            if hasattr(self, 'license_integration'):
-                return self.license_integration.check_feature_access(feature)
-            return True  # Default to True if license system not available
-        except Exception as e:
-            print(f"Error checking feature access: {str(e)}")
-            return True  # Default to True on error
+        # All features are accessible by default
+        return True
     
     def logout(self):
         """Logout the current user"""
@@ -569,10 +526,6 @@ class RestaurantPOSApp:
     def on_closing(self):
         """Handle application closing"""
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            # Clean up license integration
-            if hasattr(self, 'license_integration'):
-                self.license_integration.cleanup()
-            
             # Clean up bug logger
             if hasattr(self, 'bug_logger'):
                 self.bug_logger.cleanup()
