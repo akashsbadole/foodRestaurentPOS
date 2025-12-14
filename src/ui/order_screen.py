@@ -682,7 +682,7 @@ class OrderScreen(BaseUI):
             is_active = (status_key == current_status)
             button = self.create_left_panel_status_button(
                 button.master,
-                text=c["text"],  # We need to get the original text
+                text=button["text"],  # Get the original text from the button
                 command=button['command'],
                 is_active=is_active
             )
@@ -1442,7 +1442,7 @@ class OrderScreen(BaseUI):
             print(f"[DEBUG] Using total from order manager: Rs.{total_amount}")
             
             # Show payment dialog with multiple options
-            from src.ui.order_screen import EnhancedPaymentDialog
+            # Fix: Use the local EnhancedPaymentDialog class defined in this file
             print(f"[DEBUG] Creating payment dialog...")
             payment_dialog = EnhancedPaymentDialog(self.root, total_amount, self.payment_methods)
             print(f"[DEBUG] Payment dialog created, waiting for result...")
@@ -1598,6 +1598,191 @@ class OrderScreen(BaseUI):
         """Clear current order (legacy method - redirects to clear_current_order)"""
         self.clear_current_order()
     
+    def _handle_post_payment_export(self, order_id, manual_export=False):
+        """Handle export after payment completion based on settings"""
+        try:
+            # Get export settings
+            export_after_payment = self.app.settings.get('export_after_payment', 'false').lower() == 'true'
+            default_export_format = self.app.settings.get('default_export_format', 'none')
+            show_export_dialog = self.app.settings.get('show_export_dialog', 'true').lower() == 'true'
+            
+            # Skip if auto-export is disabled and this is not a manual export
+            if not export_after_payment and not manual_export:
+                return
+            
+            # If manual export or dialog is enabled, show export dialog
+            if manual_export or show_export_dialog:
+                self.export_order_with_id(order_id)
+            else:
+                # Auto-export with default format
+                if default_export_format != 'none':
+                    self._auto_export_order(order_id, default_export_format)
+                    
+        except Exception as e:
+            # Export failures should not affect payment completion
+            print(f"Export error (non-critical): {e}")
+    
+    def _auto_export_order(self, order_id, export_format):
+        """Automatically export order in specified format"""
+        try:
+            # Get order details
+            order_details = self.app.order_model.get_details(order_id)
+            if not order_details:
+                print(f"Order {order_id} not found for auto-export")
+                return
+            
+            # Prepare order data for export
+            order_data = self._prepare_export_data_from_details(order_details)
+            
+            # Export based on format
+            if export_format == 'pdf':
+                if self.pdf_exporter is None:
+                    print(f"Cannot auto-export order {order_id} to PDF: ReportLab library is not installed")
+                    return
+                success, result = self.pdf_exporter.export_order(order_data)
+                if success:
+                    print(f"Order {order_id} auto-exported to PDF: {result}")
+                else:
+                    print(f"Failed to auto-export order {order_id} to PDF: {result}")
+                    
+            elif export_format == 'text':
+                success, result = self.text_exporter.export_order(order_data)
+                if success:
+                    print(f"Order {order_id} auto-exported to Text: {result}")
+                else:
+                    print(f"Failed to auto-export order {order_id} to Text: {result}")
+                    
+            elif export_format == 'both':
+                # Export both formats
+                if self.pdf_exporter is None:
+                    print(f"Cannot auto-export order {order_id} to PDF: ReportLab library is not installed")
+                    pdf_success = False
+                    pdf_result = "ReportLab not available"
+                else:
+                    pdf_success, pdf_result = self.pdf_exporter.export_order(order_data)
+                
+                text_success, text_result = self.text_exporter.export_order(order_data)
+                
+                if pdf_success:
+                    print(f"Order {order_id} auto-exported to PDF: {pdf_result}")
+                else:
+                    print(f"Failed to auto-export order {order_id} to PDF: {pdf_result}")
+                    
+                if text_success:
+                    print(f"Order {order_id} auto-exported to Text: {text_result}")
+                else:
+                    print(f"Failed to auto-export order {order_id} to Text: {text_result}")
+                    
+        except Exception as e:
+            print(f"Auto-export error for order {order_id}: {e}")
+    
+    def _prepare_export_data_from_details(self, order_details):
+        """Prepare order data for export from order details"""
+        order = order_details['order']
+        items = order_details['items']
+        payments = order_details['payments']
+        
+        # Get table number if dine-in
+        table_number = None
+        if order[1]:  # table_id exists
+            tables = self.app.table_model.get_all()
+            for table in tables:
+                if table[0] == order[1]:
+                    table_number = table[1]
+                    break
+        
+        return {
+            'order_number': order[0],
+            'table_number': table_number,
+            'customer_name': order[2],
+            'customer_mobile': order[3],
+            'order_type': order[4],
+            'status': order[10],
+            'subtotal': order[5],
+            'tax': order[6],
+            'discount': order[7],
+            'total': order[8],
+            'tax_rate': float(self.app.settings.get('tax_rate', DEFAULT_TAX_RATE)),
+            'items': items,
+            'payments': payments,
+            'created_at': order[9]
+        }
+    
+    def export_order_with_id(self, order_id):
+        """Export saved order by ID"""
+        try:
+            # Get order details
+            order_details = self.app.order_model.get_details(order_id)
+            if not order_details:
+                messagebox.showerror("Error", "Order not found")
+                return
+            
+            # Prepare order data for export
+            order_data = self._prepare_export_data_from_details(order_details)
+            
+            # Show export dialog
+            dialog = ExportDialog(self.root, self.app.settings, order_data)
+            result = dialog.get_result()
+            
+            if result:
+                self._process_export(order_data, result)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export order: {e}")
+    
+    def _process_export(self, order_data, export_options):
+        """Process export with selected options"""
+        try:
+            exported_files = []
+            
+            # Export to PDF if selected
+            if export_options['export_pdf']:
+                if self.pdf_exporter is None:
+                    messagebox.showerror("Export Error", "PDF export is not available. ReportLab library is not installed.")
+                    return
+                success, result = self.pdf_exporter.export_order(order_data)
+                if success:
+                    exported_files.append(result)
+                    if export_options.get('auto_open'):
+                        self._open_file(result)
+                else:
+                    messagebox.showerror("Export Error", f"Failed to export PDF: {result}")
+                    return
+            
+            # Export to Text if selected
+            if export_options['export_text']:
+                success, result = self.text_exporter.export_order(order_data)
+                if success:
+                    exported_files.append(result)
+                    if export_options.get('auto_open'):
+                        self._open_file(result)
+                else:
+                    messagebox.showerror("Export Error", f"Failed to export Text: {result}")
+                    return
+            
+            # Show success message
+            if exported_files:
+                file_count = len(exported_files)
+                messagebox.showinfo(
+                    "Export Successful",
+                    f"Order exported successfully to {file_count} file{'s' if file_count > 1 else ''}!"
+                )
+            else:
+                messagebox.showwarning("Export Warning", "No files were exported")
+                
+        except Exception as e:
+            messagebox.showerror("Export Error", f"An error occurred during export: {e}")
+    
+    def _open_file(self, filepath):
+        """Open file with default application"""
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(filepath)
+            elif os.name == 'posix':  # macOS and Linux
+                subprocess.run(['open', filepath], check=True)
+        except Exception as e:
+            print(f"Failed to open file: {e}")
+    
     def cleanup(self):
         """Cleanup resources when screen is destroyed"""
         # Save current order to memory if it has items
@@ -1621,25 +1806,37 @@ class OrderScreen(BaseUI):
             messagebox.showerror("Error", f"Failed to open KOT window: {e}")
 
 
-class EnhancedPaymentDialog:
+class EnhancedPaymentDialog(BaseUI):
     """Enhanced payment dialog with multiple payment options"""
     
     def __init__(self, parent, total_amount, payment_methods):
+        print(f"[DEBUG] EnhancedPaymentDialog.__init__() started")
+        # Create a mock app object with db attribute to avoid errors
+        class MockApp:
+            def __init__(self):
+                self.db = None
+        mock_app = MockApp()
+        
+        super().__init__(parent, mock_app)
         self.result = None
         self.total_amount = total_amount
         self.payment_methods = payment_methods
+        print(f"[DEBUG] EnhancedPaymentDialog initialized with amount: {total_amount}")
         
         # Create dialog window
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Process Payment")
+        print(f"[DEBUG] Dialog window created")
         
         # Set minimum size and initial geometry
         self.dialog.minsize(400, 350)
-        self.dialog.geometry("500x650")
+        self.dialog.geometry("500x750")
+        print(f"[DEBUG] Dialog geometry set")
         
         # Make dialog modal
         self.dialog.transient(parent)
         self.dialog.grab_set()
+        print(f"[DEBUG] Dialog made modal")
         
         # Center dialog with error handling
         try:
@@ -1648,194 +1845,283 @@ class EnhancedPaymentDialog:
             screen_height = self.dialog.winfo_screenheight()
             dialog_width = self.dialog.winfo_width()
             dialog_height = self.dialog.winfo_height()
+            print(f"[DEBUG] Screen dimensions: {screen_width}x{screen_height}, Dialog: {dialog_width}x{dialog_height}")
             
             # Calculate center position with bounds checking
             x = max(0, min((screen_width // 2) - (dialog_width // 2), screen_width - dialog_width))
             y = max(0, min((screen_height // 2) - (dialog_height // 2), screen_height - dialog_height))
             
             self.dialog.geometry(f"+{x}+{y}")
+            print(f"[DEBUG] Dialog positioned at {x},{y}")
         except Exception as e:
             print(f"[DEBUG] Error centering dialog: {e}")
             # Fallback to default position
             self.dialog.geometry("+100+100")
         
+        print(f"[DEBUG] Calling setup_ui()")
         self.setup_ui()
+        print(f"[DEBUG] EnhancedPaymentDialog.__init__() completed")
     
     def setup_ui(self):
         """Setup payment dialog UI"""
         try:
+            print(f"[DEBUG] EnhancedPaymentDialog.setup_ui() started")
+            # Configure styles first
+            self.configure_styles()
+            print(f"[DEBUG] Styles configured")
+            
             # Main frame with padding
             main_frame = ttk.Frame(self.dialog, padding=20)
             main_frame.pack(fill=tk.BOTH, expand=True)
+            print(f"[DEBUG] Main frame created and packed")
             
             # Title and amount
             title_frame = ttk.Frame(main_frame)
             title_frame.pack(fill=tk.X, pady=(0, 20))
+            print(f"[DEBUG] Title frame created and packed")
             
             self.create_left_panel_header(title_frame, text="Payment Processing").pack(anchor=tk.W)
-            self.create_left_panel_label(title_frame, text=f"Total Amount: Rs.{self.total_amount:.2f}", 
+            self.create_left_panel_label(title_frame, text=f"Total Amount: Rs.{self.total_amount:.2f}",
                                       style_type="large").pack(anchor=tk.W, pady=(10, 0))
+            print(f"[DEBUG] Title and amount labels created")
             
             # Payment method selection
+            print(f"[DEBUG] Creating payment method selection frame...")
             method_frame = ttk.LabelFrame(main_frame, text="Payment Method", padding=10)
             method_frame.pack(fill=tk.X, pady=(0, 15))
+            print(f"[DEBUG] Payment method frame created and packed")
             
-            self.payment_method_var = tk.StringVar(value=self.payment_methods[0])
+            self.payment_method_var = tk.StringVar(value=self.payment_methods[0] if self.payment_methods else "Cash")
+            print(f"[DEBUG] Payment method variable initialized with: {self.payment_method_var.get()}")
             
             # Create radio buttons for payment methods with enhanced fonts
+            print(f"[DEBUG] Creating payment method radio buttons...")
             for i, method in enumerate(self.payment_methods):
                 row = i // 2
                 col = i % 2
-                radiobutton = ttk.Radiobutton(method_frame, text=method, variable=self.payment_method_var, 
+                print(f"[DEBUG] Creating radio button for method: {method} at row {row}, col {col}")
+                radiobutton = ttk.Radiobutton(method_frame, text=method, variable=self.payment_method_var,
                                            value=method, command=self.on_payment_method_change)
                 radiobutton.grid(row=row, column=col, sticky=tk.W, padx=10, pady=5)
+                print(f"[DEBUG] Radio button created for {method}")
             
             # Amount details
+            print(f"[DEBUG] Creating payment details frame...")
             details_frame = ttk.LabelFrame(main_frame, text="Payment Details", padding=10)
             details_frame.pack(fill=tk.X, pady=(0, 15))
+            print(f"[DEBUG] Payment details frame created and packed")
             
             # Discount
+            print(f"[DEBUG] Creating discount field...")
             self.create_left_panel_label(details_frame, text="Discount (Rs):").grid(row=0, column=0, sticky=tk.W, pady=5)
             self.discount_var = tk.StringVar(value="0")
             discount_entry = self.create_left_panel_entry(details_frame, textvariable=self.discount_var, width=15)
             discount_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+            print(f"[DEBUG] Discount field created")
             
             # Amount paid
+            print(f"[DEBUG] Creating amount paid field...")
             self.create_left_panel_label(details_frame, text="Amount Paid (Rs):").grid(row=1, column=0, sticky=tk.W, pady=5)
             self.amount_paid_var = tk.StringVar(value=str(self.total_amount))
             amount_paid_entry = self.create_left_panel_entry(details_frame, textvariable=self.amount_paid_var, width=15)
             amount_paid_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
+            print(f"[DEBUG] Amount paid field created")
             
             # Balance
+            print(f"[DEBUG] Creating balance label...")
             self.create_left_panel_label(details_frame, text="Balance (Rs):").grid(row=2, column=0, sticky=tk.W, pady=5)
-            self.balance_label = self.create_left_panel_label(details_frame, text="Rs.0.00", 
+            self.balance_label = self.create_left_panel_label(details_frame, text="Rs.0.00",
                                                            style_type="large")
             self.balance_label.grid(row=2, column=1, sticky=tk.W, pady=5)
+            print(f"[DEBUG] Balance label created")
             
             # Update calculations when values change
             self.discount_var.trace('w', self.update_calculations)
             self.amount_paid_var.trace('w', self.update_calculations)
+            print(f"[DEBUG] Calculation traces added")
             
             # Payment method specific fields
+            print(f"[DEBUG] Creating method-specific fields frame...")
             self.method_fields_frame = ttk.LabelFrame(main_frame, text="Payment Details", padding=10)
             self.method_fields_frame.pack(fill=tk.X, pady=(0, 15))
+            print(f"[DEBUG] Method-specific fields frame created and packed")
             
             # Initialize with first payment method
+            print(f"[DEBUG] Initializing payment method fields...")
             self.on_payment_method_change()
+            print(f"[DEBUG] Payment method fields initialized")
             
             # Buttons - Ensure they're always visible
+            print(f"[DEBUG] Creating button frame...")
             button_frame = ttk.Frame(main_frame)
             button_frame.pack(fill=tk.X, pady=(10, 0))
+            print(f"[DEBUG] Button frame created and packed")
             
             # Create buttons with enhanced fonts
-            self.create_left_panel_button(button_frame, text="Cancel", command=self.cancel, 
-                                        button_type="secondary").pack(side=tk.RIGHT, padx=(5, 0))
+            print(f"[DEBUG] Creating cancel button...")
+            cancel_btn = self.create_left_panel_button(button_frame, text="Cancel", command=self.cancel,
+                                        button_type="secondary")
+            cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
+            print(f"[DEBUG] Cancel button created and packed")
             
-            self.create_left_panel_button(button_frame, text="Process Payment", command=self.process, 
-                                        button_type="primary").pack(side=tk.RIGHT)
+            print(f"[DEBUG] Creating process payment button...")
+            process_btn = self.create_left_panel_button(button_frame, text="Process Payment", command=self.process,
+                                        button_type="primary")
+            process_btn.pack(side=tk.RIGHT)
+            print(f"[DEBUG] Process Payment button created and packed")
             
             # Force UI update to ensure buttons are visible
             self.dialog.update_idletasks()
+            print(f"[DEBUG] UI updated with idletasks")
             
             # Initial calculation
             self.update_calculations()
+            print(f"[DEBUG] Initial calculations completed")
             
         except Exception as e:
             print(f"[DEBUG] Error in setup_ui: {e}")
+            import traceback
+            traceback.print_exc()
             # Ensure buttons are still created even if other parts fail
             try:
-                button_frame = ttk.Frame(main_frame)
-                button_frame.pack(fill=tk.X, pady=(10, 0))
-                ttk.Button(button_frame, text="Cancel", command=self.cancel).pack(side=tk.RIGHT, padx=(5, 0))
-                ttk.Button(button_frame, text="Process Payment", command=self.process).pack(side=tk.RIGHT)
-            except:
-                pass
+                if 'main_frame' in locals():
+                    button_frame = ttk.Frame(main_frame)
+                    button_frame.pack(fill=tk.X, pady=(10, 0))
+                    ttk.Button(button_frame, text="Cancel", command=self.cancel).pack(side=tk.RIGHT, padx=(5, 0))
+                    ttk.Button(button_frame, text="Process Payment", command=self.process).pack(side=tk.RIGHT)
+                    print(f"[DEBUG] Fallback buttons created")
+                else:
+                    print(f"[DEBUG] Cannot create fallback buttons - main_frame not defined")
+            except Exception as fallback_error:
+                print(f"[DEBUG] Error creating fallback buttons: {fallback_error}")
+                import traceback
+                traceback.print_exc()
     
     def on_payment_method_change(self):
         """Handle payment method change"""
         try:
+            print(f"[DEBUG] on_payment_method_change() started")
             # Clear existing method-specific fields
+            print(f"[DEBUG] Clearing existing method-specific fields...")
             for widget in self.method_fields_frame.winfo_children():
                 widget.destroy()
+            print(f"[DEBUG] Existing fields cleared")
             
             method = self.payment_method_var.get()
+            print(f"[DEBUG] Selected payment method: {method}")
             
             if method == "Card":
+                print(f"[DEBUG] Creating Card payment fields...")
                 self.create_left_panel_label(self.method_fields_frame, text="Card Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.card_number_var = tk.StringVar()
                 card_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.card_number_var, width=20)
                 card_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+                print(f"[DEBUG] Card number field created")
                 
                 self.create_left_panel_label(self.method_fields_frame, text="Expiry:").grid(row=1, column=0, sticky=tk.W, pady=5)
                 self.expiry_var = tk.StringVar()
                 expiry_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.expiry_var, width=10)
                 expiry_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
+                print(f"[DEBUG] Card expiry field created")
                 
             elif method == "UPI":
+                print(f"[DEBUG] Creating UPI payment fields...")
                 self.create_left_panel_label(self.method_fields_frame, text="UPI ID:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.upi_id_var = tk.StringVar()
                 upi_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.upi_id_var, width=20)
                 upi_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+                print(f"[DEBUG] UPI ID field created")
                 
             elif method == "Wallet":
+                print(f"[DEBUG] Creating Wallet payment fields...")
                 self.create_left_panel_label(self.method_fields_frame, text="Wallet Number:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.wallet_number_var = tk.StringVar()
                 wallet_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.wallet_number_var, width=20)
                 wallet_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+                print(f"[DEBUG] Wallet number field created")
                 
             elif method == "Credit":
+                print(f"[DEBUG] Creating Credit payment fields...")
                 self.create_left_panel_label(self.method_fields_frame, text="Customer Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.credit_customer_var = tk.StringVar()
                 credit_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.credit_customer_var, width=20)
                 credit_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+                print(f"[DEBUG] Credit customer name field created")
                 
             elif method == "Cash":
+                print(f"[DEBUG] Creating Cash payment fields...")
                 self.create_left_panel_label(self.method_fields_frame, text="Cash Received:").grid(row=0, column=0, sticky=tk.W, pady=5)
                 self.cash_received_var = tk.StringVar(value=str(self.total_amount))
                 cash_entry = self.create_left_panel_entry(self.method_fields_frame, textvariable=self.cash_received_var, width=15)
                 cash_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+                print(f"[DEBUG] Cash received field created")
                 
                 self.create_left_panel_label(self.method_fields_frame, text="Change:").grid(row=1, column=0, sticky=tk.W, pady=5)
-                self.change_label = self.create_left_panel_label(self.method_fields_frame, text="Rs.0.00", 
+                self.change_label = self.create_left_panel_label(self.method_fields_frame, text="Rs.0.00",
                                                                style_type="large")
                 self.change_label.grid(row=1, column=1, sticky=tk.W, pady=5)
+                print(f"[DEBUG] Cash change label created")
+                
+                # Bind cash received field to update change
+                self.cash_received_var.trace('w', self.update_calculations)
+                print(f"[DEBUG] Cash received trace added")
             
             # Force UI update to ensure layout is correct
             self.dialog.update_idletasks()
+            print(f"[DEBUG] UI updated after method change")
             
         except Exception as e:
             print(f"[DEBUG] Error in on_payment_method_change: {e}")
+            import traceback
+            traceback.print_exc()
     
     def update_calculations(self, *args):
         """Update payment calculations"""
         try:
+            print(f"[DEBUG] update_calculations() started")
             discount = float(self.discount_var.get() or 0)
+            print(f"[DEBUG] Discount: {discount}")
+            
             if discount < 0:
                 discount = 0
                 self.discount_var.set("0")
+                print(f"[DEBUG] Discount corrected to: {discount}")
             
             if discount > self.total_amount:
                 discount = self.total_amount
                 self.discount_var.set(str(self.total_amount))
+                print(f"[DEBUG] Discount limited to total amount: {discount}")
             
             # Update amount paid to total minus discount for cash payments
             if self.payment_method_var.get() == "Cash":
+                print(f"[DEBUG] Updating cash payment calculations...")
                 final_amount = self.total_amount - discount
                 self.amount_paid_var.set(str(final_amount))
+                print(f"[DEBUG] Amount paid set to: {final_amount}")
                 
                 # Update change calculation
-                cash_received = float(self.cash_received_var.get() or 0)
-                change = cash_received - final_amount
-                self.change_label.config(text=f"Rs.{change:.2f}")
+                if hasattr(self, 'cash_received_var') and hasattr(self, 'change_label'):
+                    cash_received = float(self.cash_received_var.get() or 0)
+                    change = cash_received - final_amount
+                    self.change_label.config(text=f"Rs.{change:.2f}")
+                    print(f"[DEBUG] Cash received: {cash_received}, Change: {change}")
+                else:
+                    print(f"[DEBUG] Cash payment fields not available yet")
             
             # Update balance
             amount_paid = float(self.amount_paid_var.get() or 0)
             final_total = self.total_amount - discount
             balance = amount_paid - final_total
             self.balance_label.config(text=f"Rs.{balance:.2f}")
+            print(f"[DEBUG] Amount paid: {amount_paid}, Final total: {final_total}, Balance: {balance}")
             
-        except ValueError:
+        except ValueError as e:
+            print(f"[DEBUG] ValueError in update_calculations: {e}")
             self.balance_label.config(text="Invalid amount")
+        except Exception as e:
+            print(f"[DEBUG] Unexpected error in update_calculations: {e}")
+            import traceback
+            traceback.print_exc()
     
     def process(self):
         """Process payment"""

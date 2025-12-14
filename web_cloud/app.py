@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, g
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
@@ -10,6 +10,17 @@ from config import config
 
 # Import models
 from models import db, User, Category, MenuItem, Table, Order, OrderItem, Payment, Settings
+
+# Import new utilities (without decorators to avoid conflicts)
+from utils.session_manager import session_manager
+from utils.security_manager import security_manager
+from utils.offline_manager import offline_manager
+from utils.razorpay_manager import razorpay_manager, process_razorpay_webhook
+
+# Import utilities (avoiding decorators to prevent conflicts)
+from utils.session_manager import generate_session_csrf_token
+from utils.security_manager import log_security_event
+from utils.offline_manager import offline_capable, require_online
 
 # Create Flask app
 def create_app(config_name='default'):
@@ -24,6 +35,12 @@ def create_app(config_name='default'):
     
     # CSRF protection
     csrf = CSRFProtect(app)
+    
+    # Initialize managers
+    session_manager.init_app(app)
+    security_manager.init_app(app)
+    offline_manager.init_app(app)
+    razorpay_manager.init_app(app)
     
     # Login manager
     login_manager = LoginManager()
@@ -73,6 +90,7 @@ def create_app(config_name='default'):
     from routes.api import api_bp
     from routes.email import email_bp
     from routes.footer_settings import footer_settings_bp
+    from routes.razorpay import razorpay_bp
     
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(orders_bp, url_prefix='/orders')
@@ -84,6 +102,7 @@ def create_app(config_name='default'):
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(email_bp, url_prefix='/email')
     app.register_blueprint(footer_settings_bp, url_prefix='/footer')
+    app.register_blueprint(razorpay_bp, url_prefix='/razorpay')
     
     # Main routes
     @app.route('/')
@@ -97,7 +116,10 @@ def create_app(config_name='default'):
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.utcnow().isoformat(),
-            'version': '1.0.0'
+            'version': '1.0.0',
+            'offline_mode': not offline_manager.is_online,
+            'session_valid': session_manager._is_session_valid(),
+            'security_status': security_manager.get_security_statistics()
         })
     
     # Context processors
@@ -177,13 +199,108 @@ def create_app(config_name='default'):
             dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
         return dt.strftime('%I:%M %p') if dt else ''
     
-    # Security headers
-    @app.after_request
-    def after_request(response):
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-        return response
+    # Razorpay webhook endpoint
+    @app.route('/razorpay/webhook', methods=['POST'])
+    def razorpay_webhook():
+        """Handle Razorpay webhooks"""
+        try:
+            # Get webhook signature
+            webhook_signature = request.headers.get('X-Razorpay-Signature')
+            if not webhook_signature:
+                log_security_event('MISSING_WEBHOOK_SIGNATURE', 'Webhook missing signature')
+                return jsonify({'error': 'Missing signature'}), 400
+            
+            # Get webhook body
+            webhook_body = request.get_data(as_text=True)
+            
+            # Verify signature
+            if not razorpay_manager.verify_webhook_signature(webhook_body, webhook_signature):
+                log_security_event('INVALID_WEBHOOK_SIGNATURE', 'Invalid webhook signature')
+                return jsonify({'error': 'Invalid signature'}), 400
+            
+            # Parse webhook data
+            webhook_data = request.get_json()
+            
+            # Process webhook
+            success, message, data = process_razorpay_webhook(webhook_data)
+            
+            if success:
+                # Store webhook data for processing
+                session['razorpay_webhook_data'] = data
+                return jsonify({'status': 'processed'}), 200
+            else:
+                return jsonify({'error': message}), 400
+                
+        except Exception as e:
+            app.logger.error(f"Error processing Razorpay webhook: {e}")
+            return jsonify({'error': 'Webhook processing failed'}), 500
+    
+    # API endpoints for new features
+    @app.route('/api/session/status')
+    def session_status():
+        """Get current session status"""
+        # Inline session validation
+        if not session_manager._is_session_valid():
+            return jsonify({
+                'success': False,
+                'message': 'Session expired or invalid',
+                'redirect': '/auth/login'
+            }), 401
+        
+        return jsonify({
+            'success': True,
+            'session': session_manager.get_session_info(),
+            'csrf_token': generate_session_csrf_token()
+        })
+    
+    @app.route('/api/offline/status')
+    def offline_status():
+        """Get offline/sync status"""
+        return jsonify({
+            'success': True,
+            'offline': offline_manager.get_sync_status()
+        })
+    
+    @app.route('/api/security/status')
+    def security_status():
+        """Get security status"""
+        return jsonify({
+            'success': True,
+            'security': security_manager.get_security_statistics()
+        })
+    
+    @app.route('/api/razorpay/config')
+    def razorpay_config():
+        """Get Razorpay configuration"""
+        return jsonify({
+            'success': True,
+            'razorpay': razorpay_manager.get_configuration_info()
+        })
+    
+    # Force sync endpoint
+    @app.route('/api/sync/force', methods=['POST'])
+    def force_sync():
+        """Force immediate synchronization"""
+        # Inline session validation
+        if not session_manager._is_session_valid():
+            return jsonify({
+                'success': False,
+                'message': 'Session expired or invalid',
+                'redirect': '/auth/login'
+            }), 401
+        
+        try:
+            success = offline_manager.force_sync()
+            return jsonify({
+                'success': success,
+                'message': 'Sync initiated' if success else 'Sync failed - offline'
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': str(e)
+                }), 500
+    
     
     return app
 

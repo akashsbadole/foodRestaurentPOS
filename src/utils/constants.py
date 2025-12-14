@@ -228,7 +228,3 @@ SUPPORT_AUTO_ASSIGN_TICKETS = "support_auto_assign_tickets"
 SUPPORT_DEFAULT_PRIORITY = "support_default_priority"
 SUPPORT_MAX_ATTACHMENT_SIZE = "support_max_attachment_size_mb"
 SUPPORT_ALLOWED_FILE_TYPES = "support_allowed_file_types"
-
-# PIL import status placeholder
-PIL_AVAILABLE = None
-PIL_VERSION = None
