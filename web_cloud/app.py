@@ -302,6 +302,33 @@ def create_app(config_name='default'):
                 }), 500
     
     
+    # Add CSP headers to allow external resources
+    @app.after_request
+    def set_security_headers(response):
+        """Set security headers including CSP"""
+        # Content Security Policy to allow external fonts and stylesheets
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self' https://api.razorpay.com; "
+            "frame-src 'none'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self';"
+        )
+        response.headers['Content-Security-Policy'] = csp
+        
+        # Additional security headers
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        
+        return response
+    
     return app
 
 def configure_logging(app):
