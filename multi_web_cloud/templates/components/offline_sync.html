@@ -1,0 +1,822 @@
+<!-- Offline Sync Progress Component -->
+<div x-data="offlineSync()" x-init="init()" class="offline-sync-component">
+    <!-- Offline Status Indicator -->
+    <div class="offline-status-indicator" 
+         :class="connectionStatus"
+         @click="toggleSyncDetails()"
+         role="button"
+         :aria-label="`Connection Status: ${connectionStatusText}`">
+        <div class="status-icon">
+            <div x-show="connectionStatus === 'online'" class="online-indicator">
+                <i class="bi bi-wifi"></i>
+            </div>
+            <div x-show="connectionStatus === 'offline'" class="offline-indicator">
+                <i class="bi bi-wifi-off"></i>
+            </div>
+            <div x-show="connectionStatus === 'syncing'" class="syncing-indicator">
+                <div class="sync-spinner"></div>
+            </div>
+        </div>
+        <span class="status-text" x-text="connectionStatusText"></span>
+        <span x-show="pendingSyncCount > 0" class="sync-badge" x-text="pendingSyncCount"></span>
+    </div>
+    
+    <!-- Sync Details Panel -->
+    <div x-show="showDetails" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95"
+         class="sync-details-panel">
+        
+        <div class="sync-details-header">
+            <h6>Sync Status</h6>
+            <button @click="toggleSyncDetails()" class="btn-close btn-close-sm"></button>
+        </div>
+        
+        <div class="sync-details-content">
+            <!-- Connection Status -->
+            <div class="sync-section">
+                <div class="sync-section-title">
+                    <i class="bi bi-ethernet"></i>
+                    Connection Status
+                </div>
+                <div class="connection-info">
+                    <div class="connection-status-item">
+                        <span class="connection-label">Status:</span>
+                        <span class="connection-value" :class="connectionStatus" x-text="connectionStatusText"></span>
+                    </div>
+                    <div class="connection-status-item">
+                        <span class="connection-label">Last Sync:</span>
+                        <span class="connection-value" x-text="lastSyncTime"></span>
+                    </div>
+                    <div x-show="connectionStatus === 'offline'" class="connection-status-item">
+                        <span class="connection-label">Offline Since:</span>
+                        <span class="connection-value" x-text="offlineSince"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sync Progress -->
+            <div x-show="isSyncing" class="sync-section">
+                <div class="sync-section-title">
+                    <i class="bi bi-arrow-repeat"></i>
+                    Sync Progress
+                </div>
+                <div class="sync-progress-container">
+                    <div class="sync-progress-bar">
+                        <div class="sync-progress-fill" 
+                             :style="`width: ${syncProgress}%`"
+                             :class="syncProgressType">
+                        </div>
+                    </div>
+                    <div class="sync-progress-text">
+                        <span x-text="syncProgressText"></span>
+                        <span class="sync-percentage" x-text="`${syncProgress}%`"></span>
+                    </div>
+                </div>
+                
+                <div class="sync-current-operation">
+                    <i class="bi bi-arrow-right-circle"></i>
+                    <span x-text="currentOperation"></span>
+                </div>
+            </div>
+            
+            <!-- Pending Sync Items -->
+            <div x-show="pendingSyncCount > 0" class="sync-section">
+                <div class="sync-section-title">
+                    <i class="bi bi-clock-history"></i>
+                    Pending Sync Items
+                    <span class="pending-count" x-text="pendingSyncCount"></span>
+                </div>
+                <div class="pending-items-list">
+                    <template x-for="item in pendingItems" :key="item.id">
+                        <div class="pending-item" :class="item.type">
+                            <div class="pending-item-icon">
+                                <i class="bi" :class="getItemIcon(item.type)"></i>
+                            </div>
+                            <div class="pending-item-content">
+                                <div class="pending-item-title" x-text="item.title"></div>
+                                <div class="pending-item-time" x-text="item.time"></div>
+                            </div>
+                            <div class="pending-item-status">
+                                <span class="status-badge" :class="item.status" x-text="item.status"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <!-- Sync Actions -->
+            <div class="sync-section">
+                <div class="sync-section-title">
+                    <i class="bi bi-gear"></i>
+                    Sync Actions
+                </div>
+                <div class="sync-actions">
+                    <button x-show="connectionStatus === 'offline'" 
+                            @click="checkConnection()" 
+                            class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-clockwise"></i> Check Connection
+                    </button>
+                    <button x-show="pendingSyncCount > 0 && connectionStatus === 'online'" 
+                            @click="forceSync()" 
+                            class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-cloud-upload"></i> Force Sync Now
+                    </button>
+                    <button @click="viewSyncHistory()" 
+                            class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-journal-text"></i> Sync History
+                    </button>
+                    <button @click="configureSyncSettings()" 
+                            class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-gear"></i> Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sync Notification Toast -->
+    <div x-show="showSyncNotification" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-x-full"
+         x-transition:enter-end="opacity-100 transform-x-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform-x-0"
+         x-transition:leave-end="opacity-0 transform-x-full"
+         class="sync-notification-toast"
+         :class="notificationType">
+        
+        <div class="sync-notification-content">
+            <div class="sync-notification-icon">
+                <i class="bi" :class="notificationIcon"></i>
+            </div>
+            <div class="sync-notification-message">
+                <div class="notification-title" x-text="notificationTitle"></div>
+                <div class="notification-text" x-text="notificationText"></div>
+            </div>
+            <button @click="hideSyncNotification()" class="btn-close btn-close-sm"></button>
+        </div>
+        
+        <div x-show="showNotificationProgress" class="sync-notification-progress">
+            <div class="notification-progress-bar">
+                <div class="notification-progress-fill" 
+                     :style="`width: ${notificationProgress}%`">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function offlineSync() {
+    return {
+        showDetails: false,
+        connectionStatus: 'online', // online, offline, syncing
+        connectionStatusText: 'Online',
+        isSyncing: false,
+        syncProgress: 0,
+        syncProgressType: 'progress-primary',
+        syncProgressText: 'Syncing...',
+        currentOperation: '',
+        lastSyncTime: '',
+        offlineSince: '',
+        pendingSyncCount: 0,
+        pendingItems: [],
+        showSyncNotification: false,
+        notificationType: 'info',
+        notificationIcon: 'bi-info-circle',
+        notificationTitle: '',
+        notificationText: '',
+        showNotificationProgress: false,
+        notificationProgress: 0,
+        
+        init() {
+            this.checkConnectionStatus();
+            this.loadPendingItems();
+            
+            // Check connection status every 10 seconds
+            setInterval(() => {
+                this.checkConnectionStatus();
+            }, 10000);
+            
+            // Update sync progress every second if syncing
+            setInterval(() => {
+                if (this.isSyncing) {
+                    this.updateSyncProgress();
+                }
+            }, 1000);
+            
+            // Listen for online/offline events
+            window.addEventListener('online', () => {
+                this.handleConnectionChange(true);
+            });
+            
+            window.addEventListener('offline', () => {
+                this.handleConnectionChange(false);
+            });
+        },
+        
+        async checkConnectionStatus() {
+            try {
+                const response = await fetch('/api/offline/status', {
+                    method: 'GET',
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.updateConnectionStatus(data);
+                } else {
+                    this.setConnectionStatus('offline');
+                }
+            } catch (error) {
+                this.setConnectionStatus('offline');
+            }
+        },
+        
+        updateConnectionStatus(data) {
+            const wasOffline = this.connectionStatus === 'offline';
+            
+            this.connectionStatus = data.online ? 'online' : 'offline';
+            this.connectionStatusText = data.online ? 'Online' : 'Offline';
+            this.lastSyncTime = data.last_sync || 'Never';
+            this.pendingSyncCount = data.pending_count || 0;
+            
+            if (data.online && wasOffline) {
+                // Just came back online, try to sync
+                this.showSyncNotification('success', 'Connection Restored', 'You are back online. Starting sync...', true);
+                setTimeout(() => {
+                    this.startSync();
+                }, 1000);
+            } else if (!data.online && !wasOffline) {
+                // Just went offline
+                this.offlineSince = new Date().toLocaleString();
+                this.showSyncNotification('warning', 'Connection Lost', 'You are now offline. Changes will be saved locally.');
+            }
+        },
+        
+        setConnectionStatus(status) {
+            const wasOffline = this.connectionStatus === 'offline';
+            this.connectionStatus = status;
+            this.connectionStatusText = status === 'online' ? 'Online' : 'Offline';
+            
+            if (status === 'offline' && !wasOffline) {
+                this.offlineSince = new Date().toLocaleString();
+                this.showSyncNotification('warning', 'Connection Lost', 'You are now offline. Changes will be saved locally.');
+            }
+        },
+        
+        handleConnectionChange(isOnline) {
+            if (isOnline) {
+                this.setConnectionStatus('online');
+                this.showSyncNotification('success', 'Connection Restored', 'You are back online. Starting sync...', true);
+                setTimeout(() => {
+                    this.startSync();
+                }, 1000);
+            } else {
+                this.setConnectionStatus('offline');
+            }
+        },
+        
+        async loadPendingItems() {
+            try {
+                const response = await fetch('/api/offline/pending-items');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.pendingItems = data.items || [];
+                    this.pendingSyncCount = this.pendingItems.length;
+                }
+            } catch (error) {
+                console.error('Error loading pending items:', error);
+            }
+        },
+        
+        async startSync() {
+            if (this.isSyncing || this.connectionStatus !== 'online') {
+                return;
+            }
+            
+            this.isSyncing = true;
+            this.syncProgress = 0;
+            this.currentOperation = 'Preparing sync...';
+            
+            try {
+                const response = await fetch('/api/offline/sync', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.syncProgress = 100;
+                    this.currentOperation = 'Sync completed successfully';
+                    this.showSyncNotification('success', 'Sync Complete', 'All items have been synced successfully.');
+                    
+                    // Reload pending items
+                    await this.loadPendingItems();
+                } else {
+                    this.showSyncNotification('error', 'Sync Failed', data.message || 'An error occurred during sync.');
+                }
+            } catch (error) {
+                this.showSyncNotification('error', 'Sync Error', 'Failed to connect to sync server.');
+                console.error('Sync error:', error);
+            } finally {
+                this.isSyncing = false;
+                setTimeout(() => {
+                    this.syncProgress = 0;
+                }, 2000);
+            }
+        },
+        
+        updateSyncProgress() {
+            if (!this.isSyncing) return;
+            
+            // Simulate progress (in real implementation, this would come from server)
+            if (this.syncProgress < 90) {
+                this.syncProgress += Math.random() * 10;
+                this.currentOperation = this.getSyncOperation(this.syncProgress);
+            }
+        },
+        
+        getSyncOperation(progress) {
+            if (progress < 25) return 'Preparing data...';
+            if (progress < 50) return 'Uploading changes...';
+            if (progress < 75) return 'Downloading updates...';
+            if (progress < 90) return 'Applying changes...';
+            return 'Finalizing sync...';
+        },
+        
+        toggleSyncDetails() {
+            this.showDetails = !this.showDetails;
+        },
+        
+        async checkConnection() {
+            await this.checkConnectionStatus();
+            this.showSyncNotification('info', 'Connection Check', `Connection status: ${this.connectionStatusText}`);
+        },
+        
+        async forceSync() {
+            if (this.connectionStatus === 'online') {
+                await this.startSync();
+            } else {
+                this.showSyncNotification('warning', 'Cannot Sync', 'You are currently offline. Please check your connection.');
+            }
+        },
+        
+        viewSyncHistory() {
+            window.open('/offline/sync-history', '_blank');
+        },
+        
+        configureSyncSettings() {
+            window.open('/settings/offline-sync', '_blank');
+        },
+        
+        showSyncNotification(type, title, text, showProgress = false) {
+            this.notificationType = type;
+            this.notificationIcon = this.getNotificationIcon(type);
+            this.notificationTitle = title;
+            this.notificationText = text;
+            this.showNotificationProgress = showProgress;
+            this.notificationProgress = 0;
+            this.showSyncNotification = true;
+            
+            // Auto-hide after 5 seconds if no progress
+            if (!showProgress) {
+                setTimeout(() => {
+                    this.hideSyncNotification();
+                }, 5000);
+            }
+        },
+        
+        hideSyncNotification() {
+            this.showSyncNotification = false;
+        },
+        
+        getNotificationIcon(type) {
+            const icons = {
+                'success': 'bi-check-circle',
+                'error': 'bi-x-circle',
+                'warning': 'bi-exclamation-triangle',
+                'info': 'bi-info-circle'
+            };
+            return icons[type] || 'bi-info-circle';
+        },
+        
+        getItemIcon(type) {
+            const icons = {
+                'order': 'bi-receipt',
+                'customer': 'bi-person',
+                'menu': 'bi-list-ul',
+                'settings': 'bi-gear',
+                'payment': 'bi-credit-card'
+            };
+            return icons[type] || 'bi-file-text';
+        }
+    };
+}
+</script>
+
+<style>
+.offline-sync-component {
+    position: relative;
+    z-index: 1000;
+}
+
+.offline-status-indicator {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+    background: white;
+    position: relative;
+}
+
+.offline-status-indicator:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-icon {
+    margin-right: 6px;
+    position: relative;
+}
+
+.online-indicator {
+    color: #28a745;
+}
+
+.offline-indicator {
+    color: #dc3545;
+}
+
+.syncing-indicator {
+    color: #007bff;
+}
+
+.sync-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #007bff;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.status-text {
+    margin-right: 4px;
+}
+
+.sync-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #dc3545;
+    color: white;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    min-width: 16px;
+    text-align: center;
+    border: 2px solid white;
+}
+
+.sync-details-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 400px;
+    max-height: 500px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #dee2e6;
+    margin-top: 8px;
+    z-index: 1050;
+}
+
+.sync-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.sync-details-header h6 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.sync-details-content {
+    padding: 16px;
+}
+
+.sync-section {
+    margin-bottom: 20px;
+}
+
+.sync-section:last-child {
+    margin-bottom: 0;
+}
+
+.sync-section-title {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.sync-section-title i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+.pending-count {
+    background: #007bff;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.connection-info {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.connection-status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.connection-label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.connection-value {
+    font-weight: 400;
+    color: #495057;
+}
+
+.connection-value.online {
+    color: #28a745;
+}
+
+.connection-value.offline {
+    color: #dc3545;
+}
+
+.sync-progress-container {
+    margin-bottom: 12px;
+}
+
+.sync-progress-bar {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.sync-progress-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.sync-progress-fill.progress-primary {
+    background: #007bff;
+}
+
+.sync-progress-fill.progress-success {
+    background: #28a745;
+}
+
+.sync-progress-fill.progress-warning {
+    background: #ffc107;
+}
+
+.sync-progress-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.sync-percentage {
+    font-weight: 600;
+}
+
+.sync-current-operation {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #6c757d;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.sync-current-operation i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+.pending-items-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+}
+
+.pending-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #f1f3f4;
+    font-size: 13px;
+}
+
+.pending-item:last-child {
+    border-bottom: none;
+}
+
+.pending-item-icon {
+    margin-right: 10px;
+    color: #6c757d;
+}
+
+.pending-item-content {
+    flex: 1;
+}
+
+.pending-item-title {
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.pending-item-time {
+    font-size: 11px;
+    color: #6c757d;
+}
+
+.pending-item-status .status-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.syncing {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-badge.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.sync-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.sync-notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 350px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 4px solid #007bff;
+    z-index: 1060;
+}
+
+.sync-notification-toast.success {
+    border-left-color: #28a745;
+}
+
+.sync-notification-toast.error {
+    border-left-color: #dc3545;
+}
+
+.sync-notification-toast.warning {
+    border-left-color: #ffc107;
+}
+
+.sync-notification-content {
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+}
+
+.sync-notification-icon {
+    margin-right: 12px;
+    font-size: 18px;
+}
+
+.sync-notification-icon.success {
+    color: #28a745;
+}
+
+.sync-notification-icon.error {
+    color: #dc3545;
+}
+
+.sync-notification-icon.warning {
+    color: #ffc107;
+}
+
+.sync-notification-message {
+    flex: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+.notification-text {
+    font-size: 14px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.sync-notification-progress {
+    border-top: 1px solid #f1f3f4;
+}
+
+.notification-progress-bar {
+    height: 4px;
+    background: #e9ecef;
+}
+
+.notification-progress-fill {
+    height: 100%;
+    background: #007bff;
+    transition: width 0.3s ease;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .sync-details-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        max-width: none;
+        max-height: 70vh;
+    }
+    
+    .sync-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .sync-notification-toast {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
+}
+</style>

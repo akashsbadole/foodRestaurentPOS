@@ -46,7 +46,70 @@ class SecurityManager:
             r'exec\s*\(',                            # Code execution
             r'eval\s*\(',                            # Code execution
             r'system\s*\(',                          # Code execution
+            r'base64_decode',                        # Base64 encoding attacks
+            r'file_get_contents',                    # File inclusion attacks
+            r'curl\s*exec',                          # Remote execution
+            r'wget\s*exec',                          # Remote execution
+            r'cmd\.exe',                             # Windows command execution
+            r'/bin/sh',                              # Shell execution
+            r'powershell',                           # PowerShell execution
+            r'\.\./',                                # Directory traversal
+            r'%2e%2e%2f',                           # URL encoded directory traversal
+            r'null\s*byte',                          # Null byte injection
+            r'char\s*\(',                            # Character encoding attacks
+            r'ascii\s*\(',                           # ASCII encoding attacks
+            r'concat\s*\(',                          # SQL concatenation attacks
+            r'substring\s*\(',                       # SQL substring attacks
+            r'benchmark\s*\(',                       # SQL timing attacks
+            r'sleep\s*\(',                           # SQL timing attacks
+            r'waitfor\s+delay',                      # SQL timing attacks
         ]
+        
+        # Advanced threat patterns
+        self.advanced_threat_patterns = {
+            'brute_force': {
+                'threshold': 5,                      # Failed attempts
+                'window': 300,                       # 5 minutes
+                'action': 'block_ip'
+            },
+            'rapid_requests': {
+                'threshold': 100,                     # Requests
+                'window': 60,                        # 1 minute
+                'action': 'rate_limit'
+            },
+            'unusual_user_agent': {
+                'patterns': [
+                    r'^$',                           # Empty user agent
+                    r'^curl/',                       # curl client
+                    r'^wget/',                       # wget client
+                    r'^python-requests/',             # Python requests
+                    r'^scrapy/',                     # Scrapy crawler
+                    r'^bot',                         # Generic bot
+                    r'^crawler',                     # Generic crawler
+                    r'^spider',                      # Generic spider
+                ],
+                'action': 'monitor'
+            },
+            'suspicious_endpoints': {
+                'patterns': [
+                    r'/admin',                       # Admin endpoints
+                    r'/wp-admin',                    # WordPress admin
+                    r'/phpmyadmin',                  # phpMyAdmin
+                    r'/\.env',                       # Environment files
+                    r'/config',                      # Config files
+                    r'/backup',                      # Backup files
+                    r'/\.git',                       # Git files
+                    r'/\.svn',                       # SVN files
+                ],
+                'action': 'block'
+            },
+            'data_exfiltration': {
+                'large_response_threshold': 10485760,  # 10MB
+                'rapid_download_threshold': 5,          # Downloads
+                'download_window': 60,                  # 1 minute
+                'action': 'monitor'
+            }
+        }
         
         # In-memory storage for rate limiting and blocking
         self.rate_limit_store = defaultdict(lambda: defaultdict(deque))
@@ -376,6 +439,144 @@ class SecurityManager:
             return True
         
         return False
+    
+    def _detect_advanced_threats(self, ip: str, user_agent: str, endpoint: str) -> List[Dict[str, Any]]:
+        """Detect advanced threat patterns"""
+        threats = []
+        
+        # Check for unusual user agents
+        for pattern in self.advanced_threat_patterns['unusual_user_agent']['patterns']:
+            if re.search(pattern, user_agent, re.IGNORECASE):
+                threats.append({
+                    'type': 'unusual_user_agent',
+                    'pattern': pattern,
+                    'user_agent': user_agent,
+                    'severity': 'medium'
+                })
+        
+        # Check for suspicious endpoints
+        for pattern in self.advanced_threat_patterns['suspicious_endpoints']['patterns']:
+            if re.search(pattern, endpoint, re.IGNORECASE):
+                threats.append({
+                    'type': 'suspicious_endpoint',
+                    'pattern': pattern,
+                    'endpoint': endpoint,
+                    'severity': 'high'
+                })
+        
+        # Check for rapid requests
+        if self._is_rapid_request_pattern(ip):
+            threats.append({
+                'type': 'rapid_requests',
+                'ip': ip,
+                'severity': 'high'
+            })
+        
+        # Check for potential data exfiltration
+        if self._is_data_exfiltration_pattern(ip):
+            threats.append({
+                'type': 'data_exfiltration',
+                'ip': ip,
+                'severity': 'critical'
+            })
+        
+        return threats
+    
+    def _is_rapid_request_pattern(self, ip: str) -> bool:
+        """Check for rapid request pattern"""
+        now = time.time()
+        window_start = now - self.advanced_threat_patterns['rapid_requests']['window']
+        
+        # Count recent requests from this IP
+        recent_count = 0
+        for timestamp in self.rate_limit_store[ip].get('default', []):
+            if timestamp > window_start:
+                recent_count += 1
+        
+        return recent_count >= self.advanced_threat_patterns['rapid_requests']['threshold']
+    
+    def _is_data_exfiltration_pattern(self, ip: str) -> bool:
+        """Check for data exfiltration patterns"""
+        # This would track response sizes and download patterns
+        # For now, return False as this requires response tracking
+        return False
+    
+    def _analyze_request_anomaly(self, ip: str, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze request for anomalies"""
+        anomalies = []
+        
+        # Check request size
+        request_size = len(str(request_data))
+        if request_size > 100000:  # 100KB
+            anomalies.append({
+                'type': 'large_request',
+                'size': request_size,
+                'severity': 'medium'
+            })
+        
+        # Check parameter count
+        param_count = len(request_data)
+        if param_count > 50:
+            anomalies.append({
+                'type': 'excessive_parameters',
+                'count': param_count,
+                'severity': 'medium'
+            })
+        
+        # Check for unusual parameter names
+        unusual_params = []
+        for param in request_data.keys():
+            if len(param) > 50 or param.startswith('_') or param.startswith('$'):
+                unusual_params.append(param)
+        
+        if unusual_params:
+            anomalies.append({
+                'type': 'unusual_parameters',
+                'parameters': unusual_params,
+                'severity': 'low'
+            })
+        
+        return {
+            'has_anomalies': len(anomalies) > 0,
+            'anomalies': anomalies,
+            'risk_score': self._calculate_risk_score(anomalies)
+        }
+    
+    def _calculate_risk_score(self, anomalies: List[Dict[str, Any]]) -> int:
+        """Calculate risk score based on anomalies"""
+        score = 0
+        severity_weights = {
+            'low': 1,
+            'medium': 3,
+            'high': 5,
+            'critical': 10
+        }
+        
+        for anomaly in anomalies:
+            severity = anomaly.get('severity', 'low')
+            score += severity_weights.get(severity, 1)
+        
+        return min(score, 100)  # Cap at 100
+    
+    def _handle_threat(self, threat: Dict[str, Any], ip: str) -> str:
+        """Handle detected threat based on type and severity"""
+        threat_type = threat.get('type')
+        severity = threat.get('severity', 'medium')
+        
+        if threat_type == 'suspicious_endpoint':
+            return 'block'
+        elif threat_type == 'rapid_requests':
+            return 'block'
+        elif threat_type == 'data_exfiltration':
+            return 'block'
+        elif threat_type == 'unusual_user_agent':
+            return 'monitor'
+        elif severity == 'critical':
+            return 'block'
+        elif severity == 'high':
+            return 'block'
+        else:
+            return 'monitor'
     
     def _generate_security_hash(self, data: str) -> str:
         """Generate security hash for data"""

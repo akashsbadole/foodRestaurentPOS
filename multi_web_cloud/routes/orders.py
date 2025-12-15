@@ -1,6 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
 from models import db, Order, OrderItem, MenuItem, Payment, Table, Settings, Category
+from models.customer import Customer
+from models.loyalty import LoyaltyProgram, PointsTransaction
+from utils.loyalty_engine import LoyaltyEngine
 from datetime import datetime, timedelta
 from decimal import Decimal
 from utils.pdf_invoice_generator import generate_invoice_pdf, generate_kot_pdf
@@ -66,7 +69,7 @@ def view_order(order_id):
 @orders_bp.route('/save', methods=['POST'])
 @login_required
 def save_order():
-    """Save order via AJAX"""
+    """Save order via AJAX with CRM integration"""
     try:
         data = request.get_json()
         
@@ -87,6 +90,23 @@ def save_order():
         order.order_type = data.get('order_type', 'Dine-in')
         order.table_id = data.get('table_id') if data.get('table_id') else None
         order.special_instructions = data.get('special_instructions', '')
+        
+        # Handle customer integration
+        customer = None
+        if order.customer_mobile:
+            customer = Customer.find_by_mobile(order.customer_mobile)
+            if not customer and order.customer_name:
+                # Auto-create customer for new mobile number
+                customer = Customer.create(
+                    name=order.customer_name,
+                    mobile=order.customer_mobile,
+                    email=data.get('customer_email', ''),
+                    source='POS Order'
+                )
+                db.session.flush()
+        
+        if customer:
+            order.customer_id = customer.id
         
         # Calculate totals
         items = data.get('items', [])
@@ -130,12 +150,24 @@ def save_order():
         
         db.session.commit()
         
-        return jsonify({
+        response_data = {
             'success': True,
             'order_id': order.id,
             'order_number': order.order_number,
             'message': 'Order saved successfully'
-        })
+        }
+        
+        # Add customer info to response
+        if customer:
+            response_data['customer'] = {
+                'id': customer.id,
+                'name': customer.name,
+                'mobile': customer.mobile,
+                'current_points': customer.current_points,
+                'current_tier': customer.current_tier
+            }
+        
+        return jsonify(response_data)
         
     except Exception as e:
         db.session.rollback()
@@ -300,7 +332,7 @@ def update_status():
 @orders_bp.route('/process_payment', methods=['POST'])
 @login_required
 def process_payment():
-    """Process payment with multiple payment methods"""
+    """Process payment with multiple payment methods and loyalty points integration"""
     try:
         data = request.get_json()
         order_id = data.get('order_id')
@@ -308,6 +340,8 @@ def process_payment():
         amount_paid = data.get('amount_paid')
         discount = data.get('discount', 0)
         payment_details = data.get('payment_details', {})
+        redeem_points = data.get('redeem_points', False)
+        points_to_redeem = data.get('points_to_redeem', 0)
         
         # Get order
         order = Order.query.get(order_id)
@@ -320,6 +354,36 @@ def process_payment():
         # Apply discount if provided
         if discount > 0:
             order.apply_discount('fixed', discount)
+        
+        # Handle points redemption
+        points_discount = Decimal('0')
+        customer = None
+        if order.customer_id:
+            customer = Customer.query.get(order.customer_id)
+        
+        if redeem_points and customer and points_to_redeem > 0:
+            # Validate points redemption
+            if customer.current_points < points_to_redeem:
+                return jsonify({'success': False, 'message': 'Insufficient loyalty points'}), 400
+            
+            # Calculate points value (1 point = ₹1)
+            points_discount = Decimal(str(points_to_redeem))
+            
+            # Create points redemption transaction
+            points_transaction = PointsTransaction.create_transaction(
+                customer_id=customer.id,
+                order_id=order.id,
+                transaction_type='REDEEMED',
+                points=points_to_redeem,
+                description=f'Points redeemed for order {order.order_number}',
+                reference_number=order.order_number
+            )
+            
+            # Update customer points
+            customer.current_points -= points_to_redeem
+            
+            # Apply points discount
+            order.discount_amount += points_discount
         
         # Calculate final amount
         final_amount = order.grand_total
@@ -347,16 +411,43 @@ def process_payment():
             if table:
                 table.is_available = True
         
+        # Process loyalty points earning
+        points_earned = 0
+        if customer:
+            loyalty_engine = LoyaltyEngine()
+            points_earned = loyalty_engine.calculate_points(
+                customer_id=customer.id,
+                order_amount=float(final_amount),
+                order_id=order.id,
+                order_number=order.order_number
+            )
+            
+            if points_earned > 0:
+                # Update customer stats
+                customer.update_stats()
+        
         db.session.commit()
         
-        return jsonify({
+        response_data = {
             'success': True,
             'payment_id': payment.id,
             'order_number': order.order_number,
             'amount_paid': float(final_amount),
             'payment_method': payment_method,
+            'points_redeemed': int(points_to_redeem) if redeem_points else 0,
+            'points_earned': points_earned,
             'message': f'Payment processed successfully via {payment_method}'
-        })
+        }
+        
+        if customer:
+            response_data['customer'] = {
+                'id': customer.id,
+                'name': customer.name,
+                'current_points': customer.current_points,
+                'current_tier': customer.current_tier
+            }
+        
+        return jsonify(response_data)
         
     except Exception as e:
         db.session.rollback()
@@ -639,3 +730,181 @@ def update_order_totals(order):
 def print_management():
     """Print management interface"""
     return render_template('orders/print_management.html')
+
+# CRM Integration API Endpoints
+@orders_bp.route('/api/customer/lookup', methods=['POST'])
+@login_required
+def lookup_customer():
+    """Lookup customer by mobile number"""
+    try:
+        data = request.get_json()
+        mobile = data.get('mobile', '').strip()
+        
+        if not mobile:
+            return jsonify({'success': False, 'message': 'Mobile number is required'}), 400
+        
+        customer = Customer.find_by_mobile(mobile)
+        
+        if customer:
+            customer_data = {
+                'id': customer.id,
+                'name': customer.name,
+                'mobile': customer.mobile,
+                'email': customer.email,
+                'current_points': customer.current_points,
+                'current_tier': customer.current_tier,
+                'total_orders': customer.total_orders,
+                'total_spent': float(customer.total_spent) if customer.total_spent else 0
+            }
+            return jsonify({
+                'success': True,
+                'customer': customer_data,
+                'message': 'Customer found'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Customer not found',
+                'can_create': True
+            })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@orders_bp.route('/api/customer/create', methods=['POST'])
+@login_required
+def create_customer():
+    """Create new customer from order screen"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('name') or not data.get('mobile'):
+            return jsonify({'success': False, 'message': 'Name and mobile number are required'}), 400
+        
+        # Check if customer already exists
+        existing_customer = Customer.find_by_mobile(data['mobile'])
+        if existing_customer:
+            return jsonify({'success': False, 'message': 'Customer with this mobile number already exists'}), 400
+        
+        # Create new customer
+        customer = Customer.create(
+            name=data['name'],
+            mobile=data['mobile'],
+            email=data.get('email', ''),
+            source='POS Order'
+        )
+        
+        db.session.flush()
+        
+        customer_data = {
+            'id': customer.id,
+            'name': customer.name,
+            'mobile': customer.mobile,
+            'email': customer.email,
+            'current_points': customer.current_points,
+            'current_tier': customer.current_tier,
+            'total_orders': customer.total_orders,
+            'total_spent': float(customer.total_spent) if customer.total_spent else 0
+        }
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'customer': customer_data,
+            'message': 'Customer created successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@orders_bp.route('/api/loyalty/calculate', methods=['POST'])
+@login_required
+def calculate_loyalty_points():
+    """Calculate loyalty points for an order"""
+    try:
+        data = request.get_json()
+        customer_id = data.get('customer_id')
+        order_amount = data.get('order_amount', 0)
+        
+        if not customer_id:
+            return jsonify({'success': False, 'message': 'Customer ID is required'}), 400
+        
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return jsonify({'success': False, 'message': 'Customer not found'}), 404
+        
+        loyalty_engine = LoyaltyEngine()
+        points_earned = loyalty_engine.calculate_points(
+            customer_id=customer_id,
+            order_amount=float(order_amount),
+            order_id=None,  # Not yet saved
+            order_number='PREVIEW'
+        )
+        
+        # Calculate points value for redemption
+        points_value = min(customer.current_points, int(float(order_amount)))
+        
+        return jsonify({
+            'success': True,
+            'points_earned': points_earned,
+            'points_available': customer.current_points,
+            'max_redeemable': points_value,
+            'customer_tier': customer.current_tier
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@orders_bp.route('/api/rewards/available')
+@login_required
+def get_available_rewards():
+    """Get available rewards for customer"""
+    try:
+        customer_id = request.args.get('customer_id')
+        
+        if not customer_id:
+            return jsonify({'success': False, 'message': 'Customer ID is required'}), 400
+        
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return jsonify({'success': False, 'message': 'Customer not found'}), 404
+        
+        # Get rewards available for customer's tier and below
+        from models.loyalty import Reward, LoyaltyTier
+        
+        customer_tier = LoyaltyTier.query.filter_by(name=customer.current_tier).first()
+        if not customer_tier:
+            tier_order = 0
+        else:
+            tier_order = customer_tier.tier_order
+        
+        rewards = Reward.query.filter(
+            Reward.is_active == True,
+            Reward.tier_order <= tier_order
+        ).order_by(Reward.points_required.asc()).all()
+        
+        rewards_data = []
+        for reward in rewards:
+            rewards_data.append({
+                'id': reward.id,
+                'name': reward.name,
+                'description': reward.description,
+                'points_required': reward.points_required,
+                'reward_type': reward.reward_type,
+                'reward_value': float(reward.reward_value) if reward.reward_value else 0,
+                'formatted_reward_value': reward.formatted_reward_value,
+                'can_afford': customer.current_points >= reward.points_required,
+                'image_url': reward.image_url
+            })
+        
+        return jsonify({
+            'success': True,
+            'rewards': rewards_data,
+            'customer_points': customer.current_points
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

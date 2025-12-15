@@ -507,6 +507,220 @@ class RazorpayManager:
         """Check if Razorpay is properly configured"""
         return bool(self.key_id and self.key_secret)
     
+    def get_payment_analytics(self, from_date: datetime = None, to_date: datetime = None) -> Dict[str, Any]:
+        """Get payment analytics and statistics"""
+        try:
+            # Get transaction history
+            transactions = self.get_transaction_history(from_date, to_date, count=1000)
+            
+            if not transactions or not transactions.get('items'):
+                return {
+                    'total_transactions': 0,
+                    'total_amount': 0,
+                    'success_rate': 0,
+                    'payment_methods': {},
+                    'daily_breakdown': {},
+                    'error_analysis': {}
+                }
+            
+            items = transactions['items']
+            total_transactions = len(items)
+            total_amount = 0
+            successful_payments = 0
+            payment_methods = {}
+            daily_breakdown = {}
+            error_analysis = {}
+            
+            for payment in items:
+                amount = Decimal(payment.get('amount', 0)) / 100
+                status = payment.get('status')
+                method = payment.get('method', 'unknown')
+                created_at = payment.get('created_at', '')
+                
+                # Total amount calculation
+                if status == 'captured':
+                    total_amount += amount
+                    successful_payments += 1
+                
+                # Payment method breakdown
+                if method not in payment_methods:
+                    payment_methods[method] = {'count': 0, 'amount': 0}
+                payment_methods[method]['count'] += 1
+                if status == 'captured':
+                    payment_methods[method]['amount'] += amount
+                
+                # Daily breakdown
+                if created_at:
+                    try:
+                        date = datetime.fromisoformat(created_at.replace('Z', '+00:00')).date().isoformat()
+                        if date not in daily_breakdown:
+                            daily_breakdown[date] = {'count': 0, 'amount': 0}
+                        daily_breakdown[date]['count'] += 1
+                        if status == 'captured':
+                            daily_breakdown[date]['amount'] += amount
+                    except:
+                        pass
+                
+                # Error analysis
+                if status == 'failed':
+                    error_code = payment.get('error_code', 'unknown')
+                    if error_code not in error_analysis:
+                        error_analysis[error_code] = 0
+                    error_analysis[error_code] += 1
+            
+            success_rate = (successful_payments / total_transactions * 100) if total_transactions > 0 else 0
+            
+            return {
+                'total_transactions': total_transactions,
+                'total_amount': float(total_amount),
+                'successful_payments': successful_payments,
+                'success_rate': round(success_rate, 2),
+                'payment_methods': payment_methods,
+                'daily_breakdown': daily_breakdown,
+                'error_analysis': error_analysis,
+                'average_transaction_value': float(total_amount / successful_payments) if successful_payments > 0 else 0,
+                'period': {
+                    'from': from_date.isoformat() if from_date else None,
+                    'to': to_date.isoformat() if to_date else None
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting payment analytics: {e}")
+            return {
+                'error': str(e),
+                'total_transactions': 0,
+                'total_amount': 0,
+                'success_rate': 0
+            }
+    
+    def create_recurring_payment(self, amount: Decimal, frequency: str,
+                              start_date: datetime, end_date: datetime = None,
+                              customer_email: str = None, customer_contact: str = None) -> Optional[Dict[str, Any]]:
+        """Create recurring payment plan"""
+        try:
+            amount_paise = int(amount * 100)
+            
+            subscription_data = {
+                'plan_id': f"plan_{datetime.utcnow().timestamp()}",
+                'total_count': 12,  # Default to 12 months
+                'customer_notify': True,
+                'quantity': 1,
+                'start_at': int(start_date.timestamp()),
+                'expire_by': int(end_date.timestamp()) if end_date else None,
+                'notes': {
+                    'frequency': frequency,
+                    'created_by': 'pos_system'
+                }
+            }
+            
+            if customer_email:
+                subscription_data['customer'] = {'email': customer_email}
+            
+            if customer_contact:
+                if 'customer' not in subscription_data:
+                    subscription_data['customer'] = {}
+                subscription_data['customer']['contact'] = customer_contact
+            
+            response = self._make_api_request('subscriptions', 'POST', subscription_data)
+            
+            if response:
+                self.logger.info(f"Recurring payment created: {response.get('id')}")
+                return response
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error creating recurring payment: {e}")
+            return None
+    
+    def process_emi_payment(self, amount: Decimal, tenure_months: int,
+                         interest_rate: float = 0.0) -> Dict[str, Any]:
+        """Calculate EMI payment details"""
+        try:
+            # Simple EMI calculation (can be enhanced with complex formulas)
+            monthly_rate = interest_rate / 12 / 100
+            monthly_payment = amount * (monthly_rate * (1 + monthly_rate) ** tenure_months) / ((1 + monthly_rate) ** tenure_months - 1)
+            total_amount = monthly_payment * tenure_months
+            total_interest = total_amount - amount
+            
+            return {
+                'principal_amount': float(amount),
+                'tenure_months': tenure_months,
+                'interest_rate': interest_rate,
+                'monthly_emi': round(float(monthly_payment), 2),
+                'total_amount': round(float(total_amount), 2),
+                'total_interest': round(float(total_interest), 2),
+                'processing_fee': 0.0,  # Can be configured
+                'effective_rate': round(float((total_interest / amount) * 100 / tenure_months * 12), 2)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating EMI: {e}")
+            return {
+                'error': str(e),
+                'monthly_emi': 0,
+                'total_amount': 0
+            }
+    
+    def validate_payment_method(self, method: str, details: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate payment method details"""
+        try:
+            if method == 'card':
+                card_number = details.get('card_number', '')
+                expiry = details.get('expiry', '')
+                cvv = details.get('cvv', '')
+                name = details.get('name', '')
+                
+                # Basic card validation
+                if not card_number or len(card_number.replace(' ', '')) < 13:
+                    return False, "Invalid card number"
+                
+                if not expiry or '/' not in expiry:
+                    return False, "Invalid expiry date"
+                
+                if not cvv or len(cvv) not in [3, 4]:
+                    return False, "Invalid CVV"
+                
+                if not name or len(name) < 3:
+                    return False, "Invalid cardholder name"
+            
+            elif method == 'upi':
+                upi_id = details.get('upi_id', '')
+                
+                if not upi_id or '@' not in upi_id:
+                    return False, "Invalid UPI ID"
+                
+                if len(upi_id) > 50:
+                    return False, "UPI ID too long"
+            
+            elif method == 'netbanking':
+                bank_code = details.get('bank_code', '')
+                
+                if not bank_code:
+                    return False, "Bank selection required"
+                
+                supported_banks = ['HDFC', 'ICICI', 'SBI', 'PNB', 'Axis', 'Kotak', 'Yes Bank']
+                if bank_code not in supported_banks:
+                    return False, "Unsupported bank"
+            
+            elif method == 'wallet':
+                wallet_type = details.get('wallet_type', '')
+                wallet_number = details.get('wallet_number', '')
+                
+                if not wallet_type:
+                    return False, "Wallet type required"
+                
+                supported_wallets = ['Paytm Wallet', 'PhonePe Wallet', 'Amazon Pay Balance']
+                if wallet_type not in supported_wallets:
+                    return False, "Unsupported wallet"
+            
+            return True, "Valid payment method"
+            
+        except Exception as e:
+            self.logger.error(f"Error validating payment method: {e}")
+            return False, f"Validation error: {str(e)}"
+    
     def get_configuration_info(self) -> Dict[str, Any]:
         """Get Razorpay configuration information"""
         return {
@@ -518,7 +732,15 @@ class RazorpayManager:
             'minimum_amount': '1.00',
             'maximum_amount': '100000.00',
             'currencies': ['INR'],
-            'webhook_configured': bool(self.webhook_secret)
+            'webhook_configured': bool(self.webhook_secret),
+            'features': {
+                'recurring_payments': True,
+                'emi_support': True,
+                'payment_analytics': True,
+                'multi_method_support': True,
+                'instant_refunds': True,
+                'webhook_support': True
+            }
         }
 
 # Global Razorpay manager instance
@@ -561,3 +783,21 @@ def is_razorpay_configured() -> bool:
 def get_razorpay_configuration() -> Dict[str, Any]:
     """Get Razorpay configuration"""
     return razorpay_manager.get_configuration_info()
+
+def get_razorpay_payment_analytics(from_date: datetime = None, to_date: datetime = None) -> Dict[str, Any]:
+    """Get Razorpay payment analytics"""
+    return razorpay_manager.get_payment_analytics(from_date, to_date)
+
+def create_razorpay_recurring_payment(amount: Decimal, frequency: str,
+                                   start_date: datetime, end_date: datetime = None,
+                                   customer_email: str = None, customer_contact: str = None) -> Optional[Dict[str, Any]]:
+    """Create Razorpay recurring payment"""
+    return razorpay_manager.create_recurring_payment(amount, frequency, start_date, end_date, customer_email, customer_contact)
+
+def calculate_razorpay_emi(amount: Decimal, tenure_months: int, interest_rate: float = 0.0) -> Dict[str, Any]:
+    """Calculate Razorpay EMI details"""
+    return razorpay_manager.process_emi_payment(amount, tenure_months, interest_rate)
+
+def validate_razorpay_payment_method(method: str, details: Dict[str, Any]) -> Tuple[bool, str]:
+    """Validate Razorpay payment method"""
+    return razorpay_manager.validate_payment_method(method, details)

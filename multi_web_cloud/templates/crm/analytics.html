@@ -1,0 +1,661 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Analytics - CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+.analytics-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    color: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.analytics-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.date-filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-size: 14px;
+}
+
+.filter-select option {
+    background: #667eea;
+    color: white;
+}
+
+.btn-refresh {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.btn-refresh:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border-left: 4px solid #667eea;
+    transition: transform 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.stat-change {
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.change-positive {
+    color: #28a745;
+}
+
+.change-negative {
+    color: #dc3545;
+}
+
+.change-neutral {
+    color: #6c757d;
+}
+
+.charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.chart-card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.chart-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.chart-container {
+    height: 300px;
+    position: relative;
+}
+
+.segments-section {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 30px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.segments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.segment-card {
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    transition: transform 0.3s;
+}
+
+.segment-champions {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.segment-loyal {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.segment-potential {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.segment-at-risk {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.segment-new {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+    color: white;
+}
+
+.segment-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.segment-count {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.segment-percentage {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.top-customers-section {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 30px;
+}
+
+.customers-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.customers-table th,
+.customers-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.customers-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.customers-table tr:hover {
+    background: #f8f9fa;
+}
+
+.customer-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.customer-link:hover {
+    text-decoration: underline;
+}
+
+.tier-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.tier-bronze {
+    background: #cd7f32;
+    color: white;
+}
+
+.tier-silver {
+    background: #c0c0c0;
+    color: white;
+}
+
+.tier-gold {
+    background: #ffd700;
+    color: #333;
+}
+
+.tier-platinum {
+    background: #e5e4e2;
+    color: #333;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+@media (max-width: 768px) {
+    .analytics-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .date-filters {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .filter-select {
+        width: 100%;
+    }
+    
+    .charts-section {
+        grid-template-columns: 1fr;
+    }
+    
+    .segments-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .customers-table {
+        font-size: 12px;
+    }
+    
+    .customers-table th,
+    .customers-table td {
+        padding: 8px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-container" x-data="customerAnalytics()">
+    <!-- Header -->
+    <div class="analytics-header">
+        <h1 class="analytics-title">Customer Analytics</h1>
+        <div class="date-filters">
+            <select class="filter-select" x-model="filters.period" @change="loadAnalytics()">
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="365">Last Year</option>
+            </select>
+            <button class="btn-refresh" @click="loadAnalytics()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Key Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" x-text="analytics.total_customers || 0"></div>
+            <div class="stat-label">Total Customers</div>
+            <div class="stat-change" :class="getChangeClass(analytics.customer_growth)">
+                <i class="bi" :class="getChangeIcon(analytics.customer_growth)"></i>
+                <span x-text="`${Math.abs(analytics.customer_growth || 0)}% from last period`"></span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value" x-text="analytics.active_customers || 0"></div>
+            <div class="stat-label">Active Customers</div>
+            <div class="stat-change" :class="getChangeClass(analytics.active_growth)">
+                <i class="bi" :class="getChangeIcon(analytics.active_growth)"></i>
+                <span x-text="`${Math.abs(analytics.active_growth || 0)}% from last period`"></span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">₹<span x-text="formatNumber(analytics.avg_order_value || 0)"></span></div>
+            <div class="stat-label">Average Order Value</div>
+            <div class="stat-change" :class="getChangeClass(analytics.aov_growth)">
+                <i class="bi" :class="getChangeIcon(analytics.aov_growth)"></i>
+                <span x-text="`${Math.abs(analytics.aov_growth || 0)}% from last period`"></span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">₹<span x-text="formatNumber(analytics.customer_lifetime_value || 0)"></span></div>
+            <div class="stat-label">Customer Lifetime Value</div>
+            <div class="stat-change" :class="getChangeClass(analytics.clv_growth)">
+                <i class="bi" :class="getChangeIcon(analytics.clv_growth)"></i>
+                <span x-text="`${Math.abs(analytics.clv_growth || 0)}% from last period`"></span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value" x-text="analytics.retention_rate || 0"></div>
+            <div class="stat-label">Retention Rate (%)</div>
+            <div class="stat-change" :class="getChangeClass(analytics.retention_growth)">
+                <i class="bi" :class="getChangeIcon(analytics.retention_growth)"></i>
+                <span x-text="`${Math.abs(analytics.retention_growth || 0)}% from last period`"></span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value" x-text="analytics.points_issued || 0"></div>
+            <div class="stat-label">Points Issued</div>
+            <div class="stat-change" :class="getChangeClass(analytics.points_growth)">
+                <i class="bi" :class="getChangeIcon(analytics.points_growth)"></i>
+                <span x-text="`${Math.abs(analytics.points_growth || 0)}% from last period`"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <h3 class="chart-title">Customer Acquisition Trend</h3>
+            <div class="chart-container">
+                <canvas id="acquisitionChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <h3 class="chart-title">Revenue by Customer Tier</h3>
+            <div class="chart-container">
+                <canvas id="tierRevenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Segments -->
+    <div class="segments-section">
+        <h3 class="section-title">Customer Segments</h3>
+        <div class="segments-grid">
+            <div class="segment-card segment-champions">
+                <div class="segment-name">Champions</div>
+                <div class="segment-count" x-text="analytics.segments?.champions || 0"></div>
+                <div class="segment-percentage" x-text="`${getSegmentPercentage('champions')}%`"></div>
+            </div>
+            
+            <div class="segment-card segment-loyal">
+                <div class="segment-name">Loyal Customers</div>
+                <div class="segment-count" x-text="analytics.segments?.loyal || 0"></div>
+                <div class="segment-percentage" x-text="`${getSegmentPercentage('loyal')}%`"></div>
+            </div>
+            
+            <div class="segment-card segment-potential">
+                <div class="segment-name">Potential Loyalists</div>
+                <div class="segment-count" x-text="analytics.segments?.potential || 0"></div>
+                <div class="segment-percentage" x-text="`${getSegmentPercentage('potential')}%`"></div>
+            </div>
+            
+            <div class="segment-card segment-at-risk">
+                <div class="segment-name">At Risk</div>
+                <div class="segment-count" x-text="analytics.segments?.at_risk || 0"></div>
+                <div class="segment-percentage" x-text="`${getSegmentPercentage('at_risk')}%`"></div>
+            </div>
+            
+            <div class="segment-card segment-new">
+                <div class="segment-name">New Customers</div>
+                <div class="segment-count" x-text="analytics.segments?.new || 0"></div>
+                <div class="segment-percentage" x-text="`${getSegmentPercentage('new')}%`"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Customers -->
+    <div class="top-customers-section">
+        <h3 class="section-title">Top Customers by Revenue</h3>
+        
+        <div class="loading" x-show="loading">
+            <i class="bi bi-hourglass-split"></i> Loading analytics...
+        </div>
+        
+        <table class="customers-table" x-show="!loading && topCustomers.length > 0">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Customer</th>
+                    <th>Orders</th>
+                    <th>Total Spent</th>
+                    <th>Points</th>
+                    <th>Tier</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="(customer, index) in topCustomers" :key="customer.id">
+                    <tr>
+                        <td x-text="index + 1"></td>
+                        <td>
+                            <a :href="`/crm/view/${customer.id}`" class="customer-link" x-text="customer.name"></a>
+                            <div style="font-size: 12px; color: #666;" x-text="customer.mobile"></div>
+                        </td>
+                        <td x-text="customer.order_count || 0"></td>
+                        <td>₹<span x-text="formatNumber(customer.total_spent || 0)"></span></td>
+                        <td x-text="customer.current_points || 0"></td>
+                        <td>
+                            <span class="tier-badge" 
+                                  :class="`tier-${(customer.current_tier || '').toLowerCase()}`"
+                                  x-text="customer.current_tier || 'None'"></span>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+        
+        <div x-show="!loading && topCustomers.length === 0" style="text-align: center; padding: 40px; color: #666;">
+            No customer data available
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function customerAnalytics() {
+    return {
+        loading: false,
+        analytics: {},
+        topCustomers: [],
+        filters: {
+            period: '30'
+        },
+        charts: {},
+        
+        init() {
+            this.loadAnalytics();
+        },
+        
+        async loadAnalytics() {
+            this.loading = true;
+            
+            try {
+                const response = await fetch(`/api/crm/analytics?period=${this.filters.period}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.analytics = data.analytics;
+                    this.topCustomers = data.top_customers || [];
+                    
+                    this.$nextTick(() => {
+                        this.initCharts();
+                    });
+                } else {
+                    console.error('Failed to load analytics:', data.message);
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        initCharts() {
+            // Customer Acquisition Chart
+            const acquisitionCtx = document.getElementById('acquisitionChart');
+            if (acquisitionCtx) {
+                if (this.charts.acquisition) {
+                    this.charts.acquisition.destroy();
+                }
+                
+                this.charts.acquisition = new Chart(acquisitionCtx, {
+                    type: 'line',
+                    data: {
+                        labels: this.analytics.acquisition_labels || [],
+                        datasets: [{
+                            label: 'New Customers',
+                            data: this.analytics.acquisition_data || [],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Tier Revenue Chart
+            const tierRevenueCtx = document.getElementById('tierRevenueChart');
+            if (tierRevenueCtx) {
+                if (this.charts.tierRevenue) {
+                    this.charts.tierRevenue.destroy();
+                }
+                
+                this.charts.tierRevenue = new Chart(tierRevenueCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: this.analytics.tier_labels || [],
+                        datasets: [{
+                            data: this.analytics.tier_revenue || [],
+                            backgroundColor: [
+                                '#cd7f32',
+                                '#c0c0c0',
+                                '#ffd700',
+                                '#e5e4e2'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        getChangeClass(value) {
+            if (!value) return 'change-neutral';
+            return value > 0 ? 'change-positive' : value < 0 ? 'change-negative' : 'change-neutral';
+        },
+        
+        getChangeIcon(value) {
+            if (!value) return 'bi-dash';
+            return value > 0 ? 'bi-arrow-up' : value < 0 ? 'bi-arrow-down' : 'bi-dash';
+        },
+        
+        getSegmentPercentage(segment) {
+            const total = this.analytics.total_customers || 1;
+            const segmentCount = this.analytics.segments?.[segment] || 0;
+            return ((segmentCount / total) * 100).toFixed(1);
+        },
+        
+        formatNumber(num) {
+            if (!num) return '0';
+            return parseFloat(num).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

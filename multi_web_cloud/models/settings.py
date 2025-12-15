@@ -7,18 +7,20 @@ class Settings(db.Model):
     __tablename__ = 'settings'
     
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True, nullable=False)
+    key = db.Column(db.String(100), nullable=False)  # Removed unique constraint for multi-tenant
     value = db.Column(db.Text, nullable=True)
     description = db.Column(db.Text, nullable=True)
     is_public = db.Column(db.Boolean, default=False)  # Whether setting is accessible to non-admin users
+    tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def __init__(self, key, value=None, description=None, is_public=False):
+    def __init__(self, key, value=None, description=None, is_public=False, tenant_id=None):
         self.key = key
         self.value = self._encrypt_value_if_needed(key, value) if value else None
         self.description = description
         self.is_public = is_public
+        self.tenant_id = tenant_id
     
     def to_dict(self):
         """Convert setting to dictionary"""
@@ -28,22 +30,36 @@ class Settings(db.Model):
             'value': self._decrypt_value_if_needed(self.key, self.value),
             'description': self.description,
             'is_public': self.is_public,
+            'tenant_id': self.tenant_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
     
-    @staticmethod
-    def get(key, default=None):
-        """Get setting value by key"""
-        setting = Settings.query.filter_by(key=key).first()
+    @classmethod
+    def query_tenant(cls, tenant_id=None):
+        """Get query filtered by tenant"""
+        if tenant_id is None:
+            from flask import g
+            tenant_id = getattr(g, 'tenant_id', None)
+        
+        if tenant_id:
+            return cls.query.filter(cls.tenant_id == tenant_id)
+        return cls.query
+    
+    @classmethod
+    def get(cls, key, default=None, tenant_id=None):
+        """Get setting value by key within tenant context"""
+        query = cls.query_tenant(tenant_id)
+        setting = query.filter_by(key=key).first()
         if setting:
             return setting._decrypt_value_if_needed(key, setting.value)
         return default
     
-    @staticmethod
-    def get_all():
-        """Get all settings as dictionary"""
-        settings = Settings.query.all()
+    @classmethod
+    def get_all(cls, tenant_id=None):
+        """Get all settings as dictionary within tenant context"""
+        query = cls.query_tenant(tenant_id)
+        settings = query.all()
         return {setting.key: setting._decrypt_value_if_needed(setting.key, setting.value) for setting in settings}
     
     @staticmethod

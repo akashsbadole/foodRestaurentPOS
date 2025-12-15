@@ -1,0 +1,585 @@
+<!-- Security Status Indicator Component -->
+<div x-data="securityStatus()" x-init="init()" class="security-status-component">
+    <!-- Security Status Badge -->
+    <div class="security-status-badge" 
+         :class="securityLevel"
+         @click="toggleSecurityDetails()"
+         role="button"
+         :aria-label="`Security Status: ${securityLevelText}`">
+        <i class="bi" :class="securityIcon"></i>
+        <span class="security-status-text" x-text="securityLevelText"></span>
+        <i class="bi bi-chevron-down ms-1" :class="{'rotate-180': showDetails}"></i>
+    </div>
+    
+    <!-- Security Details Panel -->
+    <div x-show="showDetails" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95"
+         class="security-details-panel">
+        
+        <div class="security-details-header">
+            <h6>Security Information</h6>
+            <button @click="toggleSecurityDetails()" class="btn-close btn-close-sm"></button>
+        </div>
+        
+        <div class="security-details-content">
+            <!-- Session Information -->
+            <div class="security-section">
+                <div class="security-section-title">
+                    <i class="bi bi-person-lock"></i>
+                    Session Information
+                </div>
+                <div class="security-info-grid">
+                    <div class="security-info-item">
+                        <span class="security-info-label">User:</span>
+                        <span class="security-info-value" x-text="sessionInfo.username"></span>
+                    </div>
+                    <div class="security-info-item">
+                        <span class="security-info-label">Role:</span>
+                        <span class="security-info-value" x-text="sessionInfo.role"></span>
+                    </div>
+                    <div class="security-info-item">
+                        <span class="security-info-label">Session ID:</span>
+                        <span class="security-info-value security-monospace" x-text="sessionInfo.sessionId"></span>
+                    </div>
+                    <div class="security-info-item">
+                        <span class="security-info-label">Started:</span>
+                        <span class="security-info-value" x-text="sessionInfo.startTime"></span>
+                    </div>
+                    <div class="security-info-item">
+                        <span class="security-info-label">Expires:</span>
+                        <span class="security-info-value" x-text="sessionInfo.expiresAt"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Events -->
+            <div class="security-section">
+                <div class="security-section-title">
+                    <i class="bi bi-shield-check"></i>
+                    Recent Security Events
+                </div>
+                <div class="security-events-list">
+                    <template x-for="event in recentEvents" :key="event.id">
+                        <div class="security-event-item" :class="event.type">
+                            <div class="security-event-icon">
+                                <i class="bi" :class="event.icon"></i>
+                            </div>
+                            <div class="security-event-content">
+                                <div class="security-event-title" x-text="event.title"></div>
+                                <div class="security-event-time" x-text="event.time"></div>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="recentEvents.length === 0" class="no-events">
+                        No recent security events
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Actions -->
+            <div class="security-section">
+                <div class="security-section-title">
+                    <i class="bi bi-gear"></i>
+                    Security Actions
+                </div>
+                <div class="security-actions">
+                    <button @click="refreshSecurityStatus()" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Status
+                    </button>
+                    <button @click="viewSecurityLogs()" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-journal-text"></i> View Logs
+                    </button>
+                    <button @click="extendSession()" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-clock-history"></i> Extend Session
+                    </button>
+                    <button @click="secureLogout()" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-shield-x"></i> Secure Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Security Alert Modal -->
+    <div x-show="showSecurityAlert" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="security-alert-overlay"
+         @click.self="closeSecurityAlert()">
+        
+        <div class="security-alert-modal" 
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform scale-95"
+             x-transition:enter-end="opacity-100 transform scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform scale-100"
+             x-transition:leave-end="opacity-0 transform scale-95">
+            
+            <div class="security-alert-header">
+                <i class="bi" :class="securityAlertIcon"></i>
+                <h5 x-text="securityAlertTitle"></h5>
+            </div>
+            
+            <div class="security-alert-body">
+                <p x-text="securityAlertMessage"></p>
+            </div>
+            
+            <div class="security-alert-actions">
+                <button @click="closeSecurityAlert()" class="btn btn-secondary">
+                    Cancel
+                </button>
+                <button @click="confirmSecurityAction()" class="btn" :class="securityAlertButtonClass">
+                    <i class="bi" :class="securityAlertButtonIcon"></i>
+                    <span x-text="securityAlertButtonText"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function securityStatus() {
+    return {
+        showDetails: false,
+        securityLevel: 'secure',
+        securityLevelText: 'Secure',
+        securityIcon: 'bi-shield-check',
+        sessionInfo: {
+            username: '',
+            role: '',
+            sessionId: '',
+            startTime: '',
+            expiresAt: ''
+        },
+        recentEvents: [],
+        showSecurityAlert: false,
+        securityAlertTitle: '',
+        securityAlertMessage: '',
+        securityAlertIcon: '',
+        securityAlertButtonText: '',
+        securityAlertButtonClass: '',
+        securityAlertButtonIcon: '',
+        securityAlertAction: null,
+        
+        init() {
+            this.loadSecurityStatus();
+            // Refresh security status every 30 seconds
+            setInterval(() => {
+                this.loadSecurityStatus();
+            }, 30000);
+        },
+        
+        async loadSecurityStatus() {
+            try {
+                const response = await fetch('/api/security/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.updateSecurityStatus(data);
+                }
+            } catch (error) {
+                console.error('Error loading security status:', error);
+                this.securityLevel = 'unknown';
+                this.securityLevelText = 'Unknown';
+                this.securityIcon = 'bi-question-circle';
+            }
+        },
+        
+        updateSecurityStatus(data) {
+            this.securityLevel = data.security_level || 'secure';
+            this.securityLevelText = data.security_level_text || 'Secure';
+            this.securityIcon = data.security_icon || 'bi-shield-check';
+            this.sessionInfo = data.session_info || {};
+            this.recentEvents = data.recent_events || [];
+        },
+        
+        toggleSecurityDetails() {
+            this.showDetails = !this.showDetails;
+        },
+        
+        async refreshSecurityStatus() {
+            await this.loadSecurityStatus();
+            this.showNotification('Security status refreshed', 'success');
+        },
+        
+        viewSecurityLogs() {
+            window.open('/security/logs', '_blank');
+        },
+        
+        async extendSession() {
+            this.showSecurityAlert(
+                'Extend Session',
+                'Do you want to extend your current session? This will keep you logged in for additional time.',
+                'bi-clock-history',
+                'Extend Session',
+                'btn-success',
+                'bi-check-circle',
+                async () => {
+                    try {
+                        const response = await fetch('/api/session/extend', {
+                            method: 'POST'
+                        });
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.showNotification('Session extended successfully', 'success');
+                            await this.loadSecurityStatus();
+                        } else {
+                            this.showNotification(data.message || 'Failed to extend session', 'error');
+                        }
+                    } catch (error) {
+                        this.showNotification('Error extending session', 'error');
+                    }
+                }
+            );
+        },
+        
+        secureLogout() {
+            this.showSecurityAlert(
+                'Secure Logout',
+                'Are you sure you want to logout securely? This will terminate your session and clear all local data.',
+                'bi-shield-x',
+                'Secure Logout',
+                'btn-danger',
+                'bi-box-arrow-right',
+                () => {
+                    // Clear local storage
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    
+                    // Redirect to logout
+                    window.location.href = '/auth/logout';
+                }
+            );
+        },
+        
+        showSecurityAlert(title, message, icon, buttonText, buttonClass, buttonIcon, action) {
+            this.securityAlertTitle = title;
+            this.securityAlertMessage = message;
+            this.securityAlertIcon = icon;
+            this.securityAlertButtonText = buttonText;
+            this.securityAlertButtonClass = buttonClass;
+            this.securityAlertButtonIcon = buttonIcon;
+            this.securityAlertAction = action;
+            this.showSecurityAlert = true;
+        },
+        
+        closeSecurityAlert() {
+            this.showSecurityAlert = false;
+            this.securityAlertAction = null;
+        },
+        
+        confirmSecurityAction() {
+            if (this.securityAlertAction) {
+                this.securityAlertAction();
+            }
+            this.closeSecurityAlert();
+        },
+        
+        showNotification(message, type) {
+            // Dispatch event for global notification system
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: { message, type }
+            }));
+        }
+    };
+}
+</script>
+
+<style>
+.security-status-component {
+    position: relative;
+    z-index: 1000;
+}
+
+.security-status-badge {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.security-status-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.security-status-badge.secure {
+    background: #d4edda;
+    color: #155724;
+    border-color: #c3e6cb;
+}
+
+.security-status-badge.warning {
+    background: #fff3cd;
+    color: #856404;
+    border-color: #ffeaa7;
+}
+
+.security-status-badge.danger {
+    background: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+}
+
+.security-status-badge.unknown {
+    background: #e2e3e5;
+    color: #383d41;
+    border-color: #d6d8db;
+}
+
+.security-status-text {
+    margin: 0 4px;
+}
+
+.rotate-180 {
+    transform: rotate(180deg);
+}
+
+.security-details-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 400px;
+    max-height: 500px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #dee2e6;
+    margin-top: 8px;
+    z-index: 1050;
+}
+
+.security-details-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.security-details-header h6 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.security-details-content {
+    padding: 16px;
+}
+
+.security-section {
+    margin-bottom: 20px;
+}
+
+.security-section:last-child {
+    margin-bottom: 0;
+}
+
+.security-section-title {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.security-section-title i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+.security-info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.security-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f1f3f4;
+    font-size: 13px;
+}
+
+.security-info-item:last-child {
+    border-bottom: none;
+}
+
+.security-info-label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.security-info-value {
+    font-weight: 400;
+    color: #495057;
+}
+
+.security-monospace {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+}
+
+.security-events-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.security-event-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.security-event-item.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.security-event-item.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.security-event-item.danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.security-event-item.info {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.security-event-icon {
+    margin-right: 8px;
+    margin-top: 2px;
+}
+
+.security-event-content {
+    flex: 1;
+}
+
+.security-event-title {
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.security-event-time {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.no-events {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
+}
+
+.security-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.security-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1060;
+}
+
+.security-alert-modal {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.security-alert-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.security-alert-header i {
+    margin-right: 12px;
+    font-size: 20px;
+    color: #007bff;
+}
+
+.security-alert-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.security-alert-body {
+    padding: 16px;
+}
+
+.security-alert-body p {
+    margin: 0;
+    color: #6c757d;
+    line-height: 1.5;
+}
+
+.security-alert-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px;
+    border-top: 1px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+@media (max-width: 768px) {
+    .security-details-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        max-width: none;
+        max-height: 70vh;
+    }
+    
+    .security-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

@@ -1,0 +1,412 @@
+/**
+ * Form Validation Styles for Flask POS Application
+ * Provides visual feedback for validation states
+ */
+
+/* Base validation styles */
+.form-group {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.validation-feedback {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+.validation-feedback.valid {
+    color: #28a745;
+}
+
+.validation-feedback.invalid {
+    color: #dc3545;
+}
+
+.validation-feedback .fa {
+    margin-right: 0.25rem;
+}
+
+.validation-feedback .text-warning {
+    color: #856404;
+}
+
+/* Field validation states */
+.is-valid {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+}
+
+.is-invalid {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+/* Form validation animations */
+.validation-feedback {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.validation-feedback.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Password strength meter */
+.password-strength-container {
+    margin-top: 0.5rem;
+}
+
+.password-strength-meter {
+    height: 4px;
+    background-color: #e9ecef;
+    border-radius: 2px;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.password-strength-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.password-errors {
+    font-size: 0.75rem;
+    color: #dc3545;
+}
+
+.password-errors div {
+    margin-bottom: 0.125rem;
+}
+
+/* Form error messages */
+.form-error {
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+    animation: slideDown 0.3s ease;
+}
+
+/* Validation icons */
+.field-validation-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    pointer-events: none;
+}
+
+.field-validation-icon.valid {
+    color: #28a745;
+}
+
+.field-validation-icon.invalid {
+    color: #dc3545;
+}
+
+/* Input group with validation */
+.input-group .is-valid + .input-group-append,
+.input-group .is-valid ~ .input-group-append {
+    border-color: #28a745;
+}
+
+.input-group .is-invalid + .input-group-append,
+.input-group .is-invalid ~ .input-group-append {
+    border-color: #dc3545;
+}
+
+/* Custom checkbox and radio validation */
+.custom-control-input.is-valid ~ .custom-control-label {
+    color: #28a745;
+}
+
+.custom-control-input.is-invalid ~ .custom-control-label {
+    color: #dc3545;
+}
+
+.custom-control-input.is-valid:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.custom-control-input.is-invalid:checked {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+/* Select validation */
+.custom-select.is-valid {
+    border-color: #28a745;
+}
+
+.custom-select.is-invalid {
+    border-color: #dc3545;
+}
+
+/* File input validation */
+.custom-file-input.is-valid ~ .custom-file-label {
+    border-color: #28a745;
+}
+
+.custom-file-input.is-invalid ~ .custom-file-label {
+    border-color: #dc3545;
+}
+
+/* Range input validation */
+.form-range.is-valid::-webkit-slider-thumb {
+    background-color: #28a745;
+}
+
+.form-range.is-invalid::-webkit-slider-thumb {
+    background-color: #dc3545;
+}
+
+.form-range.is-valid::-moz-range-thumb {
+    background-color: #28a745;
+}
+
+.form-range.is-invalid::-moz-range-thumb {
+    background-color: #dc3545;
+}
+
+/* Loading state for validation */
+.validating {
+    position: relative;
+}
+
+.validating::after {
+    content: '';
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #6c757d;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+/* Tooltip for validation messages */
+.validation-tooltip {
+    position: absolute;
+    background-color: #343a40;
+    color: #fff;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    z-index: 1000;
+    max-width: 200px;
+    word-wrap: break-word;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.validation-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 0.5rem solid transparent;
+    border-top-color: #343a40;
+}
+
+/* Responsive validation */
+@media (max-width: 768px) {
+    .validation-feedback {
+        font-size: 0.8rem;
+    }
+    
+    .password-strength-text {
+        font-size: 0.7rem;
+    }
+    
+    .password-errors {
+        font-size: 0.7rem;
+    }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+    .validation-feedback.valid {
+        color: #34d058;
+    }
+    
+    .validation-feedback.invalid {
+        color: #f03e3e;
+    }
+    
+    .is-valid {
+        border-color: #34d058 !important;
+        box-shadow: 0 0 0 0.2rem rgba(52, 208, 88, 0.25) !important;
+    }
+    
+    .is-invalid {
+        border-color: #f03e3e !important;
+        box-shadow: 0 0 0 0.2rem rgba(240, 62, 62, 0.25) !important;
+    }
+    
+    .validation-tooltip {
+        background-color: #495057;
+        color: #fff;
+    }
+    
+    .validation-tooltip::before {
+        border-top-color: #495057;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .is-valid {
+        border-width: 2px;
+        border-style: solid;
+    }
+    
+    .is-invalid {
+        border-width: 2px;
+        border-style: solid;
+    }
+    
+    .validation-feedback {
+        font-weight: 600;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .validation-feedback {
+        transition: none;
+    }
+    
+    .password-strength-meter {
+        transition: none;
+    }
+    
+    .validating::after {
+        animation: none;
+    }
+    
+    .form-error {
+        animation: none;
+    }
+}
+
+/* Print styles */
+@media print {
+    .validation-feedback,
+    .form-error,
+    .password-strength-container {
+        display: none !important;
+    }
+    
+    .is-valid,
+    .is-invalid {
+        box-shadow: none !important;
+    }
+}
+
+/* Animations */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-1rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    100% {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+/* Focus styles for accessibility */
+.is-valid:focus,
+.is-invalid:focus {
+    outline: 0.125rem solid;
+    outline-offset: 0.125rem;
+}
+
+.is-valid:focus {
+    outline-color: rgba(40, 167, 69, 0.5);
+}
+
+.is-invalid:focus {
+    outline-color: rgba(220, 53, 69, 0.5);
+}
+
+/* Screen reader only content */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Validation summary */
+.validation-summary {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+.validation-summary ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.validation-summary li {
+    margin-bottom: 0.25rem;
+}
+
+/* Success state */
+.validation-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+/* Warning state */
+.validation-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+/* Info state */
+.validation-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}

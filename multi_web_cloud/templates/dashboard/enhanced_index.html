@@ -1,0 +1,657 @@
+{% extends "base.html" %} {% block title %}Dashboard - Restaurant POS{% endblock %} 
+
+{% block extra_css %}
+<style>
+/* Enhanced Dashboard Styles */
+.dashboard-enhanced {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stats-card {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.stats-card:hover::before {
+  left: 100%;
+}
+
+.stats-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.realtime-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  background: #28a745;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+}
+
+.quick-action-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.quick-action-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.recent-orders-table {
+  overflow: hidden;
+}
+
+.recent-orders-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.recent-orders-table tbody tr:hover {
+  background-color: #f8f9fa;
+  transform: scale(1.01);
+}
+
+.low-stock-item {
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+.low-stock-item:hover {
+  border-left-color: var(--warning-color);
+  background-color: #fff3cd;
+}
+
+.dashboard-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.dashboard-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--danger-color);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid dashboard-enhanced" x-data="dashboardData()" x-init="init()">
+  <!-- Page Header with Real-time Status -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+      <div class="d-flex align-items-center mt-1">
+        <div class="realtime-indicator me-2"></div>
+        <small class="text-muted" x-text="'Last updated: ' + lastUpdated"></small>
+      </div>
+    </div>
+    <div class="btn-group" role="group">
+      <button @click="toggleRealtime()" 
+              :class="realtimeEnabled ? 'btn-success' : 'btn-outline-primary'" 
+              class="btn btn-sm">
+        <i class="fas" :class="realtimeEnabled ? 'fa-pause' : 'fa-play'"></i> 
+        <span x-text="realtimeEnabled ? 'Pause' : 'Real-time'"></span>
+      </button>
+      <button @click="refreshStats()" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-sync-alt" :class="{'fa-spin': isLoading}"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div x-show="isLoading" class="dashboard-loading">
+    <div>
+      <div class="dashboard-spinner"></div>
+      <p class="mt-3 text-muted">Loading dashboard data...</p>
+    </div>
+  </div>
+
+  <!-- Dashboard Content (shown when not loading) -->
+  <div x-show="!isLoading">
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+      <!-- Today's Orders -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2 stats-card">
+          <div class="realtime-indicator" x-show="realtimeEnabled"></div>
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div
+                  class="text-xs font-weight-bold text-primary text-uppercase mb-1"
+                >
+                  Today's Orders
+                </div>
+                <div
+                  class="h5 mb-0 font-weight-bold text-gray-800"
+                  x-text="stats.today.orders"
+                >
+                  0
+                </div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Today's Revenue -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2 stats-card">
+          <div class="realtime-indicator" x-show="realtimeEnabled"></div>
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div
+                  class="text-xs font-weight-bold text-success text-uppercase mb-1"
+                >
+                  Today's Revenue
+                </div>
+                <div
+                  class="h5 mb-0 font-weight-bold text-gray-800"
+                  x-text="'₹' + stats.today.revenue.toFixed(2)"
+                >
+                  ₹0.00
+                </div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Available Tables -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2 stats-card">
+          <div class="realtime-indicator" x-show="realtimeEnabled"></div>
+          <div class="card-body">
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div
+                  class="text-xs font-weight-bold text-info text-uppercase mb-1"
+                >
+                  Available Tables
+                </div>
+                <div
+                  class="h5 mb-0 font-weight-bold text-gray-800"
+                  x-text="stats.tables.available"
+                >
+                  0
+                </div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-table fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Low Stock Items -->
+      <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2 stats-card">
+          <div class="card-body position-relative">
+            <div x-show="stats.low_stock_count > 0" class="notification-badge" x-text="stats.low_stock_count"></div>
+            <div class="row no-gutters align-items-center">
+              <div class="col mr-2">
+                <div
+                  class="text-xs font-weight-bold text-warning text-uppercase mb-1"
+                >
+                  Low Stock Items
+                </div>
+                <div
+                  class="h5 mb-0 font-weight-bold text-gray-800"
+                  x-text="stats.low_stock_count"
+                >
+                  0
+                </div>
+              </div>
+              <div class="col-auto">
+                <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow">
+          <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3 mb-2">
+                <div class="quick-action-card card h-100 p-3" @click="navigateTo('orders.new_order')">
+                  <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">New Order</h6>
+                      <small class="text-muted">Create a new order</small>
+                    </div>
+                    <div class="ms-3">
+                      <i class="fas fa-plus fa-2x text-primary"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-2">
+                <div class="quick-action-card card h-100 p-3" @click="navigateTo('kot.index')">
+                  <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">Kitchen Display</h6>
+                      <small class="text-muted">View KOT status</small>
+                    </div>
+                    <div class="ms-3">
+                      <i class="fas fa-utensils fa-2x text-info"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-2">
+                <div class="quick-action-card card h-100 p-3" onclick="window.open('{{ url_for('kot.kot_window') }}', 'kot_window', 'width=1400,height=800,scrollbars=yes,resizable=yes')">
+                  <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">KOT Window</h6>
+                      <small class="text-muted">Open KOT display</small>
+                    </div>
+                    <div class="ms-3">
+                      <i class="fas fa-window-restore fa-2x text-warning"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-2">
+                <div class="quick-action-card card h-100 p-3" @click="navigateTo('orders.list_orders')">
+                  <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">View Orders</h6>
+                      <small class="text-muted">Manage orders</small>
+                    </div>
+                    <div class="ms-3">
+                      <i class="fas fa-list fa-2x text-success"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-2">
+                <div class="quick-action-card card h-100 p-3" @click="navigateTo('menu.index')">
+                  <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">Manage Menu</h6>
+                      <small class="text-muted">Edit menu items</small>
+                    </div>
+                    <div class="ms-3">
+                      <i class="fas fa-edit fa-2x text-warning"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% if current_user.is_authenticated and current_user.role == 'admin' %}
+              <div class="col-md-3 mb-2">
+                <div class="quick-action-card card h-100 p-3" @click="navigateTo('footer_settings.index')">
+                  <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">Footer Settings</h6>
+                      <small class="text-muted">Customize footer</small>
+                    </div>
+                    <div class="ms-3">
+                      <i class="bi bi-gear fa-2x text-secondary"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Orders & Low Stock Items -->
+    <div class="row">
+      <!-- Recent Orders -->
+      <div class="col-lg-8 mb-4">
+        <div class="card shadow">
+          <div
+            class="card-header py-3 d-flex justify-content-between align-items-center"
+          >
+            <h6 class="m-0 font-weight-bold text-primary">Recent Orders</h6>
+            <div>
+              <button @click="refreshRecentOrders()" class="btn btn-sm btn-outline-primary me-2">
+                <i class="fas fa-sync-alt" :class="{'fa-spin': refreshingOrders}"></i>
+              </button>
+              <a
+                href="{{ url_for('orders.list_orders') }}"
+                class="btn btn-sm btn-outline-primary"
+                >View All</a
+              >
+            </div>
+          </div>
+          <div class="card-body">
+            <div x-show="refreshingOrders" class="text-center py-3">
+              <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+              Updating orders...
+            </div>
+            <div class="table-responsive recent-orders-table" x-show="!refreshingOrders">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Time</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="order in recentOrders" :key="order.id">
+                    <tr>
+                      <td x-text="order.order_number"></td>
+                      <td x-text="order.customer_name || 'N/A'"></td>
+                      <td>
+                        <span
+                          class="badge"
+                          :class="{
+                            'bg-success': order.status === 'Completed',
+                            'bg-warning': order.status === 'In Progress',
+                            'bg-info': order.status === 'New',
+                            'bg-secondary': order.status !== 'Completed' && order.status !== 'In Progress' && order.status !== 'New'
+                          }"
+                          x-text="order.status"
+                        >
+                        </span>
+                      </td>
+                      <td x-text="'₹' + (order.grand_total || 0).toFixed(2)"></td>
+                      <td x-text="order.created_at ? new Date(order.created_at).toLocaleTimeString() : ''"></td>
+                      <td>
+                        <a
+                          :href="'/orders/view/' + order.id"
+                          class="btn btn-sm btn-outline-primary"
+                        >
+                          <i class="fas fa-eye"></i>
+                        </a>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="recentOrders.length === 0">
+                    <td colspan="6" class="text-center">No recent orders</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Low Stock Items -->
+      <div class="col-lg-4 mb-4">
+        <div class="card shadow">
+          <div
+            class="card-header py-3 d-flex justify-content-between align-items-center"
+          >
+            <h6 class="m-0 font-weight-bold text-warning">Low Stock Items</h6>
+            <div>
+              <button @click="refreshLowStock()" class="btn btn-sm btn-outline-warning me-2">
+                <i class="fas fa-sync-alt" :class="{'fa-spin': refreshingStock}"></i>
+              </button>
+              <a
+                href="{{ url_for('inventory.index') }}"
+                class="btn btn-sm btn-outline-warning"
+                >Manage</a
+              >
+            </div>
+          </div>
+          <div class="card-body">
+            <div x-show="refreshingStock" class="text-center py-3">
+              <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+              Updating stock...
+            </div>
+            <div x-show="!refreshingStock">
+              <template x-for="item in lowStockItems" :key="item.id">
+                <div class="alert alert-warning py-2 low-stock-item">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong x-text="item.name"></strong>
+                      <br />
+                      <small x-text="'Stock: ' + item.stock_quantity + ' ' + item.unit"></small>
+                    </div>
+                    <a
+                      href="{{ url_for('inventory.index') }}"
+                      class="btn btn-sm btn-outline-warning"
+                    >
+                      Update
+                    </a>
+                  </div>
+                </div>
+              </template>
+              <div x-show="lowStockItems.length === 0" class="text-center text-muted">
+                All items are adequately stocked
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+function dashboardData() {
+  return {
+    stats: {
+      today: {
+        orders: 0,
+        revenue: 0
+      },
+      tables: {
+        available: 0
+      },
+      low_stock_count: 0
+    },
+    recentOrders: [],
+    lowStockItems: [],
+    isLoading: false,
+    refreshingOrders: false,
+    refreshingStock: false,
+    realtimeEnabled: true,
+    lastUpdated: 'Never',
+    realtimeInterval: null,
+    
+    init() {
+      this.loadInitialData();
+      this.startRealtimeUpdates();
+    },
+    
+    async loadInitialData() {
+      this.isLoading = true;
+      try {
+        await Promise.all([
+          this.loadStats(),
+          this.loadRecentOrders(),
+          this.loadLowStockItems()
+        ]);
+        this.updateLastUpdated();
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        this.showNotification('Error loading dashboard data', 'error');
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    
+    async loadStats() {
+      try {
+        const response = await fetch('/api/dashboard/stats');
+        if (response.ok) {
+          const data = await response.json();
+          this.stats = data;
+        }
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    },
+    
+    async loadRecentOrders() {
+      try {
+        const response = await fetch('/api/dashboard/recent-orders');
+        if (response.ok) {
+          const data = await response.json();
+          this.recentOrders = data.orders || [];
+        }
+      } catch (error) {
+        console.error('Error loading recent orders:', error);
+      }
+    },
+    
+    async loadLowStockItems() {
+      try {
+        const response = await fetch('/api/inventory/low-stock');
+        if (response.ok) {
+          const data = await response.json();
+          this.lowStockItems = data.items || [];
+          this.stats.low_stock_count = this.lowStockItems.length;
+        }
+      } catch (error) {
+        console.error('Error loading low stock items:', error);
+      }
+    },
+    
+    async refreshStats() {
+      await this.loadStats();
+      this.updateLastUpdated();
+    },
+    
+    async refreshRecentOrders() {
+      this.refreshingOrders = true;
+      try {
+        await this.loadRecentOrders();
+        this.updateLastUpdated();
+      } finally {
+        this.refreshingOrders = false;
+      }
+    },
+    
+    async refreshLowStock() {
+      this.refreshingStock = true;
+      try {
+        await this.loadLowStockItems();
+        this.updateLastUpdated();
+      } finally {
+        this.refreshingStock = false;
+      }
+    },
+    
+    toggleRealtime() {
+      this.realtimeEnabled = !this.realtimeEnabled;
+      if (this.realtimeEnabled) {
+        this.startRealtimeUpdates();
+      } else {
+        this.stopRealtimeUpdates();
+      }
+    },
+    
+    startRealtimeUpdates() {
+      if (this.realtimeInterval) {
+        clearInterval(this.realtimeInterval);
+      }
+      
+      this.realtimeInterval = setInterval(async () => {
+        if (this.realtimeEnabled) {
+          await this.loadStats();
+          await this.loadRecentOrders();
+          this.updateLastUpdated();
+        }
+      }, 30000); // Update every 30 seconds
+    },
+    
+    stopRealtimeUpdates() {
+      if (this.realtimeInterval) {
+        clearInterval(this.realtimeInterval);
+        this.realtimeInterval = null;
+      }
+    },
+    
+    updateLastUpdated() {
+      this.lastUpdated = new Date().toLocaleTimeString();
+    },
+    
+    navigateTo(route) {
+      // Convert route name to URL
+      const url = '/' + route.replace('.', '/');
+      window.location.href = url;
+    },
+    
+    showNotification(message, type) {
+      // Dispatch event for global notification system
+      document.dispatchEvent(new CustomEvent('showNotification', {
+        detail: { message, type }
+      }));
+    }
+  };
+}
+</script>
+{% endblock %}

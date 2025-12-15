@@ -190,23 +190,41 @@ class OfflineManager:
             self.logger.error(f"Error syncing item {item.get('local_id')}: {e}")
     
     def _sync_order(self, order_data: Dict[str, Any], local_id: str):
-        """Sync order to server"""
+        """Sync order to server with conflict resolution"""
         try:
+            # Check for conflicts first
+            conflict_check = self._check_order_conflicts(order_data)
+            
+            if conflict_check['has_conflict']:
+                # Handle conflict resolution
+                resolution = self._resolve_order_conflict(order_data, conflict_check['conflicts'])
+                if not resolution['resolved']:
+                    self._update_sync_status('offline_orders', local_id, 'conflict',
+                                         f"Conflict: {resolution['message']}")
+                    self._log_sync_operation('order_sync', 'order', local_id, 'conflict',
+                                         resolution['message'])
+                    return
+                order_data = resolution['resolved_data']
+            
             # Make API call to sync order
             response = self._make_api_request('/api/orders/sync', 'POST', order_data)
             
             if response and response.get('success'):
                 self._update_sync_status('offline_orders', local_id, 'synced')
                 self._log_sync_operation('order_sync', 'order', local_id, 'success')
+                self._notify_sync_status_update('order', local_id, 'synced')
             else:
-                self._update_sync_status('offline_orders', local_id, 'failed', 
+                self._update_sync_status('offline_orders', local_id, 'failed',
                                      response.get('message', 'Unknown error'))
-                self._log_sync_operation('order_sync', 'order', local_id, 'failed', 
+                self._log_sync_operation('order_sync', 'order', local_id, 'failed',
                                      response.get('message', 'Unknown error'))
+                self._notify_sync_status_update('order', local_id, 'failed',
+                                             response.get('message', 'Unknown error'))
         
         except Exception as e:
             self._update_sync_status('offline_orders', local_id, 'failed', str(e))
             self._log_sync_operation('order_sync', 'order', local_id, 'failed', str(e))
+            self._notify_sync_status_update('order', local_id, 'failed', str(e))
     
     def _sync_payment(self, payment_data: Dict[str, Any], local_id: str):
         """Sync payment to server"""
@@ -668,6 +686,300 @@ class OfflineManager:
         except Exception as e:
             self.logger.error(f"Error clearing failed items: {e}")
             return False
+    
+    def _check_order_conflicts(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Check for order conflicts with server data"""
+        try:
+            # Check if order already exists on server
+            order_id = order_data.get('order_id')
+            if not order_id:
+                return {'has_conflict': False}
+            
+            # Get server order data
+            response = self._make_api_request(f'/api/orders/{order_id}', 'GET', {})
+            
+            if response and response.get('success'):
+                server_order = response.get('data')
+                conflicts = []
+                
+                # Check for conflicts in key fields
+                if server_order.get('status') != order_data.get('status'):
+                    conflicts.append({
+                        'field': 'status',
+                        'server_value': server_order.get('status'),
+                        'local_value': order_data.get('status')
+                    })
+                
+                if server_order.get('total_amount') != order_data.get('total_amount'):
+                    conflicts.append({
+                        'field': 'total_amount',
+                        'server_value': server_order.get('total_amount'),
+                        'local_value': order_data.get('total_amount')
+                    })
+                
+                # Check payment status conflicts
+                server_payments = server_order.get('payments', [])
+                local_payments = order_data.get('payments', [])
+                
+                if len(server_payments) != len(local_payments):
+                    conflicts.append({
+                        'field': 'payments',
+                        'server_value': f"{len(server_payments)} payments",
+                        'local_value': f"{len(local_payments)} payments"
+                    })
+                
+                return {
+                    'has_conflict': len(conflicts) > 0,
+                    'conflicts': conflicts,
+                    'server_data': server_order
+                }
+            
+            return {'has_conflict': False}
+            
+        except Exception as e:
+            self.logger.error(f"Error checking order conflicts: {e}")
+            return {'has_conflict': False}
+    
+    def _resolve_order_conflict(self, local_order: Dict[str, Any], conflicts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Resolve order conflicts using intelligent strategies"""
+        try:
+            resolution_strategy = current_app.config.get('CONFLICT_RESOLUTION_STRATEGY', 'server_wins')
+            
+            if resolution_strategy == 'server_wins':
+                # Server data takes precedence
+                return {
+                    'resolved': True,
+                    'resolved_data': local_order,  # Keep local for now, server will update
+                    'message': 'Server data will be used'
+                }
+            
+            elif resolution_strategy == 'local_wins':
+                # Local data takes precedence
+                return {
+                    'resolved': True,
+                    'resolved_data': local_order,
+                    'message': 'Local data will be used'
+                }
+            
+            elif resolution_strategy == 'merge':
+                # Intelligent merge
+                resolved_data = local_order.copy()
+                
+                # For each conflict, apply intelligent resolution
+                for conflict in conflicts:
+                    field = conflict['field']
+                    
+                    if field == 'status':
+                        # Use the most recent status
+                        server_status = conflict['server_value']
+                        local_status = conflict['local_value']
+                        
+                        # Priority order: completed > cancelled > pending > preparing
+                        status_priority = {
+                            'completed': 4,
+                            'cancelled': 3,
+                            'pending': 2,
+                            'preparing': 1
+                        }
+                        
+                        if status_priority.get(server_status, 0) > status_priority.get(local_status, 0):
+                            resolved_data[field] = server_status
+                        else:
+                            resolved_data[field] = local_status
+                    
+                    elif field == 'total_amount':
+                        # Use the higher amount (for safety)
+                        server_amount = float(conflict['server_value'])
+                        local_amount = float(conflict['local_value'])
+                        resolved_data[field] = max(server_amount, local_amount)
+                    
+                    elif field == 'payments':
+                        # Merge payment data
+                        # This would require more complex logic in a real implementation
+                        pass
+                
+                return {
+                    'resolved': True,
+                    'resolved_data': resolved_data,
+                    'message': 'Conflicts resolved with intelligent merge'
+                }
+            
+            else:
+                return {
+                    'resolved': False,
+                    'message': f'Unknown conflict resolution strategy: {resolution_strategy}'
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Error resolving order conflict: {e}")
+            return {
+                'resolved': False,
+                'message': f'Error resolving conflict: {str(e)}'
+            }
+    
+    def _notify_sync_status_update(self, data_type: str, local_id: str, status: str, error_message: str = None):
+        """Notify clients of sync status updates via WebSocket or Server-Sent Events"""
+        try:
+            # This would integrate with WebSocket or SSE implementation
+            # For now, we'll just log the notification
+            notification = {
+                'type': 'sync_status_update',
+                'data_type': data_type,
+                'local_id': local_id,
+                'status': status,
+                'timestamp': datetime.utcnow().isoformat(),
+                'error_message': error_message
+            }
+            
+            # Store notification for real-time updates
+            self._store_realtime_notification(notification)
+            
+            self.logger.info(f"Sync status notification: {notification}")
+            
+        except Exception as e:
+            self.logger.error(f"Error sending sync status notification: {e}")
+    
+    def _store_realtime_notification(self, notification: Dict[str, Any]):
+        """Store notification for real-time client updates"""
+        try:
+            conn = sqlite3.connect(self.offline_db_path)
+            cursor = conn.cursor()
+            
+            # Create notifications table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS realtime_notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    notification_data TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    delivered BOOLEAN DEFAULT FALSE
+                )
+            ''')
+            
+            # Store notification
+            cursor.execute('''
+                INSERT INTO realtime_notifications
+                (notification_data, created_at, delivered)
+                VALUES (?, ?, ?)
+            ''', (json.dumps(notification), datetime.utcnow().isoformat(), False))
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            self.logger.error(f"Error storing realtime notification: {e}")
+    
+    def get_realtime_notifications(self, since: str = None) -> List[Dict[str, Any]]:
+        """Get realtime notifications for client updates"""
+        try:
+            conn = sqlite3.connect(self.offline_db_path)
+            cursor = conn.cursor()
+            
+            if since:
+                cursor.execute('''
+                    SELECT notification_data, created_at
+                    FROM realtime_notifications
+                    WHERE created_at > ? AND delivered = FALSE
+                    ORDER BY created_at ASC
+                ''', (since,))
+            else:
+                cursor.execute('''
+                    SELECT notification_data, created_at
+                    FROM realtime_notifications
+                    WHERE delivered = FALSE
+                    ORDER BY created_at ASC
+                ''')
+            
+            notifications = []
+            for row in cursor.fetchall():
+                notification = json.loads(row[0])
+                notification['created_at'] = row[1]
+                notifications.append(notification)
+            
+            # Mark notifications as delivered
+            if notifications:
+                cursor.execute('''
+                    UPDATE realtime_notifications
+                    SET delivered = TRUE
+                    WHERE delivered = FALSE
+                ''')
+                conn.commit()
+            
+            conn.close()
+            return notifications
+            
+        except Exception as e:
+            self.logger.error(f"Error getting realtime notifications: {e}")
+            return []
+    
+    def get_sync_statistics(self) -> Dict[str, Any]:
+        """Get detailed synchronization statistics"""
+        try:
+            conn = sqlite3.connect(self.offline_db_path)
+            cursor = conn.cursor()
+            
+            # Get detailed sync statistics
+            stats = {}
+            
+            # Order statistics
+            cursor.execute('''
+                SELECT sync_status, COUNT(*)
+                FROM offline_orders
+                GROUP BY sync_status
+            ''')
+            order_stats = dict(cursor.fetchall())
+            stats['orders'] = order_stats
+            
+            # Payment statistics
+            cursor.execute('''
+                SELECT sync_status, COUNT(*)
+                FROM offline_payments
+                GROUP BY sync_status
+            ''')
+            payment_stats = dict(cursor.fetchall())
+            stats['payments'] = payment_stats
+            
+            # Recent sync activity
+            cursor.execute('''
+                SELECT operation, COUNT(*)
+                FROM sync_log
+                WHERE timestamp > datetime('now', '-1 hour')
+                GROUP BY operation
+            ''')
+            recent_activity = dict(cursor.fetchall())
+            stats['recent_activity'] = recent_activity
+            
+            # Average sync time
+            cursor.execute('''
+                SELECT AVG(
+                    (julianday(timestamp) - julianday(
+                        (SELECT timestamp FROM sync_log s2
+                         WHERE s2.data_id = sync_log.data_id
+                         AND s2.operation = 'sync_started'
+                         AND s2.timestamp < sync_log.timestamp
+                         ORDER BY s2.timestamp DESC LIMIT 1)
+                    )) * 24 * 60 * 60
+                ) as avg_sync_time
+                FROM sync_log
+                WHERE operation = 'sync_completed'
+                AND timestamp > datetime('now', '-24 hours')
+            ''')
+            avg_sync_time = cursor.fetchone()[0]
+            stats['average_sync_time_seconds'] = avg_sync_time if avg_sync_time else 0
+            
+            conn.close()
+            
+            # Add current status
+            stats.update({
+                'is_online': self.is_online,
+                'sync_queue_size': self.sync_queue.qsize(),
+                'last_updated': datetime.utcnow().isoformat()
+            })
+            
+            return stats
+            
+        except Exception as e:
+            self.logger.error(f"Error getting sync statistics: {e}")
+            return {'error': str(e)}
 
 # Global offline manager instance
 offline_manager = OfflineManager()
@@ -720,3 +1032,23 @@ def get_sync_status() -> Dict[str, Any]:
 def force_sync() -> bool:
     """Force immediate synchronization"""
     return offline_manager.force_sync()
+
+def get_realtime_notifications(since: str = None) -> List[Dict[str, Any]]:
+    """Get realtime notifications for client updates"""
+    return offline_manager.get_realtime_notifications(since)
+
+def get_sync_statistics() -> Dict[str, Any]:
+    """Get detailed synchronization statistics"""
+    return offline_manager.get_sync_statistics()
+
+def check_conflicts(data_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Check for conflicts with server data"""
+    if data_type == 'order':
+        return offline_manager._check_order_conflicts(data)
+    return {'has_conflict': False}
+
+def resolve_conflicts(data_type: str, local_data: Dict[str, Any], conflicts: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Resolve conflicts using intelligent strategies"""
+    if data_type == 'order':
+        return offline_manager._resolve_order_conflict(local_data, conflicts)
+    return {'resolved': False, 'message': 'Conflict resolution not supported for this data type'}

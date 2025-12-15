@@ -8,8 +8,15 @@
 4. [Session Management](#session-management)
 5. [Offline Mode](#offline-mode)
 6. [Razorpay Payments](#razorpay-payments)
-7. [Troubleshooting](#troubleshooting)
-8. [Best Practices](#best-practices)
+7. [CRM & Loyalty Programs](#crm--loyalty-programs)
+8. [Multi-Tenancy](#multi-tenancy)
+9. [Advanced Features](#advanced-features)
+10. [Mobile App Installation](#mobile-app-installation)
+11. [Integration with Third-Party Systems](#integration-with-third-party-systems)
+12. [Troubleshooting](#troubleshooting)
+13. [Best Practices](#best-practices)
+14. [Emergency Procedures](#emergency-procedures)
+15. [Additional Resources](#additional-resources)
 
 ---
 
@@ -21,6 +28,7 @@
 - **Internet**: Required for initial setup and sync
 - **Device**: Desktop, tablet, or mobile phone
 - **Storage**: 100MB available space for offline data
+- **RAM**: 4GB minimum (8GB recommended for enterprise features)
 
 ### Login Process
 
@@ -49,6 +57,9 @@ After successful login, you'll see:
 - **Security Status**: Current session security level
 - **Offline Indicator**: Shows if offline mode is active
 - **Sync Status**: Shows last synchronization time
+- **Tenant Information**: Current tenant (for multi-tenant setups)
+- **Loyalty Stats**: Today's loyalty points earned/redeemed
+- **CRM Alerts**: New customer notifications and follow-ups
 
 ---
 
@@ -151,7 +162,14 @@ The system monitors for:
 - **Length**: 10-15 digits
 - **Country Codes**: Supports all country codes
 
-#### 4. Numeric Fields
+#### 4. GST Numbers
+
+- **Format**: 15-character GSTIN format
+- **Validation**: State code + PAN + entity code + checksum
+- **Checksum**: Automatic checksum validation
+- **Format Example**: 27AAAPL1234C1ZV
+
+#### 5. Numeric Fields
 
 - **Currency**: 2 decimal places maximum
 - **Quantities**: Whole numbers only
@@ -174,6 +192,9 @@ The system monitors for:
 
 ❌ Invalid Phone:
 "Please enter a valid phone number with country code"
+
+❌ Invalid GST:
+"Please enter a valid 15-digit GST number"
 
 ❌ Required Field Missing:
 "This field is required"
@@ -340,6 +361,23 @@ The system automatically enters offline mode when:
 - **Contact Info**: Phone numbers and addresses
 - **Preferences**: Customer preferences and notes
 
+#### 4. CRM & Loyalty Offline
+
+```
+✅ Available Offline:
+- View customer profiles
+- Check loyalty points balance
+- Apply loyalty discounts
+- Record customer interactions
+- Add new customers locally
+
+❌ Not Available Offline:
+- Sync loyalty points to server
+- Send marketing emails
+- Update customer analytics
+- Process referral rewards
+```
+
 ### Offline Data Storage
 
 #### Local Database
@@ -357,6 +395,7 @@ The system automatically enters offline mode when:
 ├── Payments (3 pending)
 ├── Inventory Updates (2 pending)
 ├── Customer Updates (1 pending)
+├── Loyalty Transactions (4 pending)
 └── Settings Changes (0 pending)
 ```
 
@@ -395,6 +434,7 @@ The system automatically enters offline mode when:
 2. **Inventory Conflicts**: Stock level mismatches
 3. **Customer Conflicts**: Customer data differences
 4. **Payment Conflicts**: Payment status mismatches
+5. **Loyalty Conflicts**: Points balance discrepancies
 
 #### Resolution Options
 
@@ -593,6 +633,873 @@ The system automatically enters offline mode when:
 
 ---
 
+## CRM & Loyalty Programs
+
+### Customer Relationship Management
+
+#### Customer Profiles
+
+1. **Customer Information**
+   - Personal details (name, phone, email)
+   - Contact information and addresses
+   - Birthdays and anniversaries
+   - Dietary preferences and allergies
+
+2. **Order History**
+   - Complete order history
+   - Favorite items and categories
+   - Average order value
+   - Visit frequency patterns
+
+3. **Communication History**
+   - Email communications
+   - SMS notifications
+   - Phone call logs
+   - Marketing campaign responses
+
+#### Customer Management Features
+
+```
+👤 Customer Profile View:
+┌─────────────────────────────────────┐
+│ John Doe                          │
+│ 📱 +91 9876543210                │
+│ 📧 john@example.com              │
+│ 🎂 Birthday: January 15          │
+│ 🏠 Mumbai, Maharashtra           │
+├─────────────────────────────────────┤
+│ Loyalty: Gold Member              │
+│ Points: 2,450                    │
+│ Total Orders: 47                 │
+│ Avg. Order: ₹850.00             │
+│ Last Visit: 2 days ago           │
+└─────────────────────────────────────┘
+```
+
+#### Customer Analytics
+
+- **Customer Segmentation**: Group customers by behavior
+- **Lifetime Value**: Calculate customer lifetime value
+- **Churn Prediction**: Identify customers at risk
+- **Purchase Patterns**: Analyze buying behavior
+- **Demographics**: Customer demographic analysis
+
+### Loyalty Program
+
+#### Points System
+
+1. **Earning Points**
+   - **Base Points**: 1 point per ₹1 spent
+   - **Bonus Points**: Special promotions and events
+   - **Category Multipliers**: Extra points on specific categories
+   - **Referral Points**: Points for customer referrals
+
+2. **Points Redemption**
+   - **Discount Redemption**: 100 points = ₹1 discount
+   - **Free Items**: Redeem points for free menu items
+   - **Upgrades**: Use points for meal upgrades
+   - **Special Offers**: Exclusive deals for members
+
+#### Loyalty Tiers
+
+```
+🏆 Loyalty Tier Structure:
+┌─────────────────────────────────────┐
+│ Bronze Tier (0-999 points)         │
+│ • 1 point per ₹10                  │
+│ • Birthday discount: 5%            │
+│ • Free dessert on 5th visit        │
+├─────────────────────────────────────┤
+│ Silver Tier (1000-4999 points)     │
+│ • 1.2 points per ₹10               │
+│ • Birthday discount: 10%           │
+│ • Priority seating                 │
+├─────────────────────────────────────┤
+│ Gold Tier (5000-9999 points)       │
+│ • 1.5 points per ₹10               │
+│ • Birthday discount: 15%           │
+│ • Exclusive menu access            │
+├─────────────────────────────────────┤
+│ Platinum Tier (10000+ points)      │
+│ • 2 points per ₹10                 │
+│ • Birthday discount: 20%           │
+│ • Personalized service             │
+└─────────────────────────────────────┘
+```
+
+#### Loyalty Features
+
+1. **Points Tracking**
+   - Real-time points balance
+   - Points expiration alerts
+   - Points earning history
+   - Redemption history
+
+2. **Tier Benefits**
+   - Tier-specific discounts
+   - Exclusive offers
+   - Priority service
+   - Special event invitations
+
+3. **Referral Program**
+   - Referral code generation
+   - Referral tracking
+   - Referral rewards
+   - Referral analytics
+
+### Marketing Campaigns
+
+#### Campaign Management
+
+1. **Campaign Types**
+   - **Email Campaigns**: Targeted email marketing
+   - **SMS Campaigns**: Text message promotions
+   - **Push Notifications**: In-app notifications
+   - **Social Media**: Social media integration
+
+2. **Campaign Creation**
+   - Target audience selection
+   - Message composition
+   - Scheduling options
+   - Budget allocation
+
+#### Customer Segmentation
+
+```
+🎯 Customer Segments:
+┌─────────────────────────────────────┐
+│ New Customers (Last 30 days)       │
+│ • Welcome offers                   │
+│ • Onboarding series               │
+│ • First-time discounts            │
+├─────────────────────────────────────┤
+│ Regular Customers (Monthly)        │
+│ • Loyalty promotions               │
+│ • Monthly specials                │
+│ • Personalized offers             │
+├─────────────────────────────────────┤
+│ VIP Customers (High Value)         │
+│ • Exclusive deals                  │
+│ • Personal service                │
+│ • Premium benefits                │
+├─────────────────────────────────────┤
+│ Inactive Customers (60+ days)      │
+│ • Re-engagement campaigns         │
+│ • Special offers                  │
+│ • We miss you messages            │
+└─────────────────────────────────────┘
+```
+
+### CRM Analytics Dashboard
+
+#### Key Metrics
+
+- **Customer Acquisition**: New customer acquisition rate
+- **Customer Retention**: Customer retention percentage
+- **Customer Lifetime Value**: Average CLV by segment
+- **Loyalty Participation**: Loyalty program engagement
+- **Campaign ROI**: Return on marketing investment
+
+#### Reports and Insights
+
+- **Customer Behavior**: Purchase pattern analysis
+- **Loyalty Analytics**: Points earning and redemption trends
+- **Campaign Performance**: Marketing campaign effectiveness
+- **Segment Analysis**: Customer segment performance
+- **Predictive Analytics**: Customer churn and value predictions
+
+---
+
+## Multi-Tenancy
+
+### Understanding Multi-Tenancy
+
+Multi-tenancy allows multiple restaurants or outlets to use the same system while maintaining complete data isolation:
+
+#### Tenant Isolation
+
+- **Data Separation**: Each tenant has completely isolated data
+- **Security Isolation**: Tenant-specific security policies
+- **Custom Branding**: Individual branding per tenant
+- **Independent Configuration**: Separate settings per tenant
+
+#### Tenant Management
+
+1. **Tenant Creation**
+   - Create new tenant accounts
+   - Configure tenant settings
+   - Set up branding and customization
+   - Initialize tenant database
+
+2. **Tenant Administration**
+   - Manage tenant users and permissions
+   - Monitor tenant resource usage
+   - Handle tenant billing and subscriptions
+   - Provide tenant support
+
+### Tenant User Interface
+
+#### Tenant Selection
+
+```
+🏢 Tenant Selection:
+┌─────────────────────────────────────┐
+│ Select Your Restaurant             │
+├─────────────────────────────────────┤
+│ 🍽️ Restaurant A - Main Branch     │
+│ 🍽️ Restaurant A - Branch 1        │
+│ 🍽️ Restaurant B - Downtown        │
+│ 🍽️ Restaurant C - Airport         │
+└─────────────────────────────────────┘
+```
+
+#### Tenant Dashboard
+
+Each tenant sees:
+- **Tenant-Specific Data**: Only their own orders, customers, and reports
+- **Branded Interface**: Custom logo, colors, and branding
+- **Independent Settings**: Restaurant-specific configurations
+- **Isolated Analytics**: Analytics for their restaurant only
+
+### Multi-Tenant Features
+
+#### Data Isolation
+
+```
+🔒 Data Isolation Structure:
+┌─────────────────────────────────────┐
+│ Tenant A (Restaurant A)            │
+│ ├── Orders: ORD-A-001, ORD-A-002   │
+│ ├── Customers: CUST-A-001          │
+│ ├── Menu Items: MENU-A-001         │
+│ └── Reports: Restaurant A only     │
+├─────────────────────────────────────┤
+│ Tenant B (Restaurant B)            │
+│ ├── Orders: ORD-B-001, ORD-B-002   │
+│ ├── Customers: CUST-B-001          │
+│ ├── Menu Items: MENU-B-001         │
+│ └── Reports: Restaurant B only     │
+└─────────────────────────────────────┘
+```
+
+#### Resource Management
+
+- **Database Isolation**: Separate database or schema per tenant
+- **File Storage**: Isolated file storage for uploads
+- **API Access**: Tenant-specific API endpoints
+- **Session Management**: Tenant-aware session handling
+
+#### Tenant Customization
+
+1. **Branding Options**
+   - Custom logo and color scheme
+   - Restaurant name and address
+   - Custom receipts and invoices
+   - Branded email templates
+
+2. **Feature Configuration**
+   - Enable/disable features per tenant
+   - Configure payment methods
+   - Set up tax rates and GST
+   - Customize loyalty programs
+
+### Tenant Administration
+
+#### Super Admin Features
+
+For system administrators managing multiple tenants:
+
+```
+👑 Super Admin Dashboard:
+┌─────────────────────────────────────┐
+│ Multi-Tenant Management            │
+├─────────────────────────────────────┤
+│ Total Tenants: 15                  │
+│ Active Users: 247                  │
+│ System Load: Normal                │
+│ Storage Used: 45.2 GB              │
+├─────────────────────────────────────┤
+│ Tenant Actions:                    │
+│ • Create New Tenant                │
+│ • Manage Existing Tenants          │
+│ • View Tenant Analytics            │
+│ • System Health Monitor             │
+└─────────────────────────────────────┘
+```
+
+#### Tenant Analytics
+
+- **Usage Statistics**: Resource usage per tenant
+- **Performance Metrics**: System performance by tenant
+- **Billing Information**: Subscription and billing details
+- **Support Tickets**: Tenant support requests
+
+---
+
+## Advanced Features
+
+### Advanced Reporting
+
+#### Enhanced Reports
+
+1. **Business Intelligence Reports**
+   - Sales trend analysis
+   - Customer behavior insights
+   - Inventory optimization
+   - Staff performance metrics
+
+2. **Financial Reports**
+   - Profit and loss statements
+   - Cash flow analysis
+   - Tax compliance reports
+   - Expense tracking
+
+3. **Operational Reports**
+   - Kitchen efficiency metrics
+   - Table turnover analysis
+   - Peak hour analysis
+   - Service time tracking
+
+#### Custom Report Builder
+
+```
+📊 Custom Report Builder:
+┌─────────────────────────────────────┐
+│ Create Custom Report               │
+├─────────────────────────────────────┤
+│ Data Source: [Orders ▼]           │
+│ Time Range: [Last 30 Days ▼]      │
+│ Group By: [Day ▼]                 │
+│ Metrics:                          │
+│ ☑ Total Sales                     │
+│ ☑ Order Count                     │
+│ ☑ Average Order Value            │
+│ ☑ Customer Count                  │
+│                                  │
+│ [Generate Report] [Save Template]  │
+└─────────────────────────────────────┘
+```
+
+### Advanced Inventory Management
+
+#### Smart Inventory Features
+
+1. **Automated Stock Management**
+   - Automatic stock level updates
+   - Low stock alerts and reordering
+   - Supplier management integration
+   - Cost tracking and analysis
+
+2. **Inventory Analytics**
+   - Usage pattern analysis
+   - Waste tracking
+   - Shelf life management
+   - Seasonal demand forecasting
+
+#### Inventory Dashboard
+
+```
+📦 Inventory Management:
+┌─────────────────────────────────────┐
+│ Inventory Status                   │
+├─────────────────────────────────────┤
+│ Total Items: 245                   │
+│ Low Stock: 12 items                │
+│ Out of Stock: 3 items              │
+│ Expiring Soon: 8 items             │
+├─────────────────────────────────────┤
+│ Quick Actions:                     │
+│ • Update Stock Levels              │
+│ • Create Purchase Order           │
+│ • View Supplier Information        │
+│ • Generate Inventory Report       │
+└─────────────────────────────────────┘
+```
+
+### Advanced Order Management
+
+#### Order Features
+
+1. **Advanced Order Types**
+   - Split payments across multiple methods
+   - Partial payments and deposits
+   - Order modifications and cancellations
+   - Special order handling
+
+2. **Order Analytics**
+   - Order completion time tracking
+   - Order accuracy metrics
+   - Customer satisfaction tracking
+   - Staff performance analysis
+
+#### Order Management Interface
+
+```
+📋 Advanced Order Management:
+┌─────────────────────────────────────┐
+│ Order #ORD20241214001             │
+├─────────────────────────────────────┤
+│ Customer: John Doe                │
+│ Table: T-05                       │
+│ Status: In Progress               │
+│ Time: 15 minutes                  │
+├─────────────────────────────────────┤
+│ Items:                            │
+│ • Burger x2 - ₹300.00            │
+│ • Fries x1 - ₹80.00              │
+│ • Coke x2 - ₹120.00              │
+│                                  │
+│ Special Instructions:             │
+│ "Extra cheese, no onions"         │
+│                                  │
+│ [Modify] [Add Item] [Complete]     │
+└─────────────────────────────────────┘
+```
+
+### Advanced Kitchen Display System
+
+#### KOT Enhancements
+
+1. **Smart Kitchen Display**
+   - Real-time order updates
+   - Preparation time tracking
+   - Order priority management
+   - Chef assignment system
+
+2. **Kitchen Analytics**
+   - Preparation time analysis
+   - Chef performance metrics
+   - Order accuracy tracking
+   - Peak hour optimization
+
+#### KOT Interface
+
+```
+👨‍🍳 Kitchen Display System:
+┌─────────────────────────────────────┐
+│ Order Queue                        │
+├─────────────────────────────────────┤
+│ 🔴 NEW - ORD001 (5 min)           │
+│ Burger x2, Fries x1               │
+│ Chef: Assigned                     │
+├─────────────────────────────────────┤
+│ 🟡 PREPARING - ORD002 (12 min)     │
+│ Pizza x1, Salad x1                │
+│ Chef: John                         │
+├─────────────────────────────────────┤
+│ 🟢 READY - ORD003 (2 min)         │
+│ Pasta x1, Garlic Bread x1          │
+│ Chef: Mary                         │
+└─────────────────────────────────────┘
+```
+
+---
+
+## Mobile App Installation
+
+### Progressive Web App (PWA) Installation
+
+#### What is a PWA?
+
+A Progressive Web App (PWA) allows you to install Flask POS application on your mobile device for a native app-like experience:
+
+- **Offline Support**: Works without internet connection
+- **Push Notifications**: Receive order and payment alerts
+- **Home Screen Icon**: Add to your device home screen
+- **Auto-Updates**: Always uses the latest version
+- **Cross-Platform**: Works on iOS, Android, and desktop
+
+#### Installing on Mobile Devices
+
+##### Android Installation
+
+1. **Open Application**
+   - Navigate to `https://your-domain.com` in Chrome
+   - Wait for the page to fully load
+
+2. **Add to Home Screen**
+   - Tap the menu icon (⋮) in Chrome
+   - Select "Add to Home screen" or "Install app"
+   - Confirm installation by tapping "Add"
+
+3. **Launch from Home Screen**
+   - Find Flask POS icon on your home screen
+   - Tap to launch like a native app
+   - Login with your credentials
+
+##### iOS Installation
+
+1. **Open in Safari**
+   - Navigate to `https://your-domain.com` in Safari
+   - Wait for the page to fully load
+
+2. **Share to Home Screen**
+   - Tap the Share icon (□ with arrow)
+   - Scroll down and find "Add to Home Screen"
+   - Tap "Add" to confirm installation
+
+3. **Launch from Home Screen**
+   - Find Flask POS icon on your home screen
+   - Tap to launch the application
+   - Login with your credentials
+
+#### Desktop Installation
+
+##### Chrome Desktop
+
+1. **Open Application**
+   - Navigate to `https://your-domain.com` in Chrome
+   - Look for the install icon (➕) in the address bar
+
+2. **Install Application**
+   - Click the install icon in the address bar
+   - Confirm installation by clicking "Install"
+
+3. **Launch from Desktop**
+   - Find Flask POS icon in your applications
+   - Launch like any desktop application
+   - Login with your credentials
+
+##### Edge Desktop
+
+1. **Navigate to Application**
+   - Go to `https://your-domain.com` in Microsoft Edge
+   - Look for the app icon (⚡) in the address bar
+
+2. **Install PWA**
+   - Click the app icon
+   - Select "Install" from the prompt
+   - Confirm installation
+
+3. **Access from Start Menu**
+   - Find Flask POS in your Start Menu/Applications
+   - Launch and login with credentials
+
+### PWA Features
+
+#### Offline Capabilities
+
+The installed PWA provides enhanced offline functionality:
+
+- **Cached Interface**: Fast loading of frequently used screens
+- **Offline Orders**: Complete order management offline
+- **Local Storage**: Data stored securely on device
+- **Sync Queue**: Automatic sync when connection restored
+- **Offline Indicators**: Clear status of online/offline state
+
+#### Push Notifications
+
+Enable notifications for real-time updates:
+
+- **New Orders**: Instant alerts for new orders
+- **Payment Status**: Notifications for payment confirmations
+- **Low Inventory**: Alerts when stock is running low
+- **Security Alerts**: Important security notifications
+- **Sync Status**: Notifications for sync completion
+
+#### App Updates
+
+PWA updates automatically:
+
+- **Background Updates**: Updates download in background
+- **Instant Updates**: Changes available immediately
+- **Version Control**: Always uses the latest version
+- **No App Store**: No need for manual updates
+- **Rollback Protection**: Stable version maintained
+
+### Mobile Optimization Features
+
+#### Touch Interface
+
+- **Large Touch Targets**: Optimized for finger navigation
+- **Swipe Gestures**: Swipe between order tabs
+- **Long Press**: Context menus and options
+- **Pinch Zoom**: Zoom in on reports and details
+- **Touch Keyboard**: Optimized keyboard for mobile
+
+#### Responsive Design
+
+- **Screen Adaptation**: Adapts to any screen size
+- **Orientation Support**: Works in portrait and landscape
+- **High DPI**: Optimized for high-resolution screens
+- **Dark Mode**: Supports system dark mode preferences
+- **Accessibility**: Screen reader and accessibility support
+
+---
+
+## Integration with Third-Party Systems
+
+### Accounting System Integration
+
+#### QuickBooks Integration
+
+1. **Setup Configuration**
+   ```
+   QuickBooks Settings:
+   ┌─────────────────────────────────────┐
+   │ API Key: [Your QuickBooks API Key] │
+   │ Realm ID: [Your Realm ID]         │
+   │ Company: [Your Company Name]        │
+   │ Sync Mode: [Real-time ▼]           │
+   │ Data Mapping: [Configure ▼]         │
+   └─────────────────────────────────────┘
+   ```
+
+2. **Data Synchronization**
+   - **Sales Data**: Automatic sync of daily sales
+   - **Customer Data**: Customer information sync
+   - **Inventory**: Stock level synchronization
+   - **Invoices**: Invoice generation and sync
+   - **Payments**: Payment reconciliation
+
+3. **Mapping Configuration**
+   ```
+   Field Mapping:
+   ┌─────────────────────────────────────┐
+   │ POS Field → QuickBooks Field        │
+   ├─────────────────────────────────────┤
+   │ Order Total → Sales Receipt         │
+   │ Customer Name → Customer Name       │
+   │ Items → Products/Services          │
+   │ Tax Amount → Sales Tax             │
+   │ Payment Method → Payment Type       │
+   └─────────────────────────────────────┘
+   ```
+
+#### Tally Integration
+
+1. **Tally Configuration**
+   ```
+   Tally ERP Settings:
+   ┌─────────────────────────────────────┐
+   │ Company ID: [Your Company ID]      │
+   │ License Key: [Your License Key]      │
+   │ Server URL: [Tally Server URL]      │
+   │ Port: [9000]                       │
+   │ Sync Frequency: [Hourly ▼]         │
+   └─────────────────────────────────────┘
+   ```
+
+2. **Voucher Export**
+   - **Daily Vouchers**: Generate daily sales vouchers
+   - **Receipt Vouchers**: Automatic receipt generation
+   - **Payment Vouchers**: Payment reconciliation
+   - **Journal Entries**: Automated journal entries
+   - **Ledger Updates**: Real-time ledger sync
+
+### Payment Gateway Integration
+
+#### Additional Payment Methods
+
+1. **PhonePe Integration**
+   ```
+   PhonePe Settings:
+   ┌─────────────────────────────────────┐
+   │ Merchant ID: [Your Merchant ID]      │
+   │ Salt Key: [Your Salt Key]           │
+   │ API Endpoint: [Production ▼]        │
+   │ Webhook URL: [Webhook URL]         │
+   │ Refund Policy: [Auto ▼]            │
+   └─────────────────────────────────────┘
+   ```
+
+2. **Google Pay Integration**
+   ```
+   Google Pay Settings:
+   ┌─────────────────────────────────────┐
+   │ Merchant ID: [Your Merchant ID]      │
+   │ API Key: [Your API Key]            │
+   │ Environment: [Production ▼]         │
+   │ Callback URL: [Callback URL]        │
+   │ UPI Intent: [Enabled ✅]          │
+   └─────────────────────────────────────┘
+   ```
+
+### Inventory Management Integration
+
+#### Supplier Integration
+
+1. **Supplier API Setup**
+   ```
+   Supplier Integration:
+   ┌─────────────────────────────────────┐
+   │ Supplier: [Select Supplier ▼]      │
+   │ API Key: [Supplier API Key]        │
+   │ Product Sync: [Enabled ✅]          │
+   │ Order Placement: [Enabled ✅]         │
+   │ Inventory Update: [Real-time ▼]     │
+   └─────────────────────────────────────┘
+   ```
+
+2. **Automated Ordering**
+   - **Low Stock Alerts**: Automatic alerts for low stock
+   - **Reorder Points**: Configurable reorder levels
+   - **Supplier Orders**: Automatic order placement
+   - **Delivery Tracking**: Track supplier deliveries
+   - **Cost Optimization**: Compare supplier prices
+
+### Email and SMS Integration
+
+#### Email Service Integration
+
+1. **SendGrid Configuration**
+   ```
+   SendGrid Settings:
+   ┌─────────────────────────────────────┐
+   │ API Key: [Your SendGrid API Key]   │
+   │ From Email: [noreply@restaurant.com] │
+   │ Template ID: [Receipt Template ID]    │
+   │ Webhook URL: [Webhook Endpoint]     │
+   │ Daily Limit: [1000]                 │
+   └─────────────────────────────────────┘
+   ```
+
+2. **Email Templates**
+   - **Order Confirmations**: Automatic order emails
+   - **Receipts**: Digital receipt delivery
+   - **Loyalty Updates**: Points and tier notifications
+   - **Marketing Emails**: Campaign emails
+   - **Alerts**: System and security notifications
+
+#### SMS Service Integration
+
+1. **Twilio Configuration**
+   ```
+   Twilio SMS Settings:
+   ┌─────────────────────────────────────┐
+   │ Account SID: [Your Account SID]      │
+   │ Auth Token: [Your Auth Token]        │
+   │ From Number: [+91XXXXXXXXXX]          │
+   │ Webhook URL: [SMS Webhook URL]      │
+   │ Rate Limit: [10 per minute]          │
+   └─────────────────────────────────────┘
+   ```
+
+2. **SMS Notifications**
+   - **Order Updates**: SMS order confirmations
+   - **Payment Alerts**: Payment status updates
+   - **Loyalty Alerts**: Points earned/redeemed
+   - **Marketing**: Promotional SMS campaigns
+   - **Security**: Two-factor authentication
+
+### API Integration
+
+#### REST API Access
+
+1. **API Key Generation**
+   ```
+   API Key Management:
+   ┌─────────────────────────────────────┐
+   │ Key Name: [Integration Key]         │
+   │ Permissions: [Read/Write ▼]        │
+   │ Rate Limit: [1000 per hour]        │
+   │ IP Whitelist: [Your Server IP]      │
+   │ Expiry: [90 Days]                  │
+   └─────────────────────────────────────┘
+   ```
+
+2. **Webhook Configuration**
+   ```
+   Webhook Settings:
+   ┌─────────────────────────────────────┐
+   │ Endpoint URL: [Your Webhook URL]    │
+   │ Events: [All Events ▼]           │
+   │ Secret Key: [Your Secret Key]       │
+   │ Retry Policy: [3 Attempts]          │
+   │ Timeout: [30 seconds]               │
+   └─────────────────────────────────────┘
+   ```
+
+#### Integration Examples
+
+```python
+# Python Integration Example
+import requests
+
+# API Configuration
+API_BASE = "https://your-domain.com/api/v1"
+API_KEY = "your_integration_key"
+
+# Create Order
+def create_order(order_data):
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    response = requests.post(
+        f"{API_BASE}/orders",
+        json=order_data,
+        headers=headers
+    )
+    
+    return response.json()
+
+# Get Customer Data
+def get_customer(customer_id):
+    headers = {
+        "Authorization": f"Bearer {API_KEY}"
+    }
+    
+    response = requests.get(
+        f"{API_BASE}/customers/{customer_id}",
+        headers=headers
+    )
+    
+    return response.json()
+```
+
+```javascript
+// JavaScript Integration Example
+const API_BASE = "https://your-domain.com/api/v1";
+const API_KEY = "your_integration_key";
+
+// Create Order
+async function createOrder(orderData) {
+    const response = await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(orderData)
+    });
+    
+    return await response.json();
+}
+
+// Get Customer Data
+async function getCustomer(customerId) {
+    const response = await fetch(`${API_BASE}/customers/${customerId}`, {
+        headers: {
+            'Authorization': `Bearer ${API_KEY}`
+        }
+    });
+    
+    return await response.json();
+}
+```
+
+### Integration Support
+
+#### Documentation Resources
+
+- **API Documentation**: Complete API reference
+- **SDK Libraries**: Python, JavaScript, PHP libraries
+- **Webhook Guide**: Webhook implementation guide
+- **Integration Examples**: Code examples and samples
+- **Testing Sandbox**: Development environment for testing
+
+#### Technical Support
+
+- **Integration Team**: Dedicated integration support
+- **Code Review**: Integration code review service
+- **Testing Assistance**: Help with integration testing
+- **Troubleshooting**: Integration issue resolution
+- **Best Practices**: Integration optimization guidance
+
+---
+
 ## Troubleshooting
 
 ### Common Issues and Solutions
@@ -668,6 +1575,42 @@ The system automatically enters offline mode when:
 4. **Check Examples**: Use provided examples
 5. **Clear Errors**: Fix all highlighted errors
 
+#### 5. CRM and Loyalty Issues
+
+**Issue**: Customer data not updating
+```
+❌ Error Messages:
+- "Customer not found"
+- "Loyalty points sync failed"
+- "Campaign send failed"
+- "Data export error"
+```
+
+**Solutions**:
+1. **Verify Customer**: Check customer exists
+2. **Sync Points**: Manual points synchronization
+3. **Check Campaign**: Verify campaign settings
+4. **Export Format**: Ensure correct export format
+5. **Data Backup**: Check backup availability
+
+#### 6. Multi-Tenancy Issues
+
+**Issue**: Tenant access problems
+```
+❌ Error Messages:
+- "Tenant not found"
+- "Access denied"
+- "Data isolation error"
+- "Configuration sync failed"
+```
+
+**Solutions**:
+1. **Verify Tenant**: Check tenant exists and is active
+2. **Check Permissions**: Verify user permissions
+3. **Data Isolation**: Ensure proper data separation
+4. **Sync Config**: Manually sync tenant configuration
+5. **Contact Admin**: Report tenant access issues
+
 ### Performance Issues
 
 #### Slow Loading
@@ -708,6 +1651,7 @@ The system automatically enters offline mode when:
 | SEC002 | IP blocked | Contact admin |
 | SEC003 | Invalid session | Login again |
 | SEC004 | CSRF token invalid | Refresh page |
+| SEC005 | Tenant access denied | Check tenant permissions |
 
 #### Payment Errors
 
@@ -728,6 +1672,24 @@ The system automatically enters offline mode when:
 | SYNC003 | Data conflict | Resolve manually |
 | SYNC004 | Timeout | Retry sync |
 | SYNC005 | Storage full | Clear data |
+
+#### CRM Errors
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| CRM001 | Customer not found | Verify customer |
+| CRM002 | Points sync failed | Manual sync |
+| CRM003 | Campaign error | Check settings |
+| CRM004 | Export failed | Check format |
+
+#### Tenant Errors
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| TEN001 | Tenant not found | Verify tenant |
+| TEN002 | Access denied | Check permissions |
+| TEN003 | Config sync failed | Manual sync |
+| TEN004 | Data isolation error | Contact admin |
 
 ---
 
@@ -811,6 +1773,24 @@ The system automatically enters offline mode when:
 
 ### Customer Service Best Practices
 
+#### CRM and Loyalty
+
+```
+✅ Do:
+- Update customer profiles regularly
+- Explain loyalty benefits clearly
+- Use customer data responsibly
+- Personalize customer interactions
+- Follow up on customer feedback
+
+❌ Don't:
+- Ignore customer preferences
+- Misuse customer data
+- Over-contact customers
+- Promise unrealistic rewards
+- Neglect customer complaints
+```
+
 #### Payment Handling
 
 ```
@@ -827,24 +1807,6 @@ The system automatically enters offline mode when:
 - Refuse to explain charges
 - Get frustrated with payment issues
 - Limit payment options unnecessarily
-```
-
-#### Problem Resolution
-
-```
-✅ Do:
-- Listen to customer concerns
-- Offer solutions promptly
-- Escalate when necessary
-- Document issues
-- Follow up on resolutions
-
-❌ Don't:
-- Ignore customer complaints
-- Make promises you can't keep
-- Blame customers for issues
-- Skip documentation
-- Forget follow-ups
 ```
 
 ### Technical Best Practices
@@ -956,85 +1918,163 @@ The system automatically enters offline mode when:
    - Update security measures
    - Notify affected parties
 
+### Multi-Tenant Emergencies
+
+#### Tenant Data Isolation Breach
+
+1. **Immediate Isolation**
+   - Separate affected tenants
+   - Stop data synchronization
+   - Enable enhanced monitoring
+
+2. **Investigation**
+   - Identify breach source
+   - Determine affected data
+   - Document timeline
+
+3. **Recovery**
+   - Restore proper isolation
+   - Verify data integrity
+   - Communicate with affected tenants
+
+#### Tenant Service Outage
+
+1. **Tenant Isolation**
+   - Isolate affected tenant
+   - Continue service to others
+   - Implement temporary fixes
+
+2. **Communication**
+   - Notify affected tenant
+   - Provide status updates
+   - Estimate recovery time
+
+3. **Resolution**
+   - Restore full service
+   - Verify all functionality
+   - Document incident
+
 ---
 
-## Contact and Support
+## Additional Resources
 
-### Getting Help
+### 📚 Related Documentation
 
-#### Self-Service Resources
+For comprehensive technical documentation, refer to:
 
-1. **Online Documentation**: Check user guides
-2. **FAQ Section**: Review common questions
-3. **Video Tutorials**: Watch instructional videos
-4. **Knowledge Base**: Search technical articles
+- [`README.md`](README.md) - Main project documentation and setup guide
+- [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md) - Complete API reference with examples
+- [`CONFIGURATION_GUIDE.md`](CONFIGURATION_GUIDE.md) - Detailed configuration instructions
+- [`MIGRATION_GUIDE.md`](MIGRATION_GUIDE.md) - Migration procedures and best practices
+- [`TESTING_DOCUMENTATION.md`](TESTING_DOCUMENTATION.md) - Testing documentation and procedures
+- [`TROUBLESHOOTING_GUIDE.md`](TROUBLESHOOTING_GUIDE.md) - Comprehensive troubleshooting guide
+- [`SECURITY_GUIDE.md`](SECURITY_GUIDE.md) - Security features and configuration
+- [`MULTI_TENANCY_GUIDE.md`](MULTI_TENANCY_GUIDE.md) - Multi-tenancy architecture guide
+- [`CRM_LOYALTY_IMPLEMENTATION.md`](CRM_LOYALTY_IMPLEMENTATION.md) - CRM and loyalty implementation
+- [`ENHANCED_TEMPLATES_GUIDE.md`](ENHANCED_TEMPLATES_GUIDE.md) - Enhanced templates guide
 
-#### Contact Support
+### 🔗 External Resources
 
-1. **Email Support**: support@restaurant.com
-2. **Phone Support**: +91-XXXXXXXXXX
-3. **Live Chat**: Available on website
-4. **Ticket System**: Submit support ticket
+#### Official Documentation
+- [Flask Framework](https://flask.palletsprojects.com/) - Web framework documentation
+- [SQLAlchemy](https://docs.sqlalchemy.org/) - Database ORM documentation
+- [Bootstrap](https://getbootstrap.com/docs/) - UI framework documentation
+- [Razorpay Documentation](https://razorpay.com/docs/) - Payment gateway documentation
 
-#### Emergency Contacts
+#### Security Resources
+- [OWASP Security Guidelines](https://owasp.org/) - Web security best practices
+- [PCI DSS Compliance](https://www.pcisecuritystandards.org/) - Payment security standards
+- [GDPR Compliance](https://gdpr.eu/) - Data protection regulations
 
-1. **System Administrator**: admin@restaurant.com
-2. **IT Support**: it@restaurant.com
-3. **Security Team**: security@restaurant.com
-4. **Management**: manager@restaurant.com
+#### Development Resources
+- [Alpine.js Documentation](https://alpinejs.dev/) - JavaScript framework documentation
+- [Python Best Practices](https://pep8.org/) - Python coding standards
+- [Git Documentation](https://git-scm.com/doc) - Version control documentation
 
-### Reporting Issues
+### 🎓 Training and Tutorials
 
-#### Issue Categories
+#### Video Tutorials
+- [Getting Started with Flask POS](#) - Introduction and basic setup
+- [Advanced Security Features](#) - Security configuration and best practices
+- [CRM and Loyalty Programs](#) - Customer management implementation
+- [Multi-Tenancy Setup](#) - Multi-tenant configuration guide
+- [Payment Integration](#) - Razorpay integration tutorial
 
-1. **Technical Issues**: System errors, bugs, performance
-2. **Security Issues**: Suspicious activity, breaches
-3. **Payment Issues**: Transaction problems, refunds
-4. **Data Issues**: Sync problems, data loss
-5. **User Issues**: Login problems, access issues
+#### Interactive Guides
+- [Interactive Feature Tour](#) - Guided tour of all features
+- [Security Configuration Wizard](#) - Step-by-step security setup
+- [Mobile App Setup Guide](#) - PWA installation and configuration
+- [Integration Setup Assistant](#) - Third-party integration guidance
 
-#### Information Required
+### 📞 Support and Community
 
-When reporting issues, provide:
-- **User ID**: Your username/ID
-- **Timestamp**: When the issue occurred
-- **Description**: Detailed issue description
-- **Error Messages**: Exact error text
-- **Steps to Reproduce**: What you were doing
-- **Impact**: How it affects your work
-- **Urgency**: Priority level
+#### Community Forums
+- [Flask POS Community](https://community.flask-pos.com) - User discussions and support
+- [Developer Forum](https://dev.flask-pos.com) - Technical discussions and development
+- [Feature Requests](https://features.flask-pos.com) - Suggest and vote on new features
+- [Bug Reports](https://bugs.flask-pos.com) - Report and track issues
 
-### Feedback and Suggestions
+#### Professional Support
+- [Enterprise Support](https://enterprise.flask-pos.com) - 24/7 enterprise support
+- [Consulting Services](https://consulting.flask-pos.com) - Professional implementation services
+- [Training Programs](https://training.flask-pos.com) - Official training and certification
+- [Partner Network](https://partners.flask-pos.com) - Find implementation partners
 
-#### Providing Feedback
+### 📱 Mobile Apps
 
-1. **Feature Requests**: Suggest new features
-2. **Improvement Ideas**: Recommend improvements
-3. **Bug Reports**: Report system bugs
-4. **User Experience**: Share usability feedback
-5. **Documentation**: Suggest documentation updates
+#### PWA Installation
+- [Android Installation Guide](#android-installation) - Step-by-step Android setup
+- [iOS Installation Guide](#ios-installation) - Step-by-step iOS setup
+- [Desktop Installation Guide](#desktop-installation) - Desktop PWA setup
 
-#### Feedback Channels
+#### Mobile Features
+- [Offline Mode Setup](#offline-mobile-setup) - Configure offline capabilities
+- [Push Notifications](#mobile-notifications) - Enable mobile notifications
+- [Touch Interface Guide](#touch-interface) - Touch-optimized interface usage
 
-1. **Feedback Form**: Available in application
-2. **Email**: feedback@restaurant.com
-3. **User Surveys**: Periodic user surveys
-4. **Community Forum**: Online discussion board
-5. **Direct Contact**: Contact system administrator
+### 🔧 Advanced Configuration
+
+#### Performance Optimization
+- [Database Optimization](#database-optimization) - Improve database performance
+- [Caching Configuration](#caching-setup) - Configure Redis caching
+- [Load Balancing](#load-balancing) - Set up load balancing
+- [CDN Configuration](#cdn-setup) - Configure content delivery network
+
+#### Security Hardening
+- [Advanced Security Configuration](#advanced-security) - Enhanced security setup
+- [SSL/TLS Configuration](#ssl-configuration) - Secure connection setup
+- [Firewall Configuration](#firewall-setup) - Network security setup
+- [Audit Logging](#audit-logging) - Comprehensive audit setup
+
+### 🌐 Internationalization
+
+#### Multi-Language Support
+- [Language Configuration](#language-setup) - Configure multiple languages
+- [Translation Guide](#translations) - Add new language translations
+- [Currency Configuration](#currency-setup) - Configure multiple currencies
+- [Tax Configuration](#tax-international) - International tax setup
+
+#### Regional Compliance
+- [GST Compliance](#gst-compliance) - GST tax compliance
+- [VAT Configuration](#vat-setup) - VAT tax configuration
+- [Regional Reporting](#regional-reports) - Region-specific reports
+- [Legal Compliance](#legal-compliance) - Legal requirements by region
 
 ---
 
 ## Conclusion
 
-This enhanced Flask POS application provides a comprehensive, secure, and user-friendly solution for restaurant management. With advanced security features, offline capabilities, and seamless payment integration, it ensures reliable operations in any situation.
+This enhanced Flask POS application provides a comprehensive, secure, and user-friendly solution for restaurant management. With advanced security features, offline capabilities, seamless payment integration, CRM and loyalty programs, and multi-tenancy support, it ensures reliable operations in any situation.
 
 ### Key Takeaways
 
 1. **Security First**: Multiple layers of security protect your data
 2. **Offline Ready**: Continue operations during internet outages
 3. **Easy Payments**: Multiple payment methods with Razorpay
-4. **User-Friendly**: Intuitive interface with helpful guidance
-5. **Reliable Support**: Comprehensive help and support resources
+4. **Customer Focus**: CRM and loyalty programs enhance customer experience
+5. **Multi-Tenancy**: Support for multiple restaurants/outlets
+6. **User-Friendly**: Intuitive interface with helpful guidance
+7. **Reliable Support**: Comprehensive help and support resources
 
 ### Continuous Improvement
 
@@ -1042,6 +2082,7 @@ We're constantly working to improve the system based on user feedback and techno
 
 ---
 
-**Version**: 2.0.0 User Guide  
+**Version**: 2.0.0 Enhanced User Guide  
 **Last Updated**: December 2024  
 **Documentation**: Flask POS User Experience Team
+**Next Review**: March 2025

@@ -16,14 +16,15 @@ class MenuItem(db.Model):
     image_path = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     is_available = db.Column(db.Boolean, default=True)
+    tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     order_items = db.relationship('OrderItem', backref='menu_item', lazy=True)
     
-    def __init__(self, name, price, category_id, description=None, stock_quantity=0, 
-                 min_stock_level=10, image_path=None):
+    def __init__(self, name, price, category_id, description=None, stock_quantity=0,
+                 min_stock_level=10, image_path=None, tenant_id=None):
         self.name = name
         self.price = Decimal(str(price))
         self.category_id = category_id
@@ -31,6 +32,7 @@ class MenuItem(db.Model):
         self.stock_quantity = stock_quantity
         self.min_stock_level = min_stock_level
         self.image_path = image_path
+        self.tenant_id = tenant_id
     
     @property
     def formatted_price(self):

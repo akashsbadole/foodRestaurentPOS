@@ -1,0 +1,824 @@
+{% extends "base.html" %}
+
+{% block title %}Loyalty Program - CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-container {
+    padding: 20px;
+}
+
+.loyalty-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border-radius: 10px;
+    color: white;
+}
+
+.loyalty-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.loyalty-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.program-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-left: 4px solid #f5576c;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.program-info {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.program-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 20px;
+}
+
+.program-name {
+    font-size: 22px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.program-status {
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.program-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.detail-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.rewards-section {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.reward-filters {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    background: white;
+}
+
+.rewards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.reward-card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.reward-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.reward-image {
+    width: 100%;
+    height: 150px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 14px;
+}
+
+.reward-content {
+    padding: 20px;
+}
+
+.reward-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.reward-description {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.reward-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.points-required {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f5576c;
+}
+
+.reward-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #28a745;
+}
+
+.reward-terms {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 15px;
+}
+
+.reward-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-primary {
+    background: #f5576c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.btn-primary:hover {
+    background: #d63447;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.page-btn {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.page-btn.active {
+    background: #f5576c;
+    color: white;
+    border-color: #f5576c;
+}
+
+.page-btn:hover:not(.active) {
+    background: #f8f9fa;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #000;
+}
+
+@media (max-width: 768px) {
+    .loyalty-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .program-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .rewards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .reward-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loyalty-container" x-data="loyaltyManagement()">
+    <!-- Header -->
+    <div class="loyalty-header">
+        <h1 class="loyalty-title">Loyalty Program</h1>
+        <div class="loyalty-actions">
+            <button class="btn-primary" @click="refreshProgram()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button class="btn-secondary" @click="expirePoints()">
+                <i class="bi bi-hourglass-split"></i> Expire Points
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="program-stats">
+        <div class="stat-card">
+            <div class="stat-value" x-text="stats.customer_stats.total_customers">0</div>
+            <div class="stat-label">Total Customers</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" x-text="stats.customer_stats.customers_with_points">0</div>
+            <div class="stat-label">With Points</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" x-text="stats.points_stats.total_points_earned">0</div>
+            <div class="stat-label">Points Earned</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" x-text="stats.points_stats.total_points_redeemed">0</div>
+            <div class="stat-label">Points Redeemed</div>
+        </div>
+    </div>
+
+    <!-- Program Information -->
+    <div class="program-info" x-show="program">
+        <div class="program-header">
+            <div>
+                <div class="program-name" x-text="program.name"></div>
+                <span class="program-status" 
+                      :class="program.is_valid ? 'status-active' : 'status-inactive'"
+                      x-text="program.is_valid ? 'Active' : 'Inactive'"></span>
+            </div>
+        </div>
+        
+        <div class="program-details">
+            <div class="detail-item">
+                <div class="detail-label">Points per ₹1</div>
+                <div class="detail-value" x-text="program.points_per_rupee"></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Min Order Amount</div>
+                <div class="detail-value">₹<span x-text="program.min_order_amount"></span></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Max Points per Order</div>
+                <div class="detail-value" x-text="program.max_points_per_order"></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Points Validity</div>
+                <div class="detail-value"><span x-text="program.points_expiry_days"></span> days</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Birthday Bonus</div>
+                <div class="detail-value" x-text="program.birthday_bonus_points"></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Anniversary Bonus</div>
+                <div class="detail-value" x-text="program.anniversary_bonus_points"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rewards Section -->
+    <div class="rewards-section">
+        <div class="section-header">
+            <h2 class="section-title">Available Rewards</h2>
+            <div class="reward-filters">
+                <select class="filter-select" x-model="filters.tier" @change="loadRewards()">
+                    <option value="">All Tiers</option>
+                    <template x-for="tier in tiers" :key="tier.id">
+                        <option :value="tier.id" x-text="tier.name"></option>
+                    </template>
+                </select>
+                <select class="filter-select" x-model="filters.type" @change="loadRewards()">
+                    <option value="">All Types</option>
+                    <option value="DISCOUNT">Discount</option>
+                    <option value="ITEM">Free Item</option>
+                    <option value="VOUCHER">Voucher</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="loading" x-show="loading">
+            <i class="bi bi-hourglass-split"></i> Loading rewards...
+        </div>
+        
+        <div class="rewards-grid" x-show="!loading">
+            <template x-for="reward in rewards" :key="reward.id">
+                <div class="reward-card">
+                    <div class="reward-image">
+                        <img :src="reward.image_url || '/static/images/default-reward.png'" 
+                             :alt="reward.name" 
+                             style="max-width: 100%; max-height: 100%; object-fit: cover;">
+                    </div>
+                    <div class="reward-content">
+                        <h3 class="reward-name" x-text="reward.name"></h3>
+                        <p class="reward-description" x-text="reward.description"></p>
+                        
+                        <div class="reward-details">
+                            <div class="points-required">
+                                <i class="bi bi-star-fill"></i> <span x-text="reward.points_required"></span> points
+                            </div>
+                            <div class="reward-value" x-text="reward.formatted_reward_value"></div>
+                        </div>
+                        
+                        <div class="reward-terms" x-show="reward.terms_conditions" x-text="reward.terms_conditions"></div>
+                        
+                        <div class="reward-actions">
+                            <button class="btn-primary" 
+                                    @click="selectReward(reward)"
+                                    :disabled="!canAffordReward(reward)">
+                                <i class="bi bi-gift"></i> Redeem
+                            </button>
+                            <button class="btn-secondary" @click="viewRewardDetails(reward)">
+                                <i class="bi bi-eye"></i> Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            
+            <div x-show="rewards.length === 0" style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666;">
+                No rewards found matching your criteria
+            </div>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="pagination" x-show="pagination.pages > 1">
+            <button class="page-btn" 
+                    @click="loadPage(pagination.page - 1)"
+                    :disabled="!pagination.has_prev"
+                    x-show="pagination.has_prev">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            
+            <template x-for="page in pagination.pages" :key="page">
+                <button class="page-btn" 
+                        :class="page === pagination.page ? 'active' : ''"
+                        @click="loadPage(page)"
+                        x-text="page"></button>
+            </template>
+            
+            <button class="page-btn" 
+                    @click="loadPage(pagination.page + 1)"
+                    :disabled="!pagination.has_next"
+                    x-show="pagination.has_next">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Reward Redemption Modal -->
+    <div id="redemptionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" @click="closeRedemptionModal()">&times;</span>
+            <h2>Redeem Reward</h2>
+            
+            <div class="alert alert-success" x-show="message" x-text="message"></div>
+            <div class="alert alert-danger" x-show="error" x-text="error"></div>
+            
+            <div x-show="selectedReward">
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                    <h3 style="margin: 0 0 10px 0;" x-text="selectedReward.name"></h3>
+                    <p style="margin: 0; color: #666;" x-text="selectedReward.description"></p>
+                    <div style="margin-top: 10px;">
+                        <strong>Points Required:</strong> <span x-text="selectedReward.points_required"></span>
+                    </div>
+                </div>
+                
+                <form @submit.prevent="redeemReward()">
+                    <div class="form-group">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Select Customer</label>
+                        <select style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" 
+                                x-model="redemptionForm.customer_id" required>
+                            <option value="">Select Customer</option>
+                            <template x-for="customer in customers" :key="customer.id">
+                                <option :value="customer.id" 
+                                        x-text="`${customer.name} (${customer.mobile}) - ${customer.current_points} points`"></option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Quantity</label>
+                        <input type="number" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" 
+                               x-model="redemptionForm.quantity" min="1" required>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn-secondary" @click="closeRedemptionModal()">Cancel</button>
+                        <button type="submit" class="btn-primary" :disabled="redeeming">
+                            <span x-show="!redeeming">Redeem Reward</span>
+                            <span x-show="redeeming">Processing...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loyaltyManagement() {
+    return {
+        loading: false,
+        program: null,
+        rewards: [],
+        tiers: [],
+        customers: [],
+        stats: {},
+        pagination: {
+            page: 1,
+            pages: 1,
+            total: 0,
+            has_prev: false,
+            has_next: false
+        },
+        filters: {
+            tier: '',
+            type: ''
+        },
+        selectedReward: null,
+        redemptionForm: {
+            customer_id: '',
+            quantity: 1
+        },
+        message: '',
+        error: '',
+        redeeming: false,
+        
+        init() {
+            this.loadProgram();
+            this.loadTiers();
+            this.loadCustomers();
+            this.loadRewards();
+            this.loadStats();
+        },
+        
+        async loadProgram() {
+            try {
+                const response = await fetch('/api/loyalty/program');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.program = data.program;
+                }
+            } catch (error) {
+                console.error('Error loading program:', error);
+            }
+        },
+        
+        async loadTiers() {
+            try {
+                const response = await fetch('/api/loyalty/tiers');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.tiers = data.tiers;
+                }
+            } catch (error) {
+                console.error('Error loading tiers:', error);
+            }
+        },
+        
+        async loadCustomers() {
+            try {
+                const response = await fetch('/api/crm/list?per_page=1000');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.customers = data.customers;
+                }
+            } catch (error) {
+                console.error('Error loading customers:', error);
+            }
+        },
+        
+        async loadRewards(page = 1) {
+            this.loading = true;
+            
+            try {
+                const params = new URLSearchParams({
+                    page: page,
+                    tier: this.filters.tier,
+                    type: this.filters.type
+                });
+                
+                const response = await fetch(`/api/loyalty/rewards?${params}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.rewards = data.rewards;
+                    this.pagination = data.pagination;
+                } else {
+                    this.error = data.message || 'Failed to load rewards';
+                }
+            } catch (error) {
+                this.error = 'Network error occurred';
+                console.error('Error loading rewards:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async loadStats() {
+            try {
+                const response = await fetch('/api/loyalty/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.stats = data.stats;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        },
+        
+        loadPage(page) {
+            this.loadRewards(page);
+        },
+        
+        refreshProgram() {
+            this.loadProgram();
+            this.loadStats();
+        },
+        
+        async expirePoints() {
+            if (!confirm('Are you sure you want to expire all expired points?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/loyalty/points/expire', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.message = data.message;
+                    setTimeout(() => {
+                        this.message = '';
+                        this.loadStats();
+                    }, 3000);
+                } else {
+                    this.error = data.message || 'Failed to expire points';
+                }
+            } catch (error) {
+                this.error = 'Network error occurred';
+                console.error('Error expiring points:', error);
+            }
+        },
+        
+        canAffordReward(reward) {
+            const customer = this.customers.find(c => c.id == this.redemptionForm.customer_id);
+            return customer && customer.current_points >= (reward.points_required * this.redemptionForm.quantity);
+        },
+        
+        selectReward(reward) {
+            this.selectedReward = reward;
+            this.redemptionForm = {
+                customer_id: '',
+                quantity: 1
+            };
+            this.message = '';
+            this.error = '';
+            this.showRedemptionModal();
+        },
+        
+        viewRewardDetails(reward) {
+            // This would open a detailed view modal
+            alert(`Reward Details:\n\nName: ${reward.name}\nDescription: ${reward.description}\nPoints: ${reward.points_required}\nValue: ${reward.formatted_reward_value}`);
+        },
+        
+        async redeemReward() {
+            if (!this.selectedReward || !this.redemptionForm.customer_id) {
+                this.error = 'Please select a customer';
+                return;
+            }
+            
+            this.redeeming = true;
+            this.message = '';
+            this.error = '';
+            
+            try {
+                const response = await fetch(`/api/loyalty/rewards/${this.selectedReward.id}/redeem`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                    },
+                    body: JSON.stringify(this.redemptionForm)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.message = data.message;
+                    setTimeout(() => {
+                        this.closeRedemptionModal();
+                        this.loadCustomers();
+                        this.loadStats();
+                    }, 2000);
+                } else {
+                    this.error = data.message || 'Failed to redeem reward';
+                }
+            } catch (error) {
+                this.error = 'Network error occurred';
+                console.error('Error redeeming reward:', error);
+            } finally {
+                this.redeeming = false;
+            }
+        },
+        
+        showRedemptionModal() {
+            document.getElementById('redemptionModal').style.display = 'block';
+        },
+        
+        closeRedemptionModal() {
+            document.getElementById('redemptionModal').style.display = 'none';
+            this.selectedReward = null;
+            this.message = '';
+            this.error = '';
+        }
+    };
+}
+</script>
+{% endblock %}

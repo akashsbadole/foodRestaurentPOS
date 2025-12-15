@@ -1,0 +1,827 @@
+<!-- Session Management Widget Component -->
+<div x-data="sessionManagement()" x-init="init()" class="session-management-component">
+    <!-- Session Status Widget -->
+    <div class="session-widget" 
+         @click="toggleSessionDetails()"
+         role="button"
+         :aria-label="`Session: ${sessionStatus}`">
+        <div class="session-avatar">
+            <i class="bi bi-person-circle"></i>
+            <div x-show="sessionExpiringSoon" class="session-warning-indicator">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+        </div>
+        <div class="session-info">
+            <div class="session-user" x-text="sessionInfo.username"></div>
+            <div class="session-time" x-text="sessionTimeRemaining"></div>
+        </div>
+        <i class="bi bi-chevron-down session-toggle" :class="{'rotate-180': showSessionDetails}"></i>
+    </div>
+    
+    <!-- Session Details Panel -->
+    <div x-show="showSessionDetails" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95"
+         class="session-details-panel">
+        
+        <div class="session-details-header">
+            <h6>Session Management</h6>
+            <button @click="toggleSessionDetails()" class="btn-close btn-close-sm"></button>
+        </div>
+        
+        <div class="session-details-content">
+            <!-- Current Session Info -->
+            <div class="session-section">
+                <div class="session-section-title">
+                    <i class="bi bi-person-badge"></i>
+                    Current Session
+                </div>
+                <div class="session-info-grid">
+                    <div class="session-info-item">
+                        <span class="session-info-label">User:</span>
+                        <span class="session-info-value" x-text="sessionInfo.username"></span>
+                    </div>
+                    <div class="session-info-item">
+                        <span class="session-info-label">Role:</span>
+                        <span class="session-info-value" x-text="sessionInfo.role"></span>
+                    </div>
+                    <div class="session-info-item">
+                        <span class="session-info-label">Started:</span>
+                        <span class="session-info-value" x-text="sessionInfo.startTime"></span>
+                    </div>
+                    <div class="session-info-item">
+                        <span class="session-info-label">Expires:</span>
+                        <span class="session-info-value" x-text="sessionInfo.expiresAt"></span>
+                    </div>
+                    <div class="session-info-item">
+                        <span class="session-info-label">IP Address:</span>
+                        <span class="session-info-value" x-text="sessionInfo.ipAddress"></span>
+                    </div>
+                    <div class="session-info-item">
+                        <span class="session-info-label">Device:</span>
+                        <span class="session-info-value" x-text="sessionInfo.device"></span>
+                    </div>
+                </div>
+                
+                <!-- Session Progress Bar -->
+                <div class="session-progress-container">
+                    <div class="session-progress-header">
+                        <span>Session Time Remaining</span>
+                        <span x-text="sessionTimeRemaining"></span>
+                    </div>
+                    <div class="session-progress-bar">
+                        <div class="session-progress-fill" 
+                             :style="`width: ${sessionProgress}%`"
+                             :class="sessionProgressType">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Active Sessions -->
+            <div class="session-section">
+                <div class="session-section-title">
+                    <i class="bi bi-people"></i>
+                    Active Sessions
+                    <span class="session-count" x-text="activeSessions.length"></span>
+                </div>
+                <div class="active-sessions-list">
+                    <template x-for="session in activeSessions" :key="session.id">
+                        <div class="active-session-item" 
+                             :class="{'current-session': session.isCurrent}">
+                            <div class="session-item-avatar">
+                                <i class="bi bi-person-circle"></i>
+                            </div>
+                            <div class="session-item-content">
+                                <div class="session-item-user" x-text="session.username"></div>
+                                <div class="session-item-details">
+                                    <span x-text="session.role"></span>
+                                    <span class="separator">•</span>
+                                    <span x-text="session.device"></span>
+                                    <span class="separator">•</span>
+                                    <span x-text="session.lastActivity"></span>
+                                </div>
+                            </div>
+                            <div class="session-item-actions">
+                                <span class="session-status" :class="session.status" x-text="session.status"></span>
+                                <button x-show="!session.isCurrent" 
+                                        @click="terminateSession(session.id)"
+                                        class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="activeSessions.length === 0" class="no-sessions">
+                        No other active sessions
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Session Actions -->
+            <div class="session-section">
+                <div class="session-section-title">
+                    <i class="bi bi-gear"></i>
+                    Session Actions
+                </div>
+                <div class="session-actions">
+                    <button @click="extendSession()" 
+                            class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-clock-history"></i> Extend Session
+                    </button>
+                    <button @click="refreshSession()" 
+                            class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button @click="viewSessionHistory()" 
+                            class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-journal-text"></i> Session History
+                    </button>
+                    <button @click="secureLogout()" 
+                            class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Session Expiry Warning Modal -->
+    <div x-show="showExpiryWarning" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="session-expiry-overlay">
+        
+        <div class="session-expiry-modal">
+            <div class="session-expiry-header">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                <h5>Session Expiring Soon</h5>
+            </div>
+            
+            <div class="session-expiry-body">
+                <p>Your session will expire in <strong x-text="timeUntilExpiry"></strong>.</p>
+                <p>Would you like to extend your session?</p>
+            </div>
+            
+            <div class="session-expiry-actions">
+                <button @click="dismissExpiryWarning()" class="btn btn-secondary">
+                    Dismiss
+                </button>
+                <button @click="extendSessionFromWarning()" class="btn btn-success">
+                    <i class="bi bi-clock-history"></i> Extend Session
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Session Termination Confirmation -->
+    <div x-show="showTerminateConfirm" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="session-terminate-overlay"
+         @click.self="cancelTerminate()">
+        
+        <div class="session-terminate-modal">
+            <div class="session-terminate-header">
+                <i class="bi bi-x-circle text-danger"></i>
+                <h5>Terminate Session</h5>
+            </div>
+            
+            <div class="session-terminate-body">
+                <p>Are you sure you want to terminate this session?</p>
+                <p x-show="sessionToTerminate">
+                    <strong>User:</strong> <span x-text="sessionToTerminate.username"></span><br>
+                    <strong>Device:</strong> <span x-text="sessionToTerminate.device"></span>
+                </p>
+            </div>
+            
+            <div class="session-terminate-actions">
+                <button @click="cancelTerminate()" class="btn btn-secondary">
+                    Cancel
+                </button>
+                <button @click="confirmTerminate()" class="btn btn-danger">
+                    <i class="bi bi-x-circle"></i> Terminate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function sessionManagement() {
+    return {
+        showSessionDetails: false,
+        sessionStatus: 'active',
+        sessionInfo: {
+            username: '',
+            role: '',
+            startTime: '',
+            expiresAt: '',
+            ipAddress: '',
+            device: ''
+        },
+        sessionProgress: 100,
+        sessionProgressType: 'progress-success',
+        sessionTimeRemaining: '',
+        sessionExpiringSoon: false,
+        activeSessions: [],
+        showExpiryWarning: false,
+        timeUntilExpiry: '',
+        showTerminateConfirm: false,
+        sessionToTerminate: null,
+        
+        init() {
+            this.loadSessionInfo();
+            this.loadActiveSessions();
+            
+            // Update session progress every second
+            setInterval(() => {
+                this.updateSessionProgress();
+            }, 1000);
+            
+            // Refresh session info every 30 seconds
+            setInterval(() => {
+                this.loadSessionInfo();
+                this.loadActiveSessions();
+            }, 30000);
+            
+            // Listen for session events
+            this.$el.addEventListener('sessionUpdated', (e) => {
+                this.loadSessionInfo();
+            });
+        },
+        
+        async loadSessionInfo() {
+            try {
+                const response = await fetch('/api/session/info');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.updateSessionInfo(data.session);
+                }
+            } catch (error) {
+                console.error('Error loading session info:', error);
+            }
+        },
+        
+        updateSessionInfo(session) {
+            this.sessionInfo = session;
+            this.updateSessionProgress();
+        },
+        
+        updateSessionProgress() {
+            if (!this.sessionInfo.expiresAt) return;
+            
+            const now = new Date();
+            const expiresAt = new Date(this.sessionInfo.expiresAt);
+            const startedAt = new Date(this.sessionInfo.startTime);
+            
+            const totalDuration = expiresAt - startedAt;
+            const elapsed = now - startedAt;
+            const remaining = expiresAt - now;
+            
+            if (remaining <= 0) {
+                this.sessionStatus = 'expired';
+                this.sessionProgress = 0;
+                this.sessionProgressType = 'progress-danger';
+                this.sessionTimeRemaining = 'Expired';
+                this.sessionExpiringSoon = true;
+                return;
+            }
+            
+            this.sessionProgress = Math.max(0, (remaining / totalDuration) * 100);
+            this.sessionTimeRemaining = this.formatTimeRemaining(remaining);
+            
+            // Update progress type based on time remaining
+            if (remaining <= 5 * 60 * 1000) { // 5 minutes
+                this.sessionProgressType = 'progress-danger';
+                this.sessionExpiringSoon = true;
+                if (!this.showExpiryWarning) {
+                    this.showExpiryWarning = true;
+                    this.timeUntilExpiry = this.sessionTimeRemaining;
+                }
+            } else if (remaining <= 15 * 60 * 1000) { // 15 minutes
+                this.sessionProgressType = 'progress-warning';
+                this.sessionExpiringSoon = true;
+            } else {
+                this.sessionProgressType = 'progress-success';
+                this.sessionExpiringSoon = false;
+            }
+        },
+        
+        formatTimeRemaining(milliseconds) {
+            const seconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes % 60}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds % 60}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        },
+        
+        async loadActiveSessions() {
+            try {
+                const response = await fetch('/api/session/active');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.activeSessions = data.sessions || [];
+                }
+            } catch (error) {
+                console.error('Error loading active sessions:', error);
+            }
+        },
+        
+        toggleSessionDetails() {
+            this.showSessionDetails = !this.showSessionDetails;
+        },
+        
+        async extendSession() {
+            try {
+                const response = await fetch('/api/session/extend', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.showNotification('Session extended successfully', 'success');
+                    await this.loadSessionInfo();
+                    this.dismissExpiryWarning();
+                } else {
+                    this.showNotification(data.message || 'Failed to extend session', 'error');
+                }
+            } catch (error) {
+                this.showNotification('Error extending session', 'error');
+            }
+        },
+        
+        async refreshSession() {
+            await this.loadSessionInfo();
+            await this.loadActiveSessions();
+            this.showNotification('Session information refreshed', 'success');
+        },
+        
+        viewSessionHistory() {
+            window.open('/session/history', '_blank');
+        },
+        
+        secureLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/auth/logout';
+            }
+        },
+        
+        dismissExpiryWarning() {
+            this.showExpiryWarning = false;
+        },
+        
+        extendSessionFromWarning() {
+            this.extendSession();
+        },
+        
+        terminateSession(sessionId) {
+            const session = this.activeSessions.find(s => s.id === sessionId);
+            if (session) {
+                this.sessionToTerminate = session;
+                this.showTerminateConfirm = true;
+            }
+        },
+        
+        cancelTerminate() {
+            this.showTerminateConfirm = false;
+            this.sessionToTerminate = null;
+        },
+        
+        async confirmTerminate() {
+            if (!this.sessionToTerminate) return;
+            
+            try {
+                const response = await fetch('/api/session/terminate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: this.sessionToTerminate.id
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.showNotification('Session terminated successfully', 'success');
+                    await this.loadActiveSessions();
+                } else {
+                    this.showNotification(data.message || 'Failed to terminate session', 'error');
+                }
+            } catch (error) {
+                this.showNotification('Error terminating session', 'error');
+            } finally {
+                this.cancelTerminate();
+            }
+        },
+        
+        showNotification(message, type) {
+            // Dispatch event for global notification system
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: { message, type }
+            }));
+        }
+    };
+}
+</script>
+
+<style>
+.session-management-component {
+    position: relative;
+    z-index: 1000;
+}
+
+.session-widget {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: white;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+.session-widget:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.session-avatar {
+    position: relative;
+    margin-right: 10px;
+    font-size: 24px;
+    color: #6c757d;
+}
+
+.session-warning-indicator {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #ffc107;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    border: 2px solid white;
+}
+
+.session-info {
+    flex: 1;
+}
+
+.session-user {
+    font-weight: 600;
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 2px;
+}
+
+.session-time {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.session-toggle {
+    margin-left: 8px;
+    color: #6c757d;
+    transition: transform 0.3s ease;
+}
+
+.rotate-180 {
+    transform: rotate(180deg);
+}
+
+.session-details-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #dee2e6;
+    margin-top: 8px;
+    z-index: 1050;
+}
+
+.session-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.session-details-header h6 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.session-details-content {
+    padding: 16px;
+}
+
+.session-section {
+    margin-bottom: 20px;
+}
+
+.session-section:last-child {
+    margin-bottom: 0;
+}
+
+.session-section-title {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.session-section-title i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+.session-count {
+    background: #007bff;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.session-info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.session-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.session-info-label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.session-info-value {
+    font-weight: 400;
+    color: #495057;
+}
+
+.session-progress-container {
+    margin-top: 12px;
+}
+
+.session-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.session-progress-bar {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.session-progress-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.session-progress-fill.progress-success {
+    background: #28a745;
+}
+
+.session-progress-fill.progress-warning {
+    background: #ffc107;
+}
+
+.session-progress-fill.progress-danger {
+    background: #dc3545;
+}
+
+.active-sessions-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+}
+
+.active-session-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #f1f3f4;
+    font-size: 13px;
+}
+
+.active-session-item:last-child {
+    border-bottom: none;
+}
+
+.active-session-item.current-session {
+    background: #e7f3ff;
+}
+
+.session-item-avatar {
+    margin-right: 10px;
+    color: #6c757d;
+}
+
+.session-item-content {
+    flex: 1;
+}
+
+.session-item-user {
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.session-item-details {
+    font-size: 11px;
+    color: #6c757d;
+}
+
+.separator {
+    margin: 0 4px;
+}
+
+.session-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.session-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.session-status.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.session-status.idle {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.session-status.expired {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.no-sessions {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
+}
+
+.session-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.session-expiry-overlay,
+.session-terminate-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1060;
+}
+
+.session-expiry-modal,
+.session-terminate-modal {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.session-expiry-header,
+.session-terminate-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.session-expiry-header i,
+.session-terminate-header i {
+    margin-right: 12px;
+    font-size: 20px;
+}
+
+.session-expiry-header h5,
+.session-terminate-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.session-expiry-body,
+.session-terminate-body {
+    padding: 16px;
+}
+
+.session-expiry-body p,
+.session-terminate-body p {
+    margin: 0 0 12px 0;
+    color: #6c757d;
+    line-height: 1.5;
+}
+
+.session-expiry-actions,
+.session-terminate-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px;
+    border-top: 1px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+@media (max-width: 768px) {
+    .session-widget {
+        min-width: auto;
+    }
+    
+    .session-info {
+        display: none;
+    }
+    
+    .session-details-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        max-width: none;
+        max-height: 70vh;
+    }
+    
+    .session-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

@@ -634,6 +634,290 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Customer Search and Selection */
+.customer-search-container {
+  position: relative;
+}
+
+.customer-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 2px solid var(--gray-300);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+}
+
+.customer-option {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--gray-200);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.customer-option:hover {
+  background: var(--primary-light);
+}
+
+.customer-option:last-child {
+  border-bottom: none;
+}
+
+.customer-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.customer-phone {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.customer-points {
+  font-size: var(--font-size-xs);
+  color: var(--warning-color);
+  margin-top: var(--spacing-xs);
+}
+
+/* Customer Details */
+.customer-details {
+  margin-top: var(--spacing-sm);
+}
+
+.selected-customer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--primary-color);
+}
+
+.customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.customer-info strong {
+  color: var(--text-primary);
+}
+
+.customer-info span {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.tier-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tier-bronze {
+  background: #cd7f32;
+  color: var(--white);
+}
+
+.tier-silver {
+  background: #c0c0c0;
+  color: var(--gray-900);
+}
+
+.tier-gold {
+  background: #ffd700;
+  color: var(--gray-900);
+}
+
+.tier-platinum {
+  background: #e5e4e2;
+  color: var(--gray-900);
+  border: 1px solid var(--gray-600);
+}
+
+.btn-clear-customer {
+  background: var(--danger-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-clear-customer:hover {
+  background: var(--danger-dark);
+}
+
+/* Loyalty Section */
+.loyalty-section {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--warning-light);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--warning-color);
+}
+
+.points-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.available-points {
+  font-weight: 600;
+  color: var(--warning-dark);
+}
+
+.points-value {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.points-redemption {
+  margin-top: var(--spacing-sm);
+}
+
+.points-input-group {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.points-input-group .pos-form-control {
+  flex: 1;
+}
+
+.btn-max-points {
+  background: var(--primary-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-max-points:hover {
+  background: var(--primary-dark);
+}
+
+.points-disclaimer {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+  font-style: italic;
+}
+
+/* No Customer Selected */
+.no-customer-selected {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--gray-300);
+}
+
+.no-customer-selected span {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.btn-add-customer {
+  background: var(--success-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.btn-add-customer:hover {
+  background: var(--success-dark);
+}
+
+/* Customer Modal */
+.customer-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.customer-modal-content {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.customer-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.customer-modal-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.btn-close-modal {
+  background: none;
+  border: none;
+  font-size: var(--font-size-xl);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.btn-close-modal:hover {
+  color: var(--danger-color);
+}
+
+.customer-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.customer-modal-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
 /* Custom Scrollbar */
 .pos-menu-items::-webkit-scrollbar,
 .pos-order-items::-webkit-scrollbar {
@@ -774,13 +1058,84 @@
         
         <div class="pos-customer-info full-width">
           <div class="pos-form-group">
-            <label class="pos-form-label">Customer Name</label>
-            <input type="text" x-model="currentOrder.customerName" class="pos-form-control" placeholder="Walk-in Customer">
+            <label class="pos-form-label">Customer Search</label>
+            <div class="customer-search-container">
+              <input type="text"
+                     x-model="customerSearchQuery"
+                     @input="searchCustomers()"
+                     @focus="showCustomerDropdown = true"
+                     @blur="setTimeout(() => showCustomerDropdown = false, 200)"
+                     class="pos-form-control"
+                     placeholder="Search by name, phone, or email...">
+              
+              <!-- Customer Dropdown -->
+              <div class="customer-dropdown" x-show="showCustomerDropdown && customerSearchResults.length > 0" x-transition>
+                <template x-for="customer in customerSearchResults" :key="customer.id">
+                  <div class="customer-option" @click="selectCustomer(customer)">
+                    <div class="customer-name" x-text="customer.name"></div>
+                    <div class="customer-phone" x-text="customer.phone"></div>
+                    <div class="customer-points" x-show="customer.points_earned">
+                      <i class="bi bi-star-fill"></i> <span x-text="customer.points_earned"></span> points
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
           
           <div class="pos-form-group">
-            <label class="pos-form-label">Mobile</label>
-            <input type="tel" x-model="currentOrder.customerMobile" class="pos-form-control" placeholder="Optional">
+            <label class="pos-form-label">Customer Details</label>
+            <div class="customer-details" x-show="currentOrder.customer">
+              <div class="selected-customer">
+                <div class="customer-info">
+                  <strong x-text="currentOrder.customer.name"></strong>
+                  <span x-text="currentOrder.customer.phone"></span>
+                  <div class="customer-tier" x-show="currentOrder.customer.tier">
+                    <span class="tier-badge" :class="'tier-' + currentOrder.customer.tier.toLowerCase()" x-text="currentOrder.customer.tier"></span>
+                  </div>
+                </div>
+                <button type="button" @click="clearCustomer()" class="btn-clear-customer">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+              
+              <!-- Loyalty Points Section -->
+              <div class="loyalty-section" x-show="currentOrder.customer && currentOrder.customer.points_earned > 0">
+                <div class="points-info">
+                  <div class="available-points">
+                    <i class="bi bi-star-fill text-warning"></i>
+                    Available Points: <span x-text="currentOrder.customer.points_earned"></span>
+                  </div>
+                  <div class="points-value">
+                    (Value: ₹<span x-text="(currentOrder.customer.points_earned / 10).toFixed(2)"></span>)
+                  </div>
+                </div>
+                
+                <div class="points-redemption">
+                  <label class="pos-form-label">Redeem Points</label>
+                  <div class="points-input-group">
+                    <input type="number"
+                           x-model="currentOrder.pointsToRedeem"
+                           @input="calculatePointsDiscount()"
+                           :max="Math.floor(currentOrder.grandTotal * 10)"
+                           class="pos-form-control"
+                           min="0"
+                           placeholder="Points to redeem">
+                    <button type="button" @click="setMaxPoints()" class="btn-max-points">Max</button>
+                  </div>
+                  <div class="points-disclaimer" x-show="currentOrder.pointsToRedeem > 0">
+                    You'll redeem <span x-text="currentOrder.pointsToRedeem"></span> points for ₹<span x-text="(currentOrder.pointsToRedeem / 10).toFixed(2)"></span> discount
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="no-customer-selected" x-show="!currentOrder.customer">
+              <span>Walk-in Customer</span>
+              <button type="button" @click="showAddCustomerModal = true" class="btn-add-customer">
+                <i class="bi bi-plus"></i> Add New Customer
+              </button>
+            </div>
           </div>
         </div>
         
@@ -866,6 +1221,49 @@
       </div>
     </div>
   </div>
+  
+  <!-- Customer Modal -->
+  <div class="customer-modal" x-show="showAddCustomerModal" x-transition>
+    <div class="customer-modal-content">
+      <div class="customer-modal-header">
+        <h3 class="customer-modal-title">Add New Customer</h3>
+        <button type="button" @click="showAddCustomerModal = false" class="btn-close-modal">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      
+      <div class="customer-form">
+        <div class="pos-form-group">
+          <label class="pos-form-label">Name *</label>
+          <input type="text" x-model="newCustomer.name" class="pos-form-control" placeholder="Customer name">
+        </div>
+        
+        <div class="pos-form-group">
+          <label class="pos-form-label">Phone *</label>
+          <input type="tel" x-model="newCustomer.phone" class="pos-form-control" placeholder="Phone number">
+        </div>
+        
+        <div class="pos-form-group">
+          <label class="pos-form-label">Email</label>
+          <input type="email" x-model="newCustomer.email" class="pos-form-control" placeholder="Email address (optional)">
+        </div>
+        
+        <div class="pos-form-group">
+          <label class="pos-form-label">Address</label>
+          <textarea x-model="newCustomer.address" class="pos-form-control" rows="3" placeholder="Address (optional)"></textarea>
+        </div>
+        
+        <div class="customer-modal-actions">
+          <button type="button" @click="showAddCustomerModal = false" class="pos-action-btn">
+            Cancel
+          </button>
+          <button type="button" @click="addNewCustomer()" class="pos-action-btn primary">
+            <i class="bi bi-plus"></i> Add Customer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -884,6 +1282,18 @@ function posBillingManager() {
     // Filters
     searchQuery: '',
     selectedCategory: null,
+    
+    // Customer & Loyalty
+    customerSearchQuery: '',
+    customerSearchResults: [],
+    showCustomerDropdown: false,
+    showAddCustomerModal: false,
+    newCustomer: {
+      name: '',
+      phone: '',
+      email: '',
+      address: ''
+    },
     
     // Settings
     nextOrderId: 1,
@@ -932,6 +1342,9 @@ function posBillingManager() {
         tableId: null,
         customerName: '',
         customerMobile: '',
+        customer: null,
+        pointsToRedeem: 0,
+        pointsDiscount: 0,
         specialInstructions: '',
         items: [],
         subtotal: 0,
@@ -1045,7 +1458,117 @@ function posBillingManager() {
       currentOrder.subtotal = subtotal;
       currentOrder.cgst = subtotal * 0.025; // 2.5%
       currentOrder.sgst = subtotal * 0.025; // 2.5%
-      currentOrder.grandTotal = subtotal + currentOrder.cgst + currentOrder.sgst - currentOrder.discount;
+      
+      // Calculate points discount
+      this.calculatePointsDiscount();
+      
+      currentOrder.grandTotal = subtotal + currentOrder.cgst + currentOrder.sgst - currentOrder.discount - currentOrder.pointsDiscount;
+    },
+    
+    // Customer & Loyalty Methods
+    searchCustomers() {
+      if (!this.customerSearchQuery || this.customerSearchQuery.length < 2) {
+        this.customerSearchResults = [];
+        return;
+      }
+      
+      fetch(`/api/customers/search?q=${encodeURIComponent(this.customerSearchQuery)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            this.customerSearchResults = data.customers;
+          } else {
+            this.customerSearchResults = [];
+          }
+        })
+        .catch(error => {
+          console.error('Error searching customers:', error);
+          this.customerSearchResults = [];
+        });
+    },
+    
+    selectCustomer(customer) {
+      this.currentOrder.customer = customer;
+      this.currentOrder.customerName = customer.name;
+      this.currentOrder.customerMobile = customer.phone;
+      this.customerSearchQuery = customer.name;
+      this.customerSearchResults = [];
+      this.showCustomerDropdown = false;
+      
+      // Reset points redemption when customer changes
+      this.currentOrder.pointsToRedeem = 0;
+      this.currentOrder.pointsDiscount = 0;
+      
+      this.showNotification(`Customer selected: ${customer.name}`, 'success');
+    },
+    
+    clearCustomer() {
+      this.currentOrder.customer = null;
+      this.currentOrder.customerName = '';
+      this.currentOrder.customerMobile = '';
+      this.customerSearchQuery = '';
+      this.currentOrder.pointsToRedeem = 0;
+      this.currentOrder.pointsDiscount = 0;
+      this.recalculateTotals();
+    },
+    
+    calculatePointsDiscount() {
+      if (!this.currentOrder.customer || !this.currentOrder.pointsToRedeem) {
+        this.currentOrder.pointsDiscount = 0;
+        return;
+      }
+      
+      // Ensure customer has enough points
+      const maxPointsToRedeem = Math.min(
+        this.currentOrder.pointsToRedeem,
+        this.currentOrder.customer.points_earned || 0,
+        Math.floor(this.currentOrder.subtotal * 10) // Max points based on subtotal
+      );
+      
+      // 10 points = ₹1 discount
+      this.currentOrder.pointsDiscount = maxPointsToRedeem / 10;
+    },
+    
+    setMaxPoints() {
+      if (!this.currentOrder.customer) return;
+      
+      const maxPoints = Math.min(
+        this.currentOrder.customer.points_earned || 0,
+        Math.floor(this.currentOrder.subtotal * 10) // Max points based on subtotal
+      );
+      
+      this.currentOrder.pointsToRedeem = maxPoints;
+      this.calculatePointsDiscount();
+    },
+    
+    addNewCustomer() {
+      if (!this.newCustomer.name || !this.newCustomer.phone) {
+        this.showNotification('Name and phone are required', 'error');
+        return;
+      }
+      
+      fetch('/api/customers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(this.newCustomer)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          this.selectCustomer(data.customer);
+          this.showAddCustomerModal = false;
+          this.newCustomer = { name: '', phone: '', email: '', address: '' };
+          this.showNotification('Customer added successfully', 'success');
+        } else {
+          this.showNotification(data.message || 'Failed to add customer', 'error');
+        }
+      })
+      .catch(error => {
+        console.error('Error adding customer:', error);
+        this.showNotification('Error adding customer', 'error');
+      });
     },
     
     // Order Actions
@@ -1064,6 +1587,7 @@ function posBillingManager() {
         body: JSON.stringify({
           order_type: this.currentOrder.orderType,
           table_id: this.currentOrder.tableId,
+          customer_id: this.currentOrder.customer ? this.currentOrder.customer.id : null,
           customer_name: this.currentOrder.customerName,
           customer_mobile: this.currentOrder.customerMobile,
           special_instructions: this.currentOrder.specialInstructions,
@@ -1072,7 +1596,9 @@ function posBillingManager() {
             quantity: item.quantity,
             special_instructions: item.specialInstructions
           })),
-          discount_amount: this.currentOrder.discount
+          discount_amount: this.currentOrder.discount,
+          points_to_redeem: this.currentOrder.pointsToRedeem || 0,
+          points_discount: this.currentOrder.pointsDiscount || 0
         })
       })
       .then(response => response.json())
@@ -1133,9 +1659,13 @@ function posBillingManager() {
         currentOrder.subtotal = 0;
         currentOrder.cgst = 0;
         currentOrder.sgst = 0;
+        currentOrder.discount = 0;
         currentOrder.grandTotal = 0;
         currentOrder.customerName = '';
         currentOrder.customerMobile = '';
+        currentOrder.customer = null;
+        currentOrder.pointsToRedeem = 0;
+        currentOrder.pointsDiscount = 0;
         currentOrder.specialInstructions = '';
         
         this.showNotification('Order cleared', 'info');

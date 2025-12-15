@@ -1,0 +1,1320 @@
+
+{% extends "base.html" %} {% block title %}Profile & Settings - Restaurant POS{% endblock %} 
+
+{% block extra_css %}
+<style>
+/* Enhanced Profile Settings Styles */
+.profile-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.profile-sidebar {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 20px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.profile-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #6c757d;
+  text-decoration: none;
+}
+
+.profile-nav-item:hover {
+  background: #f8f9fa;
+  color: #007bff;
+}
+
+.profile-nav-item.active {
+  background: #007bff;
+  color: white;
+}
+
+.profile-nav-item i {
+  margin-right: 12px;
+  width: 20px;
+  text-align: center;
+}
+
+.profile-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 30px;
+}
+
+.profile-section {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.profile-section.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.form-section {
+  margin-bottom: 30px;
+}
+
+.form-section h5 {
+  color: #007bff;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-control.is-valid {
+  border-color: #28a745;
+}
+
+.form-control.is-invalid {
+  border-color: #dc3545;
+}
+
+.form-text {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 5px;
+}
+
+.validation-feedback {
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.validation-feedback.valid {
+  color: #28a745;
+}
+
+.validation-feedback.invalid {
+  color: #dc3545;
+}
+
+.btn-profile {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 10px;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #545b62;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+.security-status {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.security-status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.security-status-item:last-child {
+  border-bottom: none;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.strong {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.medium {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.weak {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.session-item {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-left: 4px solid #007bff;
+}
+
+.session-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.session-item-details {
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.preference-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.preference-item:last-child {
+  border-bottom: none;
+}
+
+.form-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.form-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.form-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.form-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .form-slider {
+  background-color: #007bff;
+}
+
+input:checked + .form-slider:before {
+  transform: translateX(26px);
+}
+
+.password-strength {
+  margin-top: 10px;
+  height: 5px;
+  border-radius: 3px;
+  background: #e9ecef;
+  overflow: hidden;
+}
+
+.password-strength-bar {
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.password-strength-weak {
+  width: 33%;
+  background: #dc3545;
+}
+
+.password-strength-medium {
+  width: 66%;
+  background: #ffc107;
+}
+
+.password-strength-strong {
+  width: 100%;
+  background: #28a745;
+}
+
+.avatar-upload {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #e9ecef;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avatar-upload:hover {
+  border-color: #007bff;
+}
+
+.avatar-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-upload-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.avatar-upload:hover .avatar-upload-overlay {
+  opacity: 1;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 15px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 10px;
+  }
+  
+  .profile-sidebar {
+    position: static;
+    margin-bottom: 20px;
+  }
+  
+  .profile-content {
+    padding: 20px;
+  }
+}
+</style>
+{% endblock %} 
+
+{% block content %}
+<div class="profile-container" x-data="enhancedProfileManager()" x-init="init()">
+  <div class="row">
+    <!-- Profile Sidebar -->
+    <div class="col-md-3">
+      <div class="profile-sidebar">
+        <h4 class="mb-4">Settings</h4>
+        
+        <a href="#" @click="switchTab('profile')" 
+           :class="{'active': activeTab === 'profile'}"
+           class="profile-nav-item">
+          <i class="bi bi-person"></i>
+          Profile
+        </a>
+        
+        <a href="#" @click="switchTab('security')" 
+           :class="{'active': activeTab === 'security'}"
+           class="profile-nav-item">
+          <i class="bi bi-shield-check"></i>
+          Security
+        </a>
+        
+        <a href="#" @click="switchTab('sessions')" 
+           :class="{'active': activeTab === 'sessions'}"
+           class="profile-nav-item">
+          <i class="bi bi-clock-history"></i>
+          Active Sessions
+        </a>
+        
+        <a href="#" @click="switchTab('preferences')" 
+           :class="{'active': activeTab === 'preferences'}"
+           class="profile-nav-item">
+          <i class="bi bi-gear"></i>
+          Preferences
+        </a>
+        
+        <a href="#" @click="switchTab('activity')" 
+           :class="{'active': activeTab === 'activity'}"
+           class="profile-nav-item">
+          <i class="bi bi-activity"></i>
+          Activity Log
+        </a>
+      </div>
+    </div>
+    
+    <!-- Profile Content -->
+    <div class="col-md-9">
+      <div class="profile-content">
+        <!-- Profile Section -->
+        <div id="profile" class="profile-section" :class="{'active': activeTab === 'profile'}">
+          <h3 class="mb-4">Profile Information</h3>
+          
+          <div class="form-section">
+            <h5>Basic Information</h5>
+            
+            <div class="row">
+              <div class="col-md-4 text-center mb-4">
+                <div class="avatar-upload" @click="selectAvatar()">
+                  <img :src="profileData.avatar || '/static/images/default-avatar.png'" 
+                       :alt="profileData.full_name">
+                  <div class="avatar-upload-overlay">
+                    <i class="bi bi-camera"></i>
+                  </div>
+                </div>
+                <input type="file" 
+                       x-ref="avatarInput" 
+                       @change="handleAvatarChange($event)" 
+                       accept="image/*" 
+                       style="display: none;">
+                <div class="form-text">Click to change avatar</div>
+              </div>
+              
+              <div class="col-md-8">
+                <div class="form-group">
+                  <label class="form-label">Full Name</label>
+                  <input type="text" 
+                         x-model="profileData.full_name" 
+                         @input="validateField('full_name', profileData.full_name)"
+                         class="form-control" 
+                         :class="{'is-valid': fieldValidations.full_name?.valid, 'is-invalid': fieldValidations.full_name?.valid === false}">
+                  <div class="validation-feedback" 
+                       :class="fieldValidations.full_name?.valid ? 'valid' : 'invalid'"
+                       x-show="fieldValidations.full_name?.message"
+                       x-text="fieldValidations.full_name?.message"></div>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" 
+                         x-model="profileData.email" 
+                         @input="validateField('email', profileData.email)"
+                         class="form-control" 
+                         :class="{'is-valid': fieldValidations.email?.valid, 'is-invalid': fieldValidations.email?.valid === false}">
+                  <div class="validation-feedback" 
+                       :class="fieldValidations.email?.valid ? 'valid' : 'invalid'"
+                       x-show="fieldValidations.email?.message"
+                       x-text="fieldValidations.email?.message"></div>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">Phone</label>
+                  <input type="tel" 
+                         x-model="profileData.phone" 
+                         @input="validateField('phone', profileData.phone)"
+                         class="form-control" 
+                         :class="{'is-valid': fieldValidations.phone?.valid, 'is-invalid': fieldValidations.phone?.valid === false}">
+                  <div class="validation-feedback" 
+                       :class="fieldValidations.phone?.valid ? 'valid' : 'invalid'"
+                       x-show="fieldValidations.phone?.message"
+                       x-text="fieldValidations.phone?.message"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h5>Job Information</h5>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="form-label">Role</label>
+                  <select x-model="profileData.role" 
+                          @change="validateField('role', profileData.role)"
+                          class="form-control"
+                          :class="{'is-valid': fieldValidations.role?.valid, 'is-invalid': fieldValidations.role?.valid === false}">
+                    <option value="admin">Administrator</option>
+                    <option value="manager">Manager</option>
+                    <option value="staff">Staff</option>
+                    <option value="cashier">Cashier</option>
+                  </select>
+                  <div class="validation-feedback" 
+                       :class="fieldValidations.role?.valid ? 'valid' : 'invalid'"
+                       x-show="fieldValidations.role?.message"
+                       x-text="fieldValidations.role?.message"></div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="form-label">Department</label>
+                  <input type="text" 
+                         x-model="profileData.department" 
+                         @input="validateField('department', profileData.department)"
+                         class="form-control" 
+                         :class="{'is-valid': fieldValidations.department?.valid, 'is-invalid': fieldValidations.department?.valid === false}">
+                  <div class="validation-feedback" 
+                       :class="fieldValidations.department?.valid ? 'valid' : 'invalid'"
+                       x-show="fieldValidations.department?.message"
+                       x-text="fieldValidations.department?.message"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <button @click="saveProfile()" 
+                    :disabled="!isProfileValid"
+                    class="btn-profile btn-primary">
+              <i class="bi bi-save"></i> Save Profile
+            </button>
+            <button @click="resetProfile()" 
+                    class="btn-profile btn-secondary">
+              <i class="bi bi-arrow-clockwise"></i> Reset
+            </button>
+          </div>
+        </div>
+        
+        <!-- Security Section -->
+        <div id="security" class="profile-section" :class="{'active': activeTab === 'security'}">
+          <h3 class="mb-4">Security Settings</h3>
+          
+          <div class="security-status">
+            <h5 class="mb-3">Security Status</h5>
+            
+            <div class="security-status-item">
+              <span>Password Strength</span>
+              <span class="status-badge" 
+                    :class="passwordStrengthClass"
+                    x-text="passwordStrengthText"></span>
+            </div>
+            
+            <div class="security-status-item">
+              <span>Two-Factor Authentication</span>
+              <span class="status-badge" 
+                    :class="securityData.two_factor_enabled ? 'strong' : 'medium'"
+                    x-text="securityData.two_factor_enabled ? 'Enabled' : 'Disabled'"></span>
+            </div>
+            
+            <div class="security-status-item">
+              <span>Last Password Change</span>
+              <span x-text="securityData.last_password_change || 'Never'"></span>
+            </div>
+            
+            <div class="security-status-item">
+              <span>Login Attempts</span>
+              <span x-text="securityData.failed_login_attempts + ' failed attempts'"></span>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h5>Change Password</h5>
+            
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input type="password" 
+                     x-model="passwordData.current_password" 
+                     @input="validatePassword('current_password', passwordData.current_password)"
+                     class="form-control" 
+                     :class="{'is-valid': fieldValidations.current_password?.valid, 'is-invalid': fieldValidations.current_password?.valid === false}">
+              <div class="validation-feedback" 
+                   :class="fieldValidations.current_password?.valid ? 'valid' : 'invalid'"
+                   x-show="fieldValidations.current_password?.message"
+                   x-text="fieldValidations.current_password?.message"></div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input type="password" 
+                     x-model="passwordData.new_password" 
+                     @input="validatePassword('new_password', passwordData.new_password)"
+                     class="form-control" 
+                     :class="{'is-valid': fieldValidations.new_password?.valid, 'is-invalid': fieldValidations.new_password?.valid === false}">
+              <div class="password-strength">
+                <div class="password-strength-bar" 
+                     :class="passwordStrengthClass"></div>
+              </div>
+              <div class="validation-feedback" 
+                   :class="fieldValidations.new_password?.valid ? 'valid' : 'invalid'"
+                   x-show="fieldValidations.new_password?.message"
+                   x-text="fieldValidations.new_password?.message"></div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" 
+                     x-model="passwordData.confirm_password" 
+                     @input="validatePassword('confirm_password', passwordData.confirm_password)"
+                     class="form-control" 
+                     :class="{'is-valid': fieldValidations.confirm_password?.valid, 'is-invalid': fieldValidations.confirm_password?.valid === false}">
+              <div class="validation-feedback" 
+                   :class="fieldValidations.confirm_password?.valid ? 'valid' : 'invalid'"
+                   x-show="fieldValidations.confirm_password?.message"
+                   x-text="fieldValidations.confirm_password?.message"></div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h5>Two-Factor Authentication</h5>
+            
+            <div class="preference-item">
+              <span>Enable Two-Factor Authentication</span>
+              <label class="form-switch">
+                <input type="checkbox" 
+                       x-model="securityData.two_factor_enabled" 
+                       @change="toggleTwoFactor()">
+                <span class="form-slider"></span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <button @click="changePassword()" 
+                    :disabled="!isPasswordValid"
+                    class="btn-profile btn-primary">
+              <i class="bi bi-shield-check"></i> Change Password
+            </button>
+            <button @click="setupTwoFactor()" 
+                    x-show="!securityData.two_factor_enabled"
+                    class="btn-profile btn-secondary">
+              <i class="bi bi-phone"></i> Setup 2FA
+            </button>
+          </div>
+        </div>
+        
+        <!-- Sessions Section -->
+        <div id="sessions" class="profile-section" :class="{'active': activeTab === 'sessions'}">
+          <h3 class="mb-4">Active Sessions</h3>
+          
+          <div class="session-item" x-for="session in activeSessions" :key="session.id">
+            <div class="session-item-header">
+              <div>
+                <strong x-text="session.device"></strong>
+                <div class="session-item-details" x-text="session.location"></div>
+              </div>
+              <div>
+                <span class="status-badge" 
+                      :class="session.current ? 'strong' : 'medium'"
+                      x-text="session.current ? 'Current' : 'Active'"></span>
+                <button x-show="!session.current" 
+                        @click="terminateSession(session.id)"
+                        class="btn-profile btn-danger btn-sm">
+                  <i class="bi bi-x-circle"></i> Terminate
+                </button>
+              </div>
+            </div>
+            <div class="session-item-details">
+              <div><strong>IP Address:</strong> <span x-text="session.ip_address"></span></div>
+              <div><strong>Last Activity:</strong> <span x-text="session.last_activity"></span></div>
+              <div><strong>Started:</strong> <span x-text="session.started_at"></span></div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <button @click="terminateAllSessions()" 
+                    class="btn-profile btn-danger">
+              <i class="bi bi-x-circle"></i> Terminate All Other Sessions
+            </button>
+          </div>
+        </div>
+        
+        <!-- Preferences Section -->
+        <div id="preferences" class="profile-section" :class="{'active': activeTab === 'preferences'}">
+          <h3 class="mb-4">Preferences</h3>
+          
+          <div class="form-section">
+            <h5>Notification Preferences</h5>
+            
+            <div class="preference-item">
+              <span>Email Notifications</span>
+              <label class="form-switch">
+                <input type="checkbox" x-model="preferences.email_notifications">
+                <span class="form-slider"></span>
+              </label>
+            </div>
+            
+            <div class="preference-item">
+              <span>Order Notifications</span>
+              <label class="form-switch">
+                <input type="checkbox" x-model="preferences.order_notifications">
+                <span class="form-slider"></span>
+              </label>
+            </div>
+            
+            <div class="preference-item">
+              <span>Low Stock Alerts</span>
+              <label class="form-switch">
+                <input type="checkbox" x-model="preferences.low_stock_alerts">
+                <span class="form-slider"></span>
+              </label>
+            </div>
+            
+            <div class="preference-item">
+              <span>Security Alerts</span>
+              <label class="form-switch">
+                <input type="checkbox" x-model="preferences.security_alerts">
+                <span class="form-slider"></span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h5>Display Preferences</h5>
+            
+            <div class="preference-item">
+              <span>Dark Mode</span>
+              <label class="form-switch">
+                <input type="checkbox" x-model="preferences.dark_mode">
+                <span class="form-slider"></span>
+              </label>
+            </div>
+            
+            <div class="preference-item">
+              <span>Compact View</span>
+              <label class="form-switch">
+                <input type="checkbox" x-model="preferences.compact_view">
+                <span class="form-slider"></span>
+              </label>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Language</label>
+              <select x-model="preferences.language" class="form-control">
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="gu">Gujarati</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Timezone</label>
+              <select x-model="preferences.timezone" class="form-control">
+                <option value="Asia/Kolkata">India Standard Time (IST)</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <button @click="savePreferences()" 
+                    class="btn-profile btn-primary">
+              <i class="bi bi-save"></i> Save Preferences
+            </button>
+          </div>
+        </div>
+        
+        <!-- Activity Section -->
+        <div id="activity" class="profile-section" :class="{'active': activeTab === 'activity'}">
+          <h3 class="mb-4">Activity Log</h3>
+          
+          <div class="activity-item" x-for="activity in recentActivities" :key="activity.id">
+            <div class="activity-icon">
+              <i class="bi" :class="getActivityIcon(activity.type)"></i>
+            </div>
+            <div class="activity-content">
+              <div class="activity-title" x-text="activity.title"></div>
+              <div class="activity-time" x-text="activity.timestamp"></div>
+              <div class="form-text" x-text="activity.description"></div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <button @click="loadMoreActivities()" 
+                    x-show="hasMoreActivities"
+                    class="btn-profile btn-secondary">
+              <i class="bi bi-arrow-down"></i> Load More
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+function enhancedProfileManager() {
+  return {
+    activeTab: 'profile',
+    profileData: {
+      full_name: '',
+      email: '',
+      phone: '',
+      role: '',
+      department: '',
+      avatar: ''
+    },
+    passwordData: {
+      current_password: '',
+      new_password: '',
+      confirm_password: ''
+    },
+    securityData: {
+      two_factor_enabled: false,
+      last_password_change: '',
+      failed_login_attempts: 0
+    },
+    preferences: {
+      email_notifications: true,
+      order_notifications: true,
+      low_stock_alerts: true,
+      security_alerts: true,
+      dark_mode: false,
+      compact_view: false,
+      language: 'en',
+      timezone: 'Asia/Kolkata'
+    },
+    activeSessions: [],
+    recentActivities: [],
+    hasMoreActivities: true,
+    
+    // Validation
+    fieldValidations: {},
+    isProfileValid: false,
+    isPasswordValid: false,
+    
+    // Password strength
+    passwordStrength: 0,
+    passwordStrengthClass: 'password-strength-weak',
+    passwordStrengthText: 'Weak',
+    
+    init() {
+      this.loadProfileData();
+      this.loadSecurityData();
+      this.loadActiveSessions();
+      this.loadRecentActivities();
+      this.loadPreferences();
+    },
+    
+    switchTab(tabName) {
+      this.activeTab = tabName;
+    },
+    
+    // Profile Management
+    async loadProfileData() {
+      try {
+        const response = await fetch('/api/user/profile');
+        if (response.ok) {
+          const data = await response.json();
+          this.profileData = { ...this.profileData, ...data };
+        }
+      } catch (error) {
+        console.error('Error loading profile data:', error);
+      }
+    },
+    
+    async saveProfile() {
+      try {
+        const response = await fetch('/api/user/profile', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.profileData)
+        });
+        
+        if (response.ok) {
+          this.showNotification('Profile updated successfully', 'success');
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to update profile', 'error');
+        }
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        this.showNotification('Error updating profile', 'error');
+      }
+    },
+    
+    resetProfile() {
+      if (confirm('Are you sure you want to reset all profile changes?')) {
+        this.loadProfileData();
+        this.showNotification('Profile reset to original values', 'info');
+      }
+    },
+    
+    selectAvatar() {
+      this.$refs.avatarInput.click();
+    },
+    
+    handleAvatarChange(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.profileData.avatar = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    
+    // Security Management
+    async loadSecurityData() {
+      try {
+        const response = await fetch('/api/user/security');
+        if (response.ok) {
+          const data = await response.json();
+          this.securityData = { ...this.securityData, ...data };
+        }
+      } catch (error) {
+        console.error('Error loading security data:', error);
+      }
+    },
+    
+    async changePassword() {
+      if (!this.isPasswordValid) {
+        this.showNotification('Please fix password validation errors', 'error');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/user/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.passwordData)
+        });
+        
+        if (response.ok) {
+          this.showNotification('Password changed successfully', 'success');
+          this.resetPasswordForm();
+          this.loadSecurityData();
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to change password', 'error');
+        }
+      } catch (error) {
+        console.error('Error changing password:', error);
+        this.showNotification('Error changing password', 'error');
+      }
+    },
+    
+    resetPasswordForm() {
+      this.passwordData = {
+        current_password: '',
+        new_password: '',
+        confirm_password: ''
+      };
+      this.fieldValidations = {};
+    },
+    
+    async toggleTwoFactor() {
+      try {
+        const response = await fetch('/api/user/toggle-2fa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            enabled: this.securityData.two_factor_enabled
+          })
+        });
+        
+        if (response.ok) {
+          const message = this.securityData.two_factor_enabled ? 
+            'Two-factor authentication enabled' : 
+            'Two-factor authentication disabled';
+          this.showNotification(message, 'success');
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to update 2FA settings', 'error');
+        }
+      } catch (error) {
+        console.error('Error toggling 2FA:', error);
+        this.showNotification('Error updating 2FA settings', 'error');
+      }
+    },
+    
+    setupTwoFactor() {
+      // Redirect to 2FA setup page
+      window.location.href = '/auth/setup-2fa';
+    },
+    
+    // Session Management
+    async loadActiveSessions() {
+      try {
+        const response = await fetch('/api/user/sessions');
+        if (response.ok) {
+          const data = await response.json();
+          this.activeSessions = data.sessions || [];
+        }
+      } catch (error) {
+        console.error('Error loading active sessions:', error);
+      }
+    },
+    
+    async terminateSession(sessionId) {
+      if (!confirm('Are you sure you want to terminate this session?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/user/terminate-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        if (response.ok) {
+          this.showNotification('Session terminated successfully', 'success');
+          this.loadActiveSessions();
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to terminate session', 'error');
+        }
+      } catch (error) {
+        console.error('Error terminating session:', error);
+        this.showNotification('Error terminating session', 'error');
+      }
+    },
+    
+    async terminateAllSessions() {
+      if (!confirm('Are you sure you want to terminate all other sessions?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/user/terminate-all-sessions', {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          this.showNotification('All other sessions terminated successfully', 'success');
+          this.loadActiveSessions();
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to terminate sessions', 'error');
+        }
+      } catch (error) {
+        console.error('Error terminating sessions:', error);
+        this.showNotification('Error terminating sessions', 'error');
+      }
+    },
+    
+    // Preferences Management
+    async loadPreferences() {
+      try {
+        const response = await fetch('/api/user/preferences');
+        if (response.ok) {
+          const data = await response.json();
+          this.preferences = { ...this.preferences, ...data };
+        }
+      } catch (error) {
+        console.error('Error loading preferences:', error);
+      }
+    },
+    
+    async savePreferences() {
+      try {
+        const response = await fetch('/api/user/preferences', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.preferences)
+        });
+        
+        if (response.ok) {
+          this.showNotification('Preferences saved successfully', 'success');
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to save preferences', 'error');
+        }
+      } catch (error) {
+        console.error('Error saving preferences:', error);
+        this.showNotification('Error saving preferences', 'error');
+      }
+    },
+    
+    // Activity Log
+    async loadRecentActivities() {
+      try {
+        const response = await fetch('/api/user/activities');
+        if (response.ok) {
+          const data = await response.json();
+          this.recentActivities = data.activities || [];
+          this.hasMoreActivities = data.has_more || false;
+        }
+      } catch (error) {
+        console.error('Error loading activities:', error);
+      }
+    },
+    
+    async loadMoreActivities() {
+      try {
+        const response = await fetch('/api/user/activities?offset=' + this.recentActivities.length);
+        if (response.ok) {
+          const data = await response.json();
+          this.recentActivities = [...this.recentActivities, ...(data.activities || [])];
+          this.hasMoreActivities = data.has_more || false;
+        }
+      } catch (error) {
+        console.error('Error loading more activities:', error);
+      }
+    },
+    
+    getActivityIcon(activityType) {
+      const icons = {
+        'login': 'bi-box-arrow-in-right',
+        'logout': 'bi-box-arrow-right',
+        'password_change': 'bi-shield-check',
+        'profile_update': 'bi-person',
+        'order_created': 'bi-cart-plus',
+        'security_alert': 'bi-exclamation-triangle'
+      };
+      return icons[activityType] || 'bi-info-circle';
+    },
+    
+    // Validation
+    async validateField(fieldName, value) {
+      try {
+        const response = await fetch('/api/validation/validate-field', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            field_name: fieldName,
+            value: value,
+            field_type: this.getFieldType(fieldName)
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          this.fieldValidations[fieldName] = {
+            valid: data.valid,
+            message: data.message
+          };
+          this.validateProfileForm();
+        }
+      } catch (error) {
+        console.error('Validation error:', error);
+      }
+    },
+    
+    async validatePassword(fieldName, value) {
+      // Special validation for password fields
+      if (fieldName === 'new_password') {
+        this.calculatePasswordStrength(value);
+      }
+      
+      if (fieldName === 'confirm_password') {
+        // Check if passwords match
+        if (value !== this.passwordData.new_password) {
+          this.fieldValidations[fieldName] = {
+            valid: false,
+            message: 'Passwords do not match'
+          };
+        } else {
+          this.fieldValidations[fieldName] = {
+            valid: true,
+            message: ''
+          };
+        }
+      } else {
+        // Use API validation for other password fields
+        try {
+          const response = await fetch('/api/validation/validate-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password: value })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            this.fieldValidations[fieldName] = {
+              valid: data.valid,
+              message: data.message
+            };
+          }
+        } catch (error) {
+          console.error('Password validation error:', error);
+        }
+      }
+      
+      this.validatePasswordForm();
+    },
+    
+    validateProfileForm() {
+      let isValid = true;
+      
+      // Check required fields
+      if (!this.profileData.full_name || !this.profileData.email) {
+        isValid = false;
+      }
+      
+      // Check field validations
+      Object.values(this.fieldValidations).forEach(validation => {
+        if (validation.valid === false) {
+          isValid = false;
+        }
+      });
+      
+      this.isProfileValid = isValid;
+    },
+    
+    validatePasswordForm() {
+      let isValid = true;
+      
+      // Check all password fields are filled
+      if (!this.passwordData.current_password || 
+          !this.passwordData.new_password || 
+          !this.passwordData.confirm_password) {
+        isValid = false;
+      }
+      
+      // Check field validations
+      Object.entries(this.fieldValidations).forEach(([fieldName, validation]) => {
+        if (fieldName.startsWith('password') && validation.valid === false) {
+          isValid = false;
+        }
+      });
+      
+      // Check password strength
+      if (this.passwordStrength < 2) {
+        isValid = false;
+      }
+      
+      this.isPasswordValid = isValid;
+    },
+    
+    calculatePasswordStrength(password) {
+      let strength = 0;
+      
+      // Length check
+      if (password.length >= 8) strength++;
+      if (password.length >= 12) strength++;
+      
+      // Complexity checks
+      if (/[a-z]/.test(password)) strength++;
+      if (/[A-Z]/.test(password)) strength++;
+      if (/[0-9]/.test(password)) strength++;
+      if (/[^a-zA-Z0-9]/.test(password)) strength++;
+      
+      this.passwordStrength = Math.min(strength, 4);
+      
+      // Update UI
+      if (this.passwordStrength <= 1) {
+        this.passwordStrengthClass = 'password-strength-weak';
+        this.passwordStrengthText = 'Weak';
+      } else if (this.passwordStrength <= 2) {
+        this.passwordStrengthClass = 'password-strength-medium';
+        this.passwordStrengthText = 'Medium';
+      } else {
+        this.passwordStrengthClass = 'password-strength-strong';
+        this.passwordStrengthText = 'Strong';
+      }
+    },
+    
+    getField

@@ -14,16 +14,18 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='cashier')  # admin, cashier
     is_active = db.Column(db.Boolean, default=True)
+    tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     
     # Relationships
     orders = db.relationship('Order', backref='created_by_user', lazy=True)
     
-    def __init__(self, username, password, role='cashier', email=None):
+    def __init__(self, username, password, role='cashier', email=None, tenant_id='default'):
         self.username = username
         self.email = self._encrypt_email(email) if email else None
         self.role = role
+        self.tenant_id = tenant_id
         self.set_password(password)
     
     def set_password(self, password):
@@ -56,14 +58,27 @@ class User(UserMixin, db.Model):
             'email': self._decrypt_email(self.email),
             'role': self.role,
             'is_active': self.is_active,
+            'tenant_id': self.tenant_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
     
-    @staticmethod
-    def get_by_username(username):
-        """Get user by username"""
-        return User.query.filter_by(username=username).first()
+    @classmethod
+    def query_tenant(cls, tenant_id=None):
+        """Get query filtered by tenant"""
+        if tenant_id is None:
+            from flask import g
+            tenant_id = getattr(g, 'tenant_id', None)
+        
+        if tenant_id:
+            return cls.query.filter(cls.tenant_id == tenant_id)
+        return cls.query
+    
+    @classmethod
+    def get_by_username(cls, username, tenant_id=None):
+        """Get user by username within tenant context"""
+        query = cls.query_tenant(tenant_id)
+        return query.filter_by(username=username).first()
     
     @staticmethod
     def get_by_email(email):

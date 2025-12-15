@@ -1,0 +1,1356 @@
+{% extends "base.html" %} 
+{% block title %}Enhanced Reports Dashboard - Restaurant POS{% endblock %} 
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports-modern.css') }}">
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Date Range Picker -->
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat/dayjs.customParseFormat.min.js"></script>
+<!-- Advanced Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<style>
+/* Enhanced Reports Styles */
+.reports-enhanced {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reports-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.reports-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.reports-header-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.reports-header-actions .btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.reports-header-actions .btn:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateY(-2px);
+}
+
+.reports-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.reports-stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.reports-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left 0.5s;
+}
+
+.reports-stat-card:hover::before {
+  left: 100%;
+}
+
+.reports-stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 25px rgba(0,0,0,0.15);
+}
+
+.reports-stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 15px;
+}
+
+.reports-stat-card.sales .reports-stat-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.reports-stat-card.orders .reports-stat-icon {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.reports-stat-card.cancelled .reports-stat-icon {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: white;
+}
+
+.reports-stat-card.revenue .reports-stat-icon {
+  background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+  color: white;
+}
+
+.reports-stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+  color: #2c3e50;
+}
+
+.reports-stat-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.reports-stat-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.reports-stat-change.positive {
+  color: #28a745;
+}
+
+.reports-stat-change.negative {
+  color: #dc3545;
+}
+
+.reports-filters {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  margin-bottom: 30px;
+}
+
+.reports-filters-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.reports-filters-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.reports-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.reports-filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.reports-filter-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.reports-filter-control {
+  padding: 12px 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.reports-filter-control:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.reports-filter-actions {
+  display: flex;
+  gap: 15px;
+}
+
+.reports-filter-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reports-filter-btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.reports-filter-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(102, 126, 234, 0.3);
+}
+
+.reports-filter-btn.secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.reports-filter-btn.secondary:hover {
+  background: #545b62;
+  transform: translateY(-2px);
+}
+
+.reports-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.reports-chart-container {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+}
+
+.reports-chart-container:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.reports-chart-container.full-width {
+  grid-column: 1 / -1;
+}
+
+.reports-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.reports-chart-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.reports-chart-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.reports-chart-action {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  color: #6c757d;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.reports-chart-action:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.reports-chart-canvas {
+  position: relative;
+  height: 300px;
+}
+
+.reports-chart-canvas.large {
+  height: 400px;
+}
+
+.reports-data-table {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  margin-bottom: 30px;
+  overflow: hidden;
+}
+
+.reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.reports-table th,
+.reports-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.reports-table th {
+  background: #f8f9fa;
+  font-weight: 700;
+  color: #495057;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.reports-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.reports-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.reports-export-section {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.reports-export-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.reports-export-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.reports-export-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.reports-export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(102, 126, 234, 0.3);
+}
+
+.reports-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.reports-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.reports-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.reports-empty-icon {
+  font-size: 4rem;
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+.reports-empty-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #495057;
+  margin-bottom: 10px;
+}
+
+.reports-empty-text {
+  color: #6c757d;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .reports-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  
+  .reports-charts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .reports-chart-container.full-width {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .reports-header {
+    padding: 15px;
+  }
+  
+  .reports-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .reports-header-actions {
+    flex-wrap: wrap;
+  }
+  
+  .reports-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .reports-filters {
+    padding: 20px;
+  }
+  
+  .reports-filters-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .reports-chart-container {
+    padding: 20px;
+  }
+  
+  .reports-chart-canvas {
+    height: 250px;
+  }
+  
+  .reports-chart-canvas.large {
+    height: 300px;
+  }
+}
+
+/* Animation Classes */
+.reports-fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+.reports-slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Print Styles */
+@media print {
+  .reports-header-actions,
+  .reports-filter-actions,
+  .reports-chart-actions,
+  .reports-export-section,
+  .no-print {
+    display: none !important;
+  }
+  
+  .reports-chart-container {
+    page-break-inside: avoid;
+  }
+  
+  .reports-data-table {
+    page-break-inside: avoid;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid reports-enhanced" x-data="enhancedReportsDashboard()" x-init="init()">
+  <!-- Reports Header -->
+  <div class="reports-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <h1>
+        <i class="bi bi-graph-up me-3"></i>
+        Enhanced Reports Dashboard
+      </h1>
+      <div class="reports-header-actions">
+        <button @click="toggleRealtime()" 
+                :class="realtimeEnabled ? 'btn-success' : 'btn-secondary'" 
+                class="btn">
+          <i class="bi" :class="realtimeEnabled ? 'bi-pause' : 'bi-play'"></i> 
+          <span x-text="realtimeEnabled ? 'Pause' : 'Real-time'"></span>
+        </button>
+        <button @click="refreshAllData()" class="btn">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button @click="printReport()" class="btn no-print">
+          <i class="bi bi-printer"></i> Print
+        </button>
+        <button @click="exportAllData()" class="btn no-print">
+          <i class="bi bi-download"></i> Export All
+        </button>
+      </div>
+    </div>
+    <div class="mt-2">
+      <small class="opacity-75">
+        <i class="bi bi-clock me-2"></i>
+        Last updated: <span x-text="lastUpdated"></span>
+      </small>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="reports-loading" x-show="isLoading" x-cloak>
+    <div class="reports-spinner"></div>
+    <div>Loading report data...</div>
+  </div>
+
+  <!-- Reports Content -->
+  <div x-show="!isLoading">
+    <!-- Top Stats Cards -->
+    <div class="reports-stats-grid">
+      <div class="reports-stat-card sales reports-fade-in">
+        <div class="reports-stat-icon">
+          <i class="bi bi-currency-rupee"></i>
+        </div>
+        <div class="reports-stat-value" x-text="formatCurrency(stats.totalSales)">₹0</div>
+        <div class="reports-stat-label">Total Sales</div>
+        <div class="reports-stat-change positive">
+          <i class="bi bi-arrow-up"></i>
+          <span x-text="stats.salesGrowth + '%'">+12%</span>
+        </div>
+      </div>
+
+      <div class="reports-stat-card orders reports-fade-in">
+        <div class="reports-stat-icon">
+          <i class="bi bi-bag-check"></i>
+        </div>
+        <div class="reports-stat-value" x-text="stats.totalOrders">0</div>
+        <div class="reports-stat-label">Total Orders</div>
+        <div class="reports-stat-change positive">
+          <i class="bi bi-arrow-up"></i>
+          <span x-text="stats.ordersGrowth + '%'">+8%</span>
+        </div>
+      </div>
+
+      <div class="reports-stat-card cancelled reports-fade-in">
+        <div class="reports-stat-icon">
+          <i class="bi bi-x-circle"></i>
+        </div>
+        <div class="reports-stat-value" x-text="stats.cancelledOrders">0</div>
+        <div class="reports-stat-label">Cancelled Orders</div>
+        <div class="reports-stat-change negative">
+          <i class="bi bi-arrow-down"></i>
+          <span x-text="stats.cancelledGrowth + '%'">-3%</span>
+        </div>
+      </div>
+
+      <div class="reports-stat-card revenue reports-fade-in">
+        <div class="reports-stat-icon">
+          <i class="bi bi-graph-up-arrow"></i>
+        </div>
+        <div class="reports-stat-value" x-text="formatCurrency(stats.averageOrderValue)">₹0</div>
+        <div class="reports-stat-label">Avg Order Value</div>
+        <div class="reports-stat-change positive">
+          <i class="bi bi-arrow-up"></i>
+          <span x-text="stats.aovGrowth + '%'">+5%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="reports-filters">
+      <div class="reports-filters-header">
+        <h3 class="reports-filters-title">Advanced Filters</h3>
+        <div class="reports-filter-actions">
+          <button @click="resetFilters()" class="reports-filter-btn secondary">
+            <i class="bi bi-arrow-clockwise"></i> Reset
+          </button>
+        </div>
+      </div>
+      <div class="reports-filters-grid">
+        <div class="reports-filter-group">
+          <label class="reports-filter-label">Report Type</label>
+          <select x-model="filters.reportType" @change="updateReportType()" class="reports-filter-control">
+            <option value="dashboard">Dashboard Overview</option>
+            <option value="daily">Daily Sales</option>
+            <option value="weekly">Weekly Sales</option>
+            <option value="monthly">Monthly Sales</option>
+            <option value="quarterly">Quarterly Sales</option>
+            <option value="yearly">Yearly Sales</option>
+            <option value="gstr1">GSTR-1</option>
+            <option value="gstr3b">GSTR-3B</option>
+            <option value="itemwise">Item-wise Sales</option>
+            <option value="categorywise">Category-wise Sales</option>
+            <option value="customerwise">Customer-wise Sales</option>
+            <option value="paymentwise">Payment Method Analysis</option>
+            <option value="staffwise">Staff Performance</option>
+          </select>
+        </div>
+        <div class="reports-filter-group">
+          <label class="reports-filter-label">From Date</label>
+          <input type="date" x-model="filters.fromDate" @change="loadReportData()" class="reports-filter-control">
+        </div>
+        <div class="reports-filter-group">
+          <label class="reports-filter-label">To Date</label>
+          <input type="date" x-model="filters.toDate" @change="loadReportData()" class="reports-filter-control">
+        </div>
+        <div class="reports-filter-group">
+          <label class="reports-filter-label">Comparison</label>
+          <select x-model="filters.comparison" @change="loadReportData()" class="reports-filter-control">
+            <option value="none">None</option>
+            <option value="previousPeriod">Previous Period</option>
+            <option value="lastYear">Last Year</option>
+            <option value="lastQuarter">Last Quarter</option>
+          </select>
+        </div>
+        <div class="reports-filter-group">
+          <label class="reports-filter-label">Category</label>
+          <select x-model="filters.category" @change="loadReportData()" class="reports-filter-control">
+            <option value="">All Categories</option>
+            <template x-for="category in categories" :key="category.id">
+              <option :value="category.id" x-text="category.name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="reports-filter-group">
+          <label class="reports-filter-label">Payment Method</label>
+          <select x-model="filters.paymentMethod" @change="loadReportData()" class="reports-filter-control">
+            <option value="">All Methods</option>
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+            <option value="UPI">UPI</option>
+            <option value="Wallet">Wallet</option>
+            <option value="Credit">Credit</option>
+          </select>
+        </div>
+      </div>
+      <div class="reports-filter-actions">
+        <button @click="loadReportData()" class="reports-filter-btn primary">
+          <i class="bi bi-search"></i> Apply Filters
+        </button>
+        <button @click="saveReportConfig()" class="reports-filter-btn secondary">
+          <i class="bi bi-save"></i> Save Configuration
+        </button>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="reports-charts-grid">
+      <!-- Daily Orders Bar Chart -->
+      <div class="reports-chart-container full-width reports-slide-up" x-show="showDailyOrdersChart">
+        <div class="reports-chart-header">
+          <h3 class="reports-chart-title">Daily Orders Trend</h3>
+          <div class="reports-chart-actions">
+            <button @click="exportChart('dailyOrdersChart')" class="reports-chart-action">
+              <i class="bi bi-download"></i> Export
+            </button>
+            <button @click="toggleChartType('dailyOrdersChart')" class="reports-chart-action">
+              <i class="bi bi-bar-chart"></i>
+            </button>
+          </div>
+        </div>
+        <div class="reports-chart-canvas large">
+          <canvas id="dailyOrdersChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Categories Pie Chart -->
+      <div class="reports-chart-container reports-slide-up" x-show="showCategoriesChart">
+        <div class="reports-chart-header">
+          <h3 class="reports-chart-title">Sales by Category</h3>
+          <div class="reports-chart-actions">
+            <button @click="exportChart('categoriesChart')" class="reports-chart-action">
+              <i class="bi bi-download"></i> Export
+            </button>
+          </div>
+        </div>
+        <div class="reports-chart-canvas">
+          <canvas id="categoriesChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Payment Methods Chart -->
+      <div class="reports-chart-container reports-slide-up" x-show="showPaymentMethodsChart">
+        <div class="reports-chart-header">
+          <h3 class="reports-chart-title">Payment Methods Distribution</h3>
+          <div class="reports-chart-actions">
+            <button @click="exportChart('paymentMethodsChart')" class="reports-chart-action">
+              <i class="bi bi-download"></i> Export
+            </button>
+          </div>
+        </div>
+        <div class="reports-chart-canvas">
+          <canvas id="paymentMethodsChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly Sales Trend -->
+    <div class="reports-charts-grid" x-show="showMonthlySalesChart">
+      <div class="reports-chart-container full-width reports-slide-up">
+        <div class="reports-chart-header">
+          <h3 class="reports-chart-title">Monthly Sales Trend</h3>
+          <div class="reports-chart-actions">
+            <button @click="exportChart('monthlySalesChart')" class="reports-chart-action">
+              <i class="bi bi-download"></i> Export
+            </button>
+            <button @click="toggleChartType('monthlySalesChart')" class="reports-chart-action">
+              <i class="bi bi-graph-up"></i>
+            </button>
+          </div>
+        </div>
+        <div class="reports-chart-canvas large">
+          <canvas id="monthlySalesChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- GST Breakdown Charts -->
+    <div class="reports-charts-grid" x-show="filters.reportType === 'gstr1' || filters.reportType === 'gstr3b'">
+      <div class="reports-chart-container reports-slide-up">
+        <div class="reports-chart-header">
+          <h3 class="reports-chart-title">GST Breakdown - CGST</h3>
+          <div class="reports-chart-actions">
+            <button @click="exportChart('cgstChart')" class="reports-chart-action">
+              <i class="bi bi-download"></i> Export
+            </button>
+          </div>
+        </div>
+        <div class="reports-chart-canvas">
+          <canvas id="cgstChart"></canvas>
+        </div>
+      </div>
+
+      <div class="reports-chart-container reports-slide-up">
+        <div class="reports-chart-header">
+          <h3 class="reports-chart-title">GST Breakdown - SGST</h3>
+          <div class="reports-chart-actions">
+            <button @click="exportChart('sgstChart')" class="reports-chart-action">
+              <i class="bi bi-download"></i> Export
+            </button>
+          </div>
+        </div>
+        <div class="reports-chart-canvas">
+          <canvas id="sgstChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="reports-data-table reports-slide-up" x-show="showDataTable">
+      <h3 class="reports-filters-title mb-3">Detailed Data</h3>
+      <div class="table-responsive">
+        <table class="reports-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Orders</th>
+              <th>Gross Sales</th>
+              <th>Discount</th>
+              <th>Net Sales</th>
+              <th>CGST</th>
+              <th>SGST</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="row in tableData" :key="row.date">
+              <tr>
+                <td x-text="row.date"></td>
+                <td x-text="row.orders"></td>
+                <td x-text="formatCurrency(row.grossSales)"></td>
+                <td x-text="formatCurrency(row.discount)"></td>
+                <td x-text="formatCurrency(row.netSales)"></td>
+                <td x-text="formatCurrency(row.cgst)"></td>
+                <td x-text="formatCurrency(row.sgst)"></td>
+                <td x-text="formatCurrency(row.total)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="reports-export-section no-print">
+      <h3 class="reports-export-title">Export Reports</h3>
+      <div class="reports-export-options">
+        <button @click="exportReport('pdf')" class="reports-export-btn">
+          <i class="bi bi-file-earmark-pdf"></i> Export as PDF
+        </button>
+        <button @click="exportReport('excel')" class="reports-export-btn">
+          <i class="bi bi-file-earmark-excel"></i> Export as Excel
+        </button>
+        <button @click="exportReport('csv')" class="reports-export-btn">
+          <i class="bi bi-file-earmark-spreadsheet"></i> Export as CSV
+        </button>
+        <button @click="emailReport()" class="reports-export-btn">
+          <i class="bi bi-envelope"></i> Email Report
+        </button>
+        <button @click="scheduleReport()" class="reports-export-btn">
+          <i class="bi bi-calendar-check"></i> Schedule Report
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="reports-empty" x-show="!hasData" x-cloak>
+      <div class="reports-empty-icon">
+        <i class="bi bi-graph-up"></i>
+      </div>
+      <h3 class="reports-empty-title">No Data Available</h3>
+      <p class="reports-empty-text">There is no data available for the selected period and filters.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reports-enhanced.js') }}"></script>
+<script>
+function enhancedReportsDashboard() {
+  return {
+    // Data
+    stats: {
+      totalSales: 0,
+      totalOrders: 0,
+      cancelledOrders: 0,
+      averageOrderValue: 0,
+      salesGrowth: 0,
+      ordersGrowth: 0,
+      cancelledGrowth: 0,
+      aovGrowth: 0
+    },
+    tableData: [],
+    categories: [],
+    
+    // Filters
+    filters: {
+      reportType: 'dashboard',
+      fromDate: '',
+      toDate: '',
+      comparison: 'none',
+      category: '',
+      paymentMethod: ''
+    },
+    
+    // UI State
+    isLoading: false,
+    hasData: true,
+    realtimeEnabled: false,
+    lastUpdated: 'Never',
+    
+    // Chart visibility
+    showDailyOrdersChart: true,
+    showCategoriesChart: true,
+    showPaymentMethodsChart: true,
+    showMonthlySalesChart: false,
+    showDataTable: false,
+    
+    // Charts
+    charts: {},
+    
+    init() {
+      this.loadInitialData();
+      this.setupRealtimeUpdates();
+    },
+    
+    async loadInitialData() {
+      this.isLoading = true;
+      try {
+        await Promise.all([
+          this.loadStats(),
+          this.loadCategories(),
+          this.loadReportData()
+        ]);
+        this.updateLastUpdated();
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        this.showNotification('Error loading report data', 'error');
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    
+    async loadStats() {
+      try {
+        const response = await fetch('/api/reports/stats');
+        if (response.ok) {
+          const data = await response.json();
+          this.stats = { ...this.stats, ...data };
+        }
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    },
+    
+    async loadCategories() {
+      try {
+        const response = await fetch('/api/menu/categories');
+        if (response.ok) {
+          const data = await response.json();
+          this.categories = data.categories || [];
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    },
+    
+    async loadReportData() {
+      try {
+        const params = new URLSearchParams(this.filters).toString();
+        const response = await fetch('/api/reports/data?' + params);
+        
+        if (response.ok) {
+          const data = await response.json();
+          this.tableData = data.tableData || [];
+          this.hasData = this.tableData.length > 0;
+          this.updateCharts(data);
+        }
+      } catch (error) {
+        console.error('Error loading report data:', error);
+      }
+    },
+    
+    updateCharts(data) {
+      // Update chart visibility based on report type
+      this.updateChartVisibility();
+      
+      // Wait for DOM to update
+      this.$nextTick(() => {
+        this.createOrUpdateChart('dailyOrdersChart', data.dailyOrders || [], 'bar');
+        this.createOrUpdateChart('categoriesChart', data.categories || [], 'pie');
+        this.createOrUpdateChart('paymentMethodsChart', data.paymentMethods || [], 'doughnut');
+        this.createOrUpdateChart('monthlySalesChart', data.monthlySales || [], 'line');
+        this.createOrUpdateChart('cgstChart', data.cgstBreakdown || [], 'bar');
+        this.createOrUpdateChart('sgstChart', data.sgstBreakdown || [], 'bar');
+      });
+    },
+    
+    updateChartVisibility() {
+      const reportType = this.filters.reportType;
+      
+      // Reset all visibility
+      this.showDailyOrdersChart = false;
+      this.showCategoriesChart = false;
+      this.showPaymentMethodsChart = false;
+      this.showMonthlySalesChart = false;
+      this.showDataTable = false;
+      
+      // Set visibility based on report type
+      switch (reportType) {
+        case 'dashboard':
+          this.showDailyOrdersChart = true;
+          this.showCategoriesChart = true;
+          this.showPaymentMethodsChart = true;
+          break;
+        case 'daily':
+        case 'weekly':
+        case 'monthly':
+          this.showDailyOrdersChart = true;
+          this.showMonthlySalesChart = true;
+          this.showDataTable = true;
+          break;
+        case 'gstr1':
+        case 'gstr3b':
+          this.showDataTable = true;
+          break;
+        case 'itemwise':
+        case 'categorywise':
+          this.showCategoriesChart = true;
+          this.showDataTable = true;
+          break;
+        case 'paymentwise':
+          this.showPaymentMethodsChart = true;
+          this.showDataTable = true;
+          break;
+        default:
+          this.showDataTable = true;
+      }
+    },
+    
+    createOrUpdateChart(chartId, data, type) {
+      const canvas = document.getElementById(chartId);
+      if (!canvas) return;
+      
+      // Destroy existing chart if it exists
+      if (this.charts[chartId]) {
+        this.charts[chartId].destroy();
+      }
+      
+      // Create new chart
+      const ctx = canvas.getContext('2d');
+      const config = this.getChartConfig(chartId, data, type);
+      this.charts[chartId] = new Chart(ctx, config);
+    },
+    
+    getChartConfig(chartId, data, type) {
+      const baseConfig = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                if (context.parsed.y !== null) {
+                  label += new Intl.NumberFormat('en-IN', {
+                    style: 'currency',
+                    currency: 'INR'
+                  }).format(context.parsed.y);
+                }
+                return label;
+              }
+            }
+          }
+        }
+      };
+      
+      switch (type) {
+        case 'bar':
+          return {
+            ...baseConfig,
+            type: 'bar',
+            data: {
+              labels: data.map(item => item.label),
+              datasets: [{
+                label: 'Orders',
+                data: data.map(item => item.value),
+                backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                borderColor: 'rgba(102, 126, 234, 1)',
+                borderWidth: 1
+              }]
+            }
+          };
+        
+        case 'line':
+          return {
+            ...baseConfig,
+            type: 'line',
+            data: {
+              labels: data.map(item => item.label),
+              datasets: [{
+                label: 'Sales',
+                data: data.map(item => item.value),
+                borderColor: 'rgba(102, 126, 234, 1)',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+              }]
+            }
+          };
+        
+        case 'pie':
+        case 'doughnut':
+          return {
+            ...baseConfig,
+            type: type,
+            data: {
+              labels: data.map(item => item.label),
+              datasets: [{
+                data: data.map(item => item.value),
+                backgroundColor: [
+                  'rgba(102, 126, 234, 0.8)',
+                  'rgba(118, 75, 162, 0.8)',
+                  'rgba(240, 147, 251, 0.8)',
+                  'rgba(245, 87, 108, 0.8)',
+                  'rgba(250, 225, 64, 0.8)',
+                  'rgba(48, 207, 208, 0.8)',
+                  'rgba(51, 8, 103, 0.8)'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+              }]
+            }
+          };
+        
+        default:
+          return baseConfig;
+      }
+    },
+    
+    toggleChartType(chartId) {
+      const chart = this.charts[chartId];
+      if (!chart) return;
+      
+      // Toggle between bar and line chart
+      const currentType = chart.config.type;
+      const newType = currentType === 'bar' ? 'line' : 'bar';
+      
+      // Update chart type
+      const data = chart.data;
+      chart.destroy();
+      
+      const canvas = document.getElementById(chartId);
+      const ctx = canvas.getContext('2d');
+      const config = this.getChartConfig(chartId, 
+        data.datasets[0].data.map((value, index) => ({
+          label: data.labels[index],
+          value: value
+        })), 
+        newType
+      );
+      
+      this.charts[chartId] = new Chart(ctx, config);
+    },
+    
+    updateReportType() {
+      this.updateChartVisibility();
+      this.loadReportData();
+    },
+    
+    resetFilters() {
+      this.filters = {
+        reportType: 'dashboard',
+        fromDate: '',
+        toDate: '',
+        comparison: 'none',
+        category: '',
+        paymentMethod: ''
+      };
+      this.loadReportData();
+    },
+    
+    async refreshAllData() {
+      await this.loadInitialData();
+    },
+    
+    toggleRealtime() {
+      this.realtimeEnabled = !this.realtimeEnabled;
+      if (this.realtimeEnabled) {
+        this.startRealtimeUpdates();
+      } else {
+        this.stopRealtimeUpdates();
+      }
+    },
+    
+    setupRealtimeUpdates() {
+      // Auto-refresh every 5 minutes
+      setInterval(() => {
+        if (this.realtimeEnabled) {
+          this.loadStats();
+          this.loadReportData();
+          this.updateLastUpdated();
+        }
+      }, 300000); // 5 minutes
+    },
+    
+    startRealtimeUpdates() {
+      // Immediate update when enabled
+      this.loadStats();
+      this.loadReportData();
+      this.updateLastUpdated();
+    },
+    
+    stopRealtimeUpdates() {
+      // Stop real-time updates
+    },
+    
+    updateLastUpdated() {
+      this.lastUpdated = new Date().toLocaleString();
+    },
+    
+    // Export functions
+    exportChart(chartId) {
+      const chart = this.charts[chartId];
+      if (!chart) return;
+      
+      // Create download link
+      const url = chart.toBase64Image();
+      const link = document.createElement('a');
+      link.download = chartId + '_' + new Date().toISOString().slice(0, 10) + '.png';
+      link.href = url;
+      link.click();
+    },
+    
+    async exportReport(format) {
+      try {
+        const params = new URLSearchParams({
+          ...this.filters,
+          format: format
+        }).toString();
+        
+        const response = await fetch('/api/reports/export?' + params);
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `report_${new Date().toISOString().slice(0, 10)}.${format}`;
+          link.click();
+          window.URL.revokeObjectURL(url);
+          
+          this.showNotification(`Report exported as ${format.toUpperCase()}`, 'success');
+        }
+      } catch (error) {
+        console.error('Error exporting report:', error);
+        this.showNotification('Error exporting report', 'error');
+      }
+    },
+    
+    async emailReport() {
+      try {
+        const response = await fetch('/api/reports/email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.filters)
+        });
+        
+        if (response.ok) {
+          this.showNotification('Report emailed successfully', 'success');
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to email report', 'error');
+        }
+      } catch (error) {
+        console.error('Error emailing report:', error);
+        this.showNotification('Error emailing report', 'error');
+      }
+    },
+    
+    async scheduleReport() {
+      // Open schedule report modal
+      this.showNotification('Schedule report feature coming soon', 'info');
+    },
+    
+    async saveReportConfig() {
+      try {
+        const response = await fetch('/api/reports/save-config', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.filters)
+        });
+        
+        if (response.ok) {
+          this.showNotification('Report configuration saved', 'success');
+        } else {
+          const error = await response.json();
+          this.showNotification(error.message || 'Failed to save configuration', 'error');
+        }
+      } catch (error) {
+        console.error('Error saving report config:', error);
+        this.showNotification('Error saving configuration', 'error');
+      }
+    },
+    
+    exportAllData() {
+      this.exportReport('excel');
+    },
+    
+    printReport() {
+      window.print();
+    },
+    
+    // Utility functions
+    formatCurrency(amount) {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR'
+      }).format(amount || 0);
+    },
+    
+    showNotification(message, type) {
+      // Dispatch event for global notification system
+      document.dispatchEvent(new CustomEvent('showNotification', {
+        detail: { message, type }
+      }));
+    }
+  };
+}
+</script>
+{% endblock %}

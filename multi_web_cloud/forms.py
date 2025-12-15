@@ -5,6 +5,12 @@ from models import User
 import re
 from datetime import datetime
 
+# Import advanced form validation utilities
+from utils.form_validator import (
+    validate_gst_number, validate_phone_number, validate_password_strength_wtforms,
+    validate_safe_input, validate_business_logic, sanitize_input
+)
+
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=64), Regexp(r'^[a-zA-Z0-9_]+$', message='Username can only contain letters, numbers, and underscores')])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=128)])
@@ -24,20 +30,28 @@ class LoginForm(FlaskForm):
 
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[
-        DataRequired(), 
+        DataRequired(),
         Length(min=3, max=64),
-        Regexp(r'^[a-zA-Z0-9_]+$', message='Username can only contain letters, numbers, and underscores')
+        Regexp(r'^[a-zA-Z0-9_]+$', message='Username can only contain letters, numbers, and underscores'),
+        validate_safe_input,
+        validate_business_logic
     ])
-    email = EmailField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    email = EmailField('Email', validators=[
+        DataRequired(),
+        Email(),
+        Length(max=120),
+        validate_safe_input
+    ])
     password = PasswordField('Password', validators=[
-        DataRequired(), 
+        DataRequired(),
         Length(min=8, max=128),
-        Regexp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]', 
-               message='Password must contain at least 8 characters, one uppercase, one lowercase, one digit, and one special character')
+        validate_password_strength,
+        validate_safe_input
     ])
     confirm_password = PasswordField('Confirm Password', validators=[
-        DataRequired(), 
-        EqualTo('password', message='Passwords must match')
+        DataRequired(),
+        EqualTo('password', message='Passwords must match'),
+        validate_safe_input
     ])
     role = SelectField('Role', choices=[('admin', 'Admin'), ('cashier', 'Cashier')], default='cashier')
     submit = SubmitField('Register')
@@ -53,16 +67,20 @@ class RegistrationForm(FlaskForm):
             raise ValidationError('Email already registered')
 
 class ChangePasswordForm(FlaskForm):
-    current_password = PasswordField('Current Password', validators=[DataRequired()])
+    current_password = PasswordField('Current Password', validators=[
+        DataRequired(),
+        validate_safe_input
+    ])
     new_password = PasswordField('New Password', validators=[
-        DataRequired(), 
+        DataRequired(),
         Length(min=8, max=128),
-        Regexp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]', 
-               message='Password must contain at least 8 characters, one uppercase, one lowercase, one digit, and one special character')
+        validate_password_strength,
+        validate_safe_input
     ])
     confirm_password = PasswordField('Confirm New Password', validators=[
-        DataRequired(), 
-        EqualTo('new_password', message='Passwords must match')
+        DataRequired(),
+        EqualTo('new_password', message='Passwords must match'),
+        validate_safe_input
     ])
     submit = SubmitField('Change Password')
 
@@ -126,14 +144,16 @@ class TableForm(FlaskForm):
 
 class OrderForm(FlaskForm):
     customer_name = StringField('Customer Name', validators=[
-        Optional(), 
+        Optional(),
         Length(max=100),
-        Regexp(r'^[a-zA-Z\s]+$', message='Customer name can only contain letters and spaces')
+        Regexp(r'^[a-zA-Z\s]+$', message='Customer name can only contain letters and spaces'),
+        validate_safe_input
     ])
     customer_mobile = StringField('Customer Mobile', validators=[
-        Optional(), 
+        Optional(),
         Length(min=10, max=15),
-        Regexp(r'^[0-9+]+$', message='Mobile number can only contain numbers and +')
+        validate_phone_number,
+        validate_safe_input
     ])
     order_type = SelectField('Order Type', choices=[
         ('Dine-in', 'Dine-in'),
@@ -141,7 +161,11 @@ class OrderForm(FlaskForm):
         ('Delivery', 'Delivery')
     ], default='Dine-in')
     table_id = SelectField('Table', coerce=int, validators=[Optional()])
-    special_instructions = TextAreaField('Special Instructions', validators=[Optional(), Length(max=1000)])
+    special_instructions = TextAreaField('Special Instructions', validators=[
+        Optional(),
+        Length(max=1000),
+        validate_safe_input
+    ])
     submit = SubmitField('Save Order')
 
 class PaymentForm(FlaskForm):
@@ -172,36 +196,46 @@ class PaymentForm(FlaskForm):
 
 class SettingsForm(FlaskForm):
     restaurant_name = StringField('Restaurant Name', validators=[
-        DataRequired(), 
-        Length(min=2, max=100)
+        DataRequired(),
+        Length(min=2, max=100),
+        validate_safe_input
     ])
     restaurant_address = TextAreaField('Address', validators=[
-        DataRequired(), 
-        Length(min=10, max=500)
+        DataRequired(),
+        Length(min=10, max=500),
+        validate_safe_input
     ])
     restaurant_phone = StringField('Phone', validators=[
-        DataRequired(), 
+        DataRequired(),
         Length(min=10, max=20),
-        Regexp(r'^[0-9+()\s-]+$', message='Phone number format is invalid')
+        validate_phone_number,
+        validate_safe_input
     ])
-    restaurant_email = EmailField('Email', validators=[DataRequired(), Email()])
+    restaurant_email = EmailField('Email', validators=[
+        DataRequired(),
+        Email(),
+        validate_safe_input
+    ])
     gst_number = StringField('GST Number', validators=[
-        Optional(), 
+        Optional(),
         Length(min=15, max=15),
-        Regexp(r'^[0-9A-Z]{15}$', message='GST number must be 15 characters alphanumeric')
+        validate_gst_number,
+        validate_safe_input
     ])
     currency_symbol = StringField('Currency Symbol', validators=[
-        DataRequired(), 
-        Length(min=1, max=5)
+        DataRequired(),
+        Length(min=1, max=5),
+        validate_safe_input
     ], default='₹')
     decimal_places = IntegerField('Decimal Places', validators=[
-        DataRequired(), 
+        DataRequired(),
         NumberRange(min=0, max=4, message='Decimal places must be between 0 and 4')
     ], default=2)
     order_prefix = StringField('Order Prefix', validators=[
-        DataRequired(), 
+        DataRequired(),
         Length(min=2, max=10),
-        Regexp(r'^[A-Z]+$', message='Order prefix must be uppercase letters only')
+        Regexp(r'^[A-Z]+$', message='Order prefix must be uppercase letters only'),
+        validate_safe_input
     ], default='ORD')
     submit = SubmitField('Save Settings')
 

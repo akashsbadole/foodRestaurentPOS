@@ -1,0 +1,1087 @@
+<!-- Enhanced Alert/Notification System Component -->
+<div x-data="alertSystem()" x-init="init()" class="alert-system-component">
+    <!-- Notification Container -->
+    <div class="notification-container" x-ref="notificationContainer">
+        <template x-for="notification in notifications" :key="notification.id">
+            <div class="notification-toast" 
+                 :class="notification.type"
+                 x-show="notification.show"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 transform translate-x-full"
+                 x-transition:enter-end="opacity-100 transform-x-0"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 transform-x-0"
+                 x-transition:leave-end="opacity-0 transform-x-full">
+                
+                <div class="notification-content">
+                    <div class="notification-icon">
+                        <i class="bi" :class="getNotificationIcon(notification.type)"></i>
+                    </div>
+                    
+                    <div class="notification-body">
+                        <div class="notification-title" x-text="notification.title"></div>
+                        <div class="notification-message" x-text="notification.message"></div>
+                        
+                        <!-- Progress Bar for Progress Notifications -->
+                        <div x-show="notification.showProgress" class="notification-progress">
+                            <div class="progress">
+                                <div class="progress-bar" 
+                                     :class="`progress-bar-${notification.type}`"
+                                     :style="`width: ${notification.progress}%`"
+                                     role="progressbar" 
+                                     :aria-valuenow="notification.progress"
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <div class="progress-text">
+                                <span x-text="notification.progressText"></span>
+                                <span x-text="`${notification.progress}%`"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div x-show="notification.actions && notification.actions.length > 0" class="notification-actions">
+                            <template x-for="action in notification.actions" :key="action.id">
+                                <button @click="executeAction(notification.id, action)"
+                                        class="btn btn-sm"
+                                        :class="action.class || `btn-outline-${notification.type}`">
+                                    <i class="bi" :class="action.icon"></i>
+                                    <span x-text="action.label"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <div class="notification-controls">
+                        <button x-show="notification.allowDismiss" 
+                                @click="dismissNotification(notification.id)"
+                                class="btn-close btn-close-sm"
+                                :aria-label="'Dismiss ' + notification.title">
+                        </button>
+                        <button x-show="notification.allowExpand && !notification.expanded"
+                                @click="expandNotification(notification.id)"
+                                class="btn-expand"
+                                :aria-label="'Expand ' + notification.title">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <button x-show="notification.expanded"
+                                @click="collapseNotification(notification.id)"
+                                class="btn-expand"
+                                :aria-label="'Collapse ' + notification.title">
+                            <i class="bi bi-chevron-up"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Expanded Content -->
+                <div x-show="notification.expanded" 
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 max-h-0"
+                     x-transition:enter-end="opacity-100 max-h-96"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 max-h-96"
+                     x-transition:leave-end="opacity-0 max-h-0"
+                     class="notification-expanded">
+                    <div class="notification-expanded-content" x-html="notification.expandedContent"></div>
+                </div>
+                
+                <!-- Auto-dismiss Progress Bar -->
+                <div x-show="notification.autoDismiss && notification.duration > 0" 
+                     class="notification-timer">
+                    <div class="timer-bar" 
+                         :style="`animation-duration: ${notification.duration}ms`">
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+    
+    <!-- Alert Container for Page-level Alerts -->
+    <div class="alert-container" x-ref="alertContainer">
+        <template x-for="alert in pageAlerts" :key="alert.id">
+            <div class="alert-page" 
+                 :class="`alert-${alert.type}`"
+                 x-show="alert.show"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 transform -translate-y-2"
+                 x-transition:enter-end="opacity-100 transform-y-0"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 transform-y-0"
+                 x-transition:leave-end="opacity-0 transform -translate-y-2"
+                 role="alert">
+                
+                <div class="alert-content">
+                    <div class="alert-icon">
+                        <i class="bi" :class="getNotificationIcon(alert.type)"></i>
+                    </div>
+                    
+                    <div class="alert-body">
+                        <div class="alert-title" x-show="alert.title" x-text="alert.title"></div>
+                        <div class="alert-message" x-text="alert.message"></div>
+                        
+                        <!-- Alert Actions -->
+                        <div x-show="alert.actions && alert.actions.length > 0" class="alert-actions">
+                            <template x-for="action in alert.actions" :key="action.id">
+                                <button @click="executeAlertAction(alert.id, action)"
+                                        class="btn btn-sm"
+                                        :class="action.class || `btn-outline-${alert.type}`">
+                                    <i class="bi" :class="action.icon"></i>
+                                    <span x-text="action.label"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <div class="alert-controls">
+                        <button x-show="alert.allowDismiss" 
+                                @click="dismissAlert(alert.id)"
+                                class="btn-close btn-close-sm">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+    
+    <!-- Notification Center Panel -->
+    <div x-show="showNotificationCenter" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95"
+         class="notification-center">
+        
+        <div class="notification-center-header">
+            <h6>Notifications</h6>
+            <div class="notification-center-controls">
+                <button @click="markAllAsRead()" 
+                        class="btn btn-outline-primary btn-sm"
+                        :disabled="unreadCount === 0">
+                    <i class="bi bi-check2-all"></i> Mark All Read
+                </button>
+                <button @click="clearAllNotifications()" 
+                        class="btn btn-outline-danger btn-sm"
+                        :disabled="notifications.length === 0">
+                    <i class="bi bi-trash"></i> Clear All
+                </button>
+                <button @click="toggleNotificationCenter()" class="btn-close btn-close-sm"></button>
+            </div>
+        </div>
+        
+        <div class="notification-center-content">
+            <!-- Filter Tabs -->
+            <div class="notification-filters">
+                <button @click="filterNotifications('all')" 
+                        :class="{'active': activeFilter === 'all'}"
+                        class="filter-btn">
+                    All <span class="filter-count" x-text="notifications.length"></span>
+                </button>
+                <button @click="filterNotifications('unread')" 
+                        :class="{'active': activeFilter === 'unread'}"
+                        class="filter-btn">
+                    Unread <span class="filter-count" x-text="unreadCount"></span>
+                </button>
+                <button @click="filterNotifications('important')" 
+                        :class="{'active': activeFilter === 'important'}"
+                        class="filter-btn">
+                    Important <span class="filter-count" x-text="importantCount"></span>
+                </button>
+            </div>
+            
+            <!-- Notification List -->
+            <div class="notification-list">
+                <template x-for="notification in filteredNotifications" :key="notification.id">
+                    <div class="notification-item" 
+                         :class="{'unread': !notification.read, 'important': notification.important}"
+                         @click="selectNotification(notification)">
+                        
+                        <div class="notification-item-icon">
+                            <i class="bi" :class="getNotificationIcon(notification.type)"></i>
+                        </div>
+                        
+                        <div class="notification-item-content">
+                            <div class="notification-item-title" x-text="notification.title"></div>
+                            <div class="notification-item-message" x-text="notification.message"></div>
+                            <div class="notification-item-time" x-text="notification.timeAgo"></div>
+                        </div>
+                        
+                        <div class="notification-item-actions">
+                            <button x-show="!notification.read" 
+                                    @click.stop="markAsRead(notification.id)"
+                                    class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-check"></i>
+                            </button>
+                            <button @click.stop="removeNotification(notification.id)"
+                                    class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+                
+                <div x-show="filteredNotifications.length === 0" class="no-notifications">
+                    <i class="bi bi-bell-slash"></i>
+                    <p>No notifications to display</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Center Toggle Button -->
+    <div class="notification-center-toggle" 
+         @click="toggleNotificationCenter()"
+         role="button"
+         :aria-label="'Notifications: ' + unreadCount + ' unread'">
+        <i class="bi bi-bell"></i>
+        <span x-show="unreadCount > 0" 
+              class="notification-badge" 
+              x-text="unreadCount > 99 ? '99+' : unreadCount">
+        </span>
+    </div>
+</div>
+
+<script>
+function alertSystem() {
+    return {
+        notifications: [],
+        pageAlerts: [],
+        showNotificationCenter: false,
+        activeFilter: 'all',
+        notificationIdCounter: 0,
+        alertIdCounter: 0,
+        
+        init() {
+            // Listen for notification events
+            this.$el.addEventListener('showNotification', (e) => {
+                this.showNotification(e.detail);
+            });
+            
+            this.$el.addEventListener('showAlert', (e) => {
+                this.showAlert(e.detail);
+            });
+            
+            this.$el.addEventListener('hideNotification', (e) => {
+                this.hideNotification(e.detail.id);
+            });
+            
+            this.$el.addEventListener('hideAlert', (e) => {
+                this.hideAlert(e.detail.id);
+            });
+            
+            // Load saved notifications from localStorage
+            this.loadSavedNotifications();
+            
+            // Update time ago every minute
+            setInterval(() => {
+                this.updateTimeAgo();
+            }, 60000);
+        },
+        
+        showNotification(options) {
+            const notification = {
+                id: this.notificationIdCounter++,
+                type: options.type || 'info',
+                title: options.title || 'Notification',
+                message: options.message || '',
+                show: true,
+                timestamp: new Date(),
+                timeAgo: 'Just now',
+                read: false,
+                important: options.important || false,
+                allowDismiss: options.allowDismiss !== false,
+                allowExpand: options.allowExpand || false,
+                expanded: false,
+                expandedContent: options.expandedContent || '',
+                autoDismiss: options.autoDismiss !== false,
+                duration: options.duration || 5000,
+                showProgress: options.showProgress || false,
+                progress: options.progress || 0,
+                progressText: options.progressText || '',
+                actions: options.actions || []
+            };
+            
+            this.notifications.unshift(notification);
+            
+            // Auto-dismiss if enabled
+            if (notification.autoDismiss && notification.duration > 0) {
+                setTimeout(() => {
+                    this.hideNotification(notification.id);
+                }, notification.duration);
+            }
+            
+            // Update notification center badge
+            this.updateNotificationBadge();
+            
+            // Save to localStorage
+            this.saveNotifications();
+        },
+        
+        showAlert(options) {
+            const alert = {
+                id: this.alertIdCounter++,
+                type: options.type || 'info',
+                title: options.title,
+                message: options.message || '',
+                show: true,
+                allowDismiss: options.allowDismiss !== false,
+                actions: options.actions || []
+            };
+            
+            this.pageAlerts.push(alert);
+        },
+        
+        hideNotification(id) {
+            const notification = this.notifications.find(n => n.id === id);
+            if (notification) {
+                notification.show = false;
+                
+                // Remove after animation
+                setTimeout(() => {
+                    this.notifications = this.notifications.filter(n => n.id !== id);
+                    this.updateNotificationBadge();
+                    this.saveNotifications();
+                }, 300);
+            }
+        },
+        
+        hideAlert(id) {
+            const alert = this.pageAlerts.find(a => a.id === id);
+            if (alert) {
+                alert.show = false;
+                
+                // Remove after animation
+                setTimeout(() => {
+                    this.pageAlerts = this.pageAlerts.filter(a => a.id !== id);
+                }, 300);
+            }
+        },
+        
+        dismissNotification(id) {
+            this.hideNotification(id);
+        },
+        
+        dismissAlert(id) {
+            this.hideAlert(id);
+        },
+        
+        expandNotification(id) {
+            const notification = this.notifications.find(n => n.id === id);
+            if (notification) {
+                notification.expanded = true;
+            }
+        },
+        
+        collapseNotification(id) {
+            const notification = this.notifications.find(n => n.id === id);
+            if (notification) {
+                notification.expanded = false;
+            }
+        },
+        
+        executeAction(notificationId, action) {
+            if (action.handler) {
+                action.handler();
+            }
+            
+            if (action.dismissOnClick !== false) {
+                this.hideNotification(notificationId);
+            }
+        },
+        
+        executeAlertAction(alertId, action) {
+            if (action.handler) {
+                action.handler();
+            }
+            
+            if (action.dismissOnClick !== false) {
+                this.hideAlert(alertId);
+            }
+        },
+        
+        toggleNotificationCenter() {
+            this.showNotificationCenter = !this.showNotificationCenter;
+            
+            if (this.showNotificationCenter) {
+                // Mark all as viewed when opening
+                this.notifications.forEach(n => {
+                    if (!n.read) {
+                        n.read = true;
+                    }
+                });
+                this.updateNotificationBadge();
+                this.saveNotifications();
+            }
+        },
+        
+        filterNotifications(filter) {
+            this.activeFilter = filter;
+        },
+        
+        markAsRead(id) {
+            const notification = this.notifications.find(n => n.id === id);
+            if (notification) {
+                notification.read = true;
+                this.updateNotificationBadge();
+                this.saveNotifications();
+            }
+        },
+        
+        markAllAsRead() {
+            this.notifications.forEach(n => {
+                n.read = true;
+            });
+            this.updateNotificationBadge();
+            this.saveNotifications();
+        },
+        
+        removeNotification(id) {
+            this.notifications = this.notifications.filter(n => n.id !== id);
+            this.updateNotificationBadge();
+            this.saveNotifications();
+        },
+        
+        clearAllNotifications() {
+            if (confirm('Are you sure you want to clear all notifications?')) {
+                this.notifications = [];
+                this.updateNotificationBadge();
+                this.saveNotifications();
+            }
+        },
+        
+        selectNotification(notification) {
+            if (notification.expandedContent) {
+                notification.expanded = !notification.expanded;
+            }
+        },
+        
+        updateNotificationBadge() {
+            this.unreadCount = this.notifications.filter(n => !n.read).length;
+        },
+        
+        updateTimeAgo() {
+            this.notifications.forEach(notification => {
+                notification.timeAgo = this.getTimeAgo(notification.timestamp);
+            });
+        },
+        
+        getTimeAgo(timestamp) {
+            const now = new Date();
+            const diff = now - timestamp;
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+            if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            return 'Just now';
+        },
+        
+        getNotificationIcon(type) {
+            const icons = {
+                'success': 'bi-check-circle',
+                'error': 'bi-x-circle',
+                'warning': 'bi-exclamation-triangle',
+                'info': 'bi-info-circle',
+                'primary': 'bi-info-circle',
+                'secondary': 'bi-info-circle',
+                'light': 'bi-info-circle',
+                'dark': 'bi-info-circle'
+            };
+            return icons[type] || 'bi-info-circle';
+        },
+        
+        loadSavedNotifications() {
+            try {
+                const saved = localStorage.getItem('notifications');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    this.notifications = parsed.map(n => ({
+                        ...n,
+                        timestamp: new Date(n.timestamp),
+                        show: false // Don't show saved notifications automatically
+                    }));
+                    this.updateNotificationBadge();
+                }
+            } catch (error) {
+                console.error('Error loading saved notifications:', error);
+            }
+        },
+        
+        saveNotifications() {
+            try {
+                const toSave = this.notifications.filter(n => n.read === false).slice(0, 50); // Keep only 50 unread
+                localStorage.setItem('notifications', JSON.stringify(toSave));
+            } catch (error) {
+                console.error('Error saving notifications:', error);
+            }
+        },
+        
+        // Computed properties
+        get unreadCount() {
+            return this.notifications.filter(n => !n.read).length;
+        },
+        
+        get importantCount() {
+            return this.notifications.filter(n => n.important).length;
+        },
+        
+        get filteredNotifications() {
+            switch (this.activeFilter) {
+                case 'unread':
+                    return this.notifications.filter(n => !n.read);
+                case 'important':
+                    return this.notifications.filter(n => n.important);
+                default:
+                    return this.notifications;
+            }
+        }
+    };
+}
+</script>
+
+<style>
+.alert-system-component {
+    position: relative;
+    z-index: 1070;
+}
+
+/* Notification Container */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1070;
+    max-width: 400px;
+}
+
+.notification-toast {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 4px solid #007bff;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.notification-toast.success {
+    border-left-color: #28a745;
+}
+
+.notification-toast.error {
+    border-left-color: #dc3545;
+}
+
+.notification-toast.warning {
+    border-left-color: #ffc107;
+}
+
+.notification-toast.info {
+    border-left-color: #17a2b8;
+}
+
+.notification-content {
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+}
+
+.notification-icon {
+    margin-right: 12px;
+    font-size: 20px;
+    color: #007bff;
+}
+
+.notification-toast.success .notification-icon {
+    color: #28a745;
+}
+
+.notification-toast.error .notification-icon {
+    color: #dc3545;
+}
+
+.notification-toast.warning .notification-icon {
+    color: #ffc107;
+}
+
+.notification-toast.info .notification-icon {
+    color: #17a2b8;
+}
+
+.notification-body {
+    flex: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+.notification-message {
+    font-size: 14px;
+    color: #6c757d;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+.notification-progress {
+    margin: 8px 0;
+}
+
+.notification-progress .progress {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    margin-bottom: 4px;
+}
+
+.notification-progress .progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.notification-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+}
+
+.btn-expand {
+    background: none;
+    border: none;
+    color: #6c757d;
+    padding: 2px;
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+.btn-expand:hover {
+    background: #f8f9fa;
+}
+
+.notification-expanded {
+    border-top: 1px solid #f1f3f4;
+    background: #f8f9fa;
+}
+
+.notification-expanded-content {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #6c757d;
+    line-height: 1.5;
+}
+
+.notification-timer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #e9ecef;
+}
+
+.timer-bar {
+    height: 100%;
+    background: #007bff;
+    animation: timer-countdown linear;
+}
+
+.notification-toast.success .timer-bar {
+    background: #28a745;
+}
+
+.notification-toast.error .timer-bar {
+    background: #dc3545;
+}
+
+.notification-toast.warning .timer-bar {
+    background: #ffc107;
+}
+
+.notification-toast.info .timer-bar {
+    background: #17a2b8;
+}
+
+/* Page Alerts */
+.alert-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1060;
+    max-width: 600px;
+    width: 90%;
+}
+
+.alert-page {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 4px solid #007bff;
+    margin-bottom: 10px;
+}
+
+.alert-page.success {
+    border-left-color: #28a745;
+}
+
+.alert-page.error {
+    border-left-color: #dc3545;
+}
+
+.alert-page.warning {
+    border-left-color: #ffc107;
+}
+
+.alert-page.info {
+    border-left-color: #17a2b8;
+}
+
+.alert-content {
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+}
+
+.alert-icon {
+    margin-right: 12px;
+    font-size: 20px;
+    color: #007bff;
+}
+
+.alert-page.success .alert-icon {
+    color: #28a745;
+}
+
+.alert-page.error .alert-icon {
+    color: #dc3545;
+}
+
+.alert-page.warning .alert-icon {
+    color: #ffc107;
+}
+
+.alert-page.info .alert-icon {
+    color: #17a2b8;
+}
+
+.alert-body {
+    flex: 1;
+}
+
+.alert-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+.alert-message {
+    font-size: 14px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.alert-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* Notification Center */
+.notification-center {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 400px;
+    max-height: 500px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #dee2e6;
+    z-index: 1065;
+    display: flex;
+    flex-direction: column;
+}
+
+.notification-center-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.notification-center-header h6 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.notification-center-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.notification-center-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.notification-filters {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
+}
+
+.filter-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.filter-btn:hover {
+    background: #e9ecef;
+}
+
+.filter-btn.active {
+    color: #007bff;
+    background: white;
+    border-bottom: 2px solid #007bff;
+}
+
+.filter-count {
+    background: #6c757d;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+.filter-btn.active .filter-count {
+    background: #007bff;
+}
+
+.notification-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f3f4;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.notification-item:hover {
+    background: #f8f9fa;
+}
+
+.notification-item.unread {
+    background: #e7f3ff;
+    border-left: 3px solid #007bff;
+}
+
+.notification-item.important {
+    border-left: 3px solid #ffc107;
+}
+
+.notification-item-icon {
+    margin-right: 12px;
+    color: #6c757d;
+}
+
+.notification-item-content {
+    flex: 1;
+}
+
+.notification-item-title {
+    font-weight: 500;
+    margin-bottom: 2px;
+    color: #495057;
+    font-size: 14px;
+}
+
+.notification-item-message {
+    font-size: 13px;
+    color: #6c757d;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.notification-item-time {
+    font-size: 11px;
+    color: #adb5bd;
+}
+
+.notification-item-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.notification-item:hover .notification-item-actions {
+    opacity: 1;
+}
+
+.no-notifications {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.no-notifications i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.no-notifications p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* Notification Center Toggle */
+.notification-center-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1065;
+}
+
+.notification-center-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+}
+
+.notification-center-toggle i {
+    font-size: 20px;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #dc3545;
+    color: white;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    min-width: 18px;
+    text-align: center;
+    border: 2px solid white;
+}
+
+/* Animations */
+@keyframes timer-countdown {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-1rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .notification-container {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+    
+    .alert-container {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        transform: none;
+        width: auto;
+    }
+    
+    .notification-center {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+    
+    .notification-center-toggle {
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+    }
+    
+    .notification-content {
+        padding: 12px;
+    }
+    
+    .notification-title {
+        font-size: 14px;
+    }
+    
+    .notification-message {
+        font-size: 13px;
+    }
+}
+</style>

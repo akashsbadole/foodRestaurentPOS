@@ -1,0 +1,243 @@
+<!-- Validation Feedback Component -->
+<div x-data="validationFeedback()" x-init="init()" class="validation-feedback-component">
+    <!-- Real-time Validation Messages -->
+    <div x-show="showValidation" x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-y-2"
+         x-transition:enter-end="opacity-100 transform-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform-y-0"
+         x-transition:leave-end="opacity-0 transform-y-2"
+         class="validation-feedback-container"
+         :class="validationType">
+        
+        <div class="validation-header">
+            <i class="bi" :class="validationIcon"></i>
+            <span x-text="validationTitle"></span>
+            <button @click="dismissValidation()" class="btn-close btn-close-sm ms-auto"></button>
+        </div>
+        
+        <div class="validation-body">
+            <template x-for="message in validationMessages" :key="message">
+                <div class="validation-message" x-text="message"></div>
+            </template>
+        </div>
+        
+        <!-- Progress Bar for Validation Progress -->
+        <div x-show="showProgress" class="validation-progress">
+            <div class="progress">
+                <div class="progress-bar" :class="progressType" 
+                     :style="`width: ${progressPercentage}%`"
+                     role="progressbar" 
+                     :aria-valuenow="progressPercentage"
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Field-specific Validation -->
+    <template x-for="(field, fieldName) in fieldValidations" :key="fieldName">
+        <div class="field-validation-feedback" 
+             :class="field.status"
+             x-show="field.show">
+            <div class="field-validation-header">
+                <i class="bi" :class="field.icon"></i>
+                <span x-text="field.label || fieldName"></span>
+            </div>
+            <div class="field-validation-messages">
+                <template x-for="msg in field.messages" :key="msg">
+                    <div class="field-validation-message" x-text="msg"></div>
+                </template>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script>
+function validationFeedback() {
+    return {
+        showValidation: false,
+        validationType: 'info',
+        validationIcon: 'bi-info-circle',
+        validationTitle: 'Validation',
+        validationMessages: [],
+        showProgress: false,
+        progressType: 'progress-bar-info',
+        progressPercentage: 0,
+        fieldValidations: {},
+        
+        init() {
+            // Listen for validation events
+            this.$el.addEventListener('showValidation', (e) => {
+                this.showValidationFeedback(e.detail);
+            });
+            
+            this.$el.addEventListener('hideValidation', () => {
+                this.hideValidationFeedback();
+            });
+            
+            this.$el.addEventListener('updateFieldValidation', (e) => {
+                this.updateFieldValidation(e.detail.fieldName, e.detail.validation);
+            });
+        },
+        
+        showValidationFeedback(options) {
+            this.validationType = options.type || 'info';
+            this.validationIcon = options.icon || this.getIconForType(this.validationType);
+            this.validationTitle = options.title || 'Validation';
+            this.validationMessages = Array.isArray(options.messages) ? options.messages : [options.messages];
+            this.showProgress = options.showProgress || false;
+            this.progressType = options.progressType || 'progress-bar-info';
+            this.progressPercentage = options.progressPercentage || 0;
+            this.showValidation = true;
+            
+            // Auto-hide if duration is specified
+            if (options.duration) {
+                setTimeout(() => {
+                    this.hideValidationFeedback();
+                }, options.duration);
+            }
+        },
+        
+        hideValidationFeedback() {
+            this.showValidation = false;
+        },
+        
+        dismissValidation() {
+            this.hideValidationFeedback();
+        },
+        
+        updateFieldValidation(fieldName, validation) {
+            this.fieldValidations[fieldName] = {
+                status: validation.valid ? 'valid' : 'invalid',
+                icon: validation.valid ? 'bi-check-circle' : 'bi-x-circle',
+                label: validation.label,
+                messages: validation.errors || [],
+                show: true
+            };
+            
+            // Auto-hide valid validations after 3 seconds
+            if (validation.valid) {
+                setTimeout(() => {
+                    if (this.fieldValidations[fieldName]) {
+                        this.fieldValidations[fieldName].show = false;
+                    }
+                }, 3000);
+            }
+        },
+        
+        getIconForType(type) {
+            const icons = {
+                'success': 'bi-check-circle',
+                'error': 'bi-x-circle',
+                'warning': 'bi-exclamation-triangle',
+                'info': 'bi-info-circle'
+            };
+            return icons[type] || 'bi-info-circle';
+        }
+    };
+}
+</script>
+
+<style>
+.validation-feedback-component {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 400px;
+}
+
+.validation-feedback-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 4px solid #007bff;
+    padding: 16px;
+    margin-bottom: 10px;
+}
+
+.validation-feedback-container.success {
+    border-left-color: #28a745;
+}
+
+.validation-feedback-container.error {
+    border-left-color: #dc3545;
+}
+
+.validation-feedback-container.warning {
+    border-left-color: #ffc107;
+}
+
+.validation-header {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.validation-header i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.validation-body {
+    margin-bottom: 12px;
+}
+
+.validation-message {
+    margin-bottom: 4px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.validation-progress {
+    margin-top: 12px;
+}
+
+.field-validation-feedback {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid #007bff;
+}
+
+.field-validation-feedback.valid {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+
+.field-validation-feedback.invalid {
+    border-left-color: #dc3545;
+    background: #f8d7da;
+}
+
+.field-validation-header {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.field-validation-header i {
+    margin-right: 6px;
+}
+
+.field-validation-message {
+    font-size: 13px;
+    margin-bottom: 3px;
+}
+
+@media (max-width: 768px) {
+    .validation-feedback-component {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+}
+</style>

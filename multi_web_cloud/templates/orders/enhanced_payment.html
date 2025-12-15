@@ -1,0 +1,1126 @@
+{% extends "base.html" %} {% block title %}Payment - Order {{ order.order_number
+}}{% endblock %} {% block extra_css %}
+<style>
+  .payment-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .payment-method-card {
+    border: 2px solid #e3e6f0;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .payment-method-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .payment-method-card:hover::before {
+    left: 100%;
+  }
+
+  .payment-method-card:hover {
+    border-color: #4e73df;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .payment-method-card.selected {
+    border-color: #4e73df;
+    background-color: #f8f9fc;
+  }
+
+  .payment-method-card.selected::after {
+    content: '\2713';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #4e73df;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+
+  .payment-icon {
+    font-size: 2rem;
+    color: #4e73df;
+    margin-bottom: 10px;
+  }
+
+  .order-summary {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .gst-breakdown {
+    font-size: 0.9rem;
+    color: #6c757d;
+  }
+
+  .total-row {
+    border-top: 2px solid #4e73df;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  .payment-input {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    width: 100%;
+    transition: all 0.3s ease;
+  }
+
+  .payment-input:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    outline: none;
+  }
+
+  .payment-input.is-valid {
+    border-color: #28a745;
+  }
+
+  .payment-input.is-invalid {
+    border-color: #dc3545;
+  }
+
+  .btn-payment {
+    background: #28a745;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .btn-payment:hover:not(:disabled) {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+
+  .btn-payment:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+  }
+
+  .loading-spinner {
+    display: none;
+  }
+
+  .loading .loading-spinner {
+    display: inline-block;
+  }
+
+  .loading .btn-payment-text {
+    display: none;
+  }
+
+  .validation-feedback {
+    font-size: 0.8rem;
+    margin-top: 4px;
+  }
+
+  .validation-feedback.valid {
+    color: #28a745;
+  }
+
+  .validation-feedback.invalid {
+    color: #dc3545;
+  }
+
+  .security-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #28a745;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+  }
+
+  .offline-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ffc107;
+    color: #212529;
+    padding: 10px 15px;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 1000;
+  }
+
+  .offline-indicator.online {
+    background: #28a745;
+    color: white;
+  }
+
+  .payment-progress {
+    display: none;
+    margin-top: 20px;
+  }
+
+  .payment-progress.active {
+    display: block;
+  }
+
+  .progress {
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #e9ecef;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: #4e73df;
+    transition: width 0.3s ease;
+  }
+
+  .receipt-preview {
+    display: none;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin-top: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .receipt-preview.active {
+    display: block;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid" x-data="enhancedPaymentProcessor()" x-init="init()">
+  <!-- Offline Status Indicator -->
+  <div class="offline-indicator" 
+       :class="{'online': isOnline}"
+       x-show="!isOnline || showOfflineIndicator"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 transform translate-y-full"
+       x-transition:enter-end="opacity-100 transform-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="opacity-100 transform-y-0"
+       x-transition:leave-end="opacity-0 transform translate-y-full">
+    <i class="bi" :class="isOnline ? 'bi-wifi' : 'bi-wifi-off'"></i>
+    <span x-text="isOnline ? 'Online' : 'Offline - Payment will be processed when connected'"></span>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="h3 mb-0">Process Payment</h1>
+          <p class="text-muted mb-0">
+            Order: <strong x-text="orderData.order_number"></strong>
+          </p>
+        </div>
+        <a href="{{ url_for('orders.new_order') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Orders
+        </a>
+      </div>
+
+      <div class="row">
+        <!-- Left Column - Payment Methods -->
+        <div class="col-md-7">
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">
+                <i class="fas fa-credit-card"></i> Select Payment Method
+              </h5>
+              <div class="security-badge" x-show="selectedMethod">
+                <i class="bi bi-shield-check"></i> Secure
+              </div>
+            </div>
+            <div class="card-body">
+              <!-- Payment Methods Grid -->
+              <div class="row g-3">
+                <!-- Cash -->
+                <div class="col-md-6 mb-3">
+                  <div
+                    @click="selectPaymentMethod('Cash')"
+                    :class="{selected: selectedMethod === 'Cash'}"
+                    class="payment-method-card card h-100 p-3 text-center"
+                  >
+                    <div class="payment-icon">
+                      <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <h6>Cash</h6>
+                    <small class="text-muted">Pay with cash</small>
+                  </div>
+                </div>
+
+                <!-- Card -->
+                <div class="col-md-6 mb-3">
+                  <div
+                    @click="selectPaymentMethod('Card')"
+                    :class="{selected: selectedMethod === 'Card'}"
+                    class="payment-method-card card h-100 p-3 text-center"
+                  >
+                    <div class="payment-icon">
+                      <i class="fas fa-credit-card"></i>
+                    </div>
+                    <h6>Card</h6>
+                    <small class="text-muted">Credit/Debit Card</small>
+                  </div>
+                </div>
+
+                <!-- UPI -->
+                <div class="col-md-6 mb-3">
+                  <div
+                    @click="selectPaymentMethod('UPI')"
+                    :class="{selected: selectedMethod === 'UPI'}"
+                    class="payment-method-card card h-100 p-3 text-center"
+                  >
+                    <div class="payment-icon">
+                      <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h6>UPI</h6>
+                    <small class="text-muted">Unified Payments Interface</small>
+                  </div>
+                </div>
+
+                <!-- Wallet -->
+                <div class="col-md-6 mb-3">
+                  <div
+                    @click="selectPaymentMethod('Wallet')"
+                    :class="{selected: selectedMethod === 'Wallet'}"
+                    class="payment-method-card card h-100 p-3 text-center"
+                  >
+                    <div class="payment-icon">
+                      <i class="fas fa-wallet"></i>
+                    </div>
+                    <h6>Wallet</h6>
+                    <small class="text-muted">Mobile Wallet</small>
+                  </div>
+                </div>
+
+                <!-- Credit -->
+                <div class="col-md-6 mb-3">
+                  <div
+                    @click="selectPaymentMethod('Credit')"
+                    :class="{selected: selectedMethod === 'Credit'}"
+                    class="payment-method-card card h-100 p-3 text-center"
+                  >
+                    <div class="payment-icon">
+                      <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <h6>Credit</h6>
+                    <small class="text-muted">Customer Credit</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Payment Method Specific Fields -->
+              <div x-show="selectedMethod" class="mt-4">
+                <!-- Cash Fields -->
+                <div x-show="selectedMethod === 'Cash'" class="payment-fields">
+                  <h6 class="mb-3">Cash Payment Details</h6>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label">Cash Received</label>
+                      <input
+                        type="number"
+                        x-model="paymentData.cash_received"
+                        @input="validateField('cash_received', paymentData.cash_received); calculateChange()"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.cash_received?.valid, 'is-invalid': fieldValidations.cash_received?.valid === false}"
+                        placeholder="Enter cash received"
+                        step="0.01"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.cash_received?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.cash_received?.message"
+                           x-text="fieldValidations.cash_received?.message"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Change to Return</label>
+                      <input
+                        type="number"
+                        :value="paymentData.change"
+                        readonly
+                        class="payment-input"
+                        placeholder="Change amount"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card Fields -->
+                <div x-show="selectedMethod === 'Card'" class="payment-fields">
+                  <h6 class="mb-3">Card Payment Details</h6>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label">Card Number</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.card_number"
+                        @input="validateField('card_number', paymentData.card_number)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.card_number?.valid, 'is-invalid': fieldValidations.card_number?.valid === false}"
+                        placeholder="**** **** **** ****"
+                        maxlength="19"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.card_number?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.card_number?.message"
+                           x-text="fieldValidations.card_number?.message"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Expiry Date</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.expiry"
+                        @input="validateField('expiry', paymentData.expiry)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.expiry?.valid, 'is-invalid': fieldValidations.expiry?.valid === false}"
+                        placeholder="MM/YY"
+                        maxlength="5"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.expiry?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.expiry?.message"
+                           x-text="fieldValidations.expiry?.message"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Card Holder Name</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.card_holder"
+                        @input="validateField('card_holder', paymentData.card_holder)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.card_holder?.valid, 'is-invalid': fieldValidations.card_holder?.valid === false}"
+                        placeholder="Name on card"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.card_holder?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.card_holder?.message"
+                           x-text="fieldValidations.card_holder?.message"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Transaction ID</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.transaction_id"
+                        @input="validateField('transaction_id', paymentData.transaction_id)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.transaction_id?.valid, 'is-invalid': fieldValidations.transaction_id?.valid === false}"
+                        placeholder="Bank transaction ID"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.transaction_id?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.transaction_id?.message"
+                           x-text="fieldValidations.transaction_id?.message"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- UPI Fields -->
+                <div x-show="selectedMethod === 'UPI'" class="payment-fields">
+                  <h6 class="mb-3">UPI Payment Details</h6>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label">UPI ID</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.upi_id"
+                        @input="validateField('upi_id', paymentData.upi_id)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.upi_id?.valid, 'is-invalid': fieldValidations.upi_id?.valid === false}"
+                        placeholder="username@ybl"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.upi_id?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.upi_id?.message"
+                           x-text="fieldValidations.upi_id?.message"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Transaction ID</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.upi_transaction_id"
+                        @input="validateField('upi_transaction_id', paymentData.upi_transaction_id)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.upi_transaction_id?.valid, 'is-invalid': fieldValidations.upi_transaction_id?.valid === false}"
+                        placeholder="UPI transaction ID"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.upi_transaction_id?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.upi_transaction_id?.message"
+                           x-text="fieldValidations.upi_transaction_id?.message"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Wallet Fields -->
+                <div
+                  x-show="selectedMethod === 'Wallet'"
+                  class="payment-fields"
+                >
+                  <h6 class="mb-3">Wallet Payment Details</h6>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label">Wallet Number</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.wallet_number"
+                        @input="validateField('wallet_number', paymentData.wallet_number)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.wallet_number?.valid, 'is-invalid': fieldValidations.wallet_number?.valid === false}"
+                        placeholder="Mobile number"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.wallet_number?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.wallet_number?.message"
+                           x-text="fieldValidations.wallet_number?.message"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Transaction ID</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.wallet_transaction_id"
+                        @input="validateField('wallet_transaction_id', paymentData.wallet_transaction_id)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.wallet_transaction_id?.valid, 'is-invalid': fieldValidations.wallet_transaction_id?.valid === false}"
+                        placeholder="Wallet transaction ID"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.wallet_transaction_id?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.wallet_transaction_id?.message"
+                           x-text="fieldValidations.wallet_transaction_id?.message"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Credit Fields -->
+                <div
+                  x-show="selectedMethod === 'Credit'"
+                  class="payment-fields"
+                >
+                  <h6 class="mb-3">Credit Payment Details</h6>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label">Customer Name</label>
+                      <input
+                        type="text"
+                        x-model="paymentData.credit_customer"
+                        @input="validateField('credit_customer', paymentData.credit_customer)"
+                        class="payment-input"
+                        :class="{'is-valid': fieldValidations.credit_customer?.valid, 'is-invalid': fieldValidations.credit_customer?.valid === false}"
+                        placeholder="Customer name for credit"
+                      />
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.credit_customer?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.credit_customer?.message"
+                           x-text="fieldValidations.credit_customer?.message"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Credit Period</label>
+                      <select
+                        x-model="paymentData.credit_period"
+                        @change="validateField('credit_period', paymentData.credit_period)"
+                        class="form-select payment-input"
+                        :class="{'is-valid': fieldValidations.credit_period?.valid, 'is-invalid': fieldValidations.credit_period?.valid === false}"
+                      >
+                        <option value="">Select period</option>
+                        <option value="7">7 Days</option>
+                        <option value="15">15 Days</option>
+                        <option value="30">30 Days</option>
+                      </select>
+                      <div class="validation-feedback" 
+                           :class="fieldValidations.credit_period?.valid ? 'valid' : 'invalid'"
+                           x-show="fieldValidations.credit_period?.message"
+                           x-text="fieldValidations.credit_period?.message"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column - Order Summary -->
+        <div class="col-md-5">
+          <!-- Order Summary Card -->
+          <div class="order-summary">
+            <h5 class="mb-4"><i class="fas fa-receipt"></i> Order Summary</h5>
+
+            <!-- Customer Info -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-between mb-2">
+                <span>Customer:</span>
+                <strong x-text="orderData.customer_name || 'N/A'"></strong>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span>Order Type:</span>
+                <strong x-text="orderData.order_type"></strong>
+              </div>
+              <div
+                class="d-flex justify-content-between mb-2"
+                x-show="orderData.table_number"
+              >
+                <span>Table:</span>
+                <strong x-text="orderData.table_number"></strong>
+              </div>
+            </div>
+
+            <!-- Items Summary -->
+            <div class="mb-3">
+              <h6 class="text-muted">
+                Items (<span x-text="orderData.items.length"></span>)
+              </h6>
+              <div class="small">
+                <template x-for="item in orderData.items" :key="item.id">
+                  <div class="d-flex justify-content-between">
+                    <span x-text="`${item.quantity}x ${item.name}`"></span>
+                    <span
+                      x-text="`₹${(item.price * item.quantity).toFixed(2)}`"
+                    ></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- GST Breakdown -->
+            <div class="gst-breakdown mb-3">
+              <div class="d-flex justify-content-between mb-2">
+                <span>Subtotal:</span>
+                <span x-text="`₹${orderData.subtotal.toFixed(2)}`"></span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span>CGST (2.5%):</span>
+                <span x-text="`₹${orderData.cgst_amount.toFixed(2)}`"></span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span>SGST (2.5%):</span>
+                <span x-text="`₹${orderData.sgst_amount.toFixed(2)}`"></span>
+              </div>
+              <div
+                class="d-flex justify-content-between mb-2"
+                x-show="orderData.discount_amount > 0"
+              >
+                <span>Discount:</span>
+                <span
+                  class="text-danger"
+                  x-text="`-₹${orderData.discount_amount.toFixed(2)}`"
+                ></span>
+              </div>
+            </div>
+
+            <!-- Total -->
+            <div class="total-row">
+              <div class="d-flex justify-content-between">
+                <h5>Total Amount:</h5>
+                <h5
+                  class="text-primary"
+                  x-text="`₹${orderData.grand_total.toFixed(2)}`"
+                ></h5>
+              </div>
+            </div>
+
+            <!-- Payment Amount -->
+            <div x-show="selectedMethod" class="mt-4">
+              <div class="row">
+                <div class="col-md-6">
+                  <label class="form-label">Amount Paid</label>
+                  <input
+                    type="number"
+                    x-model="paymentData.amount_paid"
+                    @input="validateField('amount_paid', paymentData.amount_paid); validatePayment()"
+                    class="payment-input"
+                    :class="{'is-valid': fieldValidations.amount_paid?.valid, 'is-invalid': fieldValidations.amount_paid?.valid === false}"
+                    placeholder="Enter amount"
+                    step="0.01"
+                    :min="orderData.grand_total"
+                  />
+                  <div class="validation-feedback" 
+                       :class="fieldValidations.amount_paid?.valid ? 'valid' : 'invalid'"
+                       x-show="fieldValidations.amount_paid?.message"
+                       x-text="fieldValidations.amount_paid?.message"></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Balance</label>
+                  <input
+                    type="number"
+                    :value="paymentBalance"
+                    readonly
+                    class="payment-input"
+                    placeholder="Balance"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Progress -->
+            <div class="payment-progress" :class="{active: processing}">
+              <div class="mb-2">
+                <strong>Processing Payment...</strong>
+              </div>
+              <div class="progress">
+                <div class="progress-bar" :style="`width: ${processingProgress}%`"></div>
+              </div>
+              <div class="small text-muted mt-1" x-text="processingStatus"></div>
+            </div>
+
+            <!-- Process Payment Button -->
+            <div class="mt-4 text-center">
+              <button
+                @click="processPayment()"
+                :disabled="!canProcessPayment"
+                class="btn btn-payment btn-success btn-lg w-100"
+                :class="{loading: processing}"
+              >
+                <span class="loading-spinner">
+                  <i class="fas fa-spinner fa-spin"></i> Processing...
+                </span>
+                <span class="btn-payment-text">
+                  <i class="fas fa-credit-card"></i> Process Payment
+                </span>
+              </button>
+            </div>
+
+            <!-- Receipt Preview -->
+            <div class="receipt-preview" :class="{active: showReceipt}">
+              <h6 class="mb-3">Payment Receipt</h6>
+              <div id="receiptContent">
+                <!-- Receipt content will be populated here -->
+              </div>
+              <div class="mt-3">
+                <button @click="printReceipt()" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-print"></i> Print Receipt
+                </button>
+                <button @click="emailReceipt()" class="btn btn-sm btn-outline-secondary">
+                  <i class="fas fa-envelope"></i> Email Receipt
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script src="{{ url_for('static', filename='js/payment-processor.js') }}"></script>
+<script>
+  // Pass order data from Flask to JavaScript
+  window.orderData = JSON.parse('{{ order.to_dict()|tojson|safe }}');
+
+  function enhancedPaymentProcessor() {
+    return {
+      // Payment data
+      selectedMethod: null,
+      paymentData: {
+        cash_received: 0,
+        change: 0,
+        card_number: '',
+        expiry: '',
+        card_holder: '',
+        transaction_id: '',
+        upi_id: '',
+        upi_transaction_id: '',
+        wallet_number: '',
+        wallet_transaction_id: '',
+        credit_customer: '',
+        credit_period: '',
+        amount_paid: 0
+      },
+      
+      // Validation
+      fieldValidations: {},
+      isFormValid: false,
+      
+      // Processing state
+      processing: false,
+      processingProgress: 0,
+      processingStatus: '',
+      showReceipt: false,
+      
+      // Online/Offline status
+      isOnline: navigator.onLine,
+      showOfflineIndicator: false,
+      
+      init() {
+        // Setup online/offline listeners
+        window.addEventListener('online', () => {
+          this.isOnline = true;
+          this.showNotification('Connection restored', 'success');
+        });
+        
+        window.addEventListener('offline', () => {
+          this.isOnline = false;
+          this.showOfflineIndicator = true;
+          setTimeout(() => {
+            this.showOfflineIndicator = false;
+          }, 5000);
+        });
+      },
+      
+      // Computed properties
+      get paymentBalance() {
+        return (this.paymentData.amount_paid || 0) - (window.orderData.grand_total || 0);
+      },
+      
+      get canProcessPayment() {
+        return this.selectedMethod && 
+               this.isFormValid && 
+               !this.processing &&
+               this.paymentData.amount_paid >= window.orderData.grand_total;
+      },
+      
+      // Payment method selection
+      selectPaymentMethod(method) {
+        this.selectedMethod = method;
+        this.resetPaymentData();
+        this.validateForm();
+      },
+      
+      resetPaymentData() {
+        // Reset all payment data
+        Object.keys(this.paymentData).forEach(key => {
+          this.paymentData[key] = key === 'amount_paid' ? window.orderData.grand_total : 0;
+        });
+        
+        // Clear validations
+        this.fieldValidations = {};
+      },
+      
+      // Validation
+      async validateField(fieldName, value) {
+        try {
+          const response = await fetch('/api/validation/validate-field', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              field_name: fieldName,
+              value: value,
+              field_type: this.getFieldType(fieldName)
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            this.fieldValidations[fieldName] = {
+              valid: data.valid,
+              message: data.message
+            };
+            this.validateForm();
+          }
+        } catch (error) {
+          console.error('Validation error:', error);
+        }
+      },
+      
+      validateForm() {
+        if (!this.selectedMethod) {
+          this.isFormValid = false;
+          return;
+        }
+        
+        let isValid = true;
+        
+        // Check required fields based on payment method
+        switch (this.selectedMethod) {
+          case 'Cash':
+            if (!this.paymentData.cash_received || this.paymentData.cash_received <= 0) {
+              isValid = false;
+            }
+            break;
+          case 'Card':
+            if (!this.paymentData.card_number || !this.paymentData.expiry || !this.paymentData.card_holder) {
+              isValid = false;
+            }
+            break;
+          case 'UPI':
+            if (!this.paymentData.upi_id) {
+              isValid = false;
+            }
+            break;
+          case 'Wallet':
+            if (!this.paymentData.wallet_number) {
+              isValid = false;
+            }
+            break;
+          case 'Credit':
+            if (!this.paymentData.credit_customer || !this.paymentData.credit_period) {
+              isValid = false;
+            }
+            break;
+        }
+        
+        // Check field validations
+        Object.values(this.fieldValidations).forEach(validation => {
+          if (validation.valid === false) {
+            isValid = false;
+          }
+        });
+        
+        this.isFormValid = isValid;
+      },
+      
+      validatePayment() {
+        // Validate payment amount
+        if (this.paymentData.amount_paid < window.orderData.grand_total) {
+          this.fieldValidations.amount_paid = {
+            valid: false,
+            message: 'Amount paid must be at least the total amount'
+          };
+        } else {
+          this.fieldValidations.amount_paid = {
+            valid: true,
+            message: ''
+          };
+        }
+        
+        this.validateForm();
+      },
+      
+      getFieldType(fieldName) {
+        const fieldTypes = {
+          'cash_received': 'number',
+          'card_number': 'card',
+          'expiry': 'expiry',
+          'card_holder': 'text',
+          'transaction_id': 'text',
+          'upi_id': 'text',
+          'upi_transaction_id': 'text',
+          'wallet_number': 'tel',
+          'wallet_transaction_id': 'text',
+          'credit_customer': 'text',
+          'credit_period': 'select',
+          'amount_paid': 'number'
+        };
+        return fieldTypes[fieldName] || 'text';
+      },
+      
+      // Payment processing
+      async processPayment() {
+        if (!this.canProcessPayment) {
+          this.showNotification('Please complete all required fields', 'error');
+          return;
+        }
+        
+        this.processing = true;
+        this.processingProgress = 0;
+        this.processingStatus = 'Initializing payment...';
+        
+        try {
+          // Simulate payment processing steps
+          await this.simulatePaymentSteps();
+          
+          const paymentData = {
+            order_id: window.orderData.id,
+            payment_method: this.selectedMethod,
+            amount_paid: this.paymentData.amount_paid,
+            ...this.getPaymentMethodData()
+          };
+          
+          if (this.isOnline) {
+            // Process payment online
+            const response = await fetch('/api/payment/process', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(paymentData)
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              this.handlePaymentSuccess(result);
+            } else {
+              const error = await response.json();
+              this.handlePaymentError(error.message || 'Payment failed');
+            }
+          } else {
+            // Queue payment for offline processing
+            this.queueOfflinePayment(paymentData);
+            this.handlePaymentSuccess({
+              success: true,
+              message: 'Payment queued for processing when online',
+              transaction_id: 'OFFLINE_' + Date.now()
+            });
+          }
+        } catch (error) {
+          console.error('Payment processing error:', error);
+          this.handlePaymentError('Payment processing failed. Please try again.');
+        } finally {
+          this.processing = false;
+          this.processingProgress = 0;
+        }
+      },
+      
+      async simulatePaymentSteps() {
+        const steps = [
+          { progress: 25, status: 'Validating payment details...' },
+          { progress: 50, status: 'Connecting to payment gateway...' },
+          { progress: 75, status: 'Processing payment...' },
+          { progress: 90, status: 'Confirming transaction...' },
+          { progress: 100, status: 'Payment completed!' }
+        ];
+        
+        for (const step of steps) {
+          this.processingProgress = step.progress;
+          this.processingStatus = step.status;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      },
+      
+      getPaymentMethodData() {
+        switch (this.selectedMethod) {
+          case 'Cash':
+            return {
+              cash_received: this.paymentData.cash_received,
+              change: this.paymentData.change
+            };
+          case 'Card':
+            return {
+              card_number: this.paymentData.card_number,
+              expiry: this.paymentData.expiry,
+              card_holder: this.paymentData.card_holder,
+              transaction_id: this.paymentData.transaction_id
+            };
+          case 'UPI':
+            return {
+              upi_id: this.paymentData.upi_id,
+              upi_transaction_id: this.paymentData.upi_transaction_id
+            };
+          case 'Wallet':
+            return {
+              wallet_number: this.paymentData.wallet_number,
+              wallet_transaction_id: this.paymentData.wallet_transaction_id
+            };
+          case 'Credit':
+            return {
+              credit_customer: this.paymentData.credit_customer,
+              credit_period: this.paymentData.credit_period
+            };
+          default:
+            return {};
+        }
+      },
+      
+      handlePaymentSuccess(result) {
+        this.showNotification(result.message || 'Payment processed successfully', 'success');
+        this.showReceipt = true;
+        this.generateReceipt(result);
+        
+        // Redirect to order confirmation after delay
+        setTimeout(() => {
+          window.location.href = `/orders/confirmation/${window.orderData.id}`;
+        }, 3000);
+      },
+      
+      handlePaymentError(message) {
+        this.showNotification(message, 'error');
+        this.processing = false;
+        this.processingProgress = 0;
+      },
+      
+      queueOfflinePayment(paymentData) {
+        try {
+          const offlinePayments = JSON.parse(localStorage.getItem('offline_payments') || '[]');
+          offlinePayments.push({
+            ...paymentData,
+            timestamp: new Date().toISOString(),
+            id: 'OFFLINE_' + Date.now()
+          });
+          localStorage.setItem('offline_payments', JSON.stringify(offlinePayments));
+        } catch (error) {
+          console.error('Error queueing offline payment:', error);
+        }
+      },
+      
+      // Receipt handling
+      generateReceipt(paymentResult) {
+        const receiptContent = `
+          <div style="text-align: center; font-family: monospace;">
+            <h4>Payment Receipt</h4>
+            <p><strong>Order:</strong> ${window.orderData.order_number}</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+            <p><strong>Payment Method:</strong> ${this.selectedMethod}</p>
+            <p><strong>Amount:</strong> ₹${this.paymentData.amount_paid.toFixed(2)}</p>
+            <p><strong>Transaction ID:</strong> ${paymentResult.transaction_id || 'N/A'}</p>
+            <hr>
+            <p style="font-size: 12px;">Thank you for your business!</p>
+          </div>
+        `;
+        
+        document.getElementById('receiptContent').innerHTML = receiptContent;
+      },
+      
+      printReceipt() {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(document.getElementById('receiptContent').innerHTML);
+        printWindow.document.close();
+        printWindow.print();
+      },
+      
+      async emailReceipt() {
+        try {
+          const response = await fetch('/api/payment/email-receipt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              order_id: window.orderData.id,
+              email: window.orderData.customer_email
+            })
+          });
+          
+          if (response.ok) {
+            this.showNotification('Receipt emailed successfully', 'success');
+          } else {
+            this.showNotification('Failed to email receipt', 'error');
+          }
+        } catch (error) {
+          console.error('Error emailing receipt:', error);
+          this.showNotification('Error emailing receipt', 'error');
+        }
+      },
+      
+      // Utility functions
+      calculateChange() {
+        const cashReceived = parseFloat(this.paymentData.cash_received) || 0;
+        const totalAmount = window.orderData.grand_total || 0;
+        this.paymentData.change = Math.max(0, cashReceived - totalAmount);
+      },
+      
+      showNotification(message, type) {
+        // Dispatch event for global notification system
+        document.dispatchEvent(new CustomEvent('showNotification', {
+          detail: { message, type }
+        }));
+      }
+    };
+  }
+</script>
+{% endblock %}

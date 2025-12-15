@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - {{ public_settings.get('restaurant_name', 'Restaurant POS') }}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Enhanced Login CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-login.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/validation.css') }}">
+</head>
+<body x-data="enhancedLogin()" x-init="init()">
+    <div class="login-page">
+        <div class="login-container">
+            <div class="login-card">
+                <!-- Logo Section -->
+                <div class="login-logo">
+                    <img src="{{ url_for('static', filename='images/pos-logo.png') }}" alt="{{ public_settings.get('restaurant_name', 'Restaurant POS') }}">
+                </div>
+                
+                <!-- Login Header -->
+                <div class="login-header">
+                    <h1 class="login-title">Welcome Back</h1>
+                    <p class="login-subtitle">Sign in to your Restaurant POS account</p>
+                </div>
+                
+                <!-- Enhanced Flash Messages -->
+                <div class="enhanced-flash-messages">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="enhanced-flash-message {% if category == 'error' or category == 'danger' %}error{% elif category == 'success' %}success{% else %}info{% endif %}"
+                         x-data="{show: true}"
+                         x-show="show"
+                         x-transition:enter="transition ease-out duration-300"
+                         x-transition:enter-start="opacity-0 transform -translate-y-2"
+                         x-transition:enter-end="opacity-100 transform-y-0"
+                         x-transition:leave="transition ease-in duration-200"
+                         x-transition:leave-start="opacity-100 transform-y-0"
+                         x-transition:leave-end="opacity-0 transform -translate-y-2">
+                        
+                        <div class="flash-content">
+                            <div class="flash-icon">
+                                <i class="bi {% if category == 'error' or category == 'danger' %}bi-x-circle{% elif category == 'success' %}bi-check-circle{% else %}bi-info-circle{% endif %}"></i>
+                            </div>
+                            <div class="flash-text">{{ message }}</div>
+                            <button @click="show = false" class="flash-close">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                
+                <!-- Enhanced Login Form -->
+                <form method="POST" action="{{ url_for('auth.login') }}" class="login-form" id="loginForm" 
+                      data-validation="true" data-form-type="login">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Username Field -->
+                    <div class="form-group-enhanced" x-data="fieldValidation('username')">
+                        <label for="username" class="form-label-enhanced">
+                            Username
+                            <span class="required-indicator">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            {{ form.username(class="form-input-enhanced", id="username", placeholder="Enter your username", autocomplete="username")|safe }}
+                            <div class="input-icon">
+                                <i class="bi bi-person"></i>
+                            </div>
+                            <div class="validation-icon" x-show="validation.show" :class="validation.status">
+                                <i class="bi" :class="validation.icon"></i>
+                            </div>
+                        </div>
+                        <div class="validation-feedback" x-show="validation.show" x-transition>
+                            <div class="validation-message" x-text="validation.message"></div>
+                            <div class="validation-hint" x-show="validation.hint" x-text="validation.hint"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Password Field -->
+                    <div class="form-group-enhanced" x-data="fieldValidation('password')">
+                        <label for="password" class="form-label-enhanced">
+                            Password
+                            <span class="required-indicator">*</span>
+                        </label>
+                        <div class="input-wrapper">
+                            {{ form.password(class="form-input-enhanced", id="password", placeholder="Enter your password", autocomplete="current-password")|safe }}
+                            <div class="input-icon">
+                                <i class="bi bi-lock"></i>
+                            </div>
+                            <button type="button" class="password-toggle" @click="togglePasswordVisibility()" 
+                                    :aria-label="showPassword ? 'Hide password' : 'Show password'">
+                                <i class="bi" :class="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+                            </button>
+                            <div class="validation-icon" x-show="validation.show" :class="validation.status">
+                                <i class="bi" :class="validation.icon"></i>
+                            </div>
+                        </div>
+                        <div class="validation-feedback" x-show="validation.show" x-transition>
+                            <div class="validation-message" x-text="validation.message"></div>
+                            <div class="validation-hint" x-show="validation.hint" x-text="validation.hint"></div>
+                        </div>
+                        
+                        <!-- Password Strength Meter -->
+                        <div class="password-strength-container" x-show="passwordStrength.show">
+                            <div class="password-strength-header">
+                                <span>Password Strength</span>
+                                <span class="strength-text" x-text="passwordStrength.text"></span>
+                            </div>
+                            <div class="password-strength-meter">
+                                <div class="strength-bar" :class="passwordStrength.class" 
+                                     :style="`width: ${passwordStrength.percentage}%`"></div>
+                            </div>
+                            <div class="password-requirements" x-show="passwordStrength.showRequirements">
+                                <div class="requirement" :class="{'met': passwordStrength.requirements.length}">
+                                    <i class="bi" :class="passwordStrength.requirements.length ? 'bi-check-circle' : 'bi-circle'"></i>
+                                    <span>At least 8 characters</span>
+                                </div>
+                                <div class="requirement" :class="{'met': passwordStrength.requirements.uppercase}">
+                                    <i class="bi" :class="passwordStrength.requirements.uppercase ? 'bi-check-circle' : 'bi-circle'"></i>
+                                    <span>One uppercase letter</span>
+                                </div>
+                                <div class="requirement" :class="{'met': passwordStrength.requirements.lowercase}">
+                                    <i class="bi" :class="passwordStrength.requirements.lowercase ? 'bi-check-circle' : 'bi-circle'"></i>
+                                    <span>One lowercase letter</span>
+                                </div>
+                                <div class="requirement" :class="{'met': passwordStrength.requirements.number}">
+                                    <i class="bi" :class="passwordStrength.requirements.number ? 'bi-check-circle' : 'bi-circle'"></i>
+                                    <span>One number</span>
+                                </div>
+                                <div class="requirement" :class="{'met': passwordStrength.requirements.special}">
+                                    <i class="bi" :class="passwordStrength.requirements.special ? 'bi-check-circle' : 'bi-circle'"></i>
+                                    <span>One special character</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Remember Me & Forgot Password -->
+                    <div class="form-options">
+                        <label class="checkbox-enhanced">
+                            {{ form.remember(id="remember")|safe }}
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-label">Remember me</span>
+                        </label>
+                        
+                        <a href="{{ url_for('auth.forgot_password') }}" class="forgot-password-link">
+                            Forgot password?
+                        </a>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <button type="submit" class="login-button-enhanced" 
+                            :class="{'loading': isSubmitting, 'disabled': !formValid}"
+                            :disabled="!formValid || isSubmitting">
+                        
+                        <div class="button-content">
+                            <div class="button-icon" x-show="!isSubmitting">
+                                <i class="bi bi-box-arrow-in-right"></i>
+                            </div>
+                            <div class="button-spinner" x-show="isSubmitting">
+                                <div class="spinner"></div>
+                            </div>
+                            <span class="button-text" x-text="isSubmitting ? 'Signing In...' : 'Sign In'"></span>
+                        </div>
+                    </button>
+                </form>
+                
+                <!-- Security Information -->
+                <div class="security-info" x-data="securityInfo()">
+                    <div class="security-header">
+                        <i class="bi bi-shield-check"></i>
+                        <span>Security Information</span>
+                    </div>
+                    <div class="security-content">
+                        <div class="security-item">
+                            <span class="security-label">Connection:</span>
+                            <span class="security-value" :class="connectionStatus.class" x-text="connectionStatus.text"></span>
+                        </div>
+                        <div class="security-item">
+                            <span class="security-label">Session Timeout:</span>
+                            <span class="security-value" x-text="sessionTimeout"></span>
+                        </div>
+                        <div class="security-item" x-show="lastLoginTime">
+                            <span class="security-label">Last Login:</span>
+                            <span class="security-value" x-text="lastLoginTime"></span>
+                        </div>
+                        <div class="security-item" x-show="failedAttempts > 0">
+                            <span class="security-label">Failed Attempts:</span>
+                            <span class="security-value text-danger" x-text="failedAttempts"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Login Footer -->
+                <div class="login-footer">
+                    <p class="mb-0">&copy; 2025 {{ public_settings.get('restaurant_name', 'Restaurant POS') }}</p>
+                    {% if debug %}
+                    <small class="text-muted">Debug: User accounts may need to be created first</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Login JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        function enhancedLogin() {
+            return {
+                isSubmitting: false,
+                formValid: false,
+                showPassword: false,
+                passwordStrength: {
+                    show: false,
+                    text: '',
+                    class: '',
+                    percentage: 0,
+                    showRequirements: false,
+                    requirements: {
+                        length: false,
+                        uppercase: false,
+                        lowercase: false,
+                        number: false,
+                        special: false
+                    }
+                },
+                
+                init() {
+                    // Initialize form validation
+                    this.setupValidation();
+                    
+                    // Load security info
+                    this.loadSecurityInfo();
+                    
+                    // Setup password strength checking
+                    this.setupPasswordStrength();
+                },
+                
+                setupValidation() {
+                    const form = document.getElementById('loginForm');
+                    if (!form) return;
+                    
+                    // Real-time validation
+                    const inputs = form.querySelectorAll('input');
+                    inputs.forEach(input => {
+                        input.addEventListener('input', () => {
+                            this.validateField(input);
+                        });
+                        
+                        input.addEventListener('blur', () => {
+                            this.validateField(input);
+                        });
+                    });
+                    
+                    // Form submission
+                    form.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.submitForm();
+                    });
+                },
+                
+                validateField(input) {
+                    const fieldName = input.name;
+                    const value = input.value.trim();
+                    
+                    // Dispatch validation event for the field component
+                    const event = new CustomEvent('validateField', {
+                        detail: { fieldName, value }
+                    });
+                    document.dispatchEvent(event);
+                    
+                    // Update form validity
+                    this.updateFormValidity();
+                },
+                
+                updateFormValidity() {
+                    const form = document.getElementById('loginForm');
+                    const username = form.querySelector('#username');
+                    const password = form.querySelector('#password');
+                    
+                    this.formValid = username.value.trim().length >= 3 && password.value.length >= 1;
+                },
+                
+                setupPasswordStrength() {
+                    const passwordInput = document.getElementById('password');
+                    if (!passwordInput) return;
+                    
+                    passwordInput.addEventListener('input', (e) => {
+                        this.checkPasswordStrength(e.target.value);
+                    });
+                    
+                    passwordInput.addEventListener('focus', () => {
+                        this.passwordStrength.show = true;
+                        this.passwordStrength.showRequirements = true;
+                    });
+                    
+                    passwordInput.addEventListener('blur', () => {
+                        setTimeout(() => {
+                            if (document.activeElement !== passwordInput) {
+                                this.passwordStrength.showRequirements = false;
+                            }
+                        }, 200);
+                    });
+                },
+                
+                checkPasswordStrength(password) {
+                    if (!password) {
+                        this.passwordStrength.show = false;
+                        return;
+                    }
+                    
+                    this.passwordStrength.show = true;
+                    
+                    // Check requirements
+                    this.passwordStrength.requirements.length = password.length >= 8;
+                    this.passwordStrength.requirements.uppercase = /[A-Z]/.test(password);
+                    this.passwordStrength.requirements.lowercase = /[a-z]/.test(password);
+                    this.passwordStrength.requirements.number = /\d/.test(password);
+                    this.passwordStrength.requirements.special = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+                    
+                    // Calculate strength
+                    let strength = 0;
+                    if (this.passwordStrength.requirements.length) strength += 20;
+                    if (this.passwordStrength.requirements.uppercase) strength += 20;
+                    if (this.passwordStrength.requirements.lowercase) strength += 20;
+                    if (this.passwordStrength.requirements.number) strength += 20;
+                    if (this.passwordStrength.requirements.special) strength += 20;
+                    
+                    // Update UI
+                    this.passwordStrength.percentage = strength;
+                    
+                    if (strength < 40) {
+                        this.passwordStrength.text = 'Weak';
+                        this.passwordStrength.class = 'strength-weak';
+                    } else if (strength < 60) {
+                        this.passwordStrength.text = 'Fair';
+                        this.passwordStrength.class = 'strength-fair';
+                    } else if (strength < 80) {
+                        this.passwordStrength.text = 'Good';
+                        this.passwordStrength.class = 'strength-good';
+                    } else {
+                        this.passwordStrength.text = 'Strong';
+                        this.passwordStrength.class = 'strength-strong';
+                    }
+                },
+                
+                togglePasswordVisibility() {
+                    const passwordInput = document.getElementById('password');
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    this.showPassword = type === 'text';
+                },
+                
+                async submitForm() {
+                    if (!this.formValid || this.isSubmitting) return;
+                    
+                    this.isSubmitting = true;
+                    
+                    const form = document.getElementById('loginForm');
+                    const formData = new FormData(form);
+                    
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.showNotification('Login successful! Redirecting...', 'success');
+                            setTimeout(() => {
+                                window.location.href = data.redirect;
+                            }, 1000);
+                        } else {
+                            this.showNotification(data.message || 'Login failed. Please try again.', 'error');
+                            
+                            // Handle field-specific errors
+                            if (data.errors) {
+                                Object.entries(data.errors).forEach(([field, errors]) => {
+                                    const event = new CustomEvent('showFieldError', {
+                                        detail: { fieldName: field, errors }
+                                    });
+                                    document.dispatchEvent(event);
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        this.showNotification('Network error. Please try again.', 'error');
+                        
+                        // Fallback to regular form submission
+                        form.submit();
+                    } finally {
+                        this.isSubmitting = false;
+                    }
+                },
+                
+                showNotification(message, type) {
+                    // Dispatch event for global notification system
+                    document.dispatchEvent(new CustomEvent('showNotification', {
+                        detail: { message, type, duration: 5000 }
+                    }));
+                },
+                
+                loadSecurityInfo() {
+                    // Load security information from API
+                    fetch('/api/security/login-info')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                this.updateSecurityInfo(data);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading security info:', error);
+                        });
+                },
+                
+                updateSecurityInfo(data) {
+                    // Update security info component
+                    const event = new CustomEvent('updateSecurityInfo', {
+                        detail: data
+                    });
+                    document.dispatchEvent(event);
+                }
+            };
+        }
+        
+        function fieldValidation(fieldName) {
+            return {
+                validation: {
+                    show: false,
+                    status: '',
+                    message: '',
+                    hint: ''
+                },
+                
+                init() {
+                    // Listen for validation events
+                    document.addEventListener('validateField', (e) => {
+                        if (e.detail.fieldName === fieldName) {
+                            this.validateField(e.detail.value);
+                        }
+                    });
+                    
+                    document.addEventListener('showFieldError', (e) => {
+                        if (e.detail.fieldName === fieldName) {
+                            this.showError(e.detail.errors);
+                        }
+                    });
+                },
+                
+                validateField(value) {
+                    if (!value) {
+                        this.validation.show = false;
+                        return;
+                    }
+                    
+                    // Basic validation
+                    if (fieldName === 'username') {
+                        if (value.length < 3) {
+                            this.validation = {
+                                show: true,
+                                status: 'error',
+                                message: 'Username must be at least 3 characters long',
+                                hint: 'Try using your full username or email'
+                            };
+                        } else if (!/^[a-zA-Z0-9_@.-]+$/.test(value)) {
+                            this.validation = {
+                                show: true,
+                                status: 'warning',
+                                message: 'Username contains invalid characters',
+                                hint: 'Use only letters, numbers, and @._-'
+                            };
+                        } else {
+                            this.validation = {
+                                show: true,
+                                status: 'success',
+                                message: 'Username looks good',
+                                hint: ''
+                            };
+                        }
+                    } else if (fieldName === 'password') {
+                        if (value.length < 1) {
+                            this.validation = {
+                                show: true,
+                                status: 'error',
+                                message: 'Password is required',
+                                hint: 'Enter your account password'
+                            };
+                        } else {
+                            this.validation = {
+                                show: true,
+                                status: 'success',
+                                message: 'Password entered',
+                                hint: ''
+                            };
+                        }
+                    }
+                    
+                    // Auto-hide success messages
+                    if (this.validation.status === 'success') {
+                        setTimeout(() => {
+                            this.validation.show = false;
+                        }, 3000);
+                    }
+                },
+                
+                showError(errors) {
+                    this.validation = {
+                        show: true,
+                        status: 'error',
+                        message: errors[0] || 'Validation error',
+                        hint: ''
+                    };
+                }
+            };
+        }
+        
+        function securityInfo() {
+            return {
+                connectionStatus: {
+                    text: 'Checking...',
+                    class: 'status-checking'
+                },
+                sessionTimeout: '8 hours',
+                lastLoginTime: null,
+                failedAttempts: 0,
+                
+                init() {
+                    // Listen for security info updates
+                    document.addEventListener('updateSecurityInfo', (e) => {
+                        this.updateInfo(e.detail);
+                    });
+                },
+                
+                updateInfo(data) {
+                    this.connectionStatus = {
+                        text: data.secure ? 'Secure' : 'Not Secure',
+                        class: data.secure ? 'status-secure' : 'status-insecure'
+                    };
+                    this.sessionTimeout = data.session_timeout || '8 hours';
+                    this.lastLoginTime = data.last_login ? new Date(data.last_login).toLocaleString() : null;
+                    this.failedAttempts = data.failed_attempts || 0;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

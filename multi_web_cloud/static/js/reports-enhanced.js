@@ -1,1378 +1,1099 @@
-// Enhanced Reports Dashboard JavaScript
-// Chart.js integration with modern interactive features and bug fixes
+/**
+ * Enhanced Reports JavaScript
+ * Handles advanced reporting features with real-time data, charts, and exports
+ */
 
-function reportsDashboard() {
-  return {
-    // Data
-    isLoading: false,
-    hasData: true,
-    charts: {},
-    isUpdating: false, // Prevent recursive updates
-    updateQueue: [], // Queue for debounced updates
-    updateTimeout: null, // Timeout for debouncing
-    
-    // Stats
-    stats: {
-      totalSales: 0,
-      totalOrders: 0,
-      cancelledOrders: 0,
-      averageOrderValue: 0,
-      salesGrowth: 12,
-      ordersGrowth: 8,
-      cancelledGrowth: -3,
-      aovGrowth: 5
-    },
-    
-    // Filters
-    filters: {
-      reportType: 'dashboard',
-      fromDate: '',
-      toDate: '',
-      comparison: 'none'
-    },
-    
-    // Table Data
-    tableData: [],
-    
-    // Chart configurations
-    chartConfigs: {
-      dailyOrdersChart: null,
-      categoriesChart: null,
-      paymentMethodsChart: null,
-      monthlySalesChart: null,
-      cgstChart: null,
-      sgstChart: null
-    },
-
-    // Initialize
-    init() {
-      try {
-        this.setDefaultDates();
-        this.loadReportData();
-        this.initCharts();
-        
-        // Auto-refresh every 5 minutes
-        setInterval(() => {
-          this.refreshAllData();
-        }, 300000);
-      } catch (error) {
-        console.error('Error in init:', error);
-        this.showNotification('Error initializing dashboard', 'error');
-      }
-    },
-
-    // Set default date range (last 30 days)
-    setDefaultDates() {
-      try {
-        const today = new Date();
-        const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
-        
-        this.filters.toDate = today.toISOString().split('T')[0];
-        this.filters.fromDate = thirtyDaysAgo.toISOString().split('T')[0];
-      } catch (error) {
-        console.error('Error setting default dates:', error);
-      }
-    },
-
-    // Load report data from API
-    async loadReportData() {
-      try {
-        this.isLoading = true;
-        
-        // Simulate API call with mock data
-        await this.fetchReportData();
-        this.updateStats();
-        this.updateCharts();
-        this.updateTable();
-        this.hasData = true;
-        
-        this.showNotification('Report data loaded successfully', 'success');
-      } catch (error) {
-        console.error('Error loading report data:', error);
-        this.hasData = false;
-        this.showNotification('Failed to load report data', 'error');
-      } finally {
-        this.isLoading = false;
-        this.isUpdating = false;
-      }
-    },
-
-    // Fetch report data (mock implementation)
-    async fetchReportData() {
-      try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mock data based on report type
-        const mockData = this.generateMockData();
-        
-        // Update stats
-        this.stats = {
-          totalSales: mockData.totalSales,
-          totalOrders: mockData.totalOrders,
-          cancelledOrders: mockData.cancelledOrders,
-          averageOrderValue: mockData.averageOrderValue,
-          salesGrowth: mockData.salesGrowth,
-          ordersGrowth: mockData.ordersGrowth,
-          cancelledGrowth: mockData.cancelledGrowth,
-          aovGrowth: mockData.aovGrowth
-        };
-        
-        // Update table data
-        this.tableData = mockData.tableData;
-        
-        return mockData;
-      } catch (error) {
-        console.error('Error fetching report data:', error);
-        throw error;
-      }
-    },
-
-    // Generate mock data for demonstration
-    generateMockData() {
-      try {
-        const reportType = this.filters.reportType;
-        
-        // Base mock data
-        const baseData = {
-          totalSales: 125000 + Math.random() * 50000,
-          totalOrders: 450 + Math.floor(Math.random() * 200),
-          cancelledOrders: 15 + Math.floor(Math.random() * 10),
-          averageOrderValue: 278 + Math.random() * 100,
-          salesGrowth: 8 + Math.random() * 10,
-          ordersGrowth: 5 + Math.random() * 8,
-          cancelledGrowth: -5 + Math.random() * 5,
-          aovGrowth: 3 + Math.random() * 7,
-          tableData: []
-        };
-        
-        // Generate table data
-        const days = 30;
-        for (let i = 0; i < days; i++) {
-          const date = new Date();
-          date.setDate(date.getDate() - (days - i));
-          
-          const orders = 10 + Math.floor(Math.random() * 30);
-          const avgOrderValue = baseData.averageOrderValue + (Math.random() - 0.5) * 100;
-          const grossSales = orders * avgOrderValue;
-          const discount = grossSales * 0.02;
-          const netSales = grossSales - discount;
-          const cgst = netSales * 0.025;
-          const sgst = netSales * 0.025;
-          const total = netSales + cgst + sgst;
-          
-          baseData.tableData.push({
-            date: date.toISOString().split('T')[0],
-            orders: orders,
-            grossSales: grossSales,
-            discount: discount,
-            netSales: netSales,
-            cgst: cgst,
-            sgst: sgst,
-            total: total
-          });
-        }
-        
-        return baseData;
-      } catch (error) {
-        console.error('Error generating mock data:', error);
-        throw error;
-      }
-    },
-
-    // Initialize all charts with proper cleanup
-    initCharts() {
-      try {
-        // Destroy existing charts first
-        this.destroyAllCharts();
-        
-        this.$nextTick(() => {
-          try {
-            this.initDailyOrdersChart();
-            this.initCategoriesChart();
-            this.initPaymentMethodsChart();
-            this.initMonthlySalesChart();
-            this.initGSTCharts();
-          } catch (error) {
-            console.error('Error initializing individual charts:', error);
-          }
-        });
-      } catch (error) {
-        console.error('Error in initCharts:', error);
-      }
-    },
-
-    // Destroy all existing charts to prevent memory leaks
-    destroyAllCharts() {
-      try {
-        Object.keys(this.chartConfigs).forEach(chartKey => {
-          const chart = this.chartConfigs[chartKey];
-          if (chart && chart.destroy) {
-            chart.destroy();
-            this.chartConfigs[chartKey] = null;
-          }
-        });
-      } catch (error) {
-        console.error('Error destroying charts:', error);
-      }
-    },
-
-    // Initialize Daily Orders Chart with error handling
-    initDailyOrdersChart() {
-      try {
-        const ctx = document.getElementById('dailyOrdersChart');
-        if (!ctx) return;
-        
-        // Destroy existing chart
-        if (this.chartConfigs.dailyOrdersChart && this.chartConfigs.dailyOrdersChart.destroy) {
-          this.chartConfigs.dailyOrdersChart.destroy();
-        }
-        
-        const last7Days = this.getLast7Days();
-        const ordersData = last7Days.map(() => 10 + Math.floor(Math.random() * 30));
-        
-        this.chartConfigs.dailyOrdersChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: last7Days,
-            datasets: [{
-              label: 'Orders',
-              data: ordersData,
-              backgroundColor: 'rgba(102, 126, 234, 0.8)',
-              borderColor: 'rgba(102, 126, 234, 1)',
-              borderWidth: 1,
-              borderRadius: 8,
-              hoverBackgroundColor: 'rgba(102, 126, 234, 1)'
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-              duration: 1000,
-              easing: 'easeInOutQuart',
-              onComplete: function() {
-                // Ensure animation completes properly
-              }
-            },
-            plugins: {
-              legend: {
-                display: false,
-                position: 'top',
-                labels: {
-                  display: false,
-                  color: '#666',
-                  font: { size: 12 }
-                }
-              },
-              tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                borderColor: 'rgba(102, 126, 234, 1)',
-                borderWidth: 1,
-                displayColors: false,
-                enabled: true,
-                mode: 'index',
-                intersect: false,
-                callbacks: {
-                  label: function(context) {
-                    // Add null checks for context and parsed values
-                    if (!context || !context.parsed || context.parsed.y === undefined) {
-                      return 'Orders: 0';
-                    }
-                    return `Orders: ${context.parsed.y}`;
-                  }
-                }
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
-                ticks: {
-                  precision: 0,
-                  callback: function(value) {
-                    return value !== null && value !== undefined ? value.toString() : '0';
-                  }
-                }
-              },
-              x: {
-                grid: { display: false },
-                ticks: {
-                  callback: function(value) {
-                    return value !== null && value !== undefined ? value.toString() : '';
-                  }
-                }
-              }
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error initializing daily orders chart:', error);
-      }
-    },
-
-    // Initialize Categories Chart with error handling
-    initCategoriesChart() {
-      try {
-        const ctx = document.getElementById('categoriesChart');
-        if (!ctx) return;
-        
-        // Destroy existing chart
-        if (this.chartConfigs.categoriesChart && this.chartConfigs.categoriesChart.destroy) {
-          this.chartConfigs.categoriesChart.destroy();
-        }
-        
-        const categories = ['Beverages', 'Food', 'Desserts', 'Snacks', 'Others'];
-        const data = [35, 30, 15, 12, 8];
-        
-        this.chartConfigs.categoriesChart = new Chart(ctx, {
-          type: 'doughnut',
-          data: {
-            labels: categories,
-            datasets: [{
-              data: data,
-              backgroundColor: [
-                'rgba(102, 126, 234, 0.8)',
-                'rgba(72, 187, 120, 0.8)',
-                'rgba(237, 137, 54, 0.8)',
-                'rgba(159, 122, 234, 0.8)',
-                'rgba(56, 178, 172, 0.8)'
-              ],
-              borderColor: [
-                'rgba(102, 126, 234, 1)',
-                'rgba(72, 187, 120, 1)',
-                'rgba(237, 137, 54, 1)',
-                'rgba(159, 122, 234, 1)',
-                'rgba(56, 178, 172, 1)'
-              ],
-              borderWidth: 2
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-              animateRotate: true,
-              animateScale: true,
-              duration: 1000,
-              easing: 'easeInOutQuart'
-            },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  padding: 15,
-                  usePointStyle: true,
-                  font: { size: 12 },
-                  color: '#666'
-                }
-              },
-              tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                enabled: true,
-                mode: 'index',
-                intersect: false,
-                callbacks: {
-                  label: function(context) {
-                    // Add comprehensive null checks
-                    if (!context || !context.dataset || !context.dataset.data) {
-                      return '0%';
-                    }
-                    
-                    const total = Array.isArray(context.dataset.data)
-                      ? context.dataset.data.reduce((a, b) => a + (b || 0), 0)
-                      : 0;
-                    
-                    if (total === 0) return '0%';
-                    
-                    const parsed = context.parsed !== undefined ? context.parsed : 0;
-                    const percentage = ((parsed / total) * 100).toFixed(1);
-                    const label = context.label || 'Unknown';
-                    return `${label}: ${percentage}%`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error initializing categories chart:', error);
-      }
-    },
-
-    // Initialize Payment Methods Chart with error handling
-    initPaymentMethodsChart() {
-      try {
-        const ctx = document.getElementById('paymentMethodsChart');
-        if (!ctx) return;
-        
-        // Destroy existing chart
-        if (this.chartConfigs.paymentMethodsChart && this.chartConfigs.paymentMethodsChart.destroy) {
-          this.chartConfigs.paymentMethodsChart.destroy();
-        }
-        
-        const methods = ['Cash', 'Card', 'UPI', 'Wallet'];
-        const data = [40, 35, 20, 5];
-        
-        this.chartConfigs.paymentMethodsChart = new Chart(ctx, {
-          type: 'pie',
-          data: {
-            labels: methods,
-            datasets: [{
-              data: data,
-              backgroundColor: [
-                'rgba(102, 126, 234, 0.8)',
-                'rgba(72, 187, 120, 0.8)',
-                'rgba(237, 137, 54, 0.8)',
-                'rgba(245, 101, 101, 0.8)'
-              ],
-              borderColor: [
-                'rgba(102, 126, 234, 1)',
-                'rgba(72, 187, 120, 1)',
-                'rgba(237, 137, 54, 1)',
-                'rgba(245, 101, 101, 1)'
-              ],
-              borderWidth: 2
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-              animateRotate: true,
-              animateScale: true,
-              duration: 1000,
-              easing: 'easeInOutQuart'
-            },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  padding: 15,
-                  usePointStyle: true,
-                  font: { size: 12 },
-                  color: '#666'
-                }
-              },
-              tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                enabled: true,
-                callbacks: {
-                  label: function(context) {
-                    // Add comprehensive null checks
-                    if (!context || !context.dataset || !context.dataset.data) {
-                      return '0%';
-                    }
-                    
-                    const total = Array.isArray(context.dataset.data)
-                      ? context.dataset.data.reduce((a, b) => a + (b || 0), 0)
-                      : 0;
-                    
-                    if (total === 0) return '0%';
-                    
-                    const parsed = context.parsed !== undefined ? context.parsed : 0;
-                    const percentage = ((parsed / total) * 100).toFixed(1);
-                    const label = context.label || 'Unknown';
-                    return `${label}: ${percentage}%`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error initializing payment methods chart:', error);
-      }
-    },
-
-    // Initialize Monthly Sales Chart with error handling
-    initMonthlySalesChart() {
-      try {
-        const ctx = document.getElementById('monthlySalesChart');
-        if (!ctx) return;
-        
-        // Destroy existing chart
-        if (this.chartConfigs.monthlySalesChart && this.chartConfigs.monthlySalesChart.destroy) {
-          this.chartConfigs.monthlySalesChart.destroy();
-        }
-        
-        const months = this.getLast12Months();
-        const salesData = months.map(() => 80000 + Math.random() * 40000);
-        const ordersData = months.map(() => 200 + Math.random() * 100);
-        
-        this.chartConfigs.monthlySalesChart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: months,
-            datasets: [{
-              label: 'Sales (₹)',
-              data: salesData,
-              borderColor: 'rgba(102, 126, 234, 1)',
-              backgroundColor: 'rgba(102, 126, 234, 0.1)',
-              borderWidth: 3,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: 'rgba(102, 126, 234, 1)',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 6,
-              pointHoverRadius: 8
-            }, {
-              label: 'Orders',
-              data: ordersData,
-              borderColor: 'rgba(72, 187, 120, 1)',
-              backgroundColor: 'rgba(72, 187, 120, 0.1)',
-              borderWidth: 3,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: 'rgba(72, 187, 120, 1)',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 6,
-              pointHoverRadius: 8,
-              yAxisID: 'y1'
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-              mode: 'index',
-              intersect: false
-            },
-            animation: {
-              duration: 1500,
-              easing: 'easeInOutQuart'
-            },
-            plugins: {
-              legend: {
-                position: 'top',
-                labels: {
-                  usePointStyle: true,
-                  padding: 20
-                }
-              },
-              tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                enabled: true,
-                callbacks: {
-                  label: function(context) {
-                    // Add null checks for context and parsed values
-                    if (!context || !context.dataset) {
-                      return '0';
-                    }
-                    
-                    let label = context.dataset.label || '';
-                    if (label) {
-                      label += ': ';
-                    }
-                    
-                    if (context.parsed && context.parsed.y !== null && context.parsed.y !== undefined) {
-                      if (context.datasetIndex === 0) {
-                        label += '₹' + context.parsed.y.toFixed(0);
-                      } else {
-                        label += context.parsed.y.toFixed(0);
-                      }
-                    } else {
-                      label += '0';
-                    }
-                    return label;
-                  }
-                }
-              }
-            },
-            scales: {
-              y: {
-                type: 'linear',
-                display: true,
-                position: 'left',
-                grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
-                ticks: {
-                  callback: function(value) {
-                    return '₹' + value.toLocaleString();
-                  }
-                }
-              },
-              y1: {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                grid: { drawOnChartArea: false }
-              },
-              x: {
-                grid: { display: false }
-              }
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error initializing monthly sales chart:', error);
-      }
-    },
-
-    // Initialize GST Charts with error handling
-    initGSTCharts() {
-      try {
-        // CGST Chart
-        const cgstCtx = document.getElementById('cgstChart');
-        if (cgstCtx) {
-          // Destroy existing chart
-          if (this.chartConfigs.cgstChart && this.chartConfigs.cgstChart.destroy) {
-            this.chartConfigs.cgstChart.destroy();
-          }
-          
-          const months = this.getLast6Months();
-          const cgstData = months.map(() => 2000 + Math.random() * 1000);
-          
-          this.chartConfigs.cgstChart = new Chart(cgstCtx, {
-            type: 'bar',
-            data: {
-              labels: months,
-              datasets: [{
-                label: 'CGST (₹)',
-                data: cgstData,
-                backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                borderColor: 'rgba(102, 126, 234, 1)',
-                borderWidth: 1,
-                borderRadius: 8
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              animation: { duration: 0 }, // Disable animation to prevent recursion
-              plugins: {
-                legend: {
-                  display: false,
-                  position: 'top',
-                  labels: {
-                    display: false,
-                    color: '#666',
-                    font: { size: 12 }
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
-                  ticks: {
-                    callback: function(value) {
-                      return '₹' + value.toLocaleString();
-                    }
-                  }
-                },
-                x: {
-                  grid: { display: false }
-                }
-              }
-            }
-          });
-        }
-        
-        // SGST Chart
-        const sgstCtx = document.getElementById('sgstChart');
-        if (sgstCtx) {
-          // Destroy existing chart
-          if (this.chartConfigs.sgstChart && this.chartConfigs.sgstChart.destroy) {
-            this.chartConfigs.sgstChart.destroy();
-          }
-          
-          const months = this.getLast6Months();
-          const sgstData = months.map(() => 2000 + Math.random() * 1000);
-          
-          this.chartConfigs.sgstChart = new Chart(sgstCtx, {
-            type: 'bar',
-            data: {
-              labels: months,
-              datasets: [{
-                label: 'SGST (₹)',
-                data: sgstData,
-                backgroundColor: 'rgba(72, 187, 120, 0.8)',
-                borderColor: 'rgba(72, 187, 120, 1)',
-                borderWidth: 1,
-                borderRadius: 8
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              animation: { duration: 0 }, // Disable animation to prevent recursion
-              plugins: {
-                legend: {
-                  display: false,
-                  position: 'top',
-                  labels: {
-                    display: false,
-                    color: '#666',
-                    font: { size: 12 }
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
-                  ticks: {
-                    callback: function(value) {
-                      return '₹' + value.toLocaleString();
-                    }
-                  }
-                },
-                x: {
-                  grid: { display: false }
-                }
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error initializing GST charts:', error);
-      }
-    },
-
-    // Update all charts with new data (with improved recursion protection and debouncing)
-    updateCharts() {
-      try {
-        // Prevent recursive updates
-        if (this.isUpdating) return;
-        this.isUpdating = true;
-        
-        // Clear any existing timeout
-        if (this.updateTimeout) {
-          clearTimeout(this.updateTimeout);
-        }
-        
-        // Debounce chart updates
-        this.updateTimeout = setTimeout(() => {
-          try {
-            // Update chart data based on current filters
-            Object.keys(this.chartConfigs).forEach(chartKey => {
-              const chart = this.chartConfigs[chartKey];
-              if (chart && this.shouldUpdateChart(chartKey)) {
-                this.updateChartData(chartKey);
-              }
-            });
-          } catch (error) {
-            console.error('Error in debounced chart update:', error);
-          } finally {
-            // Reset update flag after all charts are updated
-            this.isUpdating = false;
-          }
-        }, 50); // 50ms debounce delay
-      } catch (error) {
-        console.error('Error updating charts:', error);
-        this.isUpdating = false;
-      }
-    },
-
-    // Update specific chart data with improved error handling and validation
-    updateChartData(chartKey) {
-      try {
-        const chart = this.chartConfigs[chartKey];
-        if (!chart || !chart.data || !chart.config) {
-          console.warn(`Chart ${chartKey} is not properly initialized`);
-          return;
-        }
-        
-        // Check if chart is in a valid state for updating
-        if (chart.destroyed || chart.destroy) {
-          console.warn(`Chart ${chartKey} is destroyed, skipping update`);
-          return;
-        }
-        
-        // Generate new data based on filters
-        const newData = this.generateChartData(chartKey);
-        
-        // Validate new data structure
-        if (!newData || !newData.labels || !Array.isArray(newData.datasets)) {
-          console.error(`Invalid data structure for ${chartKey}:`, newData);
-          return;
-        }
-        
-        // Update chart with comprehensive error handling
-        try {
-          // Deep copy the data to prevent circular references
-          const safeData = JSON.parse(JSON.stringify(newData));
-          
-          // Validate chart options before updating
-          if (!chart.options) {
-            chart.options = {};
-          }
-          
-          // Ensure plugins object exists
-          if (!chart.options.plugins) {
-            chart.options.plugins = {};
-          }
-          
-          // Ensure plugins.legend exists with proper structure
-          if (!chart.options.plugins.legend) {
-            chart.options.plugins.legend = { display: false };
-          }
-          
-          // Ensure plugins.tooltip exists with proper structure
-          if (!chart.options.plugins.tooltip) {
-            chart.options.plugins.tooltip = { enabled: false };
-          }
-          
-          // Update chart data safely
-          chart.data = safeData;
-          
-          // Use 'none' animation to prevent recursion and add error handling
-          if (typeof chart.update === 'function') {
-            chart.update('none');
-          }
-        } catch (updateError) {
-          console.error(`Error updating ${chartKey}:`, updateError);
-          // Fallback to minimal data structure
-          try {
-            chart.data = { labels: [], datasets: [] };
-            if (typeof chart.update === 'function') {
-              chart.update('none');
-            }
-          } catch (fallbackError) {
-            console.error(`Fallback update failed for ${chartKey}:`, fallbackError);
-          }
-        }
-      } catch (error) {
-        console.error(`Error in updateChartData for ${chartKey}:`, error);
-      }
-    },
-
-    // Generate chart data based on filters with error handling
-    generateChartData(chartKey) {
-      try {
-        const reportType = this.filters.reportType;
-        
-        switch (chartKey) {
-          case 'dailyOrdersChart':
-            return this.generateDailyOrdersData();
-          case 'categoriesChart':
-            return this.generateCategoriesData();
-          case 'paymentMethodsChart':
-            return this.generatePaymentMethodsData();
-          case 'monthlySalesChart':
-            return this.generateMonthlySalesData();
-          default:
-            return this.chartConfigs[chartKey].data;
-        }
-      } catch (error) {
-        console.error(`Error generating chart data for ${chartKey}:`, error);
-        return { labels: [], datasets: [] };
-      }
-    },
-
-    // Generate daily orders data with error handling
-    generateDailyOrdersData() {
-      try {
-        const days = this.filters.reportType === 'daily' ? 30 : 7;
-        const labels = this.getLastNDays(days);
-        const data = labels.map(() => 10 + Math.floor(Math.random() * 30));
-        
-        return {
-          labels: labels,
-          datasets: [{
-            label: 'Orders',
-            data: data,
-            backgroundColor: 'rgba(102, 126, 234, 0.8)',
-            borderColor: 'rgba(102, 126, 234, 1)',
-            borderWidth: 1,
-            borderRadius: 8
-          }]
-        };
-      } catch (error) {
-        console.error('Error generating daily orders data:', error);
-        return { labels: [], datasets: [] };
-      }
-    },
-
-    // Generate categories data with error handling
-    generateCategoriesData() {
-      try {
-        const categories = ['Beverages', 'Food', 'Desserts', 'Snacks', 'Others'];
-        const data = [
-          30 + Math.random() * 10,
-          25 + Math.random() * 10,
-          15 + Math.random() * 5,
-          15 + Math.random() * 5,
-          5 + Math.random() * 5
-        ];
-        
-        return {
-          labels: categories,
-          datasets: [{
-            data: data,
-            backgroundColor: [
-              'rgba(102, 126, 234, 0.8)',
-              'rgba(72, 187, 120, 0.8)',
-              'rgba(237, 137, 54, 0.8)',
-              'rgba(159, 122, 234, 0.8)',
-              'rgba(56, 178, 172, 0.8)'
-            ],
-            borderColor: [
-              'rgba(102, 126, 234, 1)',
-              'rgba(72, 187, 120, 1)',
-              'rgba(237, 137, 54, 1)',
-              'rgba(159, 122, 234, 1)',
-              'rgba(56, 178, 172, 1)'
-            ],
-            borderWidth: 2
-          }]
-        };
-      } catch (error) {
-        console.error('Error generating categories data:', error);
-        return { labels: [], datasets: [] };
-      }
-    },
-
-    // Generate payment methods data with error handling
-    generatePaymentMethodsData() {
-      try {
-        const methods = ['Cash', 'Card', 'UPI', 'Wallet'];
-        const data = [
-          35 + Math.random() * 10,
-          30 + Math.random() * 10,
-          20 + Math.random() * 10,
-          5 + Math.random() * 5
-        ];
-        
-        return {
-          labels: methods,
-          datasets: [{
-            data: data,
-            backgroundColor: [
-              'rgba(102, 126, 234, 0.8)',
-              'rgba(72, 187, 120, 0.8)',
-              'rgba(237, 137, 54, 0.8)',
-              'rgba(245, 101, 101, 0.8)'
-            ],
-            borderColor: [
-              'rgba(102, 126, 234, 1)',
-              'rgba(72, 187, 120, 1)',
-              'rgba(237, 137, 54, 1)',
-              'rgba(245, 101, 101, 1)'
-            ],
-            borderWidth: 2
-          }]
-        };
-      } catch (error) {
-        console.error('Error generating payment methods data:', error);
-        return { labels: [], datasets: [] };
-      }
-    },
-
-    // Generate monthly sales data with error handling
-    generateMonthlySalesData() {
-      try {
-        const months = this.filters.reportType === 'monthly' ? this.getLast12Months() : this.getLast6Months();
-        const salesData = months.map(() => 80000 + Math.random() * 40000);
-        const ordersData = months.map(() => 200 + Math.random() * 100);
-        
-        return {
-          labels: months,
-          datasets: [{
-            label: 'Sales (₹)',
-            data: salesData,
-            borderColor: 'rgba(102, 126, 234, 1)',
-            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4
-          }, {
-            label: 'Orders',
-            data: ordersData,
-            borderColor: 'rgba(72, 187, 120, 1)',
-            backgroundColor: 'rgba(72, 187, 120, 0.1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4,
-            yAxisID: 'y1'
-          }]
-        };
-      } catch (error) {
-        console.error('Error generating monthly sales data:', error);
-        return { labels: [], datasets: [] };
-      }
-    },
-
-    // Check if chart should be updated
-    shouldUpdateChart(chartKey) {
-      try {
-        const reportType = this.filters.reportType;
-        
-        if (reportType === 'dashboard') {
-          return true;
-        }
-        
-        if (reportType === 'gstr1' || reportType === 'gstr3b') {
-          return chartKey === 'cgstChart' || chartKey === 'sgstChart';
-        }
-        
-        return true;
-      } catch (error) {
-        console.error('Error checking if chart should update:', error);
-        return false;
-      }
-    },
-
-    // Update stats display
-    updateStats() {
-      try {
-        // Stats are already updated in fetchReportData
-        // This method can be used for additional formatting or calculations
-      } catch (error) {
-        console.error('Error updating stats:', error);
-      }
-    },
-
-    // Update table display
-    updateTable() {
-      try {
-        // Table data is already updated in fetchReportData
-        // This method can be used for additional formatting or calculations
-      } catch (error) {
-        console.error('Error updating table:', error);
-      }
-    },
-
-    // Update report type with error handling
-    updateReportType() {
-      try {
-        this.loadReportData();
-        
-        // Re-initialize charts if needed
-        this.$nextTick(() => {
-          try {
-            if (this.filters.reportType === 'gstr1' || this.filters.reportType === 'gstr3b') {
-              this.initGSTCharts();
-            }
-          } catch (error) {
-            console.error('Error updating report type:', error);
-          }
-        });
-      } catch (error) {
-        console.error('Error in updateReportType:', error);
-      }
-    },
-
-    // Refresh all data with error handling
-    async refreshAllData() {
-      try {
-        await this.loadReportData();
-      } catch (error) {
-        console.error('Error refreshing data:', error);
-      }
-    },
-
-    // Reset filters with error handling
-    resetFilters() {
-      try {
-        this.filters = {
-          reportType: 'dashboard',
-          fromDate: '',
-          toDate: '',
-          comparison: 'none'
-        };
-        
-        this.setDefaultDates();
-        this.loadReportData();
-      } catch (error) {
-        console.error('Error resetting filters:', error);
-      }
-    },
-
-    // Export chart as image with error handling
-    exportChart(chartId) {
-      try {
-        const chart = this.chartConfigs[chartId];
-        if (!chart) return;
-        
-        const url = chart.toBase64Image();
-        const link = document.createElement('a');
-        link.download = `${chartId}_${new Date().toISOString().split('T')[0]}.png`;
-        link.href = url;
-        link.click();
-        
-        this.showNotification('Chart exported successfully', 'success');
-      } catch (error) {
-        console.error('Error exporting chart:', error);
-        this.showNotification('Failed to export chart', 'error');
-      }
-    },
-
-    // Toggle chart type with improved error handling
-    toggleChartType(chartId) {
-      try {
-        const chart = this.chartConfigs[chartId];
-        if (!chart || !chart.config) {
-          console.warn(`Chart ${chartId} is not properly initialized for type toggle`);
-          return;
-        }
-        
-        // Prevent toggling during updates
-        if (this.isUpdating) {
-          console.warn('Cannot toggle chart type during update');
-          return;
-        }
-        
-        const currentType = chart.config.type;
-        const newType = currentType === 'bar' ? 'line' : 'bar';
-        
-        // Safely update chart type
-        chart.config.type = newType;
-        
-        // Use 'none' animation to prevent recursion
-        if (typeof chart.update === 'function') {
-          chart.update('none');
-        }
-      } catch (error) {
-        console.error('Error toggling chart type:', error);
-        this.showNotification('Failed to toggle chart type', 'error');
-      }
-    },
-
-    // Export report with error handling
-    exportReport(format) {
-      try {
-        switch (format) {
-          case 'pdf':
-            this.exportToPDF();
-            break;
-          case 'csv':
-            this.exportToCSV();
-            break;
-          case 'excel':
-            this.exportToExcel();
-            break;
-          default:
-            this.showNotification('Invalid export format', 'error');
-        }
-      } catch (error) {
-        console.error('Error exporting report:', error);
-        this.showNotification('Failed to export report', 'error');
-      }
-    },
-
-    // Export to PDF with error handling
-    exportToPDF() {
-      try {
-        window.print();
-        this.showNotification('PDF export initiated', 'success');
-      } catch (error) {
-        console.error('Error exporting to PDF:', error);
-        this.showNotification('Failed to export to PDF', 'error');
-      }
-    },
-
-    // Export to CSV with error handling
-    exportToCSV() {
-      try {
-        const csvContent = this.generateCSVContent();
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `report_${new Date().toISOString().split('T')[0]}.csv`;
-        link.click();
-        window.URL.revokeObjectURL(url);
-        
-        this.showNotification('CSV exported successfully', 'success');
-      } catch (error) {
-        console.error('Error exporting to CSV:', error);
-        this.showNotification('Failed to export to CSV', 'error');
-      }
-    },
-
-    // Export to Excel with error handling
-    exportToExcel() {
-      try {
-        // For Excel export, we would typically use a library like xlsx
-        // For now, we'll export as CSV and suggest the user can open it in Excel
-        this.exportToCSV();
-        this.showNotification('Excel export initiated (CSV format)', 'success');
-      } catch (error) {
-        console.error('Error exporting to Excel:', error);
-        this.showNotification('Failed to export to Excel', 'error');
-      }
-    },
-
-    // Generate CSV content with error handling
-    generateCSVContent() {
-      try {
-        let csv = 'Date,Orders,Gross Sales,Discount,Net Sales,CGST,SGST,Total\n';
-        
-        this.tableData.forEach(row => {
-          csv += `${row.date},${row.orders},${row.grossSales.toFixed(2)},${row.discount.toFixed(2)},${row.netSales.toFixed(2)},${row.cgst.toFixed(2)},${row.sgst.toFixed(2)},${row.total.toFixed(2)}\n`;
-        });
-        
-        return csv;
-      } catch (error) {
-        console.error('Error generating CSV content:', error);
-        return 'Error generating CSV';
-      }
-    },
-
-    // Email report with error handling
-    emailReport() {
-      try {
-        // This would typically open a modal or navigate to an email composition page
-        this.showNotification('Email functionality coming soon', 'info');
-      } catch (error) {
-        console.error('Error in email report:', error);
-      }
-    },
-
-    // Print report with error handling
-    printReport() {
-      try {
-        window.print();
-      } catch (error) {
-        console.error('Error printing report:', error);
-      }
-    },
-
-    // Utility functions with error handling
-    formatCurrency(amount) {
-      try {
-        return new Intl.NumberFormat('en-IN', {
-          style: 'currency',
-          currency: 'INR',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).format(amount);
-      } catch (error) {
-        console.error('Error formatting currency:', error);
-        return '₹0';
-      }
-    },
-
-    // Get last N days with error handling
-    getLastNDays(days) {
-      try {
-        const result = [];
-        for (let i = days - 1; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          result.push(date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
-        }
-        return result;
-      } catch (error) {
-        console.error('Error getting last N days:', error);
-        return [];
-      }
-    },
-
-    // Get last 7 days with error handling
-    getLast7Days() {
-      try {
-        return this.getLastNDays(7);
-      } catch (error) {
-        console.error('Error getting last 7 days:', error);
-        return [];
-      }
-    },
-
-    // Get last 6 months with error handling
-    getLast6Months() {
-      try {
-        const result = [];
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date();
-          date.setMonth(date.getMonth() - i);
-          result.push(date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
-        }
-        return result;
-      } catch (error) {
-        console.error('Error getting last 6 months:', error);
-        return [];
-      }
-    },
-
-    // Get last 12 months with error handling
-    getLast12Months() {
-      try {
-        const result = [];
-        for (let i = 11; i >= 0; i--) {
-          const date = new Date();
-          date.setMonth(date.getMonth() - i);
-          result.push(date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
-        }
-        return result;
-      } catch (error) {
-        console.error('Error getting last 12 months:', error);
-        return [];
-      }
-    },
-
-    // Show notification with error handling
-    showNotification(message, type = 'info') {
-      try {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `reports-notification reports-notification-${type}`;
-        notification.textContent = message;
-        
-        // Add styles
-        Object.assign(notification.style, {
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          padding: '12px 20px',
-          borderRadius: '8px',
-          color: '#fff',
-          fontWeight: '500',
-          zIndex: '9999',
-          opacity: '0',
-          transform: 'translateY(-20px)',
-          transition: 'all 0.3s ease'
-        });
-        
-        // Set background color based on type
-        const colors = {
-          success: '#48BB78',
-          error: '#F56565',
-          warning: '#ED8936',
-          info: '#4299E1'
-        };
-        notification.style.backgroundColor = colors[type] || colors.info;
-        
-        // Add to DOM
-        document.body.appendChild(notification);
-        
-        // Animate in
-        setTimeout(() => {
-          notification.style.opacity = '1';
-          notification.style.transform = 'translateY(0)';
-        }, 100);
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-          notification.style.opacity = '0';
-          notification.style.transform = 'translateY(-20px)';
-          setTimeout(() => {
-            if (document.body.contains(notification)) {
-              document.body.removeChild(notification);
-            }
-          }, 300);
-        }, 3000);
-      } catch (error) {
-        console.error('Error showing notification:', error);
-      }
+// Enhanced Reports Module
+const EnhancedReports = {
+  // Chart instances
+  charts: {},
+  
+  // Report configuration
+  config: {
+    autoRefresh: false,
+    refreshInterval: 300000, // 5 minutes
+    defaultDateRange: 7, // days
+    chartColors: {
+      primary: 'rgba(102, 126, 234, 0.8)',
+      secondary: 'rgba(118, 75, 162, 0.8)',
+      success: 'rgba(40, 167, 69, 0.8)',
+      warning: 'rgba(255, 193, 7, 0.8)',
+      danger: 'rgba(220, 53, 69, 0.8)',
+      info: 'rgba(23, 162, 184, 0.8)'
     }
-  };
-}
-
-// Initialize when DOM is ready with error handling
-document.addEventListener('alpine:init', () => {
-  try {
-    Alpine.data('reportsDashboard', reportsDashboard);
-  } catch (error) {
-    console.error('Error initializing Alpine:', error);
+  },
+  
+  // Initialize the enhanced reports
+  init() {
+    this.setupEventListeners();
+    this.initializeCharts();
+    this.setupAutoRefresh();
+    this.setupKeyboardShortcuts();
+    this.setupPrintStyles();
+    
+    console.log('Enhanced Reports initialized');
+  },
+  
+  // Setup event listeners
+  setupEventListeners() {
+    // Report type change
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[data-report-type]')) {
+        this.handleReportTypeChange(e.target.value);
+      }
+    });
+    
+    // Date range change
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[data-date-range]')) {
+        this.handleDateRangeChange(e.target);
+      }
+    });
+    
+    // Filter change
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[data-filter]')) {
+        this.handleFilterChange(e.target);
+      }
+    });
+    
+    // Export button click
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-export]')) {
+        e.preventDefault();
+        this.handleExport(e.target.dataset.export);
+      }
+    });
+    
+    // Chart export button
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-chart-export]')) {
+        e.preventDefault();
+        this.exportChart(e.target.dataset.chartExport);
+      }
+    });
+    
+    // Print button
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-print-report]')) {
+        e.preventDefault();
+        this.printReport();
+      }
+    });
+    
+    // Real-time toggle
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-realtime-toggle]')) {
+        e.preventDefault();
+        this.toggleRealtime();
+      }
+    });
+    
+    // Save configuration
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-save-config]')) {
+        e.preventDefault();
+        this.saveConfiguration();
+      }
+    });
+    
+    // Schedule report
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-schedule-report]')) {
+        e.preventDefault();
+        this.openScheduleModal();
+      }
+    });
+    
+    // Email report
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-email-report]')) {
+        e.preventDefault();
+        this.emailReport();
+      }
+    });
+    
+    // Reset filters
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-reset-filters]')) {
+        e.preventDefault();
+        this.resetFilters();
+      }
+    });
+    
+    // Chart type toggle
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('[data-toggle-chart-type]')) {
+        e.preventDefault();
+        this.toggleChartType(e.target.dataset.toggleChartType);
+      }
+    });
+    
+    // Online/Offline status
+    window.addEventListener('online', () => {
+      this.handleOnlineStatusChange(true);
+    });
+    
+    window.addEventListener('offline', () => {
+      this.handleOnlineStatusChange(false);
+    });
+  },
+  
+  // Initialize charts
+  initializeCharts() {
+    // Daily Orders Chart
+    this.initDailyOrdersChart();
+    
+    // Categories Chart
+    this.initCategoriesChart();
+    
+    // Payment Methods Chart
+    this.initPaymentMethodsChart();
+    
+    // Monthly Sales Chart
+    this.initMonthlySalesChart();
+    
+    // GST Charts
+    this.initGSTCharts();
+  },
+  
+  // Initialize Daily Orders Chart
+  initDailyOrdersChart() {
+    const ctx = document.getElementById('dailyOrdersChart');
+    if (!ctx) return;
+    
+    this.charts.dailyOrders = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Orders',
+          data: [],
+          backgroundColor: this.config.chartColors.primary,
+          borderColor: this.config.chartColors.primary.replace('0.8', '1'),
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                return `Orders: ${context.parsed.y}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            }
+          }
+        }
+      }
+    });
+  },
+  
+  // Initialize Categories Chart
+  initCategoriesChart() {
+    const ctx = document.getElementById('categoriesChart');
+    if (!ctx) return;
+    
+    this.charts.categories = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: [
+            this.config.chartColors.primary,
+            this.config.chartColors.secondary,
+            this.config.chartColors.success,
+            this.config.chartColors.warning,
+            this.config.chartColors.danger,
+            this.config.chartColors.info
+          ],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'right'
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const label = context.label || '';
+                const value = this.formatCurrency(context.parsed);
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                return `${label}: ${value} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  },
+  
+  // Initialize Payment Methods Chart
+  initPaymentMethodsChart() {
+    const ctx = document.getElementById('paymentMethodsChart');
+    if (!ctx) return;
+    
+    this.charts.paymentMethods = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: [
+            this.config.chartColors.primary,
+            this.config.chartColors.secondary,
+            this.config.chartColors.success,
+            this.config.chartColors.warning,
+            this.config.chartColors.danger
+          ],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom'
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const label = context.label || '';
+                const value = this.formatCurrency(context.parsed);
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                return `${label}: ${value} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  },
+  
+  // Initialize Monthly Sales Chart
+  initMonthlySalesChart() {
+    const ctx = document.getElementById('monthlySalesChart');
+    if (!ctx) return;
+    
+    this.charts.monthlySales = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Sales',
+          data: [],
+          borderColor: this.config.chartColors.primary.replace('0.8', '1'),
+          backgroundColor: this.config.chartColors.primary.replace('0.8', '0.1'),
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                return `Sales: ${this.formatCurrency(context.parsed.y)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (value) => {
+                return this.formatCurrency(value);
+              }
+            }
+          }
+        }
+      }
+    });
+  },
+  
+  // Initialize GST Charts
+  initGSTCharts() {
+    // CGST Chart
+    const cgstCtx = document.getElementById('cgstChart');
+    if (cgstCtx) {
+      this.charts.cgst = new Chart(cgstCtx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'CGST',
+            data: [],
+            backgroundColor: this.config.chartColors.success,
+            borderColor: this.config.chartColors.success.replace('0.8', '1'),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `CGST: ${this.formatCurrency(context.parsed.y)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (value) => {
+                  return this.formatCurrency(value);
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // SGST Chart
+    const sgstCtx = document.getElementById('sgstChart');
+    if (sgstCtx) {
+      this.charts.sgst = new Chart(sgstCtx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'SGST',
+            data: [],
+            backgroundColor: this.config.chartColors.info,
+            borderColor: this.config.chartColors.info.replace('0.8', '1'),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `SGST: ${this.formatCurrency(context.parsed.y)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (value) => {
+                  return this.formatCurrency(value);
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  },
+  
+  // Handle report type change
+  handleReportTypeChange(reportType) {
+    // Update chart visibility
+    this.updateChartVisibility(reportType);
+    
+    // Load appropriate data
+    this.loadReportData(reportType);
+    
+    // Update UI
+    this.updateReportTypeUI(reportType);
+  },
+  
+  // Handle date range change
+  handleDateRangeChange(element) {
+    const dateRange = element.value;
+    
+    if (dateRange === 'custom') {
+      // Show custom date pickers
+      this.showCustomDatePickers();
+    } else {
+      // Set dates based on preset
+      this.setDateRangeFromPreset(dateRange);
+    }
+    
+    // Reload data
+    this.loadReportData();
+  },
+  
+  // Handle filter change
+  handleFilterChange(element) {
+    // Debounce filter changes
+    clearTimeout(this.filterTimeout);
+    this.filterTimeout = setTimeout(() => {
+      this.loadReportData();
+    }, 500);
+  },
+  
+  // Load report data
+  async loadReportData(reportType = null) {
+    try {
+      // Show loading state
+      this.showLoadingState();
+      
+      // Get current filters
+      const filters = this.getCurrentFilters(reportType);
+      
+      // Make API request
+      const response = await fetch('/api/reports/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(filters)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load report data');
+      }
+      
+      const data = await response.json();
+      
+      // Update charts
+      this.updateCharts(data);
+      
+      // Update stats
+      this.updateStats(data.stats);
+      
+      // Update table
+      this.updateTable(data.tableData);
+      
+      // Update last refreshed time
+      this.updateLastRefreshed();
+      
+    } catch (error) {
+      console.error('Error loading report data:', error);
+      this.showError('Failed to load report data');
+    } finally {
+      // Hide loading state
+      this.hideLoadingState();
+    }
+  },
+  
+  // Update charts with new data
+  updateCharts(data) {
+    // Update Daily Orders Chart
+    if (this.charts.dailyOrders && data.dailyOrders) {
+      this.charts.dailyOrders.data.labels = data.dailyOrders.map(item => item.label);
+      this.charts.dailyOrders.data.datasets[0].data = data.dailyOrders.map(item => item.value);
+      this.charts.dailyOrders.update();
+    }
+    
+    // Update Categories Chart
+    if (this.charts.categories && data.categories) {
+      this.charts.categories.data.labels = data.categories.map(item => item.label);
+      this.charts.categories.data.datasets[0].data = data.categories.map(item => item.value);
+      this.charts.categories.update();
+    }
+    
+    // Update Payment Methods Chart
+    if (this.charts.paymentMethods && data.paymentMethods) {
+      this.charts.paymentMethods.data.labels = data.paymentMethods.map(item => item.label);
+      this.charts.paymentMethods.data.datasets[0].data = data.paymentMethods.map(item => item.value);
+      this.charts.paymentMethods.update();
+    }
+    
+    // Update Monthly Sales Chart
+    if (this.charts.monthlySales && data.monthlySales) {
+      this.charts.monthlySales.data.labels = data.monthlySales.map(item => item.label);
+      this.charts.monthlySales.data.datasets[0].data = data.monthlySales.map(item => item.value);
+      this.charts.monthlySales.update();
+    }
+    
+    // Update GST Charts
+    if (this.charts.cgst && data.cgstBreakdown) {
+      this.charts.cgst.data.labels = data.cgstBreakdown.map(item => item.label);
+      this.charts.cgst.data.datasets[0].data = data.cgstBreakdown.map(item => item.value);
+      this.charts.cgst.update();
+    }
+    
+    if (this.charts.sgst && data.sgstBreakdown) {
+      this.charts.sgst.data.labels = data.sgstBreakdown.map(item => item.label);
+      this.charts.sgst.data.datasets[0].data = data.sgstBreakdown.map(item => item.value);
+      this.charts.sgst.update();
+    }
+  },
+  
+  // Update stats
+  updateStats(stats) {
+    if (!stats) return;
+    
+    // Update stat cards
+    const statElements = {
+      totalSales: document.querySelector('[data-stat="totalSales"]'),
+      totalOrders: document.querySelector('[data-stat="totalOrders"]'),
+      cancelledOrders: document.querySelector('[data-stat="cancelledOrders"]'),
+      averageOrderValue: document.querySelector('[data-stat="averageOrderValue"]')
+    };
+    
+    Object.keys(statElements).forEach(key => {
+      if (statElements[key] && stats[key] !== undefined) {
+        if (key.includes('Sales') || key.includes('Value')) {
+          statElements[key].textContent = this.formatCurrency(stats[key]);
+        } else {
+          statElements[key].textContent = stats[key];
+        }
+      }
+    });
+  },
+  
+  // Update table
+  updateTable(tableData) {
+    if (!tableData) return;
+    
+    const tableBody = document.querySelector('[data-table-body]');
+    if (!tableBody) return;
+    
+    // Clear existing rows
+    tableBody.innerHTML = '';
+    
+    // Add new rows
+    tableData.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.date}</td>
+        <td>${row.orders}</td>
+        <td>${this.formatCurrency(row.grossSales)}</td>
+        <td>${this.formatCurrency(row.discount)}</td>
+        <td>${this.formatCurrency(row.netSales)}</td>
+        <td>${this.formatCurrency(row.cgst)}</td>
+        <td>${this.formatCurrency(row.sgst)}</td>
+        <td>${this.formatCurrency(row.total)}</td>
+      `;
+      tableBody.appendChild(tr);
+    });
+  },
+  
+  // Handle export
+  async handleExport(format) {
+    try {
+      const filters = this.getCurrentFilters();
+      
+      const response = await fetch('/api/reports/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...filters,
+          format: format
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to export report');
+      }
+      
+      // Get filename from response headers or create one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `report_${new Date().toISOString().slice(0, 10)}.${format}`;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      // Download file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      // Show success message
+      this.showSuccess(`Report exported as ${format.toUpperCase()}`);
+      
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      this.showError('Failed to export report');
+    }
+  },
+  
+  // Export specific chart
+  exportChart(chartId) {
+    const chart = this.charts[chartId];
+    if (!chart) return;
+    
+    // Create download link
+    const url = chart.toBase64Image();
+    const link = document.createElement('a');
+    link.download = `${chartId}_${new Date().toISOString().slice(0, 10)}.png`;
+    link.href = url;
+    link.click();
+  },
+  
+  // Print report
+  printReport() {
+    // Add print class to body
+    document.body.classList.add('printing');
+    
+    // Trigger print dialog
+    window.print();
+    
+    // Remove print class after print dialog closes
+    setTimeout(() => {
+      document.body.classList.remove('printing');
+    }, 1000);
+  },
+  
+  // Toggle real-time updates
+  toggleRealtime() {
+    this.config.autoRefresh = !this.config.autoRefresh;
+    
+    const toggleBtn = document.querySelector('[data-realtime-toggle]');
+    if (toggleBtn) {
+      toggleBtn.classList.toggle('active', this.config.autoRefresh);
+      toggleBtn.innerHTML = this.config.autoRefresh ? 
+        '<i class="bi bi-pause"></i> Pause' : 
+        '<i class="bi bi-play"></i> Real-time';
+    }
+    
+    if (this.config.autoRefresh) {
+      this.startAutoRefresh();
+      this.showSuccess('Real-time updates enabled');
+    } else {
+      this.stopAutoRefresh();
+      this.showInfo('Real-time updates disabled');
+    }
+  },
+  
+  // Setup auto refresh
+  setupAutoRefresh() {
+    this.refreshTimer = null;
+  },
+  
+  // Start auto refresh
+  startAutoRefresh() {
+    this.stopAutoRefresh(); // Clear any existing timer
+    
+    this.refreshTimer = setInterval(() => {
+      this.loadReportData();
+    }, this.config.refreshInterval);
+  },
+  
+  // Stop auto refresh
+  stopAutoRefresh() {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  },
+  
+  // Save configuration
+  async saveConfiguration() {
+    try {
+      const config = this.getCurrentFilters();
+      
+      const response = await fetch('/api/reports/save-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(config)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save configuration');
+      }
+      
+      this.showSuccess('Report configuration saved');
+      
+    } catch (error) {
+      console.error('Error saving configuration:', error);
+      this.showError('Failed to save configuration');
+    }
+  },
+  
+  // Email report
+  async emailReport() {
+    try {
+      const filters = this.getCurrentFilters();
+      
+      const response = await fetch('/api/reports/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(filters)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to email report');
+      }
+      
+      this.showSuccess('Report emailed successfully');
+      
+    } catch (error) {
+      console.error('Error emailing report:', error);
+      this.showError('Failed to email report');
+    }
+  },
+  
+  // Open schedule modal
+  openScheduleModal() {
+    // This would open a modal for scheduling reports
+    // For now, just show an info message
+    this.showInfo('Schedule report feature coming soon');
+  },
+  
+  // Reset filters
+  resetFilters() {
+    // Reset form elements
+    const form = document.querySelector('[data-reports-form]');
+    if (form) {
+      form.reset();
+    }
+    
+    // Reset to default values
+    const reportTypeSelect = document.querySelector('[data-report-type]');
+    if (reportTypeSelect) {
+      reportTypeSelect.value = 'dashboard';
+    }
+    
+    // Set default date range
+    this.setDateRangeFromPreset(this.config.defaultDateRange);
+    
+    // Reload data
+    this.loadReportData();
+    
+    this.showInfo('Filters reset to default values');
+  },
+  
+  // Toggle chart type
+  toggleChartType(chartId) {
+    const chart = this.charts[chartId];
+    if (!chart) return;
+    
+    // Toggle between bar and line chart
+    const currentType = chart.config.type;
+    const newType = currentType === 'bar' ? 'line' : 'bar';
+    
+    // Update chart type
+    chart.config.type = newType;
+    chart.update();
+    
+    // Update button icon
+    const toggleBtn = document.querySelector(`[data-toggle-chart-type="${chartId}"]`);
+    if (toggleBtn) {
+      toggleBtn.innerHTML = newType === 'bar' ? 
+        '<i class="bi bi-bar-chart"></i>' : 
+        '<i class="bi bi-graph-up"></i>';
+    }
+  },
+  
+  // Handle online status change
+  handleOnlineStatusChange(isOnline) {
+    const statusElement = document.querySelector('[data-connection-status]');
+    if (statusElement) {
+      statusElement.textContent = isOnline ? 'Online' : 'Offline';
+      statusElement.className = isOnline ? 'status-online' : 'status-offline';
+    }
+    
+    if (isOnline) {
+      this.showSuccess('Connection restored');
+      // Sync any pending data
+      this.syncPendingData();
+    } else {
+      this.showWarning('Connection lost - Working offline');
+    }
+  },
+  
+  // Sync pending data
+  async syncPendingData() {
+    try {
+      const response = await fetch('/api/reports/sync-pending', {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.synced > 0) {
+          this.showSuccess(`${result.synced} items synced`);
+          this.loadReportData(); // Refresh data
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing pending data:', error);
+    }
+  },
+  
+  // Setup keyboard shortcuts
+  setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      // Ctrl/Cmd + P: Print
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        this.printReport();
+      }
+      
+      // Ctrl/Cmd + E: Export
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        this.handleExport('pdf');
+      }
+      
+      // Ctrl/Cmd + R: Refresh
+      if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+        e.preventDefault();
+        this.loadReportData();
+      }
+      
+      // F5: Refresh
+      if (e.key === 'F5') {
+        e.preventDefault();
+        this.loadReportData();
+      }
+    });
+  },
+  
+  // Setup print styles
+  setupPrintStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        body.printing .no-print {
+          display: none !important;
+        }
+        
+        body.printing .reports-chart-container {
+          page-break-inside: avoid;
+        }
+        
+        body.printing .reports-data-table {
+          page-break-inside: avoid;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  },
+  
+  // Utility methods
+  getCurrentFilters(reportType = null) {
+    const filters = {};
+    
+    // Get report type
+    const reportTypeSelect = document.querySelector('[data-report-type]');
+    if (reportTypeSelect) {
+      filters.reportType = reportType || reportTypeSelect.value;
+    }
+    
+    // Get date range
+    const fromDateInput = document.querySelector('[data-from-date]');
+    const toDateInput = document.querySelector('[data-to-date]');
+    
+    if (fromDateInput) filters.fromDate = fromDateInput.value;
+    if (toDateInput) filters.toDate = toDateInput.value;
+    
+    // Get other filters
+    const comparisonSelect = document.querySelector('[data-comparison]');
+    if (comparisonSelect) filters.comparison = comparisonSelect.value;
+    
+    const categorySelect = document.querySelector('[data-category]');
+    if (categorySelect) filters.category = categorySelect.value;
+    
+    const paymentMethodSelect = document.querySelector('[data-payment-method]');
+    if (paymentMethodSelect) filters.paymentMethod = paymentMethodSelect.value;
+    
+    return filters;
+  },
+  
+  setDateRangeFromPreset(days) {
+    const toDate = new Date();
+    const fromDate = new Date();
+    fromDate.setDate(toDate.getDate() - days);
+    
+    const fromDateInput = document.querySelector('[data-from-date]');
+    const toDateInput = document.querySelector('[data-to-date]');
+    
+    if (fromDateInput) fromDateInput.value = fromDate.toISOString().split('T')[0];
+    if (toDateInput) toDateInput.value = toDate.toISOString().split('T')[0];
+  },
+  
+  showCustomDatePickers() {
+    // This would show custom date picker UI
+    // For now, just focus on the from date input
+    const fromDateInput = document.querySelector('[data-from-date]');
+    if (fromDateInput) fromDateInput.focus();
+  },
+  
+  updateChartVisibility(reportType) {
+    // Show/hide charts based on report type
+    const chartContainers = {
+      dailyOrdersChart: document.querySelector('[data-chart="dailyOrders"]'),
+      categoriesChart: document.querySelector('[data-chart="categories"]'),
+      paymentMethodsChart: document.querySelector('[data-chart="paymentMethods"]'),
+      monthlySalesChart: document.querySelector('[data-chart="monthlySales"]'),
+      gstCharts: document.querySelector('[data-chart="gst"]')
+    };
+    
+    // Hide all charts first
+    Object.values(chartContainers).forEach(container => {
+      if (container) container.style.display = 'none';
+    });
+    
+    // Show relevant charts based on report type
+    switch (reportType) {
+      case 'dashboard':
+        if (chartContainers.dailyOrdersChart) chartContainers.dailyOrdersChart.style.display = 'block';
+        if (chartContainers.categoriesChart) chartContainers.categoriesChart.style.display = 'block';
+        if (chartContainers.paymentMethodsChart) chartContainers.paymentMethodsChart.style.display = 'block';
+        break;
+      case 'daily':
+      case 'weekly':
+      case 'monthly':
+        if (chartContainers.dailyOrdersChart) chartContainers.dailyOrdersChart.style.display = 'block';
+        if (chartContainers.monthlySalesChart) chartContainers.monthlySalesChart.style.display = 'block';
+        break;
+      case 'gstr1':
+      case 'gstr3b':
+        if (chartContainers.gstCharts) chartContainers.gstCharts.style.display = 'block';
+        break;
+      case 'categorywise':
+        if (chartContainers.categoriesChart) chartContainers.categoriesChart.style.display = 'block';
+        break;
+      case 'paymentwise':
+        if (chartContainers.paymentMethodsChart) chartContainers.paymentMethodsChart.style.display = 'block';
+        break;
+    }
+  },
+  
+  updateReportTypeUI(reportType) {
+    // Update UI elements based on report type
+    const reportTitle = document.querySelector('[data-report-title]');
+    if (reportTitle) {
+      const titles = {
+        dashboard: 'Dashboard Overview',
+        daily: 'Daily Sales Report',
+        weekly: 'Weekly Sales Report',
+        monthly: 'Monthly Sales Report',
+        quarterly: 'Quarterly Sales Report',
+        yearly: 'Yearly Sales Report',
+        gstr1: 'GSTR-1 Report',
+        gstr3b: 'GSTR-3B Report',
+        itemwise: 'Item-wise Sales Report',
+        categorywise: 'Category-wise Sales Report',
+        customerwise: 'Customer-wise Sales Report',
+        paymentwise: 'Payment Method Analysis',
+        staffwise: 'Staff Performance Report'
+      };
+      
+      reportTitle.textContent = titles[reportType] || 'Report';
+    }
+  },
+  
+  updateLastRefreshed() {
+    const lastUpdatedElement = document.querySelector('[data-last-updated]');
+    if (lastUpdatedElement) {
+      lastUpdatedElement.textContent = new Date().toLocaleString();
+    }
+  },
+  
+  showLoadingState() {
+    const loadingElement = document.querySelector('[data-loading]');
+    if (loadingElement) loadingElement.style.display = 'flex';
+    
+    const contentElement = document.querySelector('[data-content]');
+    if (contentElement) contentElement.style.display = 'none';
+  },
+  
+  hideLoadingState() {
+    const loadingElement = document.querySelector('[data-loading]');
+    if (loadingElement) loadingElement.style.display = 'none';
+    
+    const contentElement = document.querySelector('[data-content]');
+    if (contentElement) contentElement.style.display = 'block';
+  },
+  
+  formatCurrency(amount) {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(amount || 0);
+  },
+  
+  showSuccess(message) {
+    this.showNotification(message, 'success');
+  },
+  
+  showError(message) {
+    this.showNotification(message, 'error');
+  },
+  
+  showWarning(message) {
+    this.showNotification(message, 'warning');
+  },
+  
+  showInfo(message) {
+    this.showNotification(message, 'info');
+  },
+  
+  showNotification(message, type = 'info') {
+    // Dispatch event for global notification system
+    document.dispatchEvent(new CustomEvent('showNotification', {
+      detail: { message, type }
+    }));
   }
+};
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  EnhancedReports.init();
 });
+
+// Export for global access
+window.EnhancedReports = EnhancedReports;

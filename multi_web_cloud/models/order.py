@@ -15,6 +15,7 @@ class Order(db.Model):
     customer_mobile = db.Column(db.String(20), nullable=True)
     order_type = db.Column(db.String(20), default='Dine-in')  # Dine-in, Takeaway, Delivery
     status = db.Column(db.String(20), default='New')  # New, In Progress, Ready, Completed, Cancelled
+    tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False, index=True)
     
     # Financial fields
     subtotal = db.Column(db.Numeric(10, 2), default=0)
@@ -37,13 +38,14 @@ class Order(db.Model):
     payments = db.relationship('Payment', backref='order', lazy=True, cascade='all, delete-orphan')
     
     def __init__(self, order_number=None, table_id=None, customer_name=None, customer_mobile=None,
-                 order_type='Dine-in', created_by=None):
+                 order_type='Dine-in', created_by=None, tenant_id=None):
         self.order_number = order_number or self.generate_order_number()
         self.table_id = table_id
         self.customer_name = self._encrypt_customer_name(customer_name) if customer_name else None
         self.customer_mobile = self._encrypt_customer_mobile(customer_mobile) if customer_mobile else None
         self.order_type = order_type
         self.created_by = created_by
+        self.tenant_id = tenant_id
     
     @staticmethod
     def generate_order_number():
@@ -363,15 +365,17 @@ class OrderItem(db.Model):
     total = db.Column(db.Numeric(10, 2), nullable=False)    # Total price (price * quantity)
     status = db.Column(db.String(20), default='Pending')  # Pending, In Progress, Ready, Completed, Cancelled
     special_instructions = db.Column(db.Text, nullable=True)
+    tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def __init__(self, order_id, menu_item_id, quantity, price):
+    def __init__(self, order_id, menu_item_id, quantity, price, tenant_id=None):
         self.order_id = order_id
         self.menu_item_id = menu_item_id
         self.quantity = quantity
         self.price = Decimal(str(price))
         self.total = self.price * self.quantity
+        self.tenant_id = tenant_id
     
     @property
     def formatted_price(self):

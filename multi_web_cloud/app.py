@@ -11,6 +11,10 @@ from config import config
 # Import models
 from models import db, User, Category, MenuItem, Table, Order, OrderItem, Payment, Settings
 
+# Import tenant middleware and utilities
+from middleware.tenant_middleware import TenantMiddleware, tenant_required, tenant_optional
+from utils.tenant_query_manager import TenantQueryManager, tenant_scoped, get_current_tenant_id
+
 # Import new utilities (without decorators to avoid conflicts)
 from utils.session_manager import session_manager
 from utils.security_manager import security_manager
@@ -36,6 +40,9 @@ def create_app(config_name='default'):
     # CSRF protection
     csrf = CSRFProtect(app)
     
+    # Initialize tenant middleware
+    tenant_middleware = TenantMiddleware(app)
+    
     # Initialize managers
     session_manager.init_app(app)
     security_manager.init_app(app)
@@ -51,11 +58,17 @@ def create_app(config_name='default'):
     
     @login_manager.user_loader
     def load_user(user_id):
+        # Load user within tenant context
+        tenant_id = get_current_tenant_id()
+        if tenant_id:
+            return User.query.filter_by(id=int(user_id), tenant_id=tenant_id).first()
         return User.query.get(int(user_id))
     
     # Create database tables
     with app.app_context():
         db.create_all()
+        # Initialize session database tables
+        session_manager._init_session_database()
         # Create default settings
         Settings.create_defaults()
         # Create default admin user if not exists
@@ -91,6 +104,19 @@ def create_app(config_name='default'):
     from routes.email import email_bp
     from routes.footer_settings import footer_settings_bp
     from routes.razorpay import razorpay_bp
+    from routes.crm import crm_bp
+    from routes.loyalty import loyalty_bp
+    from routes.validation import validation_bp
+    from routes.tenant import tenant_bp
+    
+    # Import new API blueprints
+    from routes.validation_api import validation_api_bp
+    from routes.session_api import session_api_bp
+    from routes.offline_api import offline_api_bp
+    from routes.security_api import security_api_bp
+    from routes.payment_api import payment_api_bp
+    from routes.dashboard_api import dashboard_api_bp
+    from routes.config_api import config_api_bp
     
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(orders_bp, url_prefix='/orders')
@@ -103,6 +129,19 @@ def create_app(config_name='default'):
     app.register_blueprint(email_bp, url_prefix='/email')
     app.register_blueprint(footer_settings_bp, url_prefix='/footer')
     app.register_blueprint(razorpay_bp, url_prefix='/razorpay')
+    app.register_blueprint(crm_bp, url_prefix='/crm')
+    app.register_blueprint(loyalty_bp, url_prefix='/loyalty')
+    app.register_blueprint(validation_bp, url_prefix='/api/validation')
+    app.register_blueprint(tenant_bp)
+    
+    # Register new API blueprints
+    app.register_blueprint(validation_api_bp, url_prefix='/api')
+    app.register_blueprint(session_api_bp, url_prefix='/api')
+    app.register_blueprint(offline_api_bp, url_prefix='/api')
+    app.register_blueprint(security_api_bp, url_prefix='/api')
+    app.register_blueprint(payment_api_bp, url_prefix='/api')
+    app.register_blueprint(dashboard_api_bp, url_prefix='/api')
+    app.register_blueprint(config_api_bp, url_prefix='/api')
     
     # Main routes
     @app.route('/')
@@ -113,13 +152,16 @@ def create_app(config_name='default'):
     
     @app.route('/health')
     def health_check():
+        from middleware.tenant_middleware import TenantContext
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.utcnow().isoformat(),
             'version': '1.0.0',
             'offline_mode': not offline_manager.is_online,
             'session_valid': session_manager._is_session_valid(),
-            'security_status': security_manager.get_security_statistics()
+            'security_status': security_manager.get_security_statistics(),
+            'tenant_id': TenantContext.get_current_tenant_id(),
+            'tenant_context': TenantContext.is_tenant_context()
         })
     
     # Context processors
@@ -134,6 +176,14 @@ def create_app(config_name='default'):
     def inject_user():
         """Inject current user into templates"""
         return dict(current_user=current_user)
+    
+    @app.context_processor
+    def inject_tenant():
+        """Inject tenant context into templates"""
+        from middleware.tenant_middleware import TenantContext
+        tenant = TenantContext.get_current_tenant()
+        tenant_settings = TenantContext.get_tenant_settings()
+        return dict(tenant=tenant, tenant_settings=tenant_settings)
     
     # Error handlers
     @app.errorhandler(404)
@@ -166,6 +216,38 @@ def create_app(config_name='default'):
         if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
             return jsonify({'error': 'Bad request', 'details': str(error)}), 400
         return render_template('errors/400.html'), 400
+    
+    # API-specific error handlers
+    @app.errorhandler(429)
+    def rate_limit_exceeded(error):
+        app.logger.warning(f"Rate limit exceeded: {str(error)}")
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({
+                'error': 'Rate limit exceeded',
+                'message': 'Too many requests, please try again later',
+                'retry_after': getattr(error, 'retry_after', 60)
+            }), 429
+        return render_template('errors/429.html'), 429
+    
+    @app.errorhandler(401)
+    def unauthorized_error(error):
+        app.logger.warning(f"Unauthorized access attempt: {str(error)}")
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({
+                'error': 'Unauthorized',
+                'message': 'Authentication required'
+            }), 401
+        return render_template('errors/401.html'), 401
+    
+    @app.errorhandler(422)
+    def unprocessable_entity_error(error):
+        app.logger.error(f"Unprocessable entity error: {str(error)}")
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({
+                'error': 'Unprocessable entity',
+                'message': 'The request was well-formed but unable to be followed due to semantic errors'
+            }), 422
+        return render_template('errors/422.html'), 422
     
     # Template filters
     @app.template_filter('currency')
