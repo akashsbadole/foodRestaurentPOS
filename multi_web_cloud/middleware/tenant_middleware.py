@@ -84,6 +84,12 @@ class TenantMiddleware:
             if path.startswith(skip_route):
                 return True
         
+        # Skip essential routes that don't require tenant context
+        essential_routes = ['/', '/login', '/auth/login', '/logout', '/simple-test']
+        for essential_route in essential_routes:
+            if path == essential_route or path.startswith(essential_route):
+                return True
+        
         # Skip API routes that handle tenant identification themselves
         api_skip_routes = ['/api/tenant/', '/api/auth/login', '/api/auth/register']
         for api_route in api_skip_routes:
@@ -113,11 +119,22 @@ class TenantMiddleware:
                 if self._validate_tenant(tenant_id):
                     return tenant_id
         
+        # If no tenant identified, try to use default tenant
+        default_tenant = self._get_default_tenant()
+        if default_tenant:
+            return default_tenant.id
+        
         return None
     
     def _identify_tenant_from_subdomain(self):
         """Identify tenant from subdomain"""
         host = request.host.split(':')[0]  # Remove port if present
+        
+        # Handle IP addresses (localhost/127.0.0.1) by using default tenant
+        if host in ['localhost', '127.0.0.1']:
+            default_tenant = Tenant.query.filter_by(subdomain='default').first()
+            if default_tenant:
+                return default_tenant.id
         
         # Extract subdomain
         parts = host.split('.')
@@ -184,7 +201,7 @@ class TenantMiddleware:
         if not tenant:
             return False
         
-        if not tenant.is_active:
+        if not tenant.is_active():
             return False
         
         # Check subscription status if required
@@ -193,6 +210,20 @@ class TenantMiddleware:
                 return False
         
         return True
+    
+    def _get_default_tenant(self):
+        """Get the default tenant"""
+        # Try to get tenant with ID 'default' first
+        default_tenant = Tenant.query.get('default')
+        if default_tenant and default_tenant.is_active():
+            return default_tenant
+        
+        # Fallback to tenant with subdomain 'default'
+        default_tenant = Tenant.query.filter_by(subdomain='default').first()
+        if default_tenant and default_tenant.is_active():
+            return default_tenant
+        
+        return None
     
     def _handle_missing_tenant(self):
         """Handle requests without valid tenant"""

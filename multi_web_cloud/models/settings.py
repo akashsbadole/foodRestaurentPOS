@@ -93,7 +93,7 @@ class Settings(db.Model):
         return setting
     
     @staticmethod
-    def create_defaults():
+    def create_defaults(tenant_id='default'):
         """Create default settings"""
         default_settings = [
             ('restaurant_name', 'Restaurant POS', 'Restaurant name for receipts and display', True),
@@ -144,7 +144,7 @@ class Settings(db.Model):
         
         for key, value, description, is_public in default_settings:
             if not Settings.query.filter_by(key=key).first():
-                setting = Settings(key, value, description, is_public)
+                setting = Settings(key, value, description, is_public, tenant_id)
                 db.session.add(setting)
         
         db.session.commit()

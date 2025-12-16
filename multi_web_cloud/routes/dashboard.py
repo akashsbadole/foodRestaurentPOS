@@ -101,68 +101,68 @@ def get_dashboard_stats():
             'total': total_tables,
             'available': Table.query.filter_by(status='Available', is_active=True).count()
         }
-    
-    def get_crm_stats():
-        """Get CRM statistics"""
-        try:
-            # Total customers
-            total_customers = Customer.query.count()
-            
-            # New customers this month
-            month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            new_customers_month = Customer.query.filter(
-                Customer.created_at >= month_start
-            ).count()
-            
-            return {
-                'total_customers': total_customers,
-                'new_customers_month': new_customers_month
-            }
-        except Exception as e:
-            return {
-                'total_customers': 0,
-                'new_customers_month': 0
-            }
-    
-    def get_loyalty_stats():
-        """Get loyalty program statistics"""
-        try:
-            # Get tier distribution
-            tier_distribution = {}
-            tiers = LoyaltyTier.query.all()
-            
-            for tier in tiers:
-                count = Customer.query.filter(Customer.tier == tier.name).count()
-                tier_distribution[tier.name.lower()] = count
-            
-            # Get points issued today
-            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-            points_issued_today = PointsTransaction.query.filter(
-                PointsTransaction.transaction_type == 'earned',
-                PointsTransaction.created_at >= today_start
-            ).with_entities(db.func.sum(PointsTransaction.points)).scalar() or 0
-            
-            points_redeemed_today = PointsTransaction.query.filter(
-                PointsTransaction.transaction_type == 'redeemed',
-                PointsTransaction.created_at >= today_start
-            ).with_entities(db.func.sum(PointsTransaction.points)).scalar() or 0
-            
-            # Get active members
-            active_members = Customer.query.filter(Customer.points_earned > 0).count()
-            
-            return {
-                'total_members': active_members,
-                'active_members': active_members,
-                'points_issued_today': int(points_issued_today),
-                'points_redeemed_today': int(points_redeemed_today),
-                'tier_distribution': tier_distribution
-            }
-        except Exception as e:
-            return {
-                'total_members': 0,
-                'active_members': 0,
-                'points_issued_today': 0,
-                'points_redeemed_today': 0,
-                'tier_distribution': {}
-            }
     }
+
+def get_crm_stats():
+    """Get CRM statistics"""
+    try:
+        # Total customers
+        total_customers = Customer.query.count()
+        
+        # New customers this month
+        month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        new_customers_month = Customer.query.filter(
+            Customer.created_at >= month_start
+        ).count()
+        
+        return {
+            'total_customers': total_customers,
+            'new_customers_month': new_customers_month
+        }
+    except Exception as e:
+        return {
+            'total_customers': 0,
+            'new_customers_month': 0
+        }
+
+def get_loyalty_stats():
+    """Get loyalty program statistics"""
+    try:
+        # Get tier distribution
+        tier_distribution = {}
+        tiers = LoyaltyTier.query.all()
+        
+        for tier in tiers:
+            count = Customer.query.filter(Customer.tier == tier.name).count()
+            tier_distribution[tier.name.lower()] = count
+        
+        # Get points issued today
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        points_issued_today = PointsTransaction.query.filter(
+            PointsTransaction.transaction_type == 'earned',
+            PointsTransaction.created_at >= today_start
+        ).with_entities(db.func.sum(PointsTransaction.points)).scalar() or 0
+        
+        points_redeemed_today = PointsTransaction.query.filter(
+            PointsTransaction.transaction_type == 'redeemed',
+            PointsTransaction.created_at >= today_start
+        ).with_entities(db.func.sum(PointsTransaction.points)).scalar() or 0
+        
+        # Get active members
+        active_members = Customer.query.filter(Customer.points_earned > 0).count()
+        
+        return {
+            'total_members': active_members,
+            'active_members': active_members,
+            'points_issued_today': int(points_issued_today),
+            'points_redeemed_today': int(points_redeemed_today),
+            'tier_distribution': tier_distribution
+        }
+    except Exception as e:
+        return {
+            'total_members': 0,
+            'active_members': 0,
+            'points_issued_today': 0,
+            'points_redeemed_today': 0,
+            'tier_distribution': {}
+        }

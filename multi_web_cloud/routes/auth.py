@@ -10,7 +10,6 @@ auth_bp = Blueprint('auth', __name__)
 def test():
     """Simple test route to debug"""
     return "Test route working!"
-
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Handle user login with enhanced features"""
@@ -20,7 +19,14 @@ def login():
         
         form = LoginForm()
         
+        # Debug session and CSRF token
+        if request.method == 'GET':
+            current_app.logger.info(f"Session keys: {list(session.keys())}")
+            current_app.logger.info(f"CSRF token in session: {session.get('csrf_token', 'NOT FOUND')}")
+        
         if request.method == 'POST':
+            current_app.logger.info(f"Session keys before validation: {list(session.keys())}")
+            current_app.logger.info(f"CSRF token in session: {session.get('csrf_token', 'NOT FOUND')}")
             # Handle AJAX requests for better UX
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 if form.validate_on_submit():

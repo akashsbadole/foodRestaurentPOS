@@ -311,33 +311,60 @@ class TenantSubscription(db.Model):
 
 
 class TenantFeatureFlag(db.Model):
-    """Feature flags for tenants"""
+    """Enhanced feature flag model with retail-type support"""
     __tablename__ = 'tenant_feature_flags'
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False)
     feature_name = db.Column(db.String(100), nullable=False)
     is_enabled = db.Column(db.Boolean, default=False)
-    configuration = db.Column(db.JSON, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    def __init__(self, tenant_id, feature_name, is_enabled=False, configuration=None):
+    # Enhanced fields
+    retail_type = db.Column(db.String(50), nullable=True)  # apparel, grocery, restaurant, etc.
+    configuration = db.Column(db.JSON, nullable=True)  # Feature-specific settings
+    priority = db.Column(db.Integer, default=0)  # Override priority
+    expires_at = db.Column(db.DateTime, nullable=True)  # Time-based features
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    dependencies = db.relationship('FeatureDependency', backref='feature_flag', lazy=True)
+    audit_logs = db.relationship('FeatureFlagAuditLog', backref='feature_flag', lazy=True)
+    
+    def __init__(self, tenant_id, feature_name, is_enabled=False, **kwargs):
         self.tenant_id = tenant_id
         self.feature_name = feature_name
         self.is_enabled = is_enabled
-        self.configuration = configuration
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
     
-    def enable(self, configuration=None):
+    def enable(self, configuration=None, expires_at=None):
         """Enable feature"""
         self.is_enabled = True
         if configuration:
             self.configuration = configuration
+        if expires_at:
+            self.expires_at = expires_at
+        self.updated_at = datetime.utcnow()
         db.session.commit()
     
     def disable(self):
         """Disable feature"""
         self.is_enabled = False
+        self.updated_at = datetime.utcnow()
         db.session.commit()
+    
+    def is_expired(self):
+        """Check if feature has expired"""
+        if not self.expires_at:
+            return False
+        return datetime.utcnow() > self.expires_at
+    
+    def is_active(self):
+        """Check if feature is active (enabled and not expired)"""
+        return self.is_enabled and not self.is_expired()
     
     def to_dict(self):
         """Convert feature flag to dictionary"""
@@ -346,8 +373,13 @@ class TenantFeatureFlag(db.Model):
             'tenant_id': self.tenant_id,
             'feature_name': self.feature_name,
             'is_enabled': self.is_enabled,
+            'retail_type': self.retail_type,
             'configuration': self.configuration,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'priority': self.priority,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'created_by': self.created_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
     
     def __repr__(self):

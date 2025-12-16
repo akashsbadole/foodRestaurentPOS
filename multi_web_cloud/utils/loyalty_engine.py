@@ -5,9 +5,7 @@ Handles points calculation, tier progression, and loyalty program logic
 
 from datetime import datetime, timedelta
 from decimal import Decimal
-from models import db
-from models.customer import Customer
-from models.loyalty import LoyaltyTier, LoyaltyProgram, PointsTransaction, Reward, RewardRedemption
+from models import db, Customer, LoyaltyTier, LoyaltyProgram, PointsTransaction, Reward, RewardRedemption
 import logging
 
 logger = logging.getLogger(__name__)
@@ -224,7 +222,7 @@ class LoyaltyEngine:
             # Get appropriate tier based on spending
             new_tier = LoyaltyTier.get_tier_by_spending(customer.total_spent)
             
-            if new_tier and (!customer.loyalty_tier_id or new_tier.id != customer.loyalty_tier_id):
+            if new_tier and (not customer.loyalty_tier_id or new_tier.id != customer.loyalty_tier_id):
                 # Update customer tier
                 old_tier_name = customer.loyalty_tier.name if customer.loyalty_tier else "None"
                 customer.loyalty_tier_id = new_tier.id

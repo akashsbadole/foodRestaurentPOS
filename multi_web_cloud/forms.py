@@ -45,7 +45,7 @@ class RegistrationForm(FlaskForm):
     password = PasswordField('Password', validators=[
         DataRequired(),
         Length(min=8, max=128),
-        validate_password_strength,
+        validate_password_strength_wtforms,
         validate_safe_input
     ])
     confirm_password = PasswordField('Confirm Password', validators=[
@@ -74,7 +74,7 @@ class ChangePasswordForm(FlaskForm):
     new_password = PasswordField('New Password', validators=[
         DataRequired(),
         Length(min=8, max=128),
-        validate_password_strength,
+        validate_password_strength_wtforms,
         validate_safe_input
     ])
     confirm_password = PasswordField('Confirm New Password', validators=[
