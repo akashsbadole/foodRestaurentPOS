@@ -45,39 +45,105 @@ window.POS = {
   // Load initial data
   loadData: async function () {
     try {
+      // Try online first, fallback to offline
       await this.loadMenuItems();
       await this.loadCategories();
       await this.loadTables();
+      
+      // Cache data for offline use
+      if (window.OfflineManager && window.OfflineManager.isOnline) {
+        await window.OfflineManager.loadAndCacheData();
+      }
     } catch (error) {
       console.error("Error loading data:", error);
-      this.showAlert("Error loading data", "error");
+      
+      // Try offline fallback
+      if (window.OfflineManager) {
+        await this.loadOfflineData();
+      } else {
+        this.showAlert("Error loading data", "error");
+      }
     }
   },
 
   // Load menu items
   loadMenuItems: async function () {
-    const response = await fetch("/api/menu/items");
-    if (response.ok) {
-      this.menuItems = await response.json();
-      this.renderMenuItems();
+    let response;
+    
+    try {
+      // Try offline manager first if available
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/menu/items");
+      } else {
+        response = await fetch("/api/menu/items");
+      }
+      
+      if (response && response.success) {
+        this.menuItems = response.data || response;
+        this.renderMenuItems();
+        
+        // Cache for offline use
+        if (window.OfflineManager && window.OfflineManager.isOnline) {
+          await window.OfflineManager.cacheData('menu_items', this.menuItems);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading menu items:", error);
+      throw error;
     }
   },
 
   // Load categories
   loadCategories: async function () {
-    const response = await fetch("/api/menu/categories");
-    if (response.ok) {
-      this.categories = await response.json();
-      this.renderCategories();
+    let response;
+    
+    try {
+      // Try offline manager first if available
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/menu/categories");
+      } else {
+        response = await fetch("/api/menu/categories");
+      }
+      
+      if (response && response.success) {
+        this.categories = response.data || response;
+        this.renderCategories();
+        
+        // Cache for offline use
+        if (window.OfflineManager && window.OfflineManager.isOnline) {
+          await window.OfflineManager.cacheData('categories', this.categories);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      throw error;
     }
   },
 
   // Load tables
   loadTables: async function () {
-    const response = await fetch("/api/tables");
-    if (response.ok) {
-      this.tables = await response.json();
-      this.renderTables();
+    let response;
+    
+    try {
+      // Try offline manager first if available
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/tables");
+      } else {
+        response = await fetch("/api/tables");
+      }
+      
+      if (response && response.success) {
+        this.tables = response.data || response;
+        this.renderTables();
+        
+        // Cache for offline use
+        if (window.OfflineManager && window.OfflineManager.isOnline) {
+          await window.OfflineManager.cacheData('tables', this.tables);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading tables:", error);
+      throw error;
     }
   },
 
@@ -180,17 +246,33 @@ window.POS = {
       }
 
       // Add to current order via API
-      const response = await fetch("/api/orders/add_item", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          order_id: this.getCurrentOrderId(),
-          menu_item_id: itemId,
-          quantity: 1,
-        }),
-      });
+      let response;
+      
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/orders/add_item", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_id: this.getCurrentOrderId(),
+            menu_item_id: itemId,
+            quantity: 1,
+          }),
+        });
+      } else {
+        response = await fetch("/api/orders/add_item", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_id: this.getCurrentOrderId(),
+            menu_item_id: itemId,
+            quantity: 1,
+          }),
+        });
+      }
 
       if (response.ok) {
         const result = await response.json();
@@ -215,24 +297,39 @@ window.POS = {
     }
 
     try {
-      const response = await fetch("/api/orders/update_quantity", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          order_id: this.getCurrentOrderId(),
-          item_id: itemId,
-          quantity: newQuantity,
-        }),
-      });
+      let response;
+      
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/orders/update_quantity", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_id: this.getCurrentOrderId(),
+            item_id: itemId,
+            quantity: newQuantity,
+          }),
+        });
+      } else {
+        response = await fetch("/api/orders/update_quantity", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_id: this.getCurrentOrderId(),
+            item_id: itemId,
+            quantity: newQuantity,
+          }),
+        });
+      }
 
-      if (response.ok) {
-        const result = await response.json();
-        this.updateCurrentOrder(result.order);
+      if (response && response.success) {
+        this.updateCurrentOrder(response.order || response.data);
         this.renderCart();
       } else {
-        const error = await response.json();
+        const error = response || { message: "Error updating quantity" };
         this.showAlert(error.message || "Error updating quantity", "error");
       }
     } catch (error) {
@@ -473,23 +570,37 @@ window.POS = {
   // Change order status
   changeOrderStatus: async function (status) {
     try {
-      const response = await fetch("/api/orders/update_status", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          order_id: this.getCurrentOrderId(),
-          status: status,
-        }),
-      });
+      let response;
+      
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/orders/update_status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_id: this.getCurrentOrderId(),
+            status: status,
+          }),
+        });
+      } else {
+        response = await fetch("/api/orders/update_status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_id: this.getCurrentOrderId(),
+            status: status,
+          }),
+        });
+      }
 
-      if (response.ok) {
-        const result = await response.json();
-        this.updateCurrentOrder(result.order);
+      if (response && response.success) {
+        this.updateCurrentOrder(response.order || response.data);
         this.showAlert(`Order status changed to ${status}`, "success");
       } else {
-        const error = await response.json();
+        const error = response || { message: "Error updating status" };
         this.showAlert(error.message || "Error updating status", "error");
       }
     } catch (error) {
@@ -565,9 +676,16 @@ window.POS = {
   // Update KOT display
   updateKOT: async function () {
     try {
-      const response = await fetch("/api/kot/active");
-      if (response.ok) {
-        const kotData = await response.json();
+      let response;
+      
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/kot/active");
+      } else {
+        response = await fetch("/api/kot/active");
+      }
+      
+      if (response && (response.success || response.ok)) {
+        const kotData = response.data || await response.json();
         this.renderKOT(kotData);
       }
     } catch (error) {
@@ -648,9 +766,16 @@ window.POS = {
   // Update stock levels
   updateStockLevels: async function () {
     try {
-      const response = await fetch("/api/inventory/low_stock");
-      if (response.ok) {
-        const lowStock = await response.json();
+      let response;
+      
+      if (window.OfflineManager) {
+        response = await window.OfflineManager.makeRequest("/api/inventory/low_stock");
+      } else {
+        response = await fetch("/api/inventory/low_stock");
+      }
+      
+      if (response && (response.success || response.ok)) {
+        const lowStock = response.data || await response.json();
         if (lowStock.length > 0) {
           this.showAlert(
             `${lowStock.length} items are running low on stock`,
@@ -660,6 +785,31 @@ window.POS = {
       }
     } catch (error) {
       console.error("Error checking stock levels:", error);
+    }
+  },
+
+  // Load offline data fallback
+  loadOfflineData: async function () {
+    try {
+      if (window.OfflineManager) {
+        // Get cached data from offline manager
+        const menuItems = await window.OfflineManager.getCachedData('menu_items') || [];
+        const categories = await window.OfflineManager.getCachedData('categories') || [];
+        const tables = await window.OfflineManager.getCachedData('tables') || [];
+        
+        this.menuItems = menuItems;
+        this.categories = categories;
+        this.tables = tables;
+        
+        this.renderMenuItems();
+        this.renderCategories();
+        this.renderTables();
+        
+        console.log('Loaded data from offline cache');
+      }
+    } catch (error) {
+      console.error('Error loading offline data:', error);
+      this.showAlert('Error loading offline data', 'error');
     }
   },
 };

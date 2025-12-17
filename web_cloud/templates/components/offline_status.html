@@ -1,0 +1,525 @@
+<!-- Offline Status Component -->
+<div x-data="offlineStatusComponent()" x-init="init()" class="offline-status-component">
+    <!-- Offline Banner -->
+    <div class="offline-banner" x-show="!isOnline" x-transition>
+        <div class="alert alert-warning d-flex align-items-center mb-0">
+            <i class="bi bi-wifi-off me-2"></i>
+            <div class="flex-grow-1">
+                <strong>Offline Mode</strong>
+                <div class="small">Working offline. Data will sync when connection is restored.</div>
+            </div>
+            <button @click="showOfflinePanel = true" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-info-circle"></i> Details
+            </button>
+        </div>
+    </div>
+
+    <!-- Connection Status in Header -->
+    <div class="connection-status-indicator">
+        <div class="d-flex align-items-center gap-2">
+            <span class="connection-status" :class="{'online': isOnline, 'offline': !isOnline}">
+                <i class="bi" :class="isOnline ? 'bi-wifi' : 'bi-wifi-off'"></i>
+                <span x-text="isOnline ? 'Online' : 'Offline'"></span>
+            </span>
+            
+            <!-- Queue Size Indicator -->
+            <div class="queue-indicator" x-show="queueSize > 0">
+                <span class="queue-size badge bg-warning" x-text="queueSize"></span>
+                <small class="text-muted">pending</small>
+            </div>
+            
+            <!-- Sync Status -->
+            <div class="sync-indicator">
+                <span class="sync-status small text-muted" x-text="syncStatus"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offline Control Panel -->
+    <div class="offline-panel modal fade" :class="{'show d-block': showOfflinePanel}" x-show="showOfflinePanel">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-gear"></i> Offline Status & Controls
+                    </h5>
+                    <button @click="showOfflinePanel = false" class="btn-close"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <!-- Status Overview -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <div class="mb-2">
+                                        <i class="bi" :class="isOnline ? 'bi-wifi text-success' : 'bi-wifi-off text-warning'" 
+                                           style="font-size: 2rem;"></i>
+                                    </div>
+                                    <h6>Connection Status</h6>
+                                    <span class="badge" :class="isOnline ? 'bg-success' : 'bg-warning'" 
+                                          x-text="isOnline ? 'Online' : 'Offline'"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <div class="mb-2">
+                                        <i class="bi bi-arrow-repeat text-primary" style="font-size: 2rem;"></i>
+                                    </div>
+                                    <h6>Synchronization</h6>
+                                    <span class="badge" :class="syncInProgress ? 'bg-info' : 'bg-secondary'" 
+                                          x-text="syncInProgress ? 'In Progress' : 'Idle'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Queue Information -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-clock-history"></i> Pending Operations
+                                <span class="badge bg-secondary ms-2" x-text="queueSize"></span>
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div x-show="queueSize === 0" class="text-center text-muted py-3">
+                                <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                                <p class="mb-0 mt-2">All data is synchronized</p>
+                            </div>
+                            
+                            <div x-show="queueSize > 0">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span><strong>Items waiting to sync:</strong> <span x-text="queueSize"></span></span>
+                                    <button @click="clearQueue()" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Clear Queue
+                                    </button>
+                                </div>
+                                
+                                <div class="progress mb-2">
+                                    <div class="progress-bar" :style="`width: ${syncProgress}%`" 
+                                         x-text="`${syncProgress}%`"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cached Data Information -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-database"></i> Cached Data
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <i class="bi bi-list-ul text-primary" style="font-size: 1.5rem;"></i>
+                                        <div class="mt-2">
+                                            <strong x-text="cachedData.menuItems"></strong>
+                                            <div class="small text-muted">Menu Items</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <i class="bi bi-tags text-success" style="font-size: 1.5rem;"></i>
+                                        <div class="mt-2">
+                                            <strong x-text="cachedData.categories"></strong>
+                                            <div class="small text-muted">Categories</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <i class="bi bi-grid-3x3-gap text-warning" style="font-size: 1.5rem;"></i>
+                                        <div class="mt-2">
+                                            <strong x-text="cachedData.tables"></strong>
+                                            <div class="small text-muted">Tables</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 text-center">
+                                <small class="text-muted">
+                                    Last cached: <span x-text="lastCached || 'Never'"></span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Control Buttons -->
+                    <div class="d-grid gap-2 d-md-flex">
+                        <button @click="checkConnection()" 
+                                :disabled="syncInProgress"
+                                class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-clockwise"></i> Check Connection
+                        </button>
+                        
+                        <button @click="forceSync()" 
+                                :disabled="!isOnline || syncInProgress"
+                                class="btn btn-primary sync-button">
+                            <i class="bi bi-arrow-repeat"></i> 
+                            <span x-text="syncInProgress ? 'Syncing...' : 'Sync Now'"></span>
+                        </button>
+                        
+                        <button @click="refreshCache()" 
+                                :disabled="!isOnline"
+                                class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh Cache
+                        </button>
+                        
+                        <button @click="showOfflinePanel = false" class="btn btn-outline-secondary">
+                            <i class="bi bi-x"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Progress Indicator (floating) -->
+    <div class="sync-progress-indicator" x-show="syncInProgress" x-transition>
+        <div class="card shadow">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Syncing...</span>
+                    </div>
+                    <span class="small">Syncing data...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function offlineStatusComponent() {
+    return {
+        isOnline: true,
+        queueSize: 0,
+        syncInProgress: false,
+        syncStatus: 'Connected',
+        syncProgress: 0,
+        showOfflinePanel: false,
+        cachedData: {
+            menuItems: 0,
+            categories: 0,
+            tables: 0
+        },
+        lastCached: null,
+        
+        init() {
+            // Load initial status
+            this.updateStatus();
+            
+            // Update status every 5 seconds
+            setInterval(() => {
+                this.updateStatus();
+            }, 5000);
+            
+            // Listen for offline manager events
+            if (window.OfflineManager) {
+                // Update when offline manager status changes
+                this.setupOfflineManagerListeners();
+            }
+        },
+        
+        setupOfflineManagerListeners() {
+            // Custom event system for offline manager
+            window.addEventListener('offlineStatusChanged', (e) => {
+                this.isOnline = e.detail.isOnline;
+                this.updateUI();
+            });
+            
+            window.addEventListener('syncProgress', (e) => {
+                this.syncInProgress = e.detail.inProgress;
+                this.syncProgress = e.detail.progress || 0;
+                this.updateUI();
+            });
+        },
+        
+        async updateStatus() {
+            try {
+                // Get status from API
+                const response = await fetch('/api/offline/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    
+                    this.isOnline = data.is_online;
+                    this.queueSize = (data.pending_orders || 0) + (data.pending_payments || 0);
+                    this.syncInProgress = data.sync_queue_size > 0;
+                    this.cachedData = data.cache_info || this.cachedData;
+                    
+                    // Update status text
+                    if (this.syncInProgress) {
+                        this.syncStatus = 'Syncing...';
+                    } else if (this.queueSize > 0) {
+                        this.syncStatus = `${this.queueSize} items pending`;
+                    } else if (this.isOnline) {
+                        this.syncStatus = 'Connected';
+                    } else {
+                        this.syncStatus = 'Offline';
+                    }
+                    
+                    this.updateUI();
+                }
+            } catch (error) {
+                console.error('Error updating offline status:', error);
+                // Assume offline on error
+                this.isOnline = false;
+                this.updateUI();
+            }
+        },
+        
+        updateUI() {
+            // Update connection status
+            const connectionStatus = document.querySelector('.connection-status');
+            if (connectionStatus) {
+                connectionStatus.innerHTML = this.isOnline ? 
+                    '<i class="bi bi-wifi"></i> Online' : 
+                    '<i class="bi bi-wifi-off"></i> Offline';
+                connectionStatus.className = `connection-status ${this.isOnline ? 'online' : 'offline'}`;
+            }
+            
+            // Update queue size
+            const queueSize = document.querySelector('.queue-size');
+            if (queueSize) {
+                queueSize.textContent = this.queueSize;
+                queueSize.className = `queue-size badge ${this.queueSize > 0 ? 'bg-warning' : 'bg-secondary'}`;
+            }
+            
+            // Update sync button
+            const syncButton = document.querySelector('.sync-button');
+            if (syncButton) {
+                syncButton.disabled = !this.isOnline || this.syncInProgress;
+                syncButton.innerHTML = this.syncInProgress ? 
+                    '<i class="bi bi-arrow-repeat"></i> Syncing...' : 
+                    '<i class="bi bi-arrow-repeat"></i> Sync Now';
+            }
+        },
+        
+        async checkConnection() {
+            try {
+                this.syncStatus = 'Checking...';
+                
+                const response = await fetch('/api/offline/check_connection');
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.isOnline = result.data.is_online;
+                    this.showNotification(
+                        this.isOnline ? 'Connection restored' : 'Still offline',
+                        this.isOnline ? 'success' : 'warning'
+                    );
+                }
+                
+                this.updateUI();
+            } catch (error) {
+                console.error('Error checking connection:', error);
+                this.showNotification('Error checking connection', 'error');
+            }
+        },
+        
+        async forceSync() {
+            if (!this.isOnline || this.syncInProgress) return;
+            
+            try {
+                this.syncInProgress = true;
+                this.syncStatus = 'Syncing...';
+                this.updateUI();
+                
+                const response = await fetch('/api/offline/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showNotification(result.message, 'success');
+                    this.queueSize = 0;
+                } else {
+                    this.showNotification(result.message, 'error');
+                }
+                
+                // Update status after sync
+                setTimeout(() => {
+                    this.updateStatus();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error forcing sync:', error);
+                this.showNotification('Sync failed', 'error');
+            } finally {
+                this.syncInProgress = false;
+                this.updateUI();
+            }
+        },
+        
+        async refreshCache() {
+            if (!this.isOnline) return;
+            
+            try {
+                const response = await fetch('/api/offline/cache/refresh', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showNotification('Cache refreshed successfully', 'success');
+                    this.lastCached = new Date().toLocaleString();
+                    this.updateStatus(); // Reload cached data info
+                } else {
+                    this.showNotification(result.message, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error refreshing cache:', error);
+                this.showNotification('Cache refresh failed', 'error');
+            }
+        },
+        
+        clearQueue() {
+            if (!confirm('Are you sure you want to clear all pending offline operations? This cannot be undone.')) {
+                return;
+            }
+            
+            // Clear local queue
+            if (window.OfflineManager) {
+                window.OfflineManager.clearOfflineQueue();
+            }
+            
+            this.queueSize = 0;
+            this.updateUI();
+            this.showNotification('Offline queue cleared', 'success');
+        },
+        
+        showNotification(message, type = 'info') {
+            // Use existing notification system if available
+            if (typeof window.POS !== 'undefined' && window.POS.showAlert) {
+                window.POS.showAlert(message, type);
+            } else {
+                // Fallback
+                alert(message);
+            }
+        }
+    };
+}
+</script>
+
+<style>
+.offline-status-component {
+    position: relative;
+}
+
+.offline-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    border-radius: 0;
+}
+
+.connection-status-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1020;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem;
+}
+
+.connection-status.online {
+    color: #198754;
+}
+
+.connection-status.offline {
+    color: #fd7e14;
+}
+
+.queue-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sync-progress-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1020;
+}
+
+.sync-progress-indicator .card {
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.offline-panel .modal {
+    z-index: 1055;
+}
+
+.offline-panel .modal-dialog {
+    max-width: 600px;
+}
+
+.offline-panel .card {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.offline-panel .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Spinning animation for sync icon */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .connection-status-indicator {
+        top: 10px;
+        right: 10px;
+        font-size: 0.75rem;
+        padding: 6px 10px;
+    }
+    
+    .sync-progress-indicator {
+        bottom: 10px;
+        right: 10px;
+    }
+    
+    .offline-panel .modal-dialog {
+        margin: 10px;
+        max-width: calc(100% - 20px);
+    }
+}
+</style>

@@ -91,6 +91,7 @@ def create_app(config_name='default'):
     from routes.email import email_bp
     from routes.footer_settings import footer_settings_bp
     from routes.razorpay import razorpay_bp
+    from routes.offline_api import offline_api_bp
     
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(orders_bp, url_prefix='/orders')
@@ -103,6 +104,7 @@ def create_app(config_name='default'):
     app.register_blueprint(email_bp, url_prefix='/email')
     app.register_blueprint(footer_settings_bp, url_prefix='/footer')
     app.register_blueprint(razorpay_bp, url_prefix='/razorpay')
+    app.register_blueprint(offline_api_bp, url_prefix='/api/offline')
     
     # Main routes
     @app.route('/')
