@@ -1,0 +1,929 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/inventory_basic.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Inventory Basic Management Interface -->
+<div class="inventory-container" x-data="inventoryApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="inventory-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="inventory-title">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Inventory Management
+                </h2>
+                <p class="inventory-subtitle text-muted">Monitor and manage your stock levels</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="inventory-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="importInventory()">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportInventory()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="addStockAdjustment()">
+                        <i class="bi bi-plus-circle"></i> Stock Adjustment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="inventory-filters">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Search Products</label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" 
+                           class="form-control" 
+                           x-model="searchQuery"
+                           @input="searchProducts()"
+                           placeholder="Search by name, SKU, or barcode..."
+                           x-ref="searchInput">
+                    <button class="btn btn-outline-secondary" 
+                            type="button" 
+                            @click="openBarcodeScanner()"
+                            x-show="isFeatureEnabled('FEATURE_BARCODE_SCANNING')">
+                        <i class="bi bi-upc-scan"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Category</label>
+                <select class="form-select" x-model="selectedCategory" @change="filterProducts()">
+                    <option value="">All Categories</option>
+                    <template x-for="category in categories" :key="category.id">
+                        <option :value="category.id" x-text="category.name"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Stock Status</label>
+                <select class="form-select" x-model="stockStatus" @change="filterProducts()">
+                    <option value="">All Status</option>
+                    <option value="in_stock">In Stock</option>
+                    <option value="low_stock">Low Stock</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Location</label>
+                <select class="form-select" x-model="selectedLocation" @change="filterProducts()">
+                    <option value="">All Locations</option>
+                    <template x-for="location in locations" :key="location.id">
+                        <option :value="location.id" x-text="location.name"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Quick Actions</label>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" 
+                            class="btn btn-outline-secondary"
+                            @click="showLowStockAlerts()">
+                        <i class="bi bi-exclamation-triangle"></i> Alerts
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-secondary"
+                            @click="showStockMovements()">
+                        <i class="bi bi-arrow-left-right"></i> Movements
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Overview Cards -->
+    <div class="inventory-overview mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="overview-card">
+                    <div class="overview-icon bg-success">
+                        <i class="bi bi-box"></i>
+                    </div>
+                    <div class="overview-content">
+                        <h6 class="overview-label">Total Products</h6>
+                        <p class="overview-value" x-text="overview.totalProducts"></p>
+                        <div class="overview-change" x-show="overview.productsChange !== 0">
+                            <i class="bi" :class="overview.productsChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="overview.productsChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(overview.productsChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="overview-card">
+                    <div class="overview-icon bg-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="overview-content">
+                        <h6 class="overview-label">Low Stock Items</h6>
+                        <p class="overview-value" x-text="overview.lowStockItems"></p>
+                        <div class="overview-change" x-show="overview.lowStockChange !== 0">
+                            <i class="bi" :class="overview.lowStockChange > 0 ? 'bi-arrow-up text-danger' : 'bi-arrow-down text-success'"></i>
+                            <span :class="overview.lowStockChange > 0 ? 'text-danger' : 'text-success'" 
+                                  x-text="`${Math.abs(overview.lowStockChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="overview-card">
+                    <div class="overview-icon bg-danger">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                    <div class="overview-content">
+                        <h6 class="overview-label">Out of Stock</h6>
+                        <p class="overview-value" x-text="overview.outOfStockItems"></p>
+                        <div class="overview-change" x-show="overview.outOfStockChange !== 0">
+                            <i class="bi" :class="overview.outOfStockChange > 0 ? 'bi-arrow-up text-danger' : 'bi-arrow-down text-success'"></i>
+                            <span :class="overview.outOfStockChange > 0 ? 'text-danger' : 'text-success'" 
+                                  x-text="`${Math.abs(overview.outOfStockChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="overview-card">
+                    <div class="overview-icon bg-info">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="overview-content">
+                        <h6 class="overview-label">Total Value</h6>
+                        <p class="overview-value" x-text="formatCurrency(overview.totalValue)"></p>
+                        <div class="overview-change" x-show="overview.valueChange !== 0">
+                            <i class="bi" :class="overview.valueChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="overview.valueChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(overview.valueChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="inventory-table-container">
+        <div class="table-responsive">
+            <table class="table table-hover inventory-table">
+                <thead>
+                    <tr>
+                        <th class="column-checkbox">
+                            <input type="checkbox" 
+                                   class="form-check-input"
+                                   @change="toggleSelectAll($event)">
+                        </th>
+                        <th class="column-image">Image</th>
+                        <th class="column-product sortable" @click="sortBy('name')">
+                            Product
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'name'"></i>
+                        </th>
+                        <th class="column-sku sortable" @click="sortBy('sku')">
+                            SKU
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'sku'"></i>
+                        </th>
+                        <th class="column-category sortable" @click="sortBy('category')">
+                            Category
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'category'"></i>
+                        </th>
+                        <th class="column-location sortable" @click="sortBy('location')">
+                            Location
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'location'"></i>
+                        </th>
+                        <th class="column-current-stock sortable" @click="sortBy('current_stock')">
+                            Current Stock
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'current_stock'"></i>
+                        </th>
+                        <th class="column-allocated">Allocated</th>
+                        <th class="column-available sortable" @click="sortBy('available')">
+                            Available
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'available'"></i>
+                        </th>
+                        <th class="column-reorder">Reorder Level</th>
+                        <th class="column-value sortable" @click="sortBy('value')">
+                            Value
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'value'"></i>
+                        </th>
+                        <th class="column-status">Status</th>
+                        <th class="column-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="item in paginatedInventory" :key="item.id">
+                        <tr class="inventory-row" 
+                            :class="{'selected': selectedItems.includes(item.id)}"
+                            @click="toggleSelectItem(item.id)">
+                            <td class="column-checkbox">
+                                <input type="checkbox" 
+                                       class="form-check-input"
+                                       :checked="selectedItems.includes(item.id)"
+                                       @click.stop="toggleSelectItem(item.id)">
+                            </td>
+                            <td class="column-image">
+                                <img :src="item.image || '/static/images/placeholder-product.png'" 
+                                     :alt="item.name"
+                                     class="product-thumbnail">
+                            </td>
+                            <td class="column-product">
+                                <div class="product-info">
+                                    <strong x-text="item.name" @click.stop="viewProduct(item.id)"></strong>
+                                    <div class="product-details">
+                                        <small class="text-muted" x-text="item.sku"></small>
+                                        <small class="text-muted ms-2" x-show="item.barcode">
+                                            Barcode: <span x-text="item.barcode"></span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-sku">
+                                <span class="sku-text" x-text="item.sku"></span>
+                            </td>
+                            <td class="column-category">
+                                <span class="category-badge" x-text="item.category?.name || 'Uncategorized'"></span>
+                            </td>
+                            <td class="column-location">
+                                <span class="location-badge" x-text="item.location?.name || 'Default'"></span>
+                            </td>
+                            <td class="column-current-stock">
+                                <div class="stock-info">
+                                    <span class="stock-quantity" 
+                                          :class="getStockClass(item.current_stock, item.reorder_level)"
+                                          x-text="item.current_stock"></span>
+                                    <div class="stock-indicator" 
+                                         :class="getStockClass(item.current_stock, item.reorder_level)">
+                                        <div class="stock-bar" 
+                                             :style="`width: ${getStockPercentage(item.current_stock)}%`"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-allocated">
+                                <span class="allocated-quantity" x-text="item.allocated || 0"></span>
+                            </td>
+                            <td class="column-available">
+                                <span class="available-quantity" x-text="item.available || item.current_stock"></span>
+                            </td>
+                            <td class="column-reorder">
+                                <span class="reorder-level" x-text="item.reorder_level || 0"></span>
+                            </td>
+                            <td class="column-value">
+                                <span class="inventory-value" x-text="formatCurrency(item.value)"></span>
+                            </td>
+                            <td class="column-status">
+                                <span class="status-badge" 
+                                      :class="`status-${getStockStatus(item.current_stock, item.reorder_level)}`"
+                                      x-text="getStockStatusText(item.current_stock, item.reorder_level)"></span>
+                            </td>
+                            <td class="column-actions">
+                                <div class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary me-1"
+                                            @click.stop="adjustStock(item.id)"
+                                            title="Adjust Stock">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success me-1"
+                                            @click.stop="addStock(item.id)"
+                                            title="Add Stock">
+                                        <i class="bi bi-plus-circle"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-warning me-1"
+                                            @click.stop="removeStock(item.id)"
+                                            title="Remove Stock">
+                                        <i class="bi bi-dash-circle"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-info"
+                                            @click.stop="viewHistory(item.id)"
+                                            title="View History">
+                                        <i class="bi bi-clock-history"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" x-show="filteredInventory.length === 0">
+        <div class="text-center py-5">
+            <i class="bi bi-box display-1 text-muted"></i>
+            <h3 class="mt-3">No Inventory Items Found</h3>
+            <p class="text-muted">
+                <span x-show="searchQuery || selectedCategory || stockStatus || selectedLocation">
+                    No items match your current filters. 
+                    <button type="button" class="btn btn-link p-0" @click="clearFilters()">Clear filters</button>
+                </span>
+                <span x-show="!searchQuery && !selectedCategory && !stockStatus && !selectedLocation">
+                    No inventory items found. 
+                    <button type="button" class="btn btn-link p-0" @click="importInventory()">Import inventory data</button>
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" x-show="totalPages > 1">
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item" :class="{'disabled': currentPage === 1}">
+                    <button class="page-link" @click="goToPage(currentPage - 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </li>
+                <template x-for="page in visiblePages" :key="page">
+                    <li class="page-item" :class="{'active': page === currentPage}">
+                        <button class="page-link" @click="goToPage(page)" x-text="page"></button>
+                    </li>
+                </template>
+                <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                    <button class="page-link" @click="goToPage(currentPage + 1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div class="pagination-info text-center">
+            <span x-text="`Showing ${startItem}-${endItem} of ${filteredInventory.length} items`"></span>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" x-show="selectedItems.length > 0" x-transition>
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <span class="selected-count">
+                            <i class="bi bi-check-square me-2"></i>
+                            <span x-text="selectedItems.length"></span> items selected
+                        </span>
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkAdjustStock()">
+                            <i class="bi bi-arrow-left-right"></i> Adjust Stock
+                        </button>
+                        <button type="button" class="btn btn-outline-warning me-2" @click="bulkUpdateReorderLevel()">
+                            <i class="bi bi-tag"></i> Update Reorder Level
+                        </button>
+                        <button type="button" class="btn btn-outline-info me-2" @click="bulkUpdateLocation()">
+                            <i class="bi bi-geo-alt"></i> Update Location
+                        </button>
+                        <button type="button" class="btn btn-outline-danger me-2" @click="exportSelected()">
+                            <i class="bi bi-download"></i> Export Selected
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @click="clearSelection()">
+                            <i class="bi bi-x"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Adjustment Modal -->
+    <div class="modal fade" id="stockAdjustmentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Stock Adjustment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="processStockAdjustment()">
+                        <div class="mb-3">
+                            <label class="form-label">Adjustment Type</label>
+                            <select class="form-select" x-model="adjustment.type" required>
+                                <option value="add">Add Stock</option>
+                                <option value="remove">Remove Stock</option>
+                                <option value="adjust">Manual Adjustment</option>
+                                <option value="return">Customer Return</option>
+                                <option value="damage">Damage/Loss</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="adjustment.quantity"
+                                   min="1"
+                                   required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reason</label>
+                            <textarea class="form-control" 
+                                      x-model="adjustment.reason"
+                                      rows="3"
+                                      required
+                                      placeholder="Enter reason for adjustment..."></textarea>
+                        </div>
+                        <div class="mb-3" x-show="adjustment.type === 'adjust'">
+                            <label class="form-label">New Stock Count</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="adjustment.newCount"
+                                   min="0">
+                            <small class="form-text">Actual count after physical inventory</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="processStockAdjustment()">Process Adjustment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/inventory_basic.js') }}"></script>
+<script>
+// Inventory App
+function inventoryApp() {
+    return {
+        // Data
+        searchQuery: '',
+        selectedCategory: '',
+        stockStatus: '',
+        selectedLocation: '',
+        sortField: 'name',
+        sortDirection: 'asc',
+        currentPage: 1,
+        itemsPerPage: 25,
+        
+        inventory: [],
+        categories: [],
+        locations: [],
+        filteredInventory: [],
+        selectedItems: [],
+        
+        overview: {
+            totalProducts: 0,
+            lowStockItems: 0,
+            outOfStockItems: 0,
+            totalValue: 0,
+            productsChange: 0,
+            lowStockChange: 0,
+            outOfStockChange: 0,
+            valueChange: 0
+        },
+        
+        adjustment: {
+            type: 'add',
+            quantity: 1,
+            reason: '',
+            newCount: 0
+        },
+        
+        // Computed properties
+        get paginatedInventory() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.filteredInventory.slice(start, end);
+        },
+        
+        get totalPages() {
+            return Math.ceil(this.filteredInventory.length / this.itemsPerPage);
+        },
+        
+        get visiblePages() {
+            const pages = [];
+            const start = Math.max(1, this.currentPage - 2);
+            const end = Math.min(this.totalPages, this.currentPage + 2);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            return pages;
+        },
+        
+        get startItem() {
+            return (this.currentPage - 1) * this.itemsPerPage + 1;
+        },
+        
+        get endItem() {
+            return Math.min(this.currentPage * this.itemsPerPage, this.filteredInventory.length);
+        },
+        
+        // Methods
+        init() {
+            this.loadInventory();
+            this.loadCategories();
+            this.loadLocations();
+            this.loadOverview();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadInventory() {
+            try {
+                const response = await fetch('/api/inventory');
+                this.inventory = await response.json();
+                this.filteredInventory = [...this.inventory];
+            } catch (error) {
+                console.error('Error loading inventory:', error);
+                this.showError('Failed to load inventory');
+            }
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                this.locations = await response.json();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        },
+        
+        async loadOverview() {
+            try {
+                const response = await fetch('/api/inventory/overview');
+                this.overview = await response.json();
+            } catch (error) {
+                console.error('Error loading overview:', error);
+            }
+        },
+        
+        searchProducts() {
+            this.applyFilters();
+        },
+        
+        filterProducts() {
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            this.filteredInventory = this.inventory.filter(item => {
+                // Search filter
+                if (this.searchQuery) {
+                    const query = this.searchQuery.toLowerCase();
+                    if (!item.name.toLowerCase().includes(query) &&
+                        !item.sku.toLowerCase().includes(query) &&
+                        !(item.barcode && item.barcode.includes(query))) {
+                        return false;
+                    }
+                }
+                
+                // Category filter
+                if (this.selectedCategory && item.category_id !== this.selectedCategory) {
+                    return false;
+                }
+                
+                // Stock status filter
+                if (this.stockStatus) {
+                    const stockStatus = this.getStockStatus(item.current_stock, item.reorder_level);
+                    if (stockStatus !== this.stockStatus) {
+                        return false;
+                    }
+                }
+                
+                // Location filter
+                if (this.selectedLocation && item.location_id !== this.selectedLocation) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            this.sortInventory();
+            this.currentPage = 1;
+        },
+        
+        clearFilters() {
+            this.searchQuery = '';
+            this.selectedCategory = '';
+            this.stockStatus = '';
+            this.selectedLocation = '';
+            this.applyFilters();
+        },
+        
+        sortBy(field) {
+            if (this.sortField === field) {
+                this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortDirection = 'asc';
+            }
+            this.sortInventory();
+        },
+        
+        sortInventory() {
+            this.filteredInventory.sort((a, b) => {
+                let aVal = a[this.sortField];
+                let bVal = b[this.sortField];
+                
+                if (this.sortField === 'category') {
+                    aVal = a.category?.name || '';
+                    bVal = b.category?.name || '';
+                } else if (this.sortField === 'location') {
+                    aVal = a.location?.name || '';
+                    bVal = b.location?.name || '';
+                }
+                
+                if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedItems = this.paginatedInventory.map(item => item.id);
+            } else {
+                this.selectedItems = [];
+            }
+        },
+        
+        toggleSelectItem(itemId) {
+            const index = this.selectedItems.indexOf(itemId);
+            if (index > -1) {
+                this.selectedItems.splice(index, 1);
+            } else {
+                this.selectedItems.push(itemId);
+            }
+        },
+        
+        clearSelection() {
+            this.selectedItems = [];
+        },
+        
+        goToPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+                this.clearSelection();
+            }
+        },
+        
+        viewProduct(productId) {
+            window.location.href = `/products/${productId}`;
+        },
+        
+        adjustStock(productId) {
+            this.currentProductId = productId;
+            const modal = new bootstrap.Modal(document.getElementById('stockAdjustmentModal'));
+            modal.show();
+        },
+        
+        addStock(productId) {
+            this.adjustment.type = 'add';
+            this.adjustStock(productId);
+        },
+        
+        removeStock(productId) {
+            this.adjustment.type = 'remove';
+            this.adjustStock(productId);
+        },
+        
+        async processStockAdjustment() {
+            if (!this.adjustment.quantity || !this.adjustment.reason) {
+                this.showError('Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/inventory/adjust', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        product_id: this.currentProductId,
+                        ...this.adjustment
+                    })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Stock adjustment processed successfully');
+                    bootstrap.Modal.getInstance(document.getElementById('stockAdjustmentModal')).hide();
+                    this.loadInventory();
+                    this.loadOverview();
+                    this.resetAdjustmentForm();
+                } else {
+                    throw new Error('Failed to process stock adjustment');
+                }
+            } catch (error) {
+                console.error('Error processing stock adjustment:', error);
+                this.showError('Failed to process stock adjustment');
+            }
+        },
+        
+        viewHistory(productId) {
+            window.location.href = `/inventory/history/${productId}`;
+        },
+        
+        showLowStockAlerts() {
+            window.location.href = '/inventory/alerts';
+        },
+        
+        showStockMovements() {
+            window.location.href = '/inventory/movements';
+        },
+        
+        bulkAdjustStock() {
+            const ids = this.selectedItems.join(',');
+            window.location.href = `/inventory/bulk-adjust?ids=${ids}`;
+        },
+        
+        bulkUpdateReorderLevel() {
+            const ids = this.selectedItems.join(',');
+            window.location.href = `/inventory/bulk-reorder?ids=${ids}`;
+        },
+        
+        bulkUpdateLocation() {
+            const ids = this.selectedItems.join(',');
+            window.location.href = `/inventory/bulk-location?ids=${ids}`;
+        },
+        
+        async exportSelected() {
+            try {
+                const response = await fetch('/api/inventory/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: this.selectedItems })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_selected_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Selected items exported successfully');
+                } else {
+                    throw new Error('Failed to export selected items');
+                }
+            } catch (error) {
+                console.error('Error exporting selected items:', error);
+                this.showError('Failed to export selected items');
+            }
+        },
+        
+        async importInventory() {
+            window.location.href = '/inventory/import';
+        },
+        
+        async exportInventory() {
+            try {
+                const response = await fetch('/api/inventory/export');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Inventory exported successfully');
+                } else {
+                    throw new Error('Failed to export inventory');
+                }
+            } catch (error) {
+                console.error('Error exporting inventory:', error);
+                this.showError('Failed to export inventory');
+            }
+        },
+        
+        addStockAdjustment() {
+            this.adjustment.type = 'add';
+            this.adjustment.quantity = 1;
+            this.adjustment.reason = '';
+            const modal = new bootstrap.Modal(document.getElementById('stockAdjustmentModal'));
+            modal.show();
+        },
+        
+        openBarcodeScanner() {
+            // Implement barcode scanner functionality
+            this.showInfo('Barcode scanner feature coming soon');
+        },
+        
+        resetAdjustmentForm() {
+            this.adjustment = {
+                type: 'add',
+                quantity: 1,
+                reason: '',
+                newCount: 0
+            };
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + A: Select all
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    this.selectedItems = this.paginatedInventory.map(item => item.id);
+                }
+                
+                // Ctrl/Cmd + I: Import inventory
+                if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                    e.preventDefault();
+                    this.importInventory();
+                }
+                
+                // Ctrl/Cmd + E: Export inventory
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportInventory();
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        getStockClass(currentStock, reorderLevel) {
+            if (currentStock === 0) return 'out-of-stock';
+            if (currentStock <= reorderLevel) return 'low-stock';
+            return 'in-stock';
+        },
+        
+        getStockStatus(currentStock, reorderLevel) {
+            if (currentStock === 0) return 'out_of_stock';
+            if (currentStock <= reorderLevel) return 'low_stock';
+            return 'in_stock';
+        },
+        
+        getStockStatusText(currentStock, reorderLevel) {
+            const status = this.getStockStatus(currentStock, reorderLevel);
+            const statusTexts = {
+                in_stock: 'In Stock',
+                low_stock: 'Low Stock',
+                out_of_stock: 'Out of Stock'
+            };
+            return statusTexts[status] || status;
+        },
+        
+        getStockPercentage(currentStock) {
+            // Calculate visual stock percentage (max 100%)
+            return Math.min(100, Math.max(0, currentStock));
+        },
+        
+        isFeatureEnabled(feature) {
+            return window.RETAIL_CONFIG.features[feature] || false;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showInfo(message) {
+            this.showNotification(message, 'info');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

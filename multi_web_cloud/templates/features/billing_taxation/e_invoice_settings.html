@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Invoice Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .settings-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #17a2b8;
+        }
+        .settings-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #17a2b8;
+            color: white;
+            border-color: #17a2b8;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-indicator.online {
+            background-color: #28a745;
+        }
+        .status-indicator.offline {
+            background-color: #dc3545;
+        }
+        .status-indicator.warning {
+            background-color: #ffc107;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="eInvoiceSettings()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">E-Invoice Configuration</h1>
+                        <p class="text-muted mb-0">Configure e-invoice settings and integration parameters</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" @click="testConnection()">
+                            <i class="bi bi-check-circle"></i> Test Connection
+                        </button>
+                        <button class="btn btn-primary" @click="saveSettings()">
+                            <i class="bi bi-save"></i> Save Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tabs -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button">
+                                    <i class="bi bi-gear"></i> General Settings
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#api" type="button">
+                                    <i class="bi bi-plug"></i> API Configuration
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#business" type="button">
+                                    <i class="bi bi-building"></i> Business Rules
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#notifications" type="button">
+                                    <i class="bi bi-bell"></i> Notifications
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#advanced" type="button">
+                                    <i class="bi bi-sliders"></i> Advanced
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <!-- General Settings Tab -->
+                            <div class="tab-pane fade show active" id="general">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Enable E-Invoice</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="settings.enabled">
+                                            <label class="form-check-label">Enable e-invoice generation</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Auto-Generate</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="settings.autoGenerate">
+                                            <label class="form-check-label">Auto-generate e-invoices</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Default Supply Type</label>
+                                        <select class="form-select" x-model="settings.defaultSupplyType">
+                                            <option value="B2B">B2B</option>
+                                            <option value="SEZWP">SEZ With Payment</option>
+                                            <option value="SEZWOP">SEZ Without Payment</option>
+                                            <option value="EXPWP">Export With Payment</option>
+                                            <option value="EXPWOP">Export Without Payment</option>
+                                            <option value="DE">Deemed Export</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Invoice Generation Mode</label>
+                                        <select class="form-select" x-model="settings.generationMode">
+                                            <option value="realtime">Real-time</option>
+                                            <option value="batch">Batch Processing</option>
+                                            <option value="manual">Manual Only</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Retry Attempts</label>
+                                        <input type="number" class="form-control" x-model="settings.retryAttempts" min="1" max="10">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Timeout (seconds)</label>
+                                        <input type="number" class="form-control" x-model="settings.timeout" min="10" max="300">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- API Configuration Tab -->
+                            <div class="tab-pane fade" id="api">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">GST Portal URL</label>
+                                        <input type="url" class="form-control" x-model="api.portalUrl" placeholder="https://einv-apisandbox.nic.in">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">API Version</label>
+                                        <select class="form-select" x-model="api.version">
+                                            <option value="v1.03">v1.03</option>
+                                            <option value="v1.04">v1.04</option>
+                                            <option value="v1.05">v1.05</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Client ID</label>
+                                        <input type="text" class="form-control" x-model="api.clientId">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Client Secret</label>
+                                        <input type="password" class="form-control" x-model="api.clientSecret">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Username</label>
+                                        <input type="text" class="form-control" x-model="api.username">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Password</label>
+                                        <input type="password" class="form-control" x-model="api.password">
+                                    </div>
+                                    <div class="col-md-12">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="status-indicator" :class="api.status"></span>
+                                                <span x-text="api.statusText"></span>
+                                            </div>
+                                            <button class="btn btn-outline-primary btn-sm" @click="testApiConnection()">
+                                                Test API Connection
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Business Rules Tab -->
+                            <div class="tab-pane fade" id="business">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Minimum Invoice Amount</label>
+                                        <input type="number" class="form-control" x-model="business.minAmount" min="0">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Maximum Invoice Amount</label>
+                                        <input type="number" class="form-control" x-model="business.maxAmount" min="0">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Applicable for B2C</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="business.b2cApplicable">
+                                            <label class="form-check-label">Apply to B2C invoices</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Applicable for Exports</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="business.exportApplicable">
+                                            <label class="form-check-label">Apply to export invoices</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Exempted Categories</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="business.exemptCategories" value="educational">
+                                            <label class="form-check-label">Educational Services</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="business.exemptCategories" value="healthcare">
+                                            <label class="form-check-label">Healthcare Services</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="business.exemptCategories" value="financial">
+                                            <label class="form-check-label">Financial Services</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Special Cases</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="business.specialCases" value="advance">
+                                            <label class="form-check-label">Advance Payments</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="business.specialCases" value="creditnote">
+                                            <label class="form-check-label">Credit Notes</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="business.specialCases" value="debitnote">
+                                            <label class="form-check-label">Debit Notes</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notifications Tab -->
+                            <div class="tab-pane fade" id="notifications">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email Notifications</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="notifications.emailEnabled">
+                                            <label class="form-check-label">Enable email notifications</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">SMS Notifications</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="notifications.smsEnabled">
+                                            <label class="form-check-label">Enable SMS notifications</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Notification Events</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="notifications.events" value="generated">
+                                            <label class="form-check-label">E-Invoice Generated</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="notifications.events" value="failed">
+                                            <label class="form-check-label">Generation Failed</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="notifications.events" value="cancelled">
+                                            <label class="form-check-label">E-Invoice Cancelled</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Recipients</label>
+                                        <textarea class="form-control" x-model="notifications.recipients" rows="3" 
+                                                  placeholder="Enter email addresses separated by commas"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Advanced Tab -->
+                            <div class="tab-pane fade" id="advanced">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Debug Mode</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="advanced.debugMode">
+                                            <label class="form-check-label">Enable debug logging</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Sandbox Mode</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="advanced.sandboxMode">
+                                            <label class="form-check-label">Use sandbox environment</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Batch Size</label>
+                                        <input type="number" class="form-control" x-model="advanced.batchSize" min="1" max="100">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Concurrent Requests</label>
+                                        <input type="number" class="form-control" x-model="advanced.concurrentRequests" min="1" max="10">
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label">Custom Headers</label>
+                                        <textarea class="form-control" x-model="advanced.customHeaders" rows="3" 
+                                                  placeholder="Enter custom headers in JSON format"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="settings-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-download display-4 text-primary mb-3"></i>
+                                        <h6>Import Settings</h6>
+                                        <p class="text-muted small">Import settings from file</p>
+                                        <button class="btn btn-sm btn-outline-primary" @click="importSettings()">
+                                            Import
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="settings-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-upload display-4 text-success mb-3"></i>
+                                        <h6>Export Settings</h6>
+                                        <p class="text-muted small">Export current settings</p>
+                                        <button class="btn btn-sm btn-outline-success" @click="exportSettings()">
+                                            Export
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="settings-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-arrow-clockwise display-4 text-warning mb-3"></i>
+                                        <h6>Reset to Default</h6>
+                                        <p class="text-muted small">Reset all settings</p>
+                                        <button class="btn btn-sm btn-outline-warning" @click="resetSettings()">
+                                            Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="settings-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-file-earmark-text display-4 text-info mb-3"></i>
+                                        <h6>View Logs</h6>
+                                        <p class="text-muted small">System activity logs</p>
+                                        <button class="btn btn-sm btn-outline-info" @click="viewLogs()">
+                                            View Logs
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function eInvoiceSettings() {
+            return {
+                settings: {
+                    enabled: true,
+                    autoGenerate: false,
+                    defaultSupplyType: 'B2B',
+                    generationMode: 'realtime',
+                    retryAttempts: 3,
+                    timeout: 30
+                },
+                api: {
+                    portalUrl: 'https://einv-apisandbox.nic.in',
+                    version: 'v1.03',
+                    clientId: '',
+                    clientSecret: '',
+                    username: '',
+                    password: '',
+                    status: 'offline',
+                    statusText: 'Not Connected'
+                },
+                business: {
+                    minAmount: 0,
+                    maxAmount: 0,
+                    b2cApplicable: false,
+                    exportApplicable: true,
+                    exemptCategories: [],
+                    specialCases: []
+                },
+                notifications: {
+                    emailEnabled: true,
+                    smsEnabled: false,
+                    events: ['generated', 'failed'],
+                    recipients: ''
+                },
+                advanced: {
+                    debugMode: false,
+                    sandboxMode: true,
+                    batchSize: 10,
+                    concurrentRequests: 3,
+                    customHeaders: ''
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                saveSettings() {
+                    console.log('Saving settings:', this.settings);
+                    alert('Settings saved successfully!');
+                },
+                
+                testConnection() {
+                    console.log('Testing connection...');
+                    alert('Connection test initiated!');
+                },
+                
+                testApiConnection() {
+                    console.log('Testing API connection...');
+                    this.api.status = 'warning';
+                    this.api.statusText = 'Testing...';
+                    
+                    setTimeout(() => {
+                        this.api.status = 'online';
+                        this.api.statusText = 'Connected';
+                        alert('API connection successful!');
+                    }, 2000);
+                },
+                
+                importSettings() {
+                    console.log('Importing settings...');
+                    alert('Settings imported successfully!');
+                },
+                
+                exportSettings() {
+                    console.log('Exporting settings...');
+                    alert('Settings exported successfully!');
+                },
+                
+                resetSettings() {
+                    if (confirm('Are you sure you want to reset all settings to default?')) {
+                        console.log('Resetting settings...');
+                        alert('Settings reset to default!');
+                    }
+                },
+                
+                viewLogs() {
+                    console.log('Viewing logs...');
+                    alert('Opening system logs...');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

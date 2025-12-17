@@ -1,0 +1,803 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_catalog_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Catalog Settings -->
+<div class="catalog-settings-container" x-data="catalogSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Product Catalog Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure product catalog behavior and preferences</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveSettings()" :disabled="!hasChanges">
+                        <i class="bi bi-check-circle"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tabs -->
+    <div class="settings-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#general-settings" 
+                        type="button">
+                    <i class="bi bi-gear me-2"></i> General
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#inventory-settings" 
+                        type="button">
+                    <i class="bi bi-box-seam me-2"></i> Inventory
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#pricing-settings" 
+                        type="button">
+                    <i class="bi bi-currency-dollar me-2"></i> Pricing
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#display-settings" 
+                        type="button">
+                    <i class="bi bi-image me-2"></i> Display
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#import-export-settings" 
+                        type="button">
+                    <i class="bi bi-arrow-left-right me-2"></i> Import/Export
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- General Settings Tab -->
+        <div class="tab-pane fade show active" id="general-settings">
+            <div class="settings-section">
+                <h4 class="section-title">General Catalog Settings</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Product Status</label>
+                            <select class="form-select" x-model="settings.default_product_status">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="draft">Draft</option>
+                            </select>
+                            <small class="form-text">Default status for new products</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Auto-generate SKU</label>
+                            <select class="form-select" x-model="settings.auto_generate_sku">
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                                <option value="prompt">Prompt if empty</option>
+                            </select>
+                            <small class="form-text">How to handle SKU generation</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">SKU Format</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="settings.sku_format"
+                                   placeholder="PRD-{seq:5}">
+                            <small class="form-text">Format for auto-generated SKUs. Use {seq:N} for sequence number</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Barcode Integration</label>
+                            <select class="form-select" x-model="settings.barcode_integration">
+                                <option value="none">None</option>
+                                <option value="ean13">EAN-13</option>
+                                <option value="upc">UPC-A</option>
+                                <option value="code128">Code 128</option>
+                            </select>
+                            <small class="form-text">Barcode format to use</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_product_variants"
+                                       x-model="settings.enable_product_variants">
+                                <label class="form-check-label" for="enable_product_variants">
+                                    Enable Product Variants
+                                </label>
+                            </div>
+                            <small class="form-text">Allow products with multiple variants (size, color, etc.)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_product_reviews"
+                                       x-model="settings.enable_product_reviews">
+                                <label class="form-check-label" for="enable_product_reviews">
+                                    Enable Product Reviews
+                                </label>
+                            </div>
+                            <small class="form-text">Allow customers to review products</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_related_products"
+                                       x-model="settings.enable_related_products">
+                                <label class="form-check-label" for="enable_related_products">
+                                    Enable Related Products
+                                </label>
+                            </div>
+                            <small class="form-text">Show related products on product pages</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Settings Tab -->
+        <div class="tab-pane fade" id="inventory-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Inventory Management</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Low Stock Alert Level</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.default_low_stock_level"
+                                   min="0"
+                                   max="999">
+                            <small class="form-text">Default low stock alert for new products</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Out of Stock Behavior</label>
+                            <select class="form-select" x-model="settings.out_of_stock_behavior">
+                                <option value="hide">Hide Product</option>
+                                <option value="show">Show but Unavailable</option>
+                                <option value="backorder">Allow Backorder</option>
+                            </select>
+                            <small class="form-text">How to handle out-of-stock products</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Stock Deduction Timing</label>
+                            <select class="form-select" x-model="settings.stock_deduction_timing">
+                                <option value="order">On Order Placement</option>
+                                <option value="payment">On Payment Confirmation</option>
+                                <option value="shipment">On Shipment</option>
+                            </select>
+                            <small class="form-text">When to deduct inventory</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Stock Reservation Duration</label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.stock_reservation_duration"
+                                       min="5"
+                                       max="1440">
+                                <span class="input-group-text">minutes</span>
+                            </div>
+                            <small class="form-text">How long to reserve stock for pending orders</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_stock_notifications"
+                                       x-model="settings.enable_stock_notifications">
+                                <label class="form-check-label" for="enable_stock_notifications">
+                                    Enable Stock Notifications
+                                </label>
+                            </div>
+                            <small class="form-text">Send notifications for low stock and out of stock items</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="allow_negative_stock"
+                                       x-model="settings.allow_negative_stock">
+                                <label class="form-check-label" for="allow_negative_stock">
+                                    Allow Negative Stock
+                                </label>
+                            </div>
+                            <small class="form-text">Allow selling items with zero or negative stock</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_stock_history"
+                                       x-model="settings.enable_stock_history">
+                                <label class="form-check-label" for="enable_stock_history">
+                                    Enable Stock History
+                                </label>
+                            </div>
+                            <small class="form-text">Track all inventory changes and movements</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Settings Tab -->
+        <div class="tab-pane fade" id="pricing-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Pricing Configuration</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Tax Rate (%)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.default_tax_rate"
+                                   step="0.01"
+                                   min="0"
+                                   max="100">
+                            <small class="form-text">Default tax rate for new products</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Tax Calculation Method</label>
+                            <select class="form-select" x-model="settings.tax_calculation_method">
+                                <option value="inclusive">Tax Inclusive</option>
+                                <option value="exclusive">Tax Exclusive</option>
+                            </select>
+                            <small class="form-text">How tax should be calculated</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Price Display Format</label>
+                            <select class="form-select" x-model="settings.price_display_format">
+                                <option value="with_tax">Including Tax</option>
+                                <option value="without_tax">Excluding Tax</option>
+                                <option value="both">Both (with/without tax)</option>
+                            </select>
+                            <small class="form-text">How to display prices to customers</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Currency Rounding</label>
+                            <select class="form-select" x-model="settings.currency_rounding">
+                                <option value="standard">Standard (2 decimal places)</option>
+                                <option value="up">Always Round Up</option>
+                                <option value="down">Always Round Down</option>
+                                <option value="nearest">Round to Nearest</option>
+                            </select>
+                            <small class="form-text">How to round calculated prices</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_cost_tracking"
+                                       x-model="settings.enable_cost_tracking">
+                                <label class="form-check-label" for="enable_cost_tracking">
+                                    Enable Cost Tracking
+                                </label>
+                            </div>
+                            <small class="form-text">Track product costs for profit calculations</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_dynamic_pricing"
+                                       x-model="settings.enable_dynamic_pricing">
+                                <label class="form-check-label" for="enable_dynamic_pricing">
+                                    Enable Dynamic Pricing
+                                </label>
+                            </div>
+                            <small class="form-text">Allow automatic price adjustments based on demand</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_customer_pricing"
+                                       x-model="settings.enable_customer_pricing">
+                                <label class="form-check-label" for="enable_customer_pricing">
+                                    Enable Customer-Specific Pricing
+                                </label>
+                            </div>
+                            <small class="form-text">Allow different prices for different customer groups</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Display Settings Tab -->
+        <div class="tab-pane fade" id="display-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Product Display Settings</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Products Per Page</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.products_per_page"
+                                   min="6"
+                                   max="100"
+                                   step="6">
+                            <small class="form-text">Number of products to display per page</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default View Mode</label>
+                            <select class="form-select" x-model="settings.default_view_mode">
+                                <option value="grid">Grid View</option>
+                                <option value="list">List View</option>
+                                <option value="both">Both (with toggle)</option>
+                            </select>
+                            <small class="form-text">Default product display mode</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Image Quality</label>
+                            <select class="form-select" x-model="settings.image_quality">
+                                <option value="low">Low (Fast loading)</option>
+                                <option value="medium">Medium (Balanced)</option>
+                                <option value="high">High (Best quality)</option>
+                                <option value="original">Original (No compression)</option>
+                            </select>
+                            <small class="form-text">Default image quality for product images</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Image Size</label>
+                            <select class="form-select" x-model="settings.image_size">
+                                <option value="small">Small (300x300)</option>
+                                <option value="medium">Medium (500x500)</option>
+                                <option value="large">Large (800x800)</option>
+                                <option value="responsive">Responsive (auto)</option>
+                            </select>
+                            <small class="form-text">Default image size for thumbnails</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_quick_view"
+                                       x-model="settings.enable_quick_view">
+                                <label class="form-check-label" for="enable_quick_view">
+                                    Enable Quick View
+                                </label>
+                            </div>
+                            <small class="form-text">Allow customers to view product details without leaving the list</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_image_zoom"
+                                       x-model="settings.enable_image_zoom">
+                                <label class="form-check-label" for="enable_image_zoom">
+                                    Enable Image Zoom
+                                </label>
+                            </div>
+                            <small class="form-text">Allow customers to zoom in on product images</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_product_comparison"
+                                       x-model="settings.enable_product_comparison">
+                                <label class="form-check-label" for="enable_product_comparison">
+                                    Enable Product Comparison
+                                </label>
+                            </div>
+                            <small class="form-text">Allow customers to compare multiple products</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import/Export Settings Tab -->
+        <div class="tab-pane fade" id="import-export-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Import/Export Configuration</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Import Format</label>
+                            <select class="form-select" x-model="settings.default_import_format">
+                                <option value="csv">CSV</option>
+                                <option value="excel">Excel (.xlsx)</option>
+                                <option value="json">JSON</option>
+                                <option value="xml">XML</option>
+                            </select>
+                            <small class="form-text">Default format for importing products</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Export Format</label>
+                            <select class="form-select" x-model="settings.default_export_format">
+                                <option value="csv">CSV</option>
+                                <option value="excel">Excel (.xlsx)</option>
+                                <option value="json">JSON</option>
+                                <option value="pdf">PDF Report</option>
+                            </select>
+                            <small class="form-text">Default format for exporting products</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Import Behavior</label>
+                            <select class="form-select" x-model="settings.import_behavior">
+                                <option value="create_only">Create New Products Only</option>
+                                <option value="update_existing">Update Existing Products</option>
+                                <option value="create_update">Create New and Update Existing</option>
+                                <option value="replace">Replace All Products</option>
+                            </select>
+                            <small class="form-text">How to handle product imports</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Duplicate Handling</label>
+                            <select class="form-select" x-model="settings.duplicate_handling">
+                                <option value="skip">Skip Duplicates</option>
+                                <option value="update">Update Existing</option>
+                                <option value="create">Create as New</option>
+                                <option value="prompt">Prompt for Action</option>
+                            </select>
+                            <small class="form-text">How to handle duplicate products during import</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_image_import"
+                                       x-model="settings.enable_image_import">
+                                <label class="form-check-label" for="enable_image_import">
+                                    Enable Image Import
+                                </label>
+                            </div>
+                            <small class="form-text">Allow importing product images from URLs</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_auto_backup"
+                                       x-model="settings.enable_auto_backup">
+                                <label class="form-check-label" for="enable_auto_backup">
+                                    Enable Auto Backup Before Import
+                                </label>
+                            </div>
+                            <small class="form-text">Automatically backup products before importing</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_validation"
+                                       x-model="settings.enable_validation">
+                                <label class="form-check-label" for="enable_validation">
+                                    Enable Data Validation
+                                </label>
+                            </div>
+                            <small class="form-text">Validate data before importing products</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/product_catalog_settings.js') }}"></script>
+<script>
+// Catalog Settings App
+function catalogSettingsApp() {
+    return {
+        // Data
+        settings: {
+            // General settings
+            default_product_status: 'active',
+            auto_generate_sku: 'prompt',
+            sku_format: 'PRD-{seq:5}',
+            barcode_integration: 'none',
+            enable_product_variants: false,
+            enable_product_reviews: true,
+            enable_related_products: true,
+            
+            // Inventory settings
+            default_low_stock_level: 10,
+            out_of_stock_behavior: 'show',
+            stock_deduction_timing: 'order',
+            stock_reservation_duration: 30,
+            enable_stock_notifications: true,
+            allow_negative_stock: false,
+            enable_stock_history: true,
+            
+            // Pricing settings
+            default_tax_rate: 0,
+            tax_calculation_method: 'exclusive',
+            price_display_format: 'with_tax',
+            currency_rounding: 'standard',
+            enable_cost_tracking: true,
+            enable_dynamic_pricing: false,
+            enable_customer_pricing: false,
+            
+            // Display settings
+            products_per_page: 24,
+            default_view_mode: 'grid',
+            image_quality: 'medium',
+            image_size: 'medium',
+            enable_quick_view: true,
+            enable_image_zoom: true,
+            enable_product_comparison: false,
+            
+            // Import/Export settings
+            default_import_format: 'csv',
+            default_export_format: 'csv',
+            import_behavior: 'create_update',
+            duplicate_handling: 'update',
+            enable_image_import: true,
+            enable_auto_backup: true,
+            enable_validation: true
+        },
+        
+        originalSettings: {},
+        hasChanges: false,
+        
+        // Methods
+        init() {
+            this.loadSettings();
+            this.setupWatchers();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/settings/product_catalog');
+                const savedSettings = await response.json();
+                
+                // Merge with defaults
+                this.settings = { ...this.settings, ...savedSettings };
+                this.originalSettings = { ...this.settings };
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                this.showError('Failed to load settings');
+            }
+        },
+        
+        setupWatchers() {
+            // Watch for changes
+            Object.keys(this.settings).forEach(key => {
+                this.$watch(key, () => {
+                    this.checkForChanges();
+                });
+            });
+        },
+        
+        checkForChanges() {
+            this.hasChanges = JSON.stringify(this.settings) !== JSON.stringify(this.originalSettings);
+        },
+        
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/settings/product_catalog', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.originalSettings = { ...this.settings };
+                    this.hasChanges = false;
+                    this.showSuccess('Settings saved successfully');
+                } else {
+                    throw new Error('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                // Reset to default values
+                this.settings = {
+                    default_product_status: 'active',
+                    auto_generate_sku: 'prompt',
+                    sku_format: 'PRD-{seq:5}',
+                    barcode_integration: 'none',
+                    enable_product_variants: false,
+                    enable_product_reviews: true,
+                    enable_related_products: true,
+                    default_low_stock_level: 10,
+                    out_of_stock_behavior: 'show',
+                    stock_deduction_timing: 'order',
+                    stock_reservation_duration: 30,
+                    enable_stock_notifications: true,
+                    allow_negative_stock: false,
+                    enable_stock_history: true,
+                    default_tax_rate: 0,
+                    tax_calculation_method: 'exclusive',
+                    price_display_format: 'with_tax',
+                    currency_rounding: 'standard',
+                    enable_cost_tracking: true,
+                    enable_dynamic_pricing: false,
+                    enable_customer_pricing: false,
+                    products_per_page: 24,
+                    default_view_mode: 'grid',
+                    image_quality: 'medium',
+                    image_size: 'medium',
+                    enable_quick_view: true,
+                    enable_image_zoom: true,
+                    enable_product_comparison: false,
+                    default_import_format: 'csv',
+                    default_export_format: 'csv',
+                    import_behavior: 'create_update',
+                    duplicate_handling: 'update',
+                    enable_image_import: true,
+                    enable_auto_backup: true,
+                    enable_validation: true
+                };
+                
+                this.showSuccess('Settings reset to defaults');
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    if (this.hasChanges) {
+                        this.saveSettings();
+                    }
+                }
+                
+                // Ctrl/Cmd + R: Reset to defaults
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetToDefaults();
+                }
+            });
+        },
+        
+        // Utility methods
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1094 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/inventory_basic_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Inventory Adjustment Form -->
+<div class="inventory-form-container" x-data="inventoryFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-arrow-left-right me-2"></i>
+                    <span x-text="isEditMode ? 'Edit Stock Adjustment' : 'New Stock Adjustment'"></span>
+                </h2>
+                <p class="form-subtitle text-muted">
+                    <span x-show="isEditMode">Modify existing stock adjustment</span>
+                    <span x-show="!isEditMode">Create a new stock adjustment</span>
+                </p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="cancelForm()">
+                        <i class="bi bi-x"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-primary me-2" @click="saveDraft()">
+                        <i class="bi bi-file-earmark"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="submitForm()" :disabled="isSubmitting">
+                        <i class="bi bi-check-circle"></i> 
+                        <span x-show="!isSubmitting">Submit Adjustment</span>
+                        <span x-show="isSubmitting">Processing...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Progress Indicator -->
+    <div class="form-progress" x-show="!isQuickMode">
+        <div class="progress">
+            <div class="progress-bar" 
+                 role="progressbar" 
+                 :style="`width: ${progressPercentage}%`"
+                 :aria-valuenow="progressPercentage"
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+                <span x-text="`${progressPercentage}% Complete`"></span>
+            </div>
+        </div>
+        <div class="progress-steps">
+            <div class="step" 
+                 :class="{'active': currentStep >= 1, 'completed': currentStep > 1}"
+                 @click="goToStep(1)">
+                <div class="step-number">1</div>
+                <div class="step-label">Product Selection</div>
+            </div>
+            <div class="step" 
+                 :class="{'active': currentStep >= 2, 'completed': currentStep > 2}"
+                 @click="goToStep(2)">
+                <div class="step-number">2</div>
+                <div class="step-label">Adjustment Details</div>
+            </div>
+            <div class="step" 
+                 :class="{'active': currentStep >= 3, 'completed': currentStep > 3}"
+                 @click="goToStep(3)">
+                <div class="step-number">3</div>
+                <div class="step-label">Review & Submit</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Mode Toggle -->
+    <div class="quick-mode-toggle">
+        <div class="form-check form-switch">
+            <input class="form-check-input" 
+                   type="checkbox" 
+                   id="quickMode"
+                   x-model="isQuickMode">
+            <label class="form-check-label" for="quickMode">
+                <i class="bi bi-lightning me-1"></i>
+                Quick Mode - Single Product Adjustment
+            </label>
+        </div>
+    </div>
+
+    <!-- Form Content -->
+    <div class="form-content">
+        
+        <!-- Step 1: Product Selection -->
+        <div class="form-step" x-show="currentStep === 1 || isQuickMode">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-box me-2"></i>
+                        Product Selection
+                    </h5>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Product Search -->
+                    <div class="product-search-section">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label class="form-label">Search Product</label>
+                                    <div class="input-group">
+                                        <input type="text" 
+                                               class="form-control" 
+                                               x-model="productSearchQuery"
+                                               @input="searchProducts()"
+                                               @focus="showProductDropdown = true"
+                                               placeholder="Search by name, SKU, or barcode..."
+                                               autocomplete="off">
+                                        <button type="button" 
+                                                class="btn btn-outline-secondary"
+                                                @click="scanBarcode()"
+                                                title="Scan Barcode">
+                                            <i class="bi bi-upc-scan"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Product Dropdown -->
+                                    <div class="product-dropdown" x-show="showProductDropdown && productSearchResults.length > 0">
+                                        <template x-for="product in productSearchResults" :key="product.id">
+                                            <div class="product-item" @click="selectProduct(product)">
+                                                <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                                     :alt="product.name"
+                                                     class="product-thumbnail">
+                                                <div class="product-info">
+                                                    <div class="product-name" x-text="product.name"></div>
+                                                    <div class="product-details">
+                                                        <span class="sku" x-text="product.sku"></span>
+                                                        <span class="stock">Stock: <span x-text="product.current_stock"></span></span>
+                                                        <span class="location" x-text="product.location?.name || 'Default'"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="form-label">Quick Actions</label>
+                                    <div class="quick-actions">
+                                        <button type="button" 
+                                                class="btn btn-outline-primary btn-sm w-100 mb-2"
+                                                @click="showLowStockProducts()">
+                                            <i class="bi bi-exclamation-triangle"></i> Low Stock Items
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-warning btn-sm w-100 mb-2"
+                                                @click="showOutOfStockProducts()">
+                                            <i class="bi bi-x-circle"></i> Out of Stock Items
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-info btn-sm w-100"
+                                                @click="showRecentlyAdjusted()">
+                                            <i class="bi bi-clock-history"></i> Recently Adjusted
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selected Products -->
+                    <div class="selected-products-section" x-show="selectedProducts.length > 0">
+                        <h6 class="section-title">Selected Products</h6>
+                        <div class="selected-products-list">
+                            <template x-for="(product, index) in selectedProducts" :key="product.id">
+                                <div class="selected-product-item">
+                                    <div class="product-info">
+                                        <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                             :alt="product.name"
+                                             class="product-thumbnail">
+                                        <div class="product-details">
+                                            <div class="product-name" x-text="product.name"></div>
+                                            <div class="product-meta">
+                                                <span class="sku">SKU: <span x-text="product.sku"></span></span>
+                                                <span class="current-stock">Current: <span x-text="product.current_stock"></span></span>
+                                                <span class="location" x-text="product.location?.name || 'Default'"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="product-actions">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                @click="removeProduct(index)"
+                                                title="Remove Product">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Quick Mode Product Info -->
+                    <div class="quick-product-info" x-show="isQuickMode && selectedProduct">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <img :src="selectedProduct.image || '/static/images/placeholder-product.png'" 
+                                     :alt="selectedProduct.name"
+                                     class="product-image-large">
+                            </div>
+                            <div class="col-md-9">
+                                <h4 x-text="selectedProduct.name"></h4>
+                                <div class="product-meta">
+                                    <p><strong>SKU:</strong> <span x-text="selectedProduct.sku"></span></p>
+                                    <p><strong>Current Stock:</strong> <span x-text="selectedProduct.current_stock"></span></p>
+                                    <p><strong>Location:</strong> <span x-text="selectedProduct.location?.name || 'Default'"></span></p>
+                                    <p><strong>Reorder Level:</strong> <span x-text="selectedProduct.reorder_level || 0"></span></p>
+                                    <p><strong>Cost:</strong> <span x-text="formatCurrency(selectedProduct.cost || 0)"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="step-navigation" x-show="!isQuickMode">
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="nextStep()"
+                                :disabled="selectedProducts.length === 0">
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Adjustment Details -->
+        <div class="form-step" x-show="currentStep === 2 || isQuickMode">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-sliders me-2"></i>
+                        Adjustment Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Adjustment Type -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Adjustment Type *</label>
+                                <select class="form-select" 
+                                        x-model="adjustmentType"
+                                        @change="updateAdjustmentFields()">
+                                    <option value="">Select adjustment type</option>
+                                    <option value="increase">Stock In</option>
+                                    <option value="decrease">Stock Out</option>
+                                    <option value="transfer">Transfer</option>
+                                    <option value="adjustment">Manual Adjustment</option>
+                                    <option value="damage">Damage/Loss</option>
+                                    <option value="return">Customer Return</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Reference Number</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="referenceNumber"
+                                       placeholder="Optional reference number">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Reason *</label>
+                                <select class="form-select" 
+                                        x-model="adjustmentReason"
+                                        @change="updateCustomReasonField()">
+                                    <option value="">Select reason</option>
+                                    <option value="purchase">New Purchase</option>
+                                    <option value="return">Supplier Return</option>
+                                    <option value="transfer">Location Transfer</option>
+                                    <option value="damage">Damage/Loss</option>
+                                    <option value="theft">Theft</option>
+                                    <option value="correction">Stock Correction</option>
+                                    <option value="count">Stock Count Adjustment</option>
+                                    <option value="expiry">Expiry Removal</option>
+                                    <option value="promotion">Promotional Use</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Reason -->
+                    <div class="row" x-show="showCustomReason">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Custom Reason *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customReason"
+                                       placeholder="Please specify the reason">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer Details (only shown for transfer type) -->
+                    <div class="transfer-details" x-show="adjustmentType === 'transfer'">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">From Location *</label>
+                                    <select class="form-select" x-model="transferFromLocation">
+                                        <option value="">Select source location</option>
+                                        <template x-for="location in locations" :key="location.id">
+                                            <option :value="location.id" x-text="location.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">To Location *</label>
+                                    <select class="form-select" x-model="transferToLocation">
+                                        <option value="">Select destination location</option>
+                                        <template x-for="location in locations" :key="location.id">
+                                            <option :value="location.id" 
+                                                    x-text="location.name"
+                                                    :disabled="location.id == transferFromLocation"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Adjustments -->
+                    <div class="product-adjustments-section">
+                        <h6 class="section-title">Product Adjustments</h6>
+                        
+                        <!-- Quick Mode Adjustment -->
+                        <div class="quick-adjustment" x-show="isQuickMode && selectedProduct">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">Current Stock</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               :value="selectedProduct.current_stock"
+                                               readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">Adjustment Quantity *</label>
+                                        <div class="input-group">
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary"
+                                                    @click="decrementQuantity()"
+                                                    :disabled="adjustmentQuantity <= 1">
+                                                <i class="bi bi-dash"></i>
+                                            </button>
+                                            <input type="number" 
+                                                   class="form-control text-center" 
+                                                   x-model="adjustmentQuantity"
+                                                   min="1"
+                                                   @input="calculateNewStock()">
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary"
+                                                    @click="incrementQuantity()">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">New Stock</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               :value="newStock"
+                                               readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Batch Mode Adjustments -->
+                        <div class="batch-adjustments" x-show="!isQuickMode">
+                            <div class="table-responsive">
+                                <table class="table table-bordered adjustment-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Current Stock</th>
+                                            <th>Adjustment Qty</th>
+                                            <th>New Stock</th>
+                                            <th>Value Impact</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="(product, index) in selectedProducts" :key="product.id">
+                                            <tr>
+                                                <td>
+                                                    <div class="product-cell">
+                                                        <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                                             :alt="product.name"
+                                                             class="product-thumbnail">
+                                                        <div>
+                                                            <div x-text="product.name"></div>
+                                                            <small class="text-muted" x-text="product.sku"></small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span x-text="product.current_stock"></span>
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control adjustment-quantity"
+                                                           x-model="product.adjustmentQuantity"
+                                                           @input="calculateProductNewStock(product)"
+                                                           min="1">
+                                                </td>
+                                                <td>
+                                                    <span x-text="product.newStock || product.current_stock"></span>
+                                                </td>
+                                                <td>
+                                                    <span x-text="formatCurrency(calculateValueImpact(product))"></span>
+                                                </td>
+                                                <td>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-danger"
+                                                            @click="removeProduct(index)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Additional Notes</label>
+                                <textarea class="form-control" 
+                                          x-model="adjustmentNotes"
+                                          rows="3"
+                                          placeholder="Any additional information about this adjustment..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="step-navigation">
+                        <button type="button" 
+                                class="btn btn-outline-secondary me-2"
+                                @click="previousStep()">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="nextStep()"
+                                :disabled="!isStep2Valid()">
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Review & Submit -->
+        <div class="form-step" x-show="currentStep === 3 && !isQuickMode">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Review & Submit
+                    </h5>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Adjustment Summary -->
+                    <div class="adjustment-summary">
+                        <h6 class="section-title">Adjustment Summary</h6>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <label>Adjustment Type:</label>
+                                <span x-text="adjustmentType"></span>
+                            </div>
+                            <div class="summary-item">
+                                <label>Reason:</label>
+                                <span x-text="adjustmentReason === 'other' ? customReason : adjustmentReason"></span>
+                            </div>
+                            <div class="summary-item" x-show="referenceNumber">
+                                <label>Reference:</label>
+                                <span x-text="referenceNumber"></span>
+                            </div>
+                            <div class="summary-item" x-show="adjustmentType === 'transfer'">
+                                <label>Transfer:</label>
+                                <span x-text="`${getLocationName(transferFromLocation)} → ${getLocationName(transferToLocation)}`"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Products Summary -->
+                    <div class="products-summary">
+                        <h6 class="section-title">Affected Products</h6>
+                        <div class="summary-table">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Current Stock</th>
+                                        <th>Adjustment</th>
+                                        <th>New Stock</th>
+                                        <th>Value Impact</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="product in selectedProducts" :key="product.id">
+                                        <tr>
+                                            <td x-text="product.name"></td>
+                                            <td x-text="product.current_stock"></td>
+                                            <td>
+                                                <span class="adjustment-indicator" 
+                                                      :class="getAdjustmentClass(product)">
+                                                    <span x-text="getAdjustmentSymbol(product)"></span>
+                                                    <span x-text="product.adjustmentQuantity || 0"></span>
+                                                </span>
+                                            </td>
+                                            <td x-text="product.newStock || product.current_stock"></td>
+                                            <td x-text="formatCurrency(calculateValueImpact(product))"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="total-row">
+                                        <td colspan="4"><strong>Total Value Impact:</strong></td>
+                                        <td><strong x-text="formatCurrency(totalValueImpact)"></strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation -->
+                    <div class="confirmation-section">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="confirmAdjustment"
+                                   x-model="confirmAdjustment">
+                            <label class="form-check-label" for="confirmAdjustment">
+                                I confirm that all the information above is accurate and I want to proceed with this stock adjustment.
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="step-navigation">
+                        <button type="button" 
+                                class="btn btn-outline-secondary me-2"
+                                @click="previousStep()">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="submitForm()"
+                                :disabled="!confirmAdjustment || isSubmitting">
+                            <i class="bi bi-check-circle"></i> 
+                            <span x-show="!isSubmitting">Submit Adjustment</span>
+                            <span x-show="isSubmitting">Processing...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Adjustment Successful</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="bi bi-check-circle text-success display-1"></i>
+                        <h4 class="mt-3">Stock Adjustment Completed</h4>
+                        <p x-text="successMessage"></p>
+                        <div class="mt-3">
+                            <button type="button" 
+                                    class="btn btn-primary me-2"
+                                    @click="viewAdjustmentDetails()">
+                                View Details
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-secondary"
+                                    @click="createNewAdjustment()">
+                                Create New
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/inventory_basic_form.js') }}"></script>
+<script>
+// Inventory Form App
+function inventoryFormApp() {
+    return {
+        // Form state
+        isEditMode: false,
+        isQuickMode: true,
+        currentStep: 1,
+        isSubmitting: false,
+        confirmAdjustment: false,
+        
+        // Product data
+        productSearchQuery: '',
+        productSearchResults: [],
+        showProductDropdown: false,
+        selectedProducts: [],
+        selectedProduct: null,
+        
+        // Form data
+        adjustmentType: '',
+        adjustmentReason: '',
+        customReason: '',
+        referenceNumber: '',
+        adjustmentNotes: '',
+        adjustmentQuantity: 1,
+        newStock: 0,
+        
+        // Transfer data
+        transferFromLocation: '',
+        transferToLocation: '',
+        
+        // UI state
+        showCustomReason: false,
+        locations: [],
+        
+        // Computed properties
+        get progressPercentage() {
+            return Math.round((this.currentStep / 3) * 100);
+        },
+        
+        get totalValueImpact() {
+            return this.selectedProducts.reduce((total, product) => {
+                return total + this.calculateValueImpact(product);
+            }, 0);
+        },
+        
+        // Methods
+        init() {
+            this.loadLocations();
+            this.setupFormMode();
+            this.setupKeyboardShortcuts();
+        },
+        
+        setupFormMode() {
+            // Check if we're editing an existing adjustment
+            const urlParams = new URLSearchParams(window.location.search);
+            const adjustmentId = urlParams.get('id');
+            
+            if (adjustmentId) {
+                this.isEditMode = true;
+                this.loadAdjustment(adjustmentId);
+            }
+            
+            // Check for single product mode
+            const productId = urlParams.get('product');
+            if (productId) {
+                this.isQuickMode = true;
+                this.loadProduct(productId);
+            }
+        },
+        
+        async loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                this.locations = await response.json();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        },
+        
+        async loadProduct(productId) {
+            try {
+                const response = await fetch(`/api/products/${productId}`);
+                const product = await response.json();
+                this.selectedProduct = product;
+                this.selectedProducts = [product];
+                this.newStock = product.current_stock;
+            } catch (error) {
+                console.error('Error loading product:', error);
+                this.showError('Failed to load product');
+            }
+        },
+        
+        async loadAdjustment(adjustmentId) {
+            try {
+                const response = await fetch(`/api/inventory/adjustments/${adjustmentId}`);
+                const adjustment = await response.json();
+                // Populate form with adjustment data
+                // Implementation depends on API structure
+            } catch (error) {
+                console.error('Error loading adjustment:', error);
+                this.showError('Failed to load adjustment');
+            }
+        },
+        
+        async searchProducts() {
+            if (this.productSearchQuery.length < 2) {
+                this.productSearchResults = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/products/search?q=${this.productSearchQuery}`);
+                this.productSearchResults = await response.json();
+            } catch (error) {
+                console.error('Error searching products:', error);
+            }
+        },
+        
+        selectProduct(product) {
+            if (this.isQuickMode) {
+                this.selectedProduct = product;
+                this.selectedProducts = [product];
+                this.newStock = product.current_stock;
+            } else {
+                // Check if product already selected
+                const existingIndex = this.selectedProducts.findIndex(p => p.id === product.id);
+                if (existingIndex === -1) {
+                    this.selectedProducts.push({
+                        ...product,
+                        adjustmentQuantity: 1,
+                        newStock: product.current_stock
+                    });
+                }
+            }
+            
+            this.productSearchQuery = '';
+            this.productSearchResults = [];
+            this.showProductDropdown = false;
+        },
+        
+        removeProduct(index) {
+            this.selectedProducts.splice(index, 1);
+            if (this.isQuickMode) {
+                this.selectedProduct = null;
+            }
+        },
+        
+        incrementQuantity() {
+            this.adjustmentQuantity++;
+            this.calculateNewStock();
+        },
+        
+        decrementQuantity() {
+            if (this.adjustmentQuantity > 1) {
+                this.adjustmentQuantity--;
+                this.calculateNewStock();
+            }
+        },
+        
+        calculateNewStock() {
+            if (!this.selectedProduct) return;
+            
+            const currentStock = this.selectedProduct.current_stock;
+            const adjustment = this.adjustmentQuantity;
+            
+            switch (this.adjustmentType) {
+                case 'increase':
+                case 'return':
+                    this.newStock = currentStock + adjustment;
+                    break;
+                case 'decrease':
+                case 'damage':
+                case 'transfer':
+                    this.newStock = Math.max(0, currentStock - adjustment);
+                    break;
+                case 'adjustment':
+                    // For manual adjustment, quantity represents the new stock level
+                    this.newStock = adjustment;
+                    break;
+                default:
+                    this.newStock = currentStock;
+            }
+        },
+        
+        calculateProductNewStock(product) {
+            const currentStock = product.current_stock;
+            const adjustment = product.adjustmentQuantity || 0;
+            
+            switch (this.adjustmentType) {
+                case 'increase':
+                case 'return':
+                    product.newStock = currentStock + adjustment;
+                    break;
+                case 'decrease':
+                case 'damage':
+                case 'transfer':
+                    product.newStock = Math.max(0, currentStock - adjustment);
+                    break;
+                case 'adjustment':
+                    product.newStock = adjustment;
+                    break;
+                default:
+                    product.newStock = currentStock;
+            }
+        },
+        
+        calculateValueImpact(product) {
+            const cost = product.cost || 0;
+            const adjustment = product.adjustmentQuantity || 0;
+            
+            switch (this.adjustmentType) {
+                case 'increase':
+                case 'return':
+                    return cost * adjustment;
+                case 'decrease':
+                case 'damage':
+                case 'transfer':
+                    return -(cost * adjustment);
+                case 'adjustment':
+                    const currentStock = product.current_stock;
+                    const newStock = product.newStock || currentStock;
+                    return cost * (newStock - currentStock);
+                default:
+                    return 0;
+            }
+        },
+        
+        updateAdjustmentFields() {
+            // Update form fields based on adjustment type
+            this.calculateNewStock();
+            
+            // Update selected products new stock
+            this.selectedProducts.forEach(product => {
+                this.calculateProductNewStock(product);
+            });
+        },
+        
+        updateCustomReasonField() {
+            this.showCustomReason = this.adjustmentReason === 'other';
+        },
+        
+        scanBarcode() {
+            // Implement barcode scanning functionality
+            // This would integrate with a barcode scanner library
+            console.log('Barcode scanning not implemented');
+        },
+        
+        showLowStockProducts() {
+            // Load and show low stock products
+            this.loadFilteredProducts('low_stock');
+        },
+        
+        showOutOfStockProducts() {
+            // Load and show out of stock products
+            this.loadFilteredProducts('out_of_stock');
+        },
+        
+        showRecentlyAdjusted() {
+            // Load and show recently adjusted products
+            this.loadFilteredProducts('recently_adjusted');
+        },
+        
+        async loadFilteredProducts(filter) {
+            try {
+                const response = await fetch(`/api/products/filtered?filter=${filter}`);
+                const products = await response.json();
+                this.productSearchResults = products;
+                this.showProductDropdown = true;
+            } catch (error) {
+                console.error('Error loading filtered products:', error);
+            }
+        },
+        
+        goToStep(step) {
+            if (step >= 1 && step <= 3) {
+                this.currentStep = step;
+            }
+        },
+        
+        nextStep() {
+            if (this.currentStep < 3) {
+                this.currentStep++;
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+            }
+        },
+        
+        isStep2Valid() {
+            if (!this.adjustmentType || !this.adjustmentReason) return false;
+            if (this.adjustmentReason === 'other' && !this.customReason) return false;
+            if (this.adjustmentType === 'transfer' && (!this.transferFromLocation || !this.transferToLocation)) return false;
+            if (this.selectedProducts.length === 0) return false;
+            
+            return true;
+        },
+        
+        async submitForm() {
+            if (!this.isStep2Valid() && !this.isQuickMode) return;
+            if (this.currentStep === 3 && !this.confirmAdjustment && !this.isQuickMode) return;
+            
+            this.isSubmitting = true;
+            
+            try {
+                const adjustmentData = {
+                    type: this.adjustmentType,
+                    reason: this.adjustmentReason === 'other' ? this.customReason : this.adjustmentReason,
+                    reference_number: this.referenceNumber,
+                    notes: this.adjustmentNotes,
+                    products: this.selectedProducts.map(product => ({
+                        id: product.id,
+                        adjustment_quantity: product.adjustmentQuantity || this.adjustmentQuantity,
+                        new_stock: product.newStock || this.newStock
+                    })),
+                    transfer_from_location: this.transferFromLocation,
+                    transfer_to_location: this.transferToLocation
+                };
+                
+                const url = this.isEditMode ? 
+                    `/api/inventory/adjustments/${this.adjustmentId}` : 
+                    '/api/inventory/adjustments';
+                
+                const method = this.isEditMode ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(adjustmentData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    this.showSuccessModal(result);
+                } else {
+                    throw new Error('Failed to submit adjustment');
+                }
+            } catch (error) {
+                console.error('Error submitting adjustment:', error);
+                this.showError('Failed to submit adjustment');
+            } finally {
+                this.isSubmitting = false;
+            }
+        },
+        
+        showSuccessModal(result) {
+            this.successMessage = `Stock adjustment ${result.id} has been successfully processed.`;
+            this.adjustmentId = result.id;
+            
+            const modal = new bootstrap.Modal(document.getElementById('successModal'));
+            modal.show();
+        },
+        
+        viewAdjustmentDetails() {
+            window.location.href = `/inventory/adjustments/${this.adjustmentId}`;
+        },
+        
+        createNewAdjustment() {
+            window.location.href = '/inventory/adjust';
+        },
+        
+        cancelForm() {
+            if (confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
+                window.location.href = '/inventory';
+            }
+        },
+        
+        async saveDraft() {
+            // Save draft functionality
+            try {
+                const draftData = {
+                    adjustmentType: this.adjustmentType,
+                    adjustmentReason: this.adjustmentReason,
+                    customReason: this.customReason,
+                    referenceNumber: this.referenceNumber,
+                    adjustmentNotes: this.adjustmentNotes,
+                    selectedProducts: this.selectedProducts,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('inventoryAdjustmentDraft', JSON.stringify(draftData));
+                this.showSuccess('Draft saved successfully');
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                this.showError('Failed to save draft');
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Submit form
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.submitForm();
+                }
+                
+                // Ctrl/Cmd + D: Save draft
+                if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                    e.preventDefault();
+                    this.saveDraft();
+                }
+                
+                // Escape: Cancel form
+                if (e.key === 'Escape') {
+                    this.cancelForm();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        getLocationName(locationId) {
+            const location = this.locations.find(l => l.id === locationId);
+            return location ? location.name : 'Unknown';
+        },
+        
+        getAdjustmentClass(product) {
+            const currentStock = product.current_stock;
+            const newStock = product.newStock || currentStock;
+            
+            if (newStock > currentStock) return 'increase';
+            if (newStock < currentStock) return 'decrease';
+            return 'no-change';
+        },
+        
+        getAdjustmentSymbol(product) {
+            const adjustmentClass = this.getAdjustmentClass(product);
+            const symbols = {
+                increase: '+',
+                decrease: '-',
+                'no-change': '='
+            };
+            return symbols[adjustmentClass] || '';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

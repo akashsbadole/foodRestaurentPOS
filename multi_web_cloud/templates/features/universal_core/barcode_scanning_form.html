@@ -1,0 +1,1022 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/barcode_scanning_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Barcode Generation Form -->
+<div class="barcode-scanning-form-container" x-data="barcodeScanningFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-upc-scan me-2"></i>
+                    Barcode Generation
+                </h2>
+                <p class="form-subtitle text-muted">Create and configure barcodes for products</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="cancelForm()">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="saveAsDraft()">
+                        <i class="bi bi-save"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateBarcode()" :disabled="!isFormValid">
+                        <i class="bi bi-check-lg"></i> Generate Barcode
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-steps">
+            <div class="step" :class="{'active': currentStep === 1, 'completed': currentStep > 1}">
+                <div class="step-number">1</div>
+                <div class="step-label">Product Selection</div>
+            </div>
+            <div class="step" :class="{'active': currentStep === 2, 'completed': currentStep > 2}">
+                <div class="step-number">2</div>
+                <div class="step-label">Barcode Configuration</div>
+            </div>
+            <div class="step" :class="{'active': currentStep === 3, 'completed': currentStep > 3}">
+                <div class="step-number">3</div>
+                <div class="step-label">Design & Preview</div>
+            </div>
+            <div class="step" :class="{'active': currentStep === 4, 'completed': currentStep > 4}">
+                <div class="step-number">4</div>
+                <div class="step-label">Generation Options</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Steps -->
+    <div class="form-steps">
+        
+        <!-- Step 1: Product Selection -->
+        <div class="step-content" x-show="currentStep === 1" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-box me-2"></i>
+                        Product Selection
+                    </h5>
+                    <p class="text-muted mb-0">Select the product for barcode generation</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Product Search</label>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           placeholder="Search by name, SKU, or ID..."
+                                           x-model="productSearch"
+                                           @keyup="searchProducts()">
+                                    <button class="btn btn-outline-secondary" type="button" @click="searchProducts()">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" x-model="selectedCategory" @change="filterProducts()">
+                                    <option value="">All Categories</option>
+                                    <template x-for="category in categories" :key="category.id">
+                                        <option :value="category.id" x-text="category.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Brand</label>
+                                <select class="form-select" x-model="selectedBrand" @change="filterProducts()">
+                                    <option value="">All Brands</option>
+                                    <template x-for="brand in brands" :key="brand.id">
+                                        <option :value="brand.id" x-text="brand.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="product-list">
+                                <template x-for="product in filteredProducts" :key="product.id">
+                                    <div class="product-item" 
+                                         :class="{'selected': selectedProduct?.id === product.id}"
+                                         @click="selectProduct(product)">
+                                        <div class="product-info">
+                                            <div class="product-image">
+                                                <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                                     :alt="product.name"
+                                                     class="img-fluid">
+                                            </div>
+                                            <div class="product-details">
+                                                <h6 class="product-name" x-text="product.name"></h6>
+                                                <p class="product-sku">SKU: <span x-text="product.sku"></span></p>
+                                                <p class="product-category" x-text="product.category"></p>
+                                                <p class="product-price">
+                                                    Price: <span x-text="formatCurrency(product.price)"></span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="product-selection">
+                                            <div class="form-check">
+                                                <input type="radio" 
+                                                       class="form-check-input" 
+                                                       :checked="selectedProduct?.id === product.id"
+                                                       :name="'product-selection'">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <div class="empty-state" x-show="filteredProducts.length === 0">
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-search display-1 text-muted"></i>
+                                        <h5>No Products Found</h5>
+                                        <p class="text-muted">Try adjusting your search criteria</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="createNewProduct()">
+                                <i class="bi bi-plus-circle"></i> Create New Product
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="nextStep()"
+                                    :disabled="!selectedProduct">
+                                Next Step <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Barcode Configuration -->
+        <div class="step-content" x-show="currentStep === 2" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        Barcode Configuration
+                    </h5>
+                    <p class="text-muted mb-0">Configure barcode type and settings</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Barcode Type</label>
+                                <select class="form-select" x-model="barcodeConfig.type" @change="updateBarcodePreview()">
+                                    <option value="">Select Type</option>
+                                    <option value="code128">Code 128</option>
+                                    <option value="code39">Code 39</option>
+                                    <option value="ean13">EAN-13</option>
+                                    <option value="ean8">EAN-8</option>
+                                    <option value="upca">UPC-A</option>
+                                    <option value="upce">UPC-E</option>
+                                    <option value="itf14">ITF-14</option>
+                                    <option value="qr">QR Code</option>
+                                    <option value="datamatrix">Data Matrix</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    <span x-text="getTypeDescription(barcodeConfig.type)"></span>
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Barcode Value</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="barcodeConfig.value"
+                                       @input="updateBarcodePreview()"
+                                       placeholder="Enter barcode value or auto-generate">
+                                <div class="form-check mt-2">
+                                    <input type="checkbox" 
+                                           class="form-check-input" 
+                                           id="autoGenerate" 
+                                           x-model="barcodeConfig.autoGenerate"
+                                           @change="autoGenerateValue()">
+                                    <label class="form-check-label" for="autoGenerate">
+                                        Auto-generate value
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Width (px)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="barcodeConfig.width"
+                                       @input="updateBarcodePreview()"
+                                       min="100"
+                                       max="500">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Height (px)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="barcodeConfig.height"
+                                       @input="updateBarcodePreview()"
+                                       min="50"
+                                       max="200">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Margin</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="barcodeConfig.margin"
+                                       @input="updateBarcodePreview()"
+                                       min="0"
+                                       max="20">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Display Options</label>
+                                <div class="display-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showValue" 
+                                               x-model="barcodeConfig.showValue"
+                                               @change="updateBarcodePreview()">
+                                        <label class="form-check-label" for="showValue">
+                                            Show barcode value
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showProductName" 
+                                               x-model="barcodeConfig.showProductName"
+                                               @change="updateBarcodePreview()">
+                                        <label class="form-check-label" for="showProductName">
+                                            Show product name
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showPrice" 
+                                               x-model="barcodeConfig.showPrice"
+                                               @change="updateBarcodePreview()">
+                                        <label class="form-check-label" for="showPrice">
+                                            Show price
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Color Scheme</label>
+                                <div class="color-scheme">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Foreground</label>
+                                            <input type="color" 
+                                                   class="form-control form-control-color" 
+                                                   x-model="barcodeConfig.foreground"
+                                                   @input="updateBarcodePreview()">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Background</label>
+                                            <input type="color" 
+                                                   class="form-control form-control-color" 
+                                                   x-model="barcodeConfig.background"
+                                                   @input="updateBarcodePreview()">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="previousStep()">
+                                <i class="bi bi-arrow-left me-1"></i> Previous
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="nextStep()"
+                                    :disabled="!isBarcodeConfigValid">
+                                Next Step <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Design & Preview -->
+        <div class="step-content" x-show="currentStep === 3" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-eye me-2"></i>
+                        Design & Preview
+                    </h5>
+                    <p class="text-muted mb-0">Preview and customize barcode appearance</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Template</label>
+                                <select class="form-select" x-model="barcodeConfig.template" @change="updateBarcodePreview()">
+                                    <option value="standard">Standard</option>
+                                    <option value="retail">Retail</option>
+                                    <option value="warehouse">Warehouse</option>
+                                    <option value="shipping">Shipping</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Label Size</label>
+                                <select class="form-select" x-model="barcodeConfig.labelSize" @change="updateBarcodePreview()">
+                                    <option value="small">Small (2" x 1")</option>
+                                    <option value="medium">Medium (3" x 2")</option>
+                                    <option value="large">Large (4" x 3")</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Preview</label>
+                                <div class="barcode-preview-container">
+                                    <div class="preview-controls">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary"
+                                                    :class="{'active': previewMode === 'actual'}"
+                                                    @click="previewMode = 'actual'">
+                                                Actual Size
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary"
+                                                    :class="{'active': previewMode === 'fit'}"
+                                                    @click="previewMode = 'fit'">
+                                                Fit to Screen
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary"
+                                                    :class="{'active': previewMode === 'zoom'}"
+                                                    @click="previewMode = 'zoom'">
+                                                Zoom
+                                            </button>
+                                        </div>
+                                        <div class="zoom-controls" x-show="previewMode === 'zoom'">
+                                            <input type="range" 
+                                                   class="form-range" 
+                                                   x-model="previewZoom"
+                                                   min="0.5"
+                                                   max="3"
+                                                   step="0.1">
+                                            <span x-text="`${Math.round(previewZoom * 100)}%`"></span>
+                                        </div>
+                                    </div>
+                                    <div class="barcode-preview" :style="previewStyle">
+                                        <div class="barcode-label" :style="labelStyle">
+                                            <div class="barcode-header" x-show="barcodeConfig.showProductName">
+                                                <span x-text="selectedProduct?.name || 'Product Name'"></span>
+                                            </div>
+                                            <div class="barcode-image-container">
+                                                <canvas x-ref="barcodeCanvas" 
+                                                        :width="barcodeConfig.width" 
+                                                        :height="barcodeConfig.height">
+                                                </canvas>
+                                            </div>
+                                            <div class="barcode-value" x-show="barcodeConfig.showValue">
+                                                <span x-text="barcodeConfig.value || 'BARCODE VALUE'"></span>
+                                            </div>
+                                            <div class="barcode-footer" x-show="barcodeConfig.showPrice">
+                                                <span x-text="formatCurrency(selectedProduct?.price || 0)"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="previousStep()">
+                                <i class="bi bi-arrow-left me-1"></i> Previous
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="nextStep()">
+                                Next Step <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Generation Options -->
+        <div class="step-content" x-show="currentStep === 4" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-sliders me-2"></i>
+                        Generation Options
+                    </h5>
+                    <p class="text-muted mb-0">Configure generation and output options</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="generationOptions.quantity"
+                                       min="1"
+                                       max="1000">
+                                <small class="form-text text-muted">Number of barcodes to generate</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Output Format</label>
+                                <select class="form-select" x-model="generationOptions.format">
+                                    <option value="pdf">PDF</option>
+                                    <option value="png">PNG Images</option>
+                                    <option value="svg">SVG Vector</option>
+                                    <option value="zpl">ZPL (for Zebra printers)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Print Options</label>
+                                <div class="print-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="printImmediately" 
+                                               x-model="generationOptions.printImmediately">
+                                        <label class="form-check-label" for="printImmediately">
+                                            Print immediately after generation
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="saveToHistory" 
+                                               x-model="generationOptions.saveToHistory">
+                                        <label class="form-check-label" for="saveToHistory">
+                                            Save to barcode history
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="addChecksum" 
+                                               x-model="generationOptions.addChecksum">
+                                        <label class="form-check-label" for="addChecksum">
+                                            Add checksum digit
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Advanced Options</label>
+                                <div class="advanced-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="batchMode" 
+                                               x-model="generationOptions.batchMode">
+                                        <label class="form-check-label" for="batchMode">
+                                            Batch generation mode
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="sequential" 
+                                               x-model="generationOptions.sequential">
+                                        <label class="form-check-label" for="sequential">
+                                            Sequential numbering
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="duplicateCheck" 
+                                               x-model="generationOptions.duplicateCheck">
+                                        <label class="form-check-label" for="duplicateCheck">
+                                            Check for duplicates
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" 
+                                          x-model="generationOptions.notes"
+                                          rows="3"
+                                          placeholder="Add any notes about this barcode generation..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="previousStep()">
+                                <i class="bi bi-arrow-left me-1"></i> Previous
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary ms-2" @click="saveAsDraft()">
+                                <i class="bi bi-save"></i> Save Draft
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="generateBarcode()"
+                                    :disabled="!isFormValid">
+                                <i class="bi bi-check-lg"></i> Generate Barcode
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Panel -->
+    <div class="summary-panel" x-show="currentStep === 4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-clipboard-check me-2"></i>
+                    Generation Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Product Information</h6>
+                        <p><strong>Name:</strong> <span x-text="selectedProduct?.name || 'N/A'"></span></p>
+                        <p><strong>SKU:</strong> <span x-text="selectedProduct?.sku || 'N/A'"></span></p>
+                        <p><strong>Price:</strong> <span x-text="formatCurrency(selectedProduct?.price || 0)"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Barcode Configuration</h6>
+                        <p><strong>Type:</strong> <span x-text="barcodeConfig.type || 'N/A'"></span></p>
+                        <p><strong>Value:</strong> <span x-text="barcodeConfig.value || 'Auto-generated'"></span></p>
+                        <p><strong>Template:</strong> <span x-text="barcodeConfig.template || 'Standard'"></span></p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6>Generation Options</h6>
+                        <p><strong>Quantity:</strong> <span x-text="generationOptions.quantity || 1"></span></p>
+                        <p><strong>Format:</strong> <span x-text="generationOptions.format || 'PDF'"></span></p>
+                        <p><strong>Print:</strong> <span x-text="generationOptions.printImmediately ? 'Yes' : 'No'"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Estimated Cost</h6>
+                        <p><strong>Labels:</strong> <span x-text="generationOptions.quantity || 1"></span></p>
+                        <p><strong>Cost per label:</strong> $0.05</p>
+                        <p><strong>Total cost:</strong> <span x-text="formatCurrency((generationOptions.quantity || 1) * 0.05)"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/barcode_scanning_form.js') }}"></script>
+<script>
+// Barcode Scanning Form App
+function barcodeScanningFormApp() {
+    return {
+        // Data
+        currentStep: 1,
+        previewMode: 'actual',
+        previewZoom: 1,
+        
+        selectedProduct: null,
+        products: [],
+        categories: [],
+        brands: [],
+        filteredProducts: [],
+        
+        productSearch: '',
+        selectedCategory: '',
+        selectedBrand: '',
+        
+        barcodeConfig: {
+            type: '',
+            value: '',
+            autoGenerate: true,
+            width: 200,
+            height: 100,
+            margin: 10,
+            showValue: true,
+            showProductName: true,
+            showPrice: false,
+            foreground: '#000000',
+            background: '#ffffff',
+            template: 'standard',
+            labelSize: 'medium'
+        },
+        
+        generationOptions: {
+            quantity: 1,
+            format: 'pdf',
+            printImmediately: false,
+            saveToHistory: true,
+            addChecksum: false,
+            batchMode: false,
+            sequential: false,
+            duplicateCheck: true,
+            notes: ''
+        },
+        
+        // Computed properties
+        get isFormValid() {
+            return this.selectedProduct && 
+                   this.barcodeConfig.type && 
+                   this.barcodeConfig.value &&
+                   this.generationOptions.quantity > 0;
+        },
+        
+        get isBarcodeConfigValid() {
+            return this.barcodeConfig.type && 
+                   this.barcodeConfig.value &&
+                   this.barcodeConfig.width > 0 &&
+                   this.barcodeConfig.height > 0;
+        },
+        
+        get previewStyle() {
+            const styles = {
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                padding: '20px',
+                backgroundColor: '#f8f9fa'
+            };
+            
+            if (this.previewMode === 'actual') {
+                // Actual size - no scaling
+            } else if (this.previewMode === 'fit') {
+                styles.transform = 'scale(0.8)';
+                styles.transformOrigin = 'top left';
+            } else if (this.previewMode === 'zoom') {
+                styles.transform = `scale(${this.previewZoom})`;
+                styles.transformOrigin = 'top left';
+            }
+            
+            return styles;
+        },
+        
+        get labelStyle() {
+            return {
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                padding: '10px',
+                backgroundColor: this.barcodeConfig.background,
+                color: this.barcodeConfig.foreground,
+                textAlign: 'center'
+            };
+        },
+        
+        // Methods
+        init() {
+            this.loadProducts();
+            this.loadCategories();
+            this.loadBrands();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                this.products = await response.json();
+                this.filteredProducts = this.products;
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadBrands() {
+            try {
+                const response = await fetch('/api/brands');
+                this.brands = await response.json();
+            } catch (error) {
+                console.error('Error loading brands:', error);
+            }
+        },
+        
+        searchProducts() {
+            const searchTerm = this.productSearch.toLowerCase();
+            this.filteredProducts = this.products.filter(product => {
+                const matchesSearch = !searchTerm || 
+                    product.name.toLowerCase().includes(searchTerm) ||
+                    product.sku.toLowerCase().includes(searchTerm) ||
+                    product.id.toString().includes(searchTerm);
+                
+                const matchesCategory = !this.selectedCategory || 
+                    product.category_id === this.selectedCategory;
+                
+                const matchesBrand = !this.selectedBrand || 
+                    product.brand_id === this.selectedBrand;
+                
+                return matchesSearch && matchesCategory && matchesBrand;
+            });
+        },
+        
+        filterProducts() {
+            this.searchProducts();
+        },
+        
+        selectProduct(product) {
+            this.selectedProduct = product;
+        },
+        
+        createNewProduct() {
+            window.location.href = '/products/create';
+        },
+        
+        // Step navigation
+        nextStep() {
+            if (this.currentStep < 4) {
+                this.currentStep++;
+                if (this.currentStep === 3) {
+                    this.$nextTick(() => {
+                        this.updateBarcodePreview();
+                    });
+                }
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+            }
+        },
+        
+        // Barcode configuration
+        getTypeDescription(type) {
+            const descriptions = {
+                'code128': 'High-density barcode supporting all 128 ASCII characters',
+                'code39': 'Alphanumeric barcode widely used in industrial applications',
+                'ean13': '13-digit barcode used for retail products worldwide',
+                'ean8': '8-digit barcode for smaller retail products',
+                'upca': '12-digit barcode used in North America',
+                'upce': '6-digit compressed version of UPC-A',
+                'itf14': '14-digit barcode for shipping containers',
+                'qr': '2D barcode capable of storing large amounts of data',
+                'datamatrix': '2D barcode for small items and industrial marking'
+            };
+            return descriptions[type] || 'Select a barcode type';
+        },
+        
+        autoGenerateValue() {
+            if (this.barcodeConfig.autoGenerate) {
+                this.barcodeConfig.value = this.generateBarcodeValue();
+            }
+        },
+        
+        generateBarcodeValue() {
+            // Generate a unique barcode value based on type
+            const prefix = 'BC';
+            const timestamp = Date.now().toString().slice(-8);
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            return `${prefix}${timestamp}${random}`;
+        },
+        
+        updateBarcodePreview() {
+            this.$nextTick(() => {
+                const canvas = this.$refs.barcodeCanvas;
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw barcode preview (simplified)
+                ctx.fillStyle = this.barcodeConfig.foreground;
+                ctx.fillRect(20, 20, canvas.width - 40, 60);
+                
+                // Add some pattern to simulate barcode
+                ctx.fillStyle = this.barcodeConfig.background;
+                for (let i = 0; i < 20; i++) {
+                    const x = 25 + (i * 8);
+                    const width = Math.random() * 4 + 1;
+                    ctx.fillRect(x, 25, width, 50);
+                }
+                
+                // Add text if enabled
+                if (this.barcodeConfig.showValue) {
+                    ctx.fillStyle = this.barcodeConfig.foreground;
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.barcodeConfig.value || 'BARCODE', canvas.width / 2, 95);
+                }
+            });
+        },
+        
+        // Form actions
+        generateBarcode() {
+            if (!this.isFormValid) {
+                this.showError('Please complete all required fields');
+                return;
+            }
+            
+            const barcodeData = {
+                product: this.selectedProduct,
+                config: this.barcodeConfig,
+                options: this.generationOptions
+            };
+            
+            this.performBarcodeGeneration(barcodeData);
+        },
+        
+        async performBarcodeGeneration(data) {
+            try {
+                const response = await fetch('/api/barcode/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    this.showSuccess('Barcode generated successfully');
+                    
+                    if (this.generationOptions.printImmediately) {
+                        this.printBarcode(result.id);
+                    } else {
+                        this.viewBarcode(result.id);
+                    }
+                } else {
+                    throw new Error(result.message || 'Generation failed');
+                }
+            } catch (error) {
+                console.error('Error generating barcode:', error);
+                this.showError('Failed to generate barcode');
+            }
+        },
+        
+        printBarcode(barcodeId) {
+            window.open(`/api/barcode/print/${barcodeId}`);
+        },
+        
+        viewBarcode(barcodeId) {
+            window.location.href = `/barcode/view/${barcodeId}`;
+        },
+        
+        saveAsDraft() {
+            const draftData = {
+                product: this.selectedProduct,
+                config: this.barcodeConfig,
+                options: this.generationOptions,
+                currentStep: this.currentStep
+            };
+            
+            localStorage.setItem('barcodeDraft', JSON.stringify(draftData));
+            this.showSuccess('Draft saved successfully');
+        },
+        
+        cancelForm() {
+            if (confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
+                window.location.href = '/barcode/list';
+            }
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save draft
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveAsDraft();
+                }
+                
+                // Ctrl/Cmd + Enter: Generate barcode
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    this.generateBarcode();
+                }
+                
+                // Escape: Cancel form
+                if (e.key === 'Escape') {
+                    this.cancelForm();
+                }
+                
+                // Arrow keys: Navigate steps
+                if (e.key === 'ArrowRight' && this.currentStep < 4) {
+                    e.preventDefault();
+                    this.nextStep();
+                }
+                if (e.key === 'ArrowLeft' && this.currentStep > 1) {
+                    e.preventDefault();
+                    this.previousStep();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

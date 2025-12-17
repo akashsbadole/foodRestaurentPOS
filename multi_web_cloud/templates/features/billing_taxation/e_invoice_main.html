@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Invoice Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .metric-card {
+            background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+        .metric-card h3 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .metric-card p {
+            margin: 0;
+            opacity: 0.8;
+        }
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .quick-action-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #17a2b8;
+        }
+        .quick-action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .invoice-timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        .invoice-timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -25px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #17a2b8;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="eInvoiceMain()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">E-Invoice Management</h1>
+                        <p class="text-muted mb-0">Generate and manage electronic invoices for GST compliance</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" @click="generateNewInvoice()">
+                            <i class="bi bi-plus-circle"></i> Generate E-Invoice
+                        </button>
+                        <button class="btn btn-outline-primary" @click="syncWithPortal()">
+                            <i class="bi bi-arrow-repeat"></i> Sync Portal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="totalInvoices.toLocaleString('en-IN')"></h3>
+                    <p>Total E-Invoices</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="pendingInvoices.toLocaleString('en-IN')"></h3>
+                    <p>Pending Generation</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="successRate"></h3>
+                    <p>Success Rate (%)</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="todayInvoices.toLocaleString('en-IN')"></h3>
+                    <p>Generated Today</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="quick-action-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-file-earmark-plus display-4 text-info mb-3"></i>
+                                        <h6>Generate Bulk</h6>
+                                        <p class="text-muted small">Generate multiple e-invoices at once</p>
+                                        <button class="btn btn-sm btn-outline-info" @click="bulkGenerate()">
+                                            Bulk Generate
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="quick-action-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-arrow-repeat display-4 text-success mb-3"></i>
+                                        <h6>Cancel IRN</h6>
+                                        <p class="text-muted small">Cancel generated IRNs</p>
+                                        <button class="btn btn-sm btn-outline-success" @click="cancelIRN()">
+                                            Cancel IRN
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="quick-action-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-download display-4 text-warning mb-3"></i>
+                                        <h6>Download Reports</h6>
+                                        <p class="text-muted small">Download e-invoice reports</p>
+                                        <button class="btn btn-sm btn-outline-warning" @click="downloadReports()">
+                                            Download Reports
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="quick-action-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-gear display-4 text-primary mb-3"></i>
+                                        <h6>Settings</h6>
+                                        <p class="text-muted small">Configure e-invoice settings</p>
+                                        <button class="btn btn-sm btn-outline-primary" @click="openSettings()">
+                                            Configure
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-lg-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">E-Invoice Generation Trends</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="generationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Status Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Invoices and Timeline -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-lg-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent E-Invoices</h5>
+                        <button class="btn btn-sm btn-outline-primary" @click="viewAllInvoices()">
+                            View All
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>IRN</th>
+                                        <th>Invoice No.</th>
+                                        <th>Customer</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Generated</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="invoice in recentInvoices" :key="invoice.id">
+                                        <tr>
+                                            <td x-text="invoice.irn"></td>
+                                            <td x-text="invoice.invoiceNo"></td>
+                                            <td x-text="invoice.customer"></td>
+                                            <td>₹<span x-text="invoice.amount.toLocaleString('en-IN')"></span></td>
+                                            <td>
+                                                <span class="badge status-badge" 
+                                                      :class="{
+                                                          'bg-success': invoice.status === 'Generated',
+                                                          'bg-warning': invoice.status === 'Pending',
+                                                          'bg-danger': invoice.status === 'Failed',
+                                                          'bg-info': invoice.status === 'Cancelled'
+                                                      }"
+                                                      x-text="invoice.status"></span>
+                                            </td>
+                                            <td x-text="invoice.generated"></td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @click="viewInvoice(invoice)">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" @click="downloadInvoice(invoice)">
+                                                        <i class="bi bi-download"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="invoice-timeline">
+                            <template x-for="activity in recentActivities" :key="activity.id">
+                                <div class="timeline-item">
+                                    <div class="d-flex justify-content-between">
+                                        <strong x-text="activity.title"></strong>
+                                        <small class="text-muted" x-text="activity.time"></small>
+                                    </div>
+                                    <p class="text-muted small mb-0" x-text="activity.description"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">System Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="rounded-circle bg-success" style="width: 12px; height: 12px;"></div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">GST Portal</h6>
+                                        <small class="text-muted">Connected</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="rounded-circle bg-success" style="width: 12px; height: 12px;"></div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">API Service</h6>
+                                        <small class="text-muted">Operational</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="rounded-circle bg-warning" style="width: 12px; height: 12px;"></div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">Queue Status</h6>
+                                        <small class="text-muted">3 pending</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="rounded-circle bg-success" style="width: 12px; height: 12px;"></div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">Last Sync</h6>
+                                        <small class="text-muted">2 mins ago</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function eInvoiceMain() {
+            return {
+                totalInvoices: 2847,
+                pendingInvoices: 23,
+                successRate: 98.5,
+                todayInvoices: 45,
+                recentInvoices: [
+                    { id: 1, irn: 'IRN2023120001234', invoiceNo: 'INV-2023-001', customer: 'ABC Trading Co.', amount: 125000, status: 'Generated', generated: '2023-12-16 10:30' },
+                    { id: 2, irn: 'IRN2023120001235', invoiceNo: 'INV-2023-002', customer: 'Tech Solutions Ltd.', amount: 87500, status: 'Generated', generated: '2023-12-16 09:45' },
+                    { id: 3, irn: '-', invoiceNo: 'INV-2023-003', customer: 'Global Exports', amount: 234000, status: 'Pending', generated: '-' },
+                    { id: 4, irn: 'IRN2023120001236', invoiceNo: 'INV-2023-004', customer: 'Metro Stores', amount: 156000, status: 'Generated', generated: '2023-12-16 08:20' },
+                    { id: 5, irn: 'IRN2023120001232', invoiceNo: 'INV-2023-005', customer: 'Fast Logistics', amount: 67000, status: 'Cancelled', generated: '2023-12-15 16:30' }
+                ],
+                recentActivities: [
+                    { id: 1, title: 'IRN Generated', description: 'IRN2023120001234 generated for INV-2023-001', time: '10 mins ago' },
+                    { id: 2, title: 'Bulk Generation', description: '15 invoices queued for bulk generation', time: '25 mins ago' },
+                    { id: 3, title: 'IRN Cancelled', description: 'IRN2023120001232 cancelled successfully', time: '1 hour ago' },
+                    { id: 4, title: 'Sync Completed', description: 'GST portal sync completed successfully', time: '2 hours ago' },
+                    { id: 5, title: 'Settings Updated', description: 'E-invoice configuration updated', time: '3 hours ago' }
+                ],
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                init() {
+                    this.initCharts();
+                },
+                
+                initCharts() {
+                    // Generation Chart
+                    const generationCtx = document.getElementById('generationChart').getContext('2d');
+                    new Chart(generationCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                            datasets: [{
+                                label: 'Generated',
+                                data: [42, 38, 45, 52, 48, 35, 45],
+                                borderColor: '#17a2b8',
+                                backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                                tension: 0.4
+                            }, {
+                                label: 'Failed',
+                                data: [2, 1, 3, 1, 2, 1, 0],
+                                borderColor: '#dc3545',
+                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Status Chart
+                    const statusCtx = document.getElementById('statusChart').getContext('2d');
+                    new Chart(statusCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Generated', 'Pending', 'Failed', 'Cancelled'],
+                            datasets: [{
+                                data: [2824, 23, 5, 15],
+                                backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#6c757d'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                generateNewInvoice() {
+                    console.log('Generating new e-invoice');
+                    window.location.href = 'e_invoice_form.html';
+                },
+                
+                syncWithPortal() {
+                    console.log('Syncing with GST portal');
+                    alert('GST portal sync initiated successfully!');
+                },
+                
+                bulkGenerate() {
+                    console.log('Opening bulk generation');
+                    window.location.href = 'e_invoice_list.html?mode=bulk';
+                },
+                
+                cancelIRN() {
+                    console.log('Opening IRN cancellation');
+                    window.location.href = 'e_invoice_list.html?mode=cancel';
+                },
+                
+                downloadReports() {
+                    console.log('Downloading reports');
+                    window.location.href = 'e_invoice_reports.html';
+                },
+                
+                openSettings() {
+                    console.log('Opening settings');
+                    window.location.href = 'e_invoice_settings.html';
+                },
+                
+                viewAllInvoices() {
+                    console.log('Viewing all invoices');
+                    window.location.href = 'e_invoice_list.html';
+                },
+                
+                viewInvoice(invoice) {
+                    console.log('Viewing invoice:', invoice);
+                },
+                
+                downloadInvoice(invoice) {
+                    console.log('Downloading invoice:', invoice);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

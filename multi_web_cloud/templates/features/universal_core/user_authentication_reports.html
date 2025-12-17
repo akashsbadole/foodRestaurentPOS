@@ -1,0 +1,1126 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/user_authentication_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- User Authentication Reports Interface -->
+<div class="user-authentication-reports-container" x-data="userAuthenticationReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    User Activity Reports
+                </h2>
+                <p class="reports-subtitle text-muted">Analyze user authentication patterns and security events</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="printReport()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateCustomReport()">
+                        <i class="bi bi-plus-circle"></i> Custom Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Filters -->
+    <div class="report-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-funnel me-2"></i>
+                    Report Filters
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetFilters()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="filters.dateRange" @change="updateDateRange()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="last7days">Last 7 Days</option>
+                                <option value="last30days">Last 30 Days</option>
+                                <option value="thisMonth">This Month</option>
+                                <option value="lastMonth">Last Month</option>
+                                <option value="thisQuarter">This Quarter</option>
+                                <option value="thisYear">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.startDate"
+                                   :disabled="filters.dateRange !== 'custom'">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.endDate"
+                                   :disabled="filters.dateRange !== 'custom'">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Report Type</label>
+                            <select class="form-select" x-model="filters.reportType" @change="applyFilters()">
+                                <option value="overview">Overview</option>
+                                <option value="logins">Login Activity</option>
+                                <option value="security">Security Events</option>
+                                <option value="passwords">Password Changes</option>
+                                <option value="sessions">Session Analysis</option>
+                                <option value="compliance">Compliance</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">User Role</label>
+                            <select class="form-select" x-model="filters.role" @change="applyFilters()">
+                                <option value="">All Roles</option>
+                                <option value="admin">Administrator</option>
+                                <option value="manager">Manager</option>
+                                <option value="supervisor">Supervisor</option>
+                                <option value="cashier">Cashier</option>
+                                <option value="staff">Staff</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Store</label>
+                            <select class="form-select" x-model="filters.store" @change="applyFilters()">
+                                <option value="">All Stores</option>
+                                <template x-for="store in stores" :key="store.id">
+                                    <option :value="store.id" x-text="store.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Event Type</label>
+                            <select class="form-select" x-model="filters.eventType" @change="applyFilters()">
+                                <option value="">All Events</option>
+                                <option value="login">Login</option>
+                                <option value="logout">Logout</option>
+                                <option value="failed_login">Failed Login</option>
+                                <option value="password_change">Password Change</option>
+                                <option value="account_lockout">Account Lockout</option>
+                                <option value="suspicious_activity">Suspicious Activity</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Group By</label>
+                            <select class="form-select" x-model="filters.groupBy" @change="applyFilters()">
+                                <option value="day">Day</option>
+                                <option value="week">Week</option>
+                                <option value="month">Month</option>
+                                <option value="user">User</option>
+                                <option value="role">Role</option>
+                                <option value="store">Store</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-primary" @click="applyFilters()">
+                            <i class="bi bi-funnel"></i> Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Summary Cards -->
+    <div class="report-summary">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-primary">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.totalUsers"></h3>
+                            <p>Total Users</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-success">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.totalLogins"></h3>
+                            <p>Total Logins</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-danger">
+                            <i class="bi bi-shield-exclamation"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.securityEvents"></h3>
+                            <p>Security Events</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-warning">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.avgSessionDuration"></h3>
+                            <p>Avg Session Duration</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div class="report-content">
+        <!-- Overview Report -->
+        <div class="report-section" x-show="filters.reportType === 'overview'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Login Activity Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="loginTrendChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">User Activity by Role</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="roleActivityChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Recent Activity</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>User</th>
+                                            <th>Action</th>
+                                            <th>IP Address</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="activity in recentActivity" :key="activity.id">
+                                            <tr>
+                                                <td x-text="formatDateTime(activity.timestamp)"></td>
+                                                <td>
+                                                    <div class="user-info">
+                                                        <img :src="activity.user.avatar || '/static/images/default-avatar.png'" 
+                                                             :alt="activity.user.name"
+                                                             class="user-avatar-small">
+                                                        <span x-text="activity.user.name"></span>
+                                                    </div>
+                                                </td>
+                                                <td x-text="activity.action"></td>
+                                                <td x-text="activity.ipAddress"></td>
+                                                <td>
+                                                    <span class="badge" 
+                                                          :class="getStatusBadgeClass(activity.status)"
+                                                          x-text="activity.status"></span>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Login Activity Report -->
+        <div class="report-section" x-show="filters.reportType === 'logins'">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Login Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="login-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Successful Logins:</span>
+                                    <span class="stat-value" x-text="loginStats.successful"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Failed Logins:</span>
+                                    <span class="stat-value text-danger" x-text="loginStats.failed"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Success Rate:</span>
+                                    <span class="stat-value" x-text="`${loginStats.successRate}%`"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Unique Users:</span>
+                                    <span class="stat-value" x-text="loginStats.uniqueUsers"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Login Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="loginDistributionChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Login Activity by Hour</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="hourlyLoginChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Security Events Report -->
+        <div class="report-section" x-show="filters.reportType === 'security'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Security Events</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>Event Type</th>
+                                            <th>User</th>
+                                            <th>Description</th>
+                                            <th>Severity</th>
+                                            <th>Action Taken</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="event in securityEvents" :key="event.id">
+                                            <tr>
+                                                <td x-text="formatDateTime(event.timestamp)"></td>
+                                                <td x-text="event.type"></td>
+                                                <td x-text="event.user"></td>
+                                                <td x-text="event.description"></td>
+                                                <td>
+                                                    <span class="badge" 
+                                                          :class="getSeverityBadgeClass(event.severity)"
+                                                          x-text="event.severity"></span>
+                                                </td>
+                                                <td x-text="event.actionTaken"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Security Events by Type</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="securityEventsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Failed Login Attempts</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="failedLoginChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Password Changes Report -->
+        <div class="report-section" x-show="filters.reportType === 'passwords'">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Password Change Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="password-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Total Changes:</span>
+                                    <span class="stat-value" x-text="passwordStats.totalChanges"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Forced Changes:</span>
+                                    <span class="stat-value" x-text="passwordStats.forcedChanges"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">User Initiated:</span>
+                                    <span class="stat-value" x-text="passwordStats.userInitiated"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Reset Requests:</span>
+                                    <span class="stat-value" x-text="passwordStats.resetRequests"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Password Strength Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="passwordStrengthChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Session Analysis Report -->
+        <div class="report-section" x-show="filters.reportType === 'sessions'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Session Duration Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="sessionDurationChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Session Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="session-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Total Sessions:</span>
+                                    <span class="stat-value" x-text="sessionStats.totalSessions"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Average Duration:</span>
+                                    <span class="stat-value" x-text="sessionStats.avgDuration"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Longest Session:</span>
+                                    <span class="stat-value" x-text="sessionStats.maxDuration"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Shortest Session:</span>
+                                    <span class="stat-value" x-text="sessionStats.minDuration"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Active Sessions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Login Time</th>
+                                            <th>Duration</th>
+                                            <th>IP Address</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="session in activeSessions" :key="session.id">
+                                            <tr>
+                                                <td x-text="session.user"></td>
+                                                <td x-text="formatDateTime(session.loginTime)"></td>
+                                                <td x-text="session.duration"></td>
+                                                <td x-text="session.ipAddress"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Compliance Report -->
+        <div class="report-section" x-show="filters.reportType === 'compliance'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Compliance Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="compliance-status">
+                                <template x-for="item in complianceStatus" :key="item.category">
+                                    <div class="compliance-item">
+                                        <div class="compliance-header">
+                                            <h6 x-text="item.category"></h6>
+                                            <span class="badge" 
+                                                  :class="getComplianceBadgeClass(item.status)"
+                                                  x-text="item.status"></span>
+                                        </div>
+                                        <div class="compliance-details">
+                                            <p x-text="item.description"></p>
+                                            <div class="progress">
+                                                <div class="progress-bar" 
+                                                     :class="getComplianceProgressBarClass(item.status)"
+                                                     :style="`width: ${item.percentage}%`"></div>
+                                            </div>
+                                            <small class="text-muted" x-text="`${item.percentage}% compliant`"></small>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/user_authentication_reports.js') }}"></script>
+<script>
+// User Authentication Reports App
+function userAuthenticationReportsApp() {
+    return {
+        // Data
+        stores: [],
+        charts: {},
+        
+        filters: {
+            dateRange: 'last30days',
+            startDate: '',
+            endDate: '',
+            reportType: 'overview',
+            role: '',
+            store: '',
+            eventType: '',
+            groupBy: 'day'
+        },
+        
+        summary: {
+            totalUsers: 0,
+            totalLogins: 0,
+            securityEvents: 0,
+            avgSessionDuration: '0m'
+        },
+        
+        recentActivity: [],
+        loginStats: {
+            successful: 0,
+            failed: 0,
+            successRate: 0,
+            uniqueUsers: 0
+        },
+        
+        securityEvents: [],
+        passwordStats: {
+            totalChanges: 0,
+            forcedChanges: 0,
+            userInitiated: 0,
+            resetRequests: 0
+        },
+        
+        sessionStats: {
+            totalSessions: 0,
+            avgDuration: '0m',
+            maxDuration: '0m',
+            minDuration: '0m'
+        },
+        
+        activeSessions: [],
+        complianceStatus: [],
+        
+        // Methods
+        async init() {
+            await this.loadStores();
+            this.updateDateRange();
+            await this.loadReportData();
+            this.initializeCharts();
+        },
+        
+        async loadStores() {
+            try {
+                const response = await fetch('/api/stores');
+                this.stores = await response.json();
+            } catch (error) {
+                console.error('Error loading stores:', error);
+            }
+        },
+        
+        updateDateRange() {
+            const today = new Date();
+            let startDate = new Date();
+            let endDate = new Date();
+            
+            switch (this.filters.dateRange) {
+                case 'today':
+                    startDate = today;
+                    endDate = today;
+                    break;
+                case 'yesterday':
+                    startDate.setDate(today.getDate() - 1);
+                    endDate.setDate(today.getDate() - 1);
+                    break;
+                case 'last7days':
+                    startDate.setDate(today.getDate() - 7);
+                    endDate = today;
+                    break;
+                case 'last30days':
+                    startDate.setDate(today.getDate() - 30);
+                    endDate = today;
+                    break;
+                case 'thisMonth':
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    endDate = today;
+                    break;
+                case 'lastMonth':
+                    startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'thisQuarter':
+                    const quarter = Math.floor(today.getMonth() / 3);
+                    startDate = new Date(today.getFullYear(), quarter * 3, 1);
+                    endDate = today;
+                    break;
+                case 'thisYear':
+                    startDate = new Date(today.getFullYear(), 0, 1);
+                    endDate = today;
+                    break;
+                case 'custom':
+                    // Keep existing dates
+                    return;
+            }
+            
+            this.filters.startDate = this.formatDateForInput(startDate);
+            this.filters.endDate = this.formatDateForInput(endDate);
+        },
+        
+        async loadReportData() {
+            try {
+                const params = new URLSearchParams({
+                    ...this.filters,
+                    startDate: this.filters.startDate,
+                    endDate: this.filters.endDate
+                });
+                
+                const response = await fetch(`/api/user-authentication/reports?${params}`);
+                const data = await response.json();
+                
+                this.summary = data.summary;
+                this.recentActivity = data.recentActivity;
+                this.loginStats = data.loginStats;
+                this.securityEvents = data.securityEvents;
+                this.passwordStats = data.passwordStats;
+                this.sessionStats = data.sessionStats;
+                this.activeSessions = data.activeSessions;
+                this.complianceStatus = data.complianceStatus;
+                
+                // Update charts
+                this.updateCharts(data.chartData);
+                
+            } catch (error) {
+                console.error('Error loading report data:', error);
+                this.showError('Failed to load report data');
+            }
+        },
+        
+        async applyFilters() {
+            await this.loadReportData();
+        },
+        
+        resetFilters() {
+            this.filters = {
+                dateRange: 'last30days',
+                startDate: '',
+                endDate: '',
+                reportType: 'overview',
+                role: '',
+                store: '',
+                eventType: '',
+                groupBy: 'day'
+            };
+            this.updateDateRange();
+            this.loadReportData();
+        },
+        
+        initializeCharts() {
+            // Initialize all charts with empty data
+            this.initLoginTrendChart();
+            this.initRoleActivityChart();
+            this.initLoginDistributionChart();
+            this.initHourlyLoginChart();
+            this.initSecurityEventsChart();
+            this.initFailedLoginChart();
+            this.initPasswordStrengthChart();
+            this.initSessionDurationChart();
+        },
+        
+        initLoginTrendChart() {
+            const ctx = document.getElementById('loginTrendChart');
+            if (ctx) {
+                this.charts.loginTrend = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Successful Logins',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1
+                        }, {
+                            label: 'Failed Logins',
+                            data: [],
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initRoleActivityChart() {
+            const ctx = document.getElementById('roleActivityChart');
+            if (ctx) {
+                this.charts.roleActivity = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(54, 162, 235, 0.8)',
+                                'rgba(255, 205, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(153, 102, 255, 0.8)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        },
+        
+        initLoginDistributionChart() {
+            const ctx = document.getElementById('loginDistributionChart');
+            if (ctx) {
+                this.charts.loginDistribution = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Logins',
+                            data: [],
+                            backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initHourlyLoginChart() {
+            const ctx = document.getElementById('hourlyLoginChart');
+            if (ctx) {
+                this.charts.hourlyLogin = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                        datasets: [{
+                            label: 'Logins',
+                            data: [],
+                            backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initSecurityEventsChart() {
+            const ctx = document.getElementById('securityEventsChart');
+            if (ctx) {
+                this.charts.securityEvents = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(255, 205, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(153, 102, 255, 0.8)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        },
+        
+        initFailedLoginChart() {
+            const ctx = document.getElementById('failedLoginChart');
+            if (ctx) {
+                this.charts.failedLogin = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Failed Login Attempts',
+                            data: [],
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initPasswordStrengthChart() {
+            const ctx = document.getElementById('passwordStrengthChart');
+            if (ctx) {
+                this.charts.passwordStrength = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Weak', 'Fair', 'Good', 'Strong'],
+                        datasets: [{
+                            label: 'Passwords',
+                            data: [],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(255, 205, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(54, 162, 235, 0.8)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initSessionDurationChart() {
+            const ctx = document.getElementById('sessionDurationChart');
+            if (ctx) {
+                this.charts.sessionDuration = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Average Session Duration (minutes)',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        updateCharts(chartData) {
+            if (!chartData) return;
+            
+            // Update each chart with new data
+            if (this.charts.loginTrend && chartData.loginTrend) {
+                this.charts.loginTrend.data.labels = chartData.loginTrend.labels;
+                this.charts.loginTrend.data.datasets[0].data = chartData.loginTrend.successful;
+                this.charts.loginTrend.data.datasets[1].data = chartData.loginTrend.failed;
+                this.charts.loginTrend.update();
+            }
+            
+            if (this.charts.roleActivity && chartData.roleActivity) {
+                this.charts.roleActivity.data.labels = chartData.roleActivity.labels;
+                this.charts.roleActivity.data.datasets[0].data = chartData.roleActivity.data;
+                this.charts.roleActivity.update();
+            }
+            
+            if (this.charts.loginDistribution && chartData.loginDistribution) {
+                this.charts.loginDistribution.data.labels = chartData.loginDistribution.labels;
+                this.charts.loginDistribution.data.datasets[0].data = chartData.loginDistribution.data;
+                this.charts.loginDistribution.update();
+            }
+            
+            if (this.charts.hourlyLogin && chartData.hourlyLogin) {
+                this.charts.hourlyLogin.data.datasets[0].data = chartData.hourlyLogin;
+                this.charts.hourlyLogin.update();
+            }
+            
+            if (this.charts.securityEvents && chartData.securityEvents) {
+                this.charts.securityEvents.data.labels = chartData.securityEvents.labels;
+                this.charts.securityEvents.data.datasets[0].data = chartData.securityEvents.data;
+                this.charts.securityEvents.update();
+            }
+            
+            if (this.charts.failedLogin && chartData.failedLogin) {
+                this.charts.failedLogin.data.labels = chartData.failedLogin.labels;
+                this.charts.failedLogin.data.datasets[0].data = chartData.failedLogin.data;
+                this.charts.failedLogin.update();
+            }
+            
+            if (this.charts.passwordStrength && chartData.passwordStrength) {
+                this.charts.passwordStrength.data.datasets[0].data = chartData.passwordStrength;
+                this.charts.passwordStrength.update();
+            }
+            
+            if (this.charts.sessionDuration && chartData.sessionDuration) {
+                this.charts.sessionDuration.data.labels = chartData.sessionDuration.labels;
+                this.charts.sessionDuration.data.datasets[0].data = chartData.sessionDuration.data;
+                this.charts.sessionDuration.update();
+            }
+        },
+        
+        // Report actions
+        exportReport() {
+            const params = new URLSearchParams({
+                ...this.filters,
+                export: 'true',
+                format: 'csv'
+            });
+            window.open(`/api/user-authentication/reports?${params}`);
+        },
+        
+        printReport() {
+            window.print();
+        },
+        
+        generateCustomReport() {
+            window.location.href = '/user-authentication/reports/custom';
+        },
+        
+        // Utility methods
+        formatDateForInput(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        },
+        
+        formatDateTime(dateString) {
+            return new Date(dateString).toLocaleString();
+        },
+        
+        getStatusBadgeClass(status) {
+            const classes = {
+                'success': 'bg-success',
+                'failed': 'bg-danger',
+                'warning': 'bg-warning',
+                'info': 'bg-info'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        getSeverityBadgeClass(severity) {
+            const classes = {
+                'low': 'bg-success',
+                'medium': 'bg-warning',
+                'high': 'bg-danger',
+                'critical': 'bg-danger'
+            };
+            return classes[severity] || 'bg-secondary';
+        },
+        
+        getComplianceBadgeClass(status) {
+            const classes = {
+                'compliant': 'bg-success',
+                'partial': 'bg-warning',
+                'non-compliant': 'bg-danger'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        getComplianceProgressBarClass(status) {
+            const classes = {
+                'compliant': 'bg-success',
+                'partial': 'bg-warning',
+                'non-compliant': 'bg-danger'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

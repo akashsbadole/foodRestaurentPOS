@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Rules and Settings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .settings-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #28a745;
+        }
+        .settings-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .rule-item {
+            border-left: 3px solid #0d6efd;
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+        }
+        .nav-pills .nav-link {
+            border-radius: 0.5rem;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #28a745;
+        }
+        .setting-group {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #28a745;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="gstComplianceSettings()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">GST Rules and Settings</h1>
+                        <p class="text-muted mb-0">Configure GST rules, tax rates, and compliance settings</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="resetToDefaults()">
+                            <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                        </button>
+                        <button class="btn btn-primary" @click="saveAllSettings()">
+                            <i class="bi bi-save"></i> Save All Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <!-- Settings Navigation -->
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <nav class="nav nav-pills flex-column">
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'general'}"
+                               href="#" @click.prevent="activeTab = 'general'">
+                                <i class="bi bi-gear me-2"></i> General Settings
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'taxrates'}"
+                               href="#" @click.prevent="activeTab = 'taxrates'">
+                                <i class="bi bi-percent me-2"></i> Tax Rates
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'hsn'}"
+                               href="#" @click.prevent="activeTab = 'hsn'">
+                                <i class="bi bi-list-ul me-2"></i> HSN/SAC Codes
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'exemptions'}"
+                               href="#" @click.prevent="activeTab = 'exemptions'">
+                                <i class="bi bi-shield-check me-2"></i> Exemptions
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'compliance'}"
+                               href="#" @click.prevent="activeTab = 'compliance'">
+                                <i class="bi bi-clipboard-check me-2"></i> Compliance Rules
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'notifications'}"
+                               href="#" @click.prevent="activeTab = 'notifications'">
+                                <i class="bi bi-bell me-2"></i> Notifications
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Content -->
+            <div class="col-md-9">
+                <!-- General Settings -->
+                <div class="card settings-card" x-show="activeTab === 'general'">
+                    <div class="card-header">
+                        <h5 class="mb-0">General GST Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Business Configuration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">GSTIN</label>
+                                        <input type="text" class="form-control" x-model="settings.general.gstin" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Legal Name</label>
+                                        <input type="text" class="form-control" x-model="settings.general.legalName">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">State</label>
+                                        <select class="form-select" x-model="settings.general.state">
+                                            <option value="">Select State</option>
+                                            <template x-for="state in states" :key="state.code">
+                                                <option :value="state.code" x-text="state.name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Registration Type</label>
+                                        <select class="form-select" x-model="settings.general.registrationType">
+                                            <option value="regular">Regular</option>
+                                            <option value="composition">Composition</option>
+                                            <option value="casual">Casual</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">Tax Calculation</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tax Calculation Method</label>
+                                        <select class="form-select" x-model="settings.general.calculationMethod">
+                                            <option value="invoice">Invoice Basis</option>
+                                            <option value="cash">Cash Basis</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Rounding Method</label>
+                                        <select class="form-select" x-model="settings.general.roundingMethod">
+                                            <option value="normal">Normal Rounding</option>
+                                            <option value="up">Round Up</option>
+                                            <option value="down">Round Down</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tax Inclusive Pricing</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="settings.general.taxInclusive">
+                                            <label class="form-check-label">Enable tax inclusive pricing</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Auto-Calculate Tax</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="settings.general.autoCalculate">
+                                            <label class="form-check-label">Automatically calculate tax on invoices</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tax Rates -->
+                <div class="card settings-card" x-show="activeTab === 'taxrates'">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Tax Rates Configuration</h5>
+                        <button class="btn btn-sm btn-primary" @click="addTaxRate()">
+                            <i class="bi bi-plus"></i> Add Tax Rate
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Tax Name</th>
+                                        <th>CGST (%)</th>
+                                        <th>SGST (%)</th>
+                                        <th>IGST (%)</th>
+                                        <th>Applicable For</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="rate in settings.taxRates" :key="rate.id">
+                                        <tr>
+                                            <td x-text="rate.name"></td>
+                                            <td x-text="rate.cgst"></td>
+                                            <td x-text="rate.sgst"></td>
+                                            <td x-text="rate.igst"></td>
+                                            <td x-text="rate.applicableFor"></td>
+                                            <td>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" x-model="rate.active">
+                                                    <span class="slider"></span>
+                                                </label>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @click="editTaxRate(rate)">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @click="deleteTaxRate(rate.id)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HSN/SAC Codes -->
+                <div class="card settings-card" x-show="activeTab === 'hsn'">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">HSN/SAC Codes Management</h5>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" @click="importHSNCodes()">
+                                <i class="bi bi-upload"></i> Import
+                            </button>
+                            <button class="btn btn-sm btn-primary" @click="addHSNCode()">
+                                <i class="bi bi-plus"></i> Add HSN
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" placeholder="Search HSN/SAC codes..." x-model="hsnSearch">
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" x-model="hsnFilter">
+                                    <option value="">All Categories</option>
+                                    <option value="goods">Goods</option>
+                                    <option value="services">Services</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select" x-model="taxRateFilter">
+                                    <option value="">All Tax Rates</option>
+                                    <option value="0">0%</option>
+                                    <option value="5">5%</option>
+                                    <option value="12">12%</option>
+                                    <option value="18">18%</option>
+                                    <option value="28">28%</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>HSN/SAC Code</th>
+                                        <th>Description</th>
+                                        <th>Type</th>
+                                        <th>Tax Rate</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="hsn in filteredHSNCodes" :key="hsn.id">
+                                        <tr>
+                                            <td x-text="hsn.code"></td>
+                                            <td x-text="hsn.description"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="{'bg-primary': hsn.type === 'goods', 'bg-info': hsn.type === 'services'}"
+                                                      x-text="hsn.type"></span>
+                                            </td>
+                                            <td x-text="hsn.taxRate + '%'"></td>
+                                            <td>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" x-model="hsn.active">
+                                                    <span class="slider"></span>
+                                                </label>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @click="editHSNCode(hsn)">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @click="deleteHSNCode(hsn.id)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exemptions -->
+                <div class="card settings-card" x-show="activeTab === 'exemptions'">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Tax Exemptions</h5>
+                        <button class="btn btn-sm btn-primary" @click="addExemption()">
+                            <i class="bi bi-plus"></i> Add Exemption
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <template x-for="exemption in settings.exemptions" :key="exemption.id">
+                            <div class="rule-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 x-text="exemption.name"></h6>
+                                        <p class="text-muted mb-2" x-text="exemption.description"></p>
+                                        <div class="d-flex gap-2">
+                                            <span class="badge bg-secondary" x-text="exemption.type"></span>
+                                            <span class="badge bg-info" x-text="exemption.applicableFor"></span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" x-model="exemption.active">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <button class="btn btn-sm btn-outline-primary" @click="editExemption(exemption)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @click="deleteExemption(exemption.id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Compliance Rules -->
+                <div class="card settings-card" x-show="activeTab === 'compliance'">
+                    <div class="card-header">
+                        <h5 class="mb-0">Compliance Rules</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Invoice Requirements</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.compliance.hsnMandatory">
+                                        <label class="form-check-label">HSN Code Mandatory</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.compliance.gstInclusive">
+                                        <label class="form-check-label">GST Inclusive in Invoice</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.compliance.reverseCharge">
+                                        <label class="form-check-label">Enable Reverse Charge</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.compliance.composition">
+                                        <label class="form-check-label">Composition Scheme</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">Filing Requirements</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">GSTR-1 Due Day</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.gstr1DueDay" min="1" max="31">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">GSTR-3B Due Day</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.gstr3bDueDay" min="1" max="31">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Annual Turnover Limit (₹)</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.turnoverLimit">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Composition Tax Rate (%)</label>
+                                        <input type="number" class="form-control" x-model="settings.compositionTaxRate" min="0" max="10" step="0.5">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div class="card settings-card" x-show="activeTab === 'notifications'">
+                    <div class="card-header">
+                        <h5 class="mb-0">Notification Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Alert Preferences</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.notifications.dueDateAlerts">
+                                        <label class="form-check-label">Due Date Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.notifications.filingConfirmations">
+                                        <label class="form-check-label">Filing Confirmations</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.notifications.complianceUpdates">
+                                        <label class="form-check-label">Compliance Updates</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Alert Days Before Due</label>
+                                        <input type="number" class="form-control" x-model="settings.notifications.alertDays" min="1" max="30">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Notification Email</label>
+                                        <input type="email" class="form-control" x-model="settings.notifications.email">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Notification Mobile</label>
+                                        <input type="tel" class="form-control" x-model="settings.notifications.mobile">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function gstComplianceSettings() {
+            return {
+                activeTab: 'general',
+                hsnSearch: '',
+                hsnFilter: '',
+                taxRateFilter: '',
+                states: [
+                    { code: 'MH', name: 'Maharashtra' },
+                    { code: 'GJ', name: 'Gujarat' },
+                    { code: 'KA', name: 'Karnataka' },
+                    { code: 'TN', name: 'Tamil Nadu' },
+                    { code: 'DL', name: 'Delhi' }
+                ],
+                settings: {
+                    general: {
+                        gstin: '27AAAPL1234C1ZV',
+                        legalName: 'ABC Enterprises Pvt Ltd',
+                        state: 'MH',
+                        registrationType: 'regular',
+                        calculationMethod: 'invoice',
+                        roundingMethod: 'normal',
+                        taxInclusive: false,
+                        autoCalculate: true
+                    },
+                    taxRates: [
+                        { id: 1, name: 'Standard Rate', cgst: 9, sgst: 9, igst: 18, applicableFor: 'All', active: true },
+                        { id: 2, name: 'Reduced Rate', cgst: 2.5, sgst: 2.5, igst: 5, applicableFor: 'Essential Items', active: true },
+                        { id: 3, name: 'Zero Rated', cgst: 0, sgst: 0, igst: 0, applicableFor: 'Exports', active: true }
+                    ],
+                    exemptions: [
+                        { id: 1, name: 'Agricultural Exemption', description: 'Exemption for agricultural produce', type: 'Category', applicableFor: 'Farmers', active: true },
+                        { id: 2, name: 'Educational Services', description: 'Exemption for educational services', type: 'Service', applicableFor: 'Educational Institutions', active: true }
+                    ],
+                    compliance: {
+                        hsnMandatory: true,
+                        gstInclusive: false,
+                        reverseCharge: false,
+                        composition: false,
+                        gstr1DueDay: 11,
+                        gstr3bDueDay: 20,
+                        turnoverLimit: 2000000,
+                        compositionTaxRate: 1
+                    },
+                    notifications: {
+                        dueDateAlerts: true,
+                        filingConfirmations: true,
+                        complianceUpdates: true,
+                        alertDays: 7,
+                        email: 'accounts@abc.com',
+                        mobile: '+919876543210'
+                    }
+                },
+                hsnCodes: [
+                    { id: 1, code: '1001', description: 'Wheat and meslin', type: 'goods', taxRate: 0, active: true },
+                    { id: 2, code: '1002', description: 'Rice', type: 'goods', taxRate: 0, active: true },
+                    { id: 3, code: '9983', description: 'Legal services', type: 'services', taxRate: 18, active: true }
+                ],
+                
+                get filteredHSNCodes() {
+                    let filtered = this.hsnCodes;
+                    
+                    if (this.hsnSearch) {
+                        const query = this.hsnSearch.toLowerCase();
+                        filtered = filtered.filter(item => 
+                            item.code.toLowerCase().includes(query) ||
+                            item.description.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    if (this.hsnFilter) {
+                        filtered = filtered.filter(item => item.type === this.hsnFilter);
+                    }
+                    
+                    if (this.taxRateFilter) {
+                        filtered = filtered.filter(item => item.taxRate == this.taxRateFilter);
+                    }
+                    
+                    return filtered;
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                addTaxRate() {
+                    console.log('Adding new tax rate');
+                },
+                
+                editTaxRate(rate) {
+                    console.log('Editing tax rate:', rate);
+                },
+                
+                deleteTaxRate(id) {
+                    if (confirm('Are you sure you want to delete this tax rate?')) {
+                        this.settings.taxRates = this.settings.taxRates.filter(rate => rate.id !== id);
+                    }
+                },
+                
+                addHSNCode() {
+                    console.log('Adding new HSN code');
+                },
+                
+                editHSNCode(hsn) {
+                    console.log('Editing HSN code:', hsn);
+                },
+                
+                deleteHSNCode(id) {
+                    if (confirm('Are you sure you want to delete this HSN code?')) {
+                        this.hsnCodes = this.hsnCodes.filter(hsn => hsn.id !== id);
+                    }
+                },
+                
+                importHSNCodes() {
+                    console.log('Importing HSN codes');
+                },
+                
+                addExemption() {
+                    console.log('Adding new exemption');
+                },
+                
+                editExemption(exemption) {
+                    console.log('Editing exemption:', exemption);
+                },
+                
+                deleteExemption(id) {
+                    if (confirm('Are you sure you want to delete this exemption?')) {
+                        this.settings.exemptions = this.settings.exemptions.filter(ex => ex.id !== id);
+                    }
+                },
+                
+                resetToDefaults() {
+                    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                        console.log('Resetting to defaults');
+                    }
+                },
+                
+                saveAllSettings() {
+                    console.log('Saving all settings:', this.settings);
+                    alert('Settings saved successfully!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

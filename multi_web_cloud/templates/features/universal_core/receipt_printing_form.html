@@ -1,0 +1,1569 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/receipt_printing_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Receipt Printing Form Interface -->
+<div class="receipt-form-container" x-data="receiptFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    Receipt Template Creation/Editing
+                </h2>
+                <p class="form-subtitle text-muted">Design and customize receipt templates</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="cancelTemplate()">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="saveDraft()">
+                        <i class="bi bi-save"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveTemplate()" :disabled="!isFormValid">
+                        <i class="bi bi-check-circle"></i> Save Template
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Progress Steps -->
+    <div class="template-progress">
+        <div class="progress-steps">
+            <div class="step" 
+                 :class="{'active': currentStep === 1, 'completed': currentStep > 1}"
+                 @click="goToStep(1)">
+                <div class="step-number">1</div>
+                <div class="step-label">Basic Info</div>
+            </div>
+            <div class="step-connector" :class="{'completed': currentStep > 1}"></div>
+            <div class="step" 
+                 :class="{'active': currentStep === 2, 'completed': currentStep > 2}"
+                 @click="goToStep(2)">
+                <div class="step-number">2</div>
+                <div class="step-label">Layout Design</div>
+            </div>
+            <div class="step-connector" :class="{'completed': currentStep > 2}"></div>
+            <div class="step" 
+                 :class="{'active': currentStep === 3, 'completed': currentStep > 3}"
+                 @click="goToStep(3)">
+                <div class="step-number">3</div>
+                <div class="step-label">Content Fields</div>
+            </div>
+            <div class="step-connector" :class="{'completed': currentStep > 3}"></div>
+            <div class="step" 
+                 :class="{'active': currentStep === 4, 'completed': currentStep > 4}"
+                 @click="goToStep(4)">
+                <div class="step-number">4</div>
+                <div class="step-label">Styling</div>
+            </div>
+            <div class="step-connector" :class="{'completed': currentStep > 4}"></div>
+            <div class="step" 
+                 :class="{'active': currentStep === 5, 'completed': currentStep > 5}"
+                 @click="goToStep(5)">
+                <div class="step-number">5</div>
+                <div class="step-label">Preview & Test</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1: Basic Information -->
+    <div class="template-step" x-show="currentStep === 1" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Basic Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Template Name *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="template.name"
+                                   :class="{'is-invalid': errors.name}"
+                                   @input="validateField('name')"
+                                   placeholder="Enter template name">
+                            <div class="invalid-feedback" x-show="errors.name" x-text="errors.name"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Template Type *</label>
+                            <select class="form-select" 
+                                    x-model="template.type"
+                                    :class="{'is-invalid': errors.type}"
+                                    @change="validateField('type')">
+                                <option value="">Select type</option>
+                                <option value="sale">Sale Receipt</option>
+                                <option value="refund">Refund Receipt</option>
+                                <option value="exchange">Exchange Receipt</option>
+                                <option value="return">Return Receipt</option>
+                                <option value="order">Order Receipt</option>
+                                <option value="invoice">Invoice</option>
+                            </select>
+                            <div class="invalid-feedback" x-show="errors.type" x-text="errors.type"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" x-model="template.category">
+                                <option value="">Select category</option>
+                                <template x-for="category in categories" :key="category.id">
+                                    <option :value="category.id" x-text="category.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Paper Size *</label>
+                            <select class="form-select" 
+                                    x-model="template.paperSize"
+                                    :class="{'is-invalid': errors.paperSize}"
+                                    @change="validateField('paperSize')">
+                                <option value="">Select paper size</option>
+                                <option value="80mm">80mm (Thermal)</option>
+                                <option value="58mm">58mm (Thermal)</option>
+                                <option value="a4">A4</option>
+                                <option value="letter">Letter (8.5" x 11")</option>
+                            </select>
+                            <div class="invalid-feedback" x-show="errors.paperSize" x-text="errors.paperSize"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" 
+                                      x-model="template.description"
+                                      rows="3"
+                                      placeholder="Enter template description"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="templateActive" 
+                                       x-model="template.active">
+                                <label class="form-check-label" for="templateActive">
+                                    Active Template
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="templateDefault" 
+                                       x-model="template.isDefault">
+                                <label class="form-check-label" for="templateDefault">
+                                    Default Template
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Layout Design -->
+    <div class="template-step" x-show="currentStep === 2" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-layout-text-window-reverse me-2"></i>
+                    Layout Design
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="resetLayout()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset Layout
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="layout-designer">
+                    <div class="designer-toolbar">
+                        <div class="toolbar-section">
+                            <label class="toolbar-label">Layout Type</label>
+                            <select class="form-select form-select-sm" x-model="template.layout.type" @change="updateLayout()">
+                                <option value="standard">Standard</option>
+                                <option value="compact">Compact</option>
+                                <option value="detailed">Detailed</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        
+                        <div class="toolbar-section">
+                            <label class="toolbar-label">Orientation</label>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="orientation" id="portrait" value="portrait" x-model="template.layout.orientation" @change="updateLayout()">
+                                <label class="btn btn-outline-secondary" for="portrait">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </label>
+                                <input type="radio" class="btn-check" name="orientation" id="landscape" value="landscape" x-model="template.layout.orientation" @change="updateLayout()">
+                                <label class="btn btn-outline-secondary" for="landscape">
+                                    <i class="bi bi-file-earmark-text rotate-90"></i>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="toolbar-section">
+                            <label class="toolbar-label">Margins</label>
+                            <div class="margin-controls">
+                                <input type="number" 
+                                       class="form-control form-control-sm" 
+                                       x-model="template.layout.marginTop"
+                                       @input="updateLayout()"
+                                       min="0"
+                                       max="50"
+                                       step="1"
+                                       placeholder="Top">
+                                <input type="number" 
+                                       class="form-control form-control-sm" 
+                                       x-model="template.layout.marginRight"
+                                       @input="updateLayout()"
+                                       min="0"
+                                       max="50"
+                                       step="1"
+                                       placeholder="Right">
+                                <input type="number" 
+                                       class="form-control form-control-sm" 
+                                       x-model="template.layout.marginBottom"
+                                       @input="updateLayout()"
+                                       min="0"
+                                       max="50"
+                                       step="1"
+                                       placeholder="Bottom">
+                                <input type="number" 
+                                       class="form-control form-control-sm" 
+                                       x-model="template.layout.marginLeft"
+                                       @input="updateLayout()"
+                                       min="0"
+                                       max="50"
+                                       step="1"
+                                       placeholder="Left">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="designer-canvas">
+                        <div class="canvas-container" 
+                             :style="getCanvasStyle()"
+                             @click="selectSection($event)">
+                            <!-- Header Section -->
+                            <div class="canvas-section header-section" 
+                                 :class="{'selected': selectedSection === 'header'}"
+                                 :style="getSectionStyle('header')"
+                                 @click.stop="selectSection('header')">
+                                <div class="section-content">
+                                    <div class="placeholder-content">
+                                        <i class="bi bi-shop"></i>
+                                        <span>Header Section</span>
+                                        <small>Business name, logo, address</small>
+                                    </div>
+                                </div>
+                                <div class="section-resize-handle" @mousedown.stop="startResize('header', $event)"></div>
+                            </div>
+                            
+                            <!-- Content Section -->
+                            <div class="canvas-section content-section" 
+                                 :class="{'selected': selectedSection === 'content'}"
+                                 :style="getSectionStyle('content')"
+                                 @click.stop="selectSection('content')">
+                                <div class="section-content">
+                                    <div class="placeholder-content">
+                                        <i class="bi bi-receipt"></i>
+                                        <span>Content Section</span>
+                                        <small>Items, quantities, prices</small>
+                                    </div>
+                                </div>
+                                <div class="section-resize-handle" @mousedown.stop="startResize('content', $event)"></div>
+                            </div>
+                            
+                            <!-- Footer Section -->
+                            <div class="canvas-section footer-section" 
+                                 :class="{'selected': selectedSection === 'footer'}"
+                                 :style="getSectionStyle('footer')"
+                                 @click.stop="selectSection('footer')">
+                                <div class="section-content">
+                                    <div class="placeholder-content">
+                                        <i class="bi bi-info-circle"></i>
+                                        <span>Footer Section</span>
+                                        <small>Totals, tax, contact info</small>
+                                    </div>
+                                </div>
+                                <div class="section-resize-handle" @mousedown.stop="startResize('footer', $event)"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="designer-properties" x-show="selectedSection">
+                        <h6>Section Properties</h6>
+                        <div class="property-group">
+                            <label class="property-label">Height</label>
+                            <input type="range" 
+                                   class="form-range" 
+                                   x-model="template.layout[selectedSection].height"
+                                   @input="updateSectionHeight(selectedSection)"
+                                   min="50"
+                                   max="300">
+                            <span class="property-value" x-text="template.layout[selectedSection].height + 'px'"></span>
+                        </div>
+                        
+                        <div class="property-group">
+                            <label class="property-label">Alignment</label>
+                            <select class="form-select form-select-sm" 
+                                    x-model="template.layout[selectedSection].alignment"
+                                    @change="updateLayout()">
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                            </select>
+                        </div>
+                        
+                        <div class="property-group">
+                            <label class="property-label">Background</label>
+                            <input type="color" 
+                                   class="form-control form-control-color" 
+                                   x-model="template.layout[selectedSection].backgroundColor"
+                                   @change="updateLayout()">
+                        </div>
+                        
+                        <div class="property-group">
+                            <label class="property-label">Border</label>
+                            <div class="border-controls">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       x-model="template.layout[selectedSection].border.enabled"
+                                       @change="updateLayout()">
+                                <input type="number" 
+                                       class="form-control form-control-sm" 
+                                       x-model="template.layout[selectedSection].border.width"
+                                       @input="updateLayout()"
+                                       min="0"
+                                       max="5"
+                                       step="1"
+                                       x-show="template.layout[selectedSection].border.enabled">
+                                <select class="form-select form-select-sm" 
+                                        x-model="template.layout[selectedSection].border.style"
+                                        @change="updateLayout()"
+                                        x-show="template.layout[selectedSection].border.enabled">
+                                    <option value="solid">Solid</option>
+                                    <option value="dashed">Dashed</option>
+                                    <option value="dotted">Dotted</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Content Fields -->
+    <div class="template-step" x-show="currentStep === 3" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-list-check me-2"></i>
+                    Content Fields
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="addField()">
+                        <i class="bi bi-plus"></i> Add Field
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="content-fields">
+                    <div class="field-categories">
+                        <div class="category-tabs">
+                            <button type="button" 
+                                    class="category-tab"
+                                    :class="{'active': activeFieldCategory === 'header'}"
+                                    @click="activeFieldCategory = 'header'">
+                                Header Fields
+                            </button>
+                            <button type="button" 
+                                    class="category-tab"
+                                    :class="{'active': activeFieldCategory === 'content'}"
+                                    @click="activeFieldCategory = 'content'">
+                                Content Fields
+                            </button>
+                            <button type="button" 
+                                    class="category-tab"
+                                    :class="{'active': activeFieldCategory === 'footer'}"
+                                    @click="activeFieldCategory = 'footer'">
+                                Footer Fields
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="fields-list">
+                        <template x-for="(field, index) in getFieldsByCategory(activeFieldCategory)" :key="field.id">
+                            <div class="field-item">
+                                <div class="field-header">
+                                    <div class="field-info">
+                                        <i :class="getFieldIcon(field.type)"></i>
+                                        <span x-text="field.name"></span>
+                                        <span class="field-type" x-text="field.type"></span>
+                                    </div>
+                                    <div class="field-actions">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   :id="`field-${field.id}`"
+                                                   x-model="field.enabled">
+                                            <label class="form-check-label" :for="`field-${field.id}`">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-secondary"
+                                                @click="editField(field)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                @click="removeField(field.id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="field-properties" x-show="field.enabled">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="form-label">Label</label>
+                                                <input type="text" 
+                                                       class="form-control form-control-sm" 
+                                                       x-model="field.label"
+                                                       placeholder="Field label">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="form-label">Font Size</label>
+                                                <input type="number" 
+                                                       class="form-control form-control-sm" 
+                                                       x-model="field.fontSize"
+                                                       min="8"
+                                                       max="72"
+                                                       step="1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="form-label">Font Weight</label>
+                                                <select class="form-select form-select-sm" x-model="field.fontWeight">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="bold">Bold</option>
+                                                    <option value="light">Light</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="form-label">Alignment</label>
+                                                <select class="form-select form-select-sm" x-model="field.alignment">
+                                                    <option value="left">Left</option>
+                                                    <option value="center">Center</option>
+                                                    <option value="right">Right</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="form-label">Format</label>
+                                                <input type="text" 
+                                                       class="form-control form-control-sm" 
+                                                       x-model="field.format"
+                                                       placeholder="Format pattern">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="form-label">Condition</label>
+                                                <select class="form-select form-select-sm" x-model="field.condition">
+                                                    <option value="always">Always Show</option>
+                                                    <option value="has_value">When Has Value</option>
+                                                    <option value="custom">Custom Condition</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Styling -->
+    <div class="template-step" x-show="currentStep === 4" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-palette me-2"></i>
+                    Styling Options
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetStyles()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset Styles
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="styling-tabs">
+                    <div class="style-tabs">
+                        <button type="button" 
+                                class="style-tab"
+                                :class="{'active': activeStyleTab === 'fonts'}"
+                                @click="activeStyleTab = 'fonts'">
+                            Fonts
+                        </button>
+                        <button type="button" 
+                                class="style-tab"
+                                :class="{'active': activeStyleTab === 'colors'}"
+                                @click="activeStyleTab = 'colors'">
+                            Colors
+                        </button>
+                        <button type="button" 
+                                class="style-tab"
+                                :class="{'active': activeStyleTab === 'spacing'}"
+                                @click="activeStyleTab = 'spacing'">
+                            Spacing
+                        </button>
+                        <button type="button" 
+                                class="style-tab"
+                                :class="{'active': activeStyleTab === 'borders'}"
+                                @click="activeStyleTab = 'borders'">
+                            Borders
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Fonts Styling -->
+                <div class="style-panel" x-show="activeStyleTab === 'fonts'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Default Font Family</label>
+                                <select class="form-select" x-model="template.styles.fonts.family">
+                                    <option value="Arial">Arial</option>
+                                    <option value="Helvetica">Helvetica</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Courier New">Courier New</option>
+                                    <option value="Verdana">Verdana</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Palatino">Palatino</option>
+                                    <option value="Garamond">Garamond</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Default Font Size</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="template.styles.fonts.defaultSize"
+                                       min="8"
+                                       max="72"
+                                       step="1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h6>Font Sizes by Element</h6>
+                            <div class="font-sizes-grid">
+                                <template x-for="(size, element) in template.styles.fonts.sizes" :key="element">
+                                    <div class="font-size-item">
+                                        <label class="form-label" x-text="element"></label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="template.styles.fonts.sizes[element]"
+                                               min="8"
+                                               max="72"
+                                               step="1">
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Colors Styling -->
+                <div class="style-panel" x-show="activeStyleTab === 'colors'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Text Color</label>
+                                <div class="color-input-group">
+                                    <input type="color" 
+                                           class="form-control form-control-color" 
+                                           x-model="template.styles.colors.text">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="template.styles.colors.text"
+                                           placeholder="#000000">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Background Color</label>
+                                <div class="color-input-group">
+                                    <input type="color" 
+                                           class="form-control form-control-color" 
+                                           x-model="template.styles.colors.background">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="template.styles.colors.background"
+                                           placeholder="#FFFFFF">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Header Color</label>
+                                <div class="color-input-group">
+                                    <input type="color" 
+                                           class="form-control form-control-color" 
+                                           x-model="template.styles.colors.header">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="template.styles.colors.header"
+                                           placeholder="#333333">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Footer Color</label>
+                                <div class="color-input-group">
+                                    <input type="color" 
+                                           class="form-control form-control-color" 
+                                           x-model="template.styles.colors.footer">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="template.styles.colors.footer"
+                                           placeholder="#666666">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Spacing Styling -->
+                <div class="style-panel" x-show="activeStyleTab === 'spacing'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Line Height</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="template.styles.spacing.lineHeight"
+                                       min="1"
+                                       max="3"
+                                       step="0.1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Paragraph Spacing</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="template.styles.spacing.paragraphSpacing"
+                                       min="0"
+                                       max="50"
+                                       step="1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Section Spacing</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="template.styles.spacing.sectionSpacing"
+                                       min="0"
+                                       max="100"
+                                       step="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Item Spacing</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="template.styles.spacing.itemSpacing"
+                                       min="0"
+                                       max="20"
+                                       step="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Borders Styling -->
+                <div class="style-panel" x-show="activeStyleTab === 'borders'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Border Width</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="template.styles.borders.width"
+                                       min="0"
+                                       max="10"
+                                       step="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Border Style</label>
+                                <select class="form-select" x-model="template.styles.borders.style">
+                                    <option value="none">None</option>
+                                    <option value="solid">Solid</option>
+                                    <option value="dashed">Dashed</option>
+                                    <option value="dotted">Dotted</option>
+                                    <option value="double">Double</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Border Color</label>
+                                <div class="color-input-group">
+                                    <input type="color" 
+                                           class="form-control form-control-color" 
+                                           x-model="template.styles.borders.color">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="template.styles.borders.color"
+                                           placeholder="#000000">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Border Radius</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="template.styles.borders.radius"
+                                       min="0"
+                                       max="20"
+                                       step="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 5: Preview & Test -->
+    <div class="template-step" x-show="currentStep === 5" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-eye me-2"></i>
+                    Preview & Test
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="refreshPreview()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="preview-section">
+                    <div class="preview-controls">
+                        <div class="control-group">
+                            <label class="control-label">Preview Size</label>
+                            <select class="form-select form-select-sm" x-model="previewSettings.size" @change="updatePreview()">
+                                <option value="actual">Actual Size</option>
+                                <option value="fit">Fit to Screen</option>
+                                <option value="50%">50%</option>
+                                <option value="75%">75%</option>
+                                <option value="100%">100%</option>
+                                <option value="150%">150%</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label class="control-label">Sample Data</label>
+                            <select class="form-select form-select-sm" x-model="previewSettings.sampleData" @change="updatePreview()">
+                                <option value="simple">Simple Order</option>
+                                <option value="complex">Complex Order</option>
+                                <option value="refund">Refund</option>
+                                <option value="exchange">Exchange</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label class="control-label">Paper Background</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="paperBackground" 
+                                       x-model="previewSettings.paperBackground"
+                                       @change="updatePreview()">
+                                <label class="form-check-label" for="paperBackground">
+                                    Show Paper Background
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-container">
+                        <div class="preview-frame" 
+                             :style="getPreviewFrameStyle()"
+                             ref="previewFrame">
+                            <div class="preview-content" 
+                                 :style="getPreviewContentStyle()"
+                                 x-html="previewContent">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <h6>Test Print</h6>
+                    <div class="test-controls">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="form-label">Printer</label>
+                                    <select class="form-select" x-model="testSettings.printer">
+                                        <option value="">Select printer</option>
+                                        <template x-for="printer in printers" :key="printer.id">
+                                            <option :value="printer.id" x-text="printer.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="form-label">Copies</label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           x-model="testSettings.copies"
+                                           min="1"
+                                           max="10"
+                                           step="1">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" 
+                                            class="btn btn-primary w-100"
+                                            @click="testPrint()"
+                                            :disabled="!testSettings.printer">
+                                        <i class="bi bi-printer"></i> Test Print
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="form-navigation">
+        <div class="row">
+            <div class="col-md-6">
+                <button type="button" 
+                        class="btn btn-outline-secondary"
+                        @click="previousStep()"
+                        x-show="currentStep > 1">
+                    <i class="bi bi-chevron-left"></i> Previous
+                </button>
+            </div>
+            <div class="col-md-6 text-end">
+                <button type="button" 
+                        class="btn btn-primary"
+                        @click="nextStep()"
+                        x-show="currentStep < 5"
+                        :disabled="!isCurrentStepValid">
+                    Next <i class="bi bi-chevron-right"></i>
+                </button>
+                <button type="button" 
+                        class="btn btn-success"
+                        @click="saveTemplate()"
+                        x-show="currentStep === 5"
+                        :disabled="!isFormValid">
+                    <i class="bi bi-check-circle"></i> Save Template
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/receipt_printing_form.js') }}"></script>
+<script>
+// Receipt Form App
+function receiptFormApp() {
+    return {
+        // Data
+        currentStep: 1,
+        selectedSection: null,
+        activeFieldCategory: 'header',
+        activeStyleTab: 'fonts',
+        categories: [],
+        printers: [],
+        
+        template: {
+            name: '',
+            type: '',
+            category: '',
+            paperSize: '',
+            description: '',
+            active: true,
+            isDefault: false,
+            layout: {
+                type: 'standard',
+                orientation: 'portrait',
+                marginTop: 10,
+                marginRight: 10,
+                marginBottom: 10,
+                marginLeft: 10,
+                header: {
+                    height: 100,
+                    alignment: 'center',
+                    backgroundColor: '#ffffff',
+                    border: {
+                        enabled: false,
+                        width: 1,
+                        style: 'solid'
+                    }
+                },
+                content: {
+                    height: 300,
+                    alignment: 'left',
+                    backgroundColor: '#ffffff',
+                    border: {
+                        enabled: false,
+                        width: 1,
+                        style: 'solid'
+                    }
+                },
+                footer: {
+                    height: 100,
+                    alignment: 'center',
+                    backgroundColor: '#ffffff',
+                    border: {
+                        enabled: false,
+                        width: 1,
+                        style: 'solid'
+                    }
+                }
+            },
+            fields: {
+                header: [
+                    { id: 'business_name', name: 'Business Name', type: 'text', enabled: true, label: 'Business Name', fontSize: 16, fontWeight: 'bold', alignment: 'center', format: '', condition: 'always' },
+                    { id: 'business_address', name: 'Business Address', type: 'text', enabled: true, label: 'Address', fontSize: 12, fontWeight: 'normal', alignment: 'center', format: '', condition: 'always' },
+                    { id: 'receipt_number', name: 'Receipt Number', type: 'text', enabled: true, label: 'Receipt #', fontSize: 12, fontWeight: 'normal', alignment: 'center', format: '', condition: 'always' },
+                    { id: 'date_time', name: 'Date & Time', type: 'datetime', enabled: true, label: 'Date', fontSize: 12, fontWeight: 'normal', alignment: 'center', format: 'MM/DD/YYYY HH:mm', condition: 'always' }
+                ],
+                content: [
+                    { id: 'items_table', name: 'Items Table', type: 'table', enabled: true, label: 'Items', fontSize: 10, fontWeight: 'normal', alignment: 'left', format: '', condition: 'always' },
+                    { id: 'quantity', name: 'Quantity', type: 'number', enabled: true, label: 'Qty', fontSize: 10, fontWeight: 'normal', alignment: 'center', format: '', condition: 'always' },
+                    { id: 'price', name: 'Price', type: 'currency', enabled: true, label: 'Price', fontSize: 10, fontWeight: 'normal', alignment: 'right', format: '$0.00', condition: 'always' },
+                    { id: 'total', name: 'Total', type: 'currency', enabled: true, label: 'Total', fontSize: 10, fontWeight: 'normal', alignment: 'right', format: '$0.00', condition: 'always' }
+                ],
+                footer: [
+                    { id: 'subtotal', name: 'Subtotal', type: 'currency', enabled: true, label: 'Subtotal', fontSize: 12, fontWeight: 'normal', alignment: 'right', format: '$0.00', condition: 'always' },
+                    { id: 'tax', name: 'Tax', type: 'currency', enabled: true, label: 'Tax', fontSize: 12, fontWeight: 'normal', alignment: 'right', format: '$0.00', condition: 'always' },
+                    { id: 'grand_total', name: 'Grand Total', type: 'currency', enabled: true, label: 'Total', fontSize: 14, fontWeight: 'bold', alignment: 'right', format: '$0.00', condition: 'always' },
+                    { id: 'thank_you', name: 'Thank You Message', type: 'text', enabled: true, label: 'Thank You', fontSize: 12, fontWeight: 'normal', alignment: 'center', format: '', condition: 'always' }
+                ]
+            },
+            styles: {
+                fonts: {
+                    family: 'Arial',
+                    defaultSize: 12,
+                    sizes: {
+                        'Business Name': 16,
+                        'Address': 12,
+                        'Receipt #': 12,
+                        'Date': 12,
+                        'Items': 10,
+                        'Qty': 10,
+                        'Price': 10,
+                        'Total': 10,
+                        'Subtotal': 12,
+                        'Tax': 12,
+                        'Grand Total': 14,
+                        'Thank You': 12
+                    }
+                },
+                colors: {
+                    text: '#000000',
+                    background: '#ffffff',
+                    header: '#333333',
+                    footer: '#666666'
+                },
+                spacing: {
+                    lineHeight: 1.2,
+                    paragraphSpacing: 5,
+                    sectionSpacing: 10,
+                    itemSpacing: 2
+                },
+                borders: {
+                    width: 0,
+                    style: 'none',
+                    color: '#000000',
+                    radius: 0
+                }
+            }
+        },
+        
+        errors: {},
+        
+        previewSettings: {
+            size: 'fit',
+            sampleData: 'simple',
+            paperBackground: true
+        },
+        
+        testSettings: {
+            printer: '',
+            copies: 1
+        },
+        
+        previewContent: '',
+        
+        // Computed properties
+        get isCurrentStepValid() {
+            switch (this.currentStep) {
+                case 1:
+                    return this.validateBasicInfoStep();
+                case 2:
+                    return this.validateLayoutStep();
+                case 3:
+                    return this.validateContentStep();
+                case 4:
+                    return this.validateStylingStep();
+                case 5:
+                    return this.validatePreviewStep();
+                default:
+                    return false;
+            }
+        },
+        
+        get isFormValid() {
+            return this.isCurrentStepValid;
+        },
+        
+        // Methods
+        init() {
+            this.loadCategories();
+            this.loadPrinters();
+            this.setupKeyboardShortcuts();
+            this.generatePreview();
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/receipts/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadPrinters() {
+            try {
+                const response = await fetch('/api/receipts/printers');
+                this.printers = await response.json();
+            } catch (error) {
+                console.error('Error loading printers:', error);
+            }
+        },
+        
+        goToStep(step) {
+            if (step < this.currentStep || this.isCurrentStepValid) {
+                this.currentStep = step;
+                if (step === 5) {
+                    this.generatePreview();
+                }
+            }
+        },
+        
+        nextStep() {
+            if (this.isCurrentStepValid) {
+                this.currentStep++;
+                if (this.currentStep === 5) {
+                    this.generatePreview();
+                }
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+            }
+        },
+        
+        // Validation methods
+        validateBasicInfoStep() {
+            return this.template.name && 
+                   this.template.type && 
+                   this.template.paperSize &&
+                   !this.errors.name &&
+                   !this.errors.type &&
+                   !this.errors.paperSize;
+        },
+        
+        validateLayoutStep() {
+            return true; // Layout is always valid as it has defaults
+        },
+        
+        validateContentStep() {
+            return true; // Content fields are optional
+        },
+        
+        validateStylingStep() {
+            return true; // Styling is always valid as it has defaults
+        },
+        
+        validatePreviewStep() {
+            return true; // Preview step is always valid
+        },
+        
+        validateField(field) {
+            // Remove error when user starts typing
+            if (this.errors[field]) {
+                this.errors[field] = '';
+            }
+            
+            // Field-specific validation
+            switch (field) {
+                case 'name':
+                    if (!this.template.name) {
+                        this.errors.name = 'Template name is required';
+                    } else if (this.template.name.length < 3) {
+                        this.errors.name = 'Template name must be at least 3 characters';
+                    }
+                    break;
+                case 'type':
+                    if (!this.template.type) {
+                        this.errors.type = 'Template type is required';
+                    }
+                    break;
+                case 'paperSize':
+                    if (!this.template.paperSize) {
+                        this.errors.paperSize = 'Paper size is required';
+                    }
+                    break;
+            }
+        },
+        
+        // Layout methods
+        selectSection(section) {
+            this.selectedSection = section;
+        },
+        
+        getCanvasStyle() {
+            const { orientation, marginTop, marginRight, marginBottom, marginLeft } = this.template.layout;
+            return {
+                width: orientation === 'landscape' ? '600px' : '400px',
+                height: orientation === 'landscape' ? '400px' : '600px',
+                padding: `${marginTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px`,
+                backgroundColor: '#f5f5f5',
+                border: '1px solid #ddd'
+            };
+        },
+        
+        getSectionStyle(section) {
+            const sectionData = this.template.layout[section];
+            return {
+                height: `${sectionData.height}px`,
+                textAlign: sectionData.alignment,
+                backgroundColor: sectionData.backgroundColor,
+                border: sectionData.border.enabled ? 
+                    `${sectionData.border.width}px ${sectionData.border.style} #000` : 
+                    'none'
+            };
+        },
+        
+        updateLayout() {
+            // Layout update logic
+            this.$nextTick(() => {
+                this.generatePreview();
+            });
+        },
+        
+        updateSectionHeight(section) {
+            this.$nextTick(() => {
+                this.generatePreview();
+            });
+        },
+        
+        resetLayout() {
+            this.template.layout = {
+                type: 'standard',
+                orientation: 'portrait',
+                marginTop: 10,
+                marginRight: 10,
+                marginBottom: 10,
+                marginLeft: 10,
+                header: {
+                    height: 100,
+                    alignment: 'center',
+                    backgroundColor: '#ffffff',
+                    border: {
+                        enabled: false,
+                        width: 1,
+                        style: 'solid'
+                    }
+                },
+                content: {
+                    height: 300,
+                    alignment: 'left',
+                    backgroundColor: '#ffffff',
+                    border: {
+                        enabled: false,
+                        width: 1,
+                        style: 'solid'
+                    }
+                },
+                footer: {
+                    height: 100,
+                    alignment: 'center',
+                    backgroundColor: '#ffffff',
+                    border: {
+                        enabled: false,
+                        width: 1,
+                        style: 'solid'
+                    }
+                }
+            };
+            this.generatePreview();
+        },
+        
+        // Content fields methods
+        getFieldsByCategory(category) {
+            return this.template.fields[category] || [];
+        },
+        
+        getFieldIcon(type) {
+            const icons = {
+                'text': 'bi bi-fonts',
+                'number': 'bi bi-123',
+                'currency': 'bi bi-currency-dollar',
+                'datetime': 'bi bi-calendar',
+                'table': 'bi bi-table'
+            };
+            return icons[type] || 'bi bi-fonts';
+        },
+        
+        addField() {
+            const newField = {
+                id: `custom_${Date.now()}`,
+                name: 'New Field',
+                type: 'text',
+                enabled: true,
+                label: 'Field Label',
+                fontSize: 12,
+                fontWeight: 'normal',
+                alignment: 'left',
+                format: '',
+                condition: 'always'
+            };
+            
+            this.template.fields[this.activeFieldCategory].push(newField);
+        },
+        
+        editField(field) {
+            // Open field editor modal or navigate to edit page
+            console.log('Edit field:', field);
+        },
+        
+        removeField(fieldId) {
+            const fields = this.template.fields[this.activeFieldCategory];
+            const index = fields.findIndex(f => f.id === fieldId);
+            if (index > -1) {
+                fields.splice(index, 1);
+            }
+        },
+        
+        // Styling methods
+        resetStyles() {
+            this.template.styles = {
+                fonts: {
+                    family: 'Arial',
+                    defaultSize: 12,
+                    sizes: {
+                        'Business Name': 16,
+                        'Address': 12,
+                        'Receipt #': 12,
+                        'Date': 12,
+                        'Items': 10,
+                        'Qty': 10,
+                        'Price': 10,
+                        'Total': 10,
+                        'Subtotal': 12,
+                        'Tax': 12,
+                        'Grand Total': 14,
+                        'Thank You': 12
+                    }
+                },
+                colors: {
+                    text: '#000000',
+                    background: '#ffffff',
+                    header: '#333333',
+                    footer: '#666666'
+                },
+                spacing: {
+                    lineHeight: 1.2,
+                    paragraphSpacing: 5,
+                    sectionSpacing: 10,
+                    itemSpacing: 2
+                },
+                borders: {
+                    width: 0,
+                    style: 'none',
+                    color: '#000000',
+                    radius: 0
+                }
+            };
+            this.generatePreview();
+        },
+        
+        // Preview methods
+        generatePreview() {
+            // Generate preview content based on template configuration
+            this.previewContent = this.generatePreviewHTML();
+        },
+        
+        generatePreviewHTML() {
+            // This would generate actual HTML preview based on the template configuration
+            // For now, return a placeholder
+            return `
+                <div style="font-family: ${this.template.styles.fonts.family}; color: ${this.template.styles.colors.text};">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h3 style="font-size: 16px; font-weight: bold;">Your Business Name</h3>
+                        <p style="font-size: 12px;">123 Main Street, City, State 12345</p>
+                        <p style="font-size: 12px;">Receipt #001</p>
+                        <p style="font-size: 12px;">${new Date().toLocaleDateString()}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <table style="width: 100%; font-size: 10px;">
+                            <tr>
+                                <td style="text-align: left;">Item 1</td>
+                                <td style="text-align: center;">1</td>
+                                <td style="text-align: right;">$10.00</td>
+                                <td style="text-align: right;">$10.00</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: left;">Item 2</td>
+                                <td style="text-align: center;">2</td>
+                                <td style="text-align: right;">$5.00</td>
+                                <td style="text-align: right;">$10.00</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <p style="font-size: 12px;">Subtotal: $20.00</p>
+                        <p style="font-size: 12px;">Tax: $1.60</p>
+                        <p style="font-size: 14px; font-weight: bold;">Total: $21.60</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <p style="font-size: 12px;">Thank you for your business!</p>
+                    </div>
+                </div>
+            `;
+        },
+        
+        getPreviewFrameStyle() {
+            const size = this.previewSettings.size;
+            let scale = 1;
+            
+            if (size === 'fit') {
+                scale = 0.8;
+            } else if (size !== 'actual') {
+                scale = parseInt(size) / 100;
+            }
+            
+            return {
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                backgroundColor: this.previewSettings.paperBackground ? '#f8f8f8' : 'transparent',
+                border: this.previewSettings.paperBackground ? '1px solid #ddd' : 'none',
+                padding: '20px',
+                maxWidth: '100%',
+                overflow: 'auto'
+            };
+        },
+        
+        getPreviewContentStyle() {
+            return {
+                fontFamily: this.template.styles.fonts.family,
+                fontSize: `${this.template.styles.fonts.defaultSize}px`,
+                color: this.template.styles.colors.text,
+                backgroundColor: this.template.styles.colors.background,
+                lineHeight: this.template.styles.spacing.lineHeight,
+                maxWidth: this.template.paperSize.includes('mm') ? '300px' : '400px'
+            };
+        },
+        
+        refreshPreview() {
+            this.generatePreview();
+        },
+        
+        updatePreview() {
+            this.$nextTick(() => {
+                this.generatePreview();
+            });
+        },
+        
+        // Test methods
+        testPrint() {
+            if (!this.testSettings.printer) {
+                this.showError('Please select a printer');
+                return;
+            }
+            
+            // Implement test print logic
+            this.showSuccess('Test print sent to printer');
+        },
+        
+        // Action methods
+        async saveTemplate() {
+            if (!this.isFormValid) {
+                this.showError('Please complete all required fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/receipts/templates', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.template)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    this.showSuccess('Template saved successfully');
+                    window.location.href = `/receipts/templates/view/${result.id}`;
+                } else {
+                    const error = await response.json();
+                    this.showError(error.message || 'Failed to save template');
+                }
+            } catch (error) {
+                console.error('Error saving template:', error);
+                this.showError('Failed to save template');
+            }
+        },
+        
+        saveDraft() {
+            localStorage.setItem('receiptTemplateDraft', JSON.stringify(this.template));
+            this.showSuccess('Template draft saved');
+        },
+        
+        cancelTemplate() {
+            if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
+                window.location.href = '/receipts/templates';
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save template
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveTemplate();
+                }
+                
+                // Ctrl/Cmd + D: Save draft
+                if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                    e.preventDefault();
+                    this.saveDraft();
+                }
+                
+                // Ctrl/Cmd + P: Test print
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    this.testPrint();
+                }
+                
+                // Escape: Cancel
+                if (e.key === 'Escape') {
+                    this.cancelTemplate();
+                }
+            });
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

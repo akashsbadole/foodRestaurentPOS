@@ -1,0 +1,1086 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/barcode_scanning_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Barcode Scanning Reports -->
+<div class="barcode-scanning-reports-container" x-data="barcodeScanningReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Barcode Analytics
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive barcode usage analytics and insights</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="scheduleReport()">
+                        <i class="bi bi-calendar-check"></i> Schedule
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Selector -->
+    <div class="date-range-selector">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-calendar-range me-2"></i>
+                    Report Period
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Predefined Range</label>
+                            <select class="form-select" x-model="dateRange.preset" @change="applyPresetRange()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="week">This Week</option>
+                                <option value="lastWeek">Last Week</option>
+                                <option value="month">This Month</option>
+                                <option value="lastMonth">Last Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="year">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="dateRange.start"
+                                   @change="applyCustomRange()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="dateRange.end"
+                                   @change="applyCustomRange()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Comparison</label>
+                            <select class="form-select" x-model="dateRange.comparison" @change="refreshData()">
+                                <option value="none">No Comparison</option>
+                                <option value="previousPeriod">Previous Period</option>
+                                <option value="lastYear">Last Year</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="key-metrics">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-primary">
+                            <i class="bi bi-upc-scan"></i>
+                        </div>
+                        <div class="metric-title">Total Scans</div>
+                    </div>
+                    <div class="metric-value" x-text="metrics.totalScans.toLocaleString()"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.scansChange)">
+                        <i :class="getChangeIcon(metrics.scansChange)"></i>
+                        <span x-text="`${Math.abs(metrics.scansChange)}% from ${metrics.scansComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-success">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="metric-title">Success Rate</div>
+                    </div>
+                    <div class="metric-value" x-text="`${metrics.successRate}%`"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.successRateChange)">
+                        <i :class="getChangeIcon(metrics.successRateChange)"></i>
+                        <span x-text="`${Math.abs(metrics.successRateChange)}% from ${metrics.successRateComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-info">
+                            <i class="bi bi-tags"></i>
+                        </div>
+                        <div class="metric-title">Unique Barcodes</div>
+                    </div>
+                    <div class="metric-value" x-text="metrics.uniqueBarcodes.toLocaleString()"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.barcodesChange)">
+                        <i :class="getChangeIcon(metrics.barcodesChange)"></i>
+                        <span x-text="`${Math.abs(metrics.barcodesChange)}% from ${metrics.barcodesComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-warning">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div class="metric-title">Avg. Scan Time</div>
+                    </div>
+                    <div class="metric-value" x-text="`${metrics.avgScanTime}s`"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.scanTimeChange, true)">
+                        <i :class="getChangeIcon(metrics.scanTimeChange, true)"></i>
+                        <span x-text="`${Math.abs(metrics.scanTimeChange)}% from ${metrics.scanTimeComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="row">
+            <!-- Scan Trends Chart -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Scan Trends
+                        </h5>
+                        <div class="card-actions">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartPeriod === 'hourly'}"
+                                        @click="chartPeriod = 'hourly'; updateScanTrendsChart()">
+                                    Hourly
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartPeriod === 'daily'}"
+                                        @click="chartPeriod = 'daily'; updateScanTrendsChart()">
+                                    Daily
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartPeriod === 'weekly'}"
+                                        @click="chartPeriod = 'weekly'; updateScanTrendsChart()">
+                                    Weekly
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="scanTrendsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Barcode Types Distribution -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-pie-chart me-2"></i>
+                            Barcode Types
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="barcodeTypesChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <!-- Scanner Performance -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Scanner Performance
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="scannerPerformanceChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Analysis -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="errorAnalysisChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Analytics -->
+    <div class="detailed-analytics">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-table me-2"></i>
+                    Detailed Analytics
+                </h5>
+                <div class="card-actions">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView === 'products'}"
+                                @click="analyticsView = 'products'; loadAnalyticsData()">
+                            Products
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView === 'scanners'}"
+                                @click="analyticsView = 'scanners'; loadAnalyticsData()">
+                            Scanners
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView === 'users'}"
+                                @click="analyticsView = 'users'; loadAnalyticsData()">
+                            Users
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView == 'errors'}"
+                                @click="analyticsView = 'errors'; loadAnalyticsData()">
+                            Errors
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Products Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'products'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Total Scans</th>
+                                    <th>Success Rate</th>
+                                    <th>Last Scanned</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="product in analyticsData.products" :key="product.id">
+                                    <tr>
+                                        <td>
+                                            <div class="product-info">
+                                                <div class="product-name" x-text="product.name"></div>
+                                                <small class="text-muted" x-text="product.category"></small>
+                                            </div>
+                                        </td>
+                                        <td x-text="product.sku"></td>
+                                        <td>
+                                            <span x-text="product.totalScans.toLocaleString()"></span>
+                                            <div class="scan-trend" :class="product.scanTrend > 0 ? 'text-success' : 'text-danger'">
+                                                <i :class="product.scanTrend > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                                <span x-text="`${Math.abs(product.scanTrend)}%`"></span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" 
+                                                     :class="getSuccessRateClass(product.successRate)"
+                                                     :style="`width: ${product.successRate}%`"
+                                                     x-text="`${product.successRate}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="formatDate(product.lastScanned)"></td>
+                                        <td>
+                                            <canvas :id="`sparkline-${product.id}`" 
+                                                    width="100" 
+                                                    height="30"
+                                                    x-init="drawSparkline($el, product.sparklineData)">
+                                            </canvas>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Scanners Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'scanners'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Scanner</th>
+                                    <th>Type</th>
+                                    <th>Total Scans</th>
+                                    <th>Success Rate</th>
+                                    <th>Avg. Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="scanner in analyticsData.scanners" :key="scanner.id">
+                                    <tr>
+                                        <td>
+                                            <div class="scanner-info">
+                                                <div class="scanner-name" x-text="scanner.name"></div>
+                                                <small class="text-muted" x-text="scanner.location"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info" x-text="scanner.type"></span>
+                                        </td>
+                                        <td x-text="scanner.totalScans.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-success" 
+                                                     :style="`width: ${scanner.successRate}%`"
+                                                     x-text="`${scanner.successRate}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="`${scanner.avgTime}s`"></td>
+                                        <td>
+                                            <span class="badge" 
+                                                  :class="scanner.status === 'active' ? 'bg-success' : 'bg-danger'"
+                                                  x-text="scanner.status">
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Users Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'users'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Total Scans</th>
+                                    <th>Success Rate</th>
+                                    <th>Last Activity</th>
+                                    <th>Efficiency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="user in analyticsData.users" :key="user.id">
+                                    <tr>
+                                        <td>
+                                            <div class="user-info">
+                                                <div class="user-avatar">
+                                                    <img :src="user.avatar || '/static/images/user-placeholder.png'" 
+                                                         :alt="user.name"
+                                                         class="rounded-circle">
+                                                </div>
+                                                <div class="user-details">
+                                                    <div class="user-name" x-text="user.name"></div>
+                                                    <small class="text-muted" x-text="user.email"></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary" x-text="user.role"></span>
+                                        </td>
+                                        <td x-text="user.totalScans.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-success" 
+                                                     :style="`width: ${user.successRate}%`"
+                                                     x-text="`${user.successRate}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="formatDate(user.lastActivity)"></td>
+                                        <td>
+                                            <div class="efficiency-score">
+                                                <span x-text="user.efficiency"></span>
+                                                <small class="text-muted">/100</small>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Errors Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'errors'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Error Type</th>
+                                    <th>Count</th>
+                                    <th>Percentage</th>
+                                    <th>First Occurred</th>
+                                    <th>Last Occurred</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="error in analyticsData.errors" :key="error.type">
+                                    <tr>
+                                        <td>
+                                            <div class="error-info">
+                                                <div class="error-type" x-text="error.type"></div>
+                                                <small class="text-muted" x-text="error.description"></small>
+                                            </div>
+                                        </td>
+                                        <td x-text="error.count.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-danger" 
+                                                     :style="`width: ${error.percentage}%`"
+                                                     x-text="`${error.percentage}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="formatDate(error.firstOccurred)"></td>
+                                        <td x-text="formatDate(error.lastOccurred)"></td>
+                                        <td>
+                                            <canvas :id="`error-sparkline-${error.type}`" 
+                                                    width="100" 
+                                                    height="30"
+                                                    x-init="drawSparkline($el, error.sparklineData, 'error')">
+                                            </canvas>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights and Recommendations -->
+    <div class="insights-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Insights & Recommendations
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <template x-for="insight in insights" :key="insight.id">
+                        <div class="col-md-6 mb-3">
+                            <div class="insight-card" :class="`insight-${insight.type}`">
+                                <div class="insight-header">
+                                    <div class="insight-icon">
+                                        <i :class="insight.icon"></i>
+                                    </div>
+                                    <div class="insight-title" x-text="insight.title"></div>
+                                </div>
+                                <div class="insight-content">
+                                    <p x-text="insight.description"></p>
+                                    <div class="insight-action" x-show="insight.action">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-primary"
+                                                @click="handleInsightAction(insight.action)">
+                                            <span x-text="insight.actionText"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/barcode_scanning_reports.js') }}"></script>
+<script>
+// Barcode Scanning Reports App
+function barcodeScanningReportsApp() {
+    return {
+        // Data
+        dateRange: {
+            preset: 'week',
+            start: '',
+            end: '',
+            comparison: 'previousPeriod'
+        },
+        
+        chartPeriod: 'hourly',
+        analyticsView: 'products',
+        
+        metrics: {
+            totalScans: 0,
+            scansChange: 0,
+            scansComparison: 'previous period',
+            successRate: 0,
+            successRateChange: 0,
+            successRateComparison: 'previous period',
+            uniqueBarcodes: 0,
+            barcodesChange: 0,
+            barcodesComparison: 'previous period',
+            avgScanTime: 0,
+            scanTimeChange: 0,
+            scanTimeComparison: 'previous period'
+        },
+        
+        analyticsData: {
+            products: [],
+            scanners: [],
+            users: [],
+            errors: []
+        },
+        
+        insights: [],
+        
+        charts: {
+            scanTrends: null,
+            barcodeTypes: null,
+            scannerPerformance: null,
+            errorAnalysis: null
+        },
+        
+        // Methods
+        init() {
+            this.setDefaultDateRange();
+            this.loadMetrics();
+            this.loadAnalyticsData();
+            this.loadInsights();
+            this.initCharts();
+            this.setupKeyboardShortcuts();
+        },
+        
+        setDefaultDateRange() {
+            const today = new Date();
+            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            this.dateRange.start = lastWeek.toISOString().split('T')[0];
+            this.dateRange.end = today.toISOString().split('T')[0];
+        },
+        
+        applyPresetRange() {
+            const today = new Date();
+            let start = new Date();
+            let end = new Date();
+            
+            switch (this.dateRange.preset) {
+                case 'today':
+                    start = today;
+                    end = today;
+                    break;
+                case 'yesterday':
+                    start = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                    end = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                    break;
+                case 'week':
+                    start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    end = today;
+                    break;
+                case 'lastWeek':
+                    start = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+                    end = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    break;
+                case 'month':
+                    start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    end = today;
+                    break;
+                case 'lastMonth':
+                    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    end = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'quarter':
+                    const quarterStart = Math.floor(today.getMonth() / 3) * 3;
+                    start = new Date(today.getFullYear(), quarterStart, 1);
+                    end = today;
+                    break;
+                case 'year':
+                    start = new Date(today.getFullYear(), 0, 1);
+                    end = today;
+                    break;
+            }
+            
+            this.dateRange.start = start.toISOString().split('T')[0];
+            this.dateRange.end = end.toISOString().split('T')[0];
+            
+            this.refreshData();
+        },
+        
+        applyCustomRange() {
+            this.dateRange.preset = 'custom';
+            this.refreshData();
+        },
+        
+        async loadMetrics() {
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end,
+                    comparison: this.dateRange.comparison
+                });
+                
+                const response = await fetch(`/api/barcode/reports/metrics?${params}`);
+                this.metrics = await response.json();
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        },
+        
+        async loadAnalyticsData() {
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end,
+                    view: this.analyticsView
+                });
+                
+                const response = await fetch(`/api/barcode/reports/analytics?${params}`);
+                const data = await response.json();
+                
+                this.analyticsData[this.analyticsView] = data;
+                
+                // Update sparklines after data is loaded
+                this.$nextTick(() => {
+                    this.updateSparklines();
+                });
+            } catch (error) {
+                console.error('Error loading analytics data:', error);
+            }
+        },
+        
+        async loadInsights() {
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/barcode/reports/insights?${params}`);
+                this.insights = await response.json();
+            } catch (error) {
+                console.error('Error loading insights:', error);
+            }
+        },
+        
+        initCharts() {
+            this.$nextTick(() => {
+                this.initScanTrendsChart();
+                this.initBarcodeTypesChart();
+                this.initScannerPerformanceChart();
+                this.initErrorAnalysisChart();
+            });
+        },
+        
+        initScanTrendsChart() {
+            const ctx = document.getElementById('scanTrendsChart');
+            if (!ctx) return;
+            
+            this.charts.scanTrends = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Scans',
+                        data: [],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.updateScanTrendsChart();
+        },
+        
+        initBarcodeTypesChart() {
+            const ctx = document.getElementById('barcodeTypesChart');
+            if (!ctx) return;
+            
+            this.charts.barcodeTypes = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#007bff',
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#6f42c1',
+                            '#fd7e14'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            this.updateBarcodeTypesChart();
+        },
+        
+        initScannerPerformanceChart() {
+            const ctx = document.getElementById('scannerPerformanceChart');
+            if (!ctx) return;
+            
+            this.charts.scannerPerformance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Success Rate (%)',
+                        data: [],
+                        backgroundColor: '#28a745'
+                    }, {
+                        label: 'Avg. Time (s)',
+                        data: [],
+                        backgroundColor: '#ffc107'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.updateScannerPerformanceChart();
+        },
+        
+        initErrorAnalysisChart() {
+            const ctx = document.getElementById('errorAnalysisChart');
+            if (!ctx) return;
+            
+            this.charts.errorAnalysis = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Error Count',
+                        data: [],
+                        backgroundColor: '#dc3545'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.updateErrorAnalysisChart();
+        },
+        
+        async updateScanTrendsChart() {
+            if (!this.charts.scanTrends) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end,
+                    period: this.chartPeriod
+                });
+                
+                const response = await fetch(`/api/barcode/reports/scan-trends?${params}`);
+                const data = await response.json();
+                
+                this.charts.scanTrends.data.labels = data.labels;
+                this.charts.scanTrends.data.datasets[0].data = data.values;
+                this.charts.scanTrends.update();
+            } catch (error) {
+                console.error('Error updating scan trends chart:', error);
+            }
+        },
+        
+        async updateBarcodeTypesChart() {
+            if (!this.charts.barcodeTypes) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/barcode/reports/barcode-types?${params}`);
+                const data = await response.json();
+                
+                this.charts.barcodeTypes.data.labels = data.labels;
+                this.charts.barcodeTypes.data.datasets[0].data = data.values;
+                this.charts.barcodeTypes.update();
+            } catch (error) {
+                console.error('Error updating barcode types chart:', error);
+            }
+        },
+        
+        async updateScannerPerformanceChart() {
+            if (!this.charts.scannerPerformance) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/barcode/reports/scanner-performance?${params}`);
+                const data = await response.json();
+                
+                this.charts.scannerPerformance.data.labels = data.labels;
+                this.charts.scannerPerformance.data.datasets[0].data = data.successRates;
+                this.charts.scannerPerformance.data.datasets[1].data = data.avgTimes;
+                this.charts.scannerPerformance.update();
+            } catch (error) {
+                console.error('Error updating scanner performance chart:', error);
+            }
+        },
+        
+        async updateErrorAnalysisChart() {
+            if (!this.charts.errorAnalysis) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/barcode/reports/error-analysis?${params}`);
+                const data = await response.json();
+                
+                this.charts.errorAnalysis.data.labels = data.labels;
+                this.charts.errorAnalysis.data.datasets[0].data = data.values;
+                this.charts.errorAnalysis.update();
+            } catch (error) {
+                console.error('Error updating error analysis chart:', error);
+            }
+        },
+        
+        updateSparklines() {
+            // Update sparklines for products
+            this.analyticsData.products.forEach(product => {
+                const canvas = document.getElementById(`sparkline-${product.id}`);
+                if (canvas) {
+                    this.drawSparkline(canvas, product.sparklineData);
+                }
+            });
+            
+            // Update sparklines for errors
+            this.analyticsData.errors.forEach(error => {
+                const canvas = document.getElementById(`error-sparkline-${error.type}`);
+                if (canvas) {
+                    this.drawSparkline(canvas, error.sparklineData, 'error');
+                }
+            });
+        },
+        
+        drawSparkline(canvas, data, type = 'default') {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (!data || data.length === 0) return;
+            
+            const max = Math.max(...data);
+            const min = Math.min(...data);
+            const range = max - min || 1;
+            
+            ctx.strokeStyle = type === 'error' ? '#dc3545' : '#28a745';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            data.forEach((value, index) => {
+                const x = (index / (data.length - 1)) * width;
+                const y = height - ((value - min) / range) * height;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+        },
+        
+        async refreshData() {
+            await Promise.all([
+                this.loadMetrics(),
+                this.loadAnalyticsData(),
+                this.loadInsights(),
+                this.updateScanTrendsChart(),
+                this.updateBarcodeTypesChart(),
+                this.updateScannerPerformanceChart(),
+                this.updateErrorAnalysisChart()
+            ]);
+        },
+        
+        // Action methods
+        exportReport() {
+            const params = new URLSearchParams({
+                start: this.dateRange.start,
+                end: this.dateRange.end,
+                comparison: this.dateRange.comparison,
+                view: this.analyticsView
+            });
+            
+            window.open(`/api/barcode/reports/export?${params}`);
+        },
+        
+        scheduleReport() {
+            window.location.href = '/barcode/reports/schedule';
+        },
+        
+        handleInsightAction(action) {
+            switch (action) {
+                case 'optimize_scanner':
+                    window.location.href = '/barcode/settings';
+                    break;
+                case 'train_users':
+                    window.location.href = '/training/barcode-scanning';
+                    break;
+                case 'update_barcodes':
+                    window.location.href = '/barcode/bulk-update';
+                    break;
+                case 'maintenance':
+                    window.location.href = '/barcode/maintenance';
+                    break;
+            }
+        },
+        
+        // Utility methods
+        getChangeClass(change, inverse = false) {
+            if (change === 0) return 'text-muted';
+            if (inverse) {
+                return change > 0 ? 'text-danger' : 'text-success';
+            }
+            return change > 0 ? 'text-success' : 'text-danger';
+        },
+        
+        getChangeIcon(change, inverse = false) {
+            if (change === 0) return 'bi bi-dash';
+            if (inverse) {
+                return change > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+            }
+            return change > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+        },
+        
+        getSuccessRateClass(rate) {
+            if (rate >= 95) return 'bg-success';
+            if (rate >= 80) return 'bg-warning';
+            return 'bg-danger';
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + R: Refresh data
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.refreshData();
+                }
+                
+                // Ctrl/Cmd + E: Export report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportReport();
+                }
+                
+                // Ctrl/Cmd + S: Schedule report
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.scheduleReport();
+                }
+                
+                // 1-4: Switch analytics view
+                if (e.key >= '1' && e.key <= '4') {
+                    const viewNumber = parseInt(e.key);
+                    const views = ['products', 'scanners', 'users', 'errors'];
+                    if (viewNumber <= views.length) {
+                        this.analyticsView = views[viewNumber - 1];
+                        this.loadAnalyticsData();
+                    }
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

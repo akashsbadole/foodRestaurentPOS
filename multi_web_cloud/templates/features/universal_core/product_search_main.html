@@ -1,0 +1,1096 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_search_main.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Search Main Interface -->
+<div class="product-search-container" x-data="productSearchApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="search-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="search-title">
+                    <i class="bi bi-search me-2"></i>
+                    Advanced Product Search
+                </h2>
+                <p class="search-subtitle text-muted">Find products quickly with powerful search capabilities</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="search-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="saveSearch()">
+                        <i class="bi bi-save"></i> Save Search
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportResults()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="advancedSearch()">
+                        <i class="bi bi-funnel"></i> Advanced
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Interface -->
+    <div class="search-interface">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-search me-2"></i>
+                    Product Search
+                </h5>
+                <div class="card-actions">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': searchMode === 'simple'}"
+                                @click="searchMode = 'simple'">
+                            Simple
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': searchMode === 'advanced'}"
+                                @click="searchMode = 'advanced'">
+                            Advanced
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': searchMode === 'visual'}"
+                                @click="searchMode = 'visual'">
+                            Visual
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Simple Search -->
+                <div class="simple-search" x-show="searchMode === 'simple'">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <div class="input-group input-group-lg">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           placeholder="Search by name, SKU, barcode, or description..."
+                                           x-model="searchQuery"
+                                           @keyup.enter="performSearch()">
+                                    <button class="btn btn-primary" type="button" @click="performSearch()">
+                                        <i class="bi bi-search"></i> Search
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <select class="form-select form-select-lg" x-model="searchCategory" @change="performSearch()">
+                                    <option value="">All Categories</option>
+                                    <template x-for="category in categories" :key="category.id">
+                                        <option :value="category.id" x-text="category.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="search-suggestions" x-show="searchSuggestions.length > 0">
+                                <div class="suggestion-list">
+                                    <template x-for="suggestion in searchSuggestions" :key="suggestion.id">
+                                        <div class="suggestion-item" @click="selectSuggestion(suggestion)">
+                                            <div class="suggestion-icon">
+                                                <i :class="suggestion.type === 'product' ? 'bi bi-box' : 'bi bi-tag'"></i>
+                                            </div>
+                                            <div class="suggestion-content">
+                                                <div class="suggestion-title" x-text="suggestion.title"></div>
+                                                <div class="suggestion-subtitle" x-text="suggestion.subtitle"></div>
+                                            </div>
+                                            <div class="suggestion-meta">
+                                                <span class="badge bg-light text-dark" x-text="suggestion.type"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Advanced Search -->
+                <div class="advanced-search" x-show="searchMode === 'advanced'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Product Name</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="advancedSearch.name"
+                                       placeholder="Enter product name...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">SKU</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="advancedSearch.sku"
+                                       placeholder="Enter SKU...">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" x-model="advancedSearch.category">
+                                    <option value="">All Categories</option>
+                                    <template x-for="category in categories" :key="category.id">
+                                        <option :value="category.id" x-text="category.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Brand</label>
+                                <select class="form-select" x-model="advancedSearch.brand">
+                                    <option value="">All Brands</option>
+                                    <template x-for="brand in brands" :key="brand.id">
+                                        <option :value="brand.id" x-text="brand.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Supplier</label>
+                                <select class="form-select" x-model="advancedSearch.supplier">
+                                    <option value="">All Suppliers</option>
+                                    <template x-for="supplier in suppliers" :key="supplier.id">
+                                        <option :value="supplier.id" x-text="supplier.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Min Price</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="advancedSearch.minPrice"
+                                       placeholder="0.00"
+                                       step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Max Price</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="advancedSearch.maxPrice"
+                                       placeholder="999.99"
+                                       step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Min Stock</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="advancedSearch.minStock"
+                                       placeholder="0">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Max Stock</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="advancedSearch.maxStock"
+                                       placeholder="9999">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" 
+                                          x-model="advancedSearch.description"
+                                          rows="3"
+                                          placeholder="Enter product description keywords..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Additional Filters</label>
+                                <div class="filter-options">
+                                    <div class="form-check form-check-inline">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="inStock" 
+                                               x-model="advancedSearch.inStock">
+                                        <label class="form-check-label" for="inStock">
+                                            In Stock Only
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="onSale" 
+                                               x-model="advancedSearch.onSale">
+                                        <label class="form-check-label" for="onSale">
+                                            On Sale
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="newArrivals" 
+                                               x-model="advancedSearch.newArrivals">
+                                        <label class="form-check-label" for="newArrivals">
+                                            New Arrivals
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="featured" 
+                                               x-model="advancedSearch.featured">
+                                        <label class="form-check-label" for="featured">
+                                            Featured
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Visual Search -->
+                <div class="visual-search" x-show="searchMode === 'visual'">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Upload Image</label>
+                                <div class="image-upload-area" 
+                                     @dragover.prevent="handleDragOver"
+                                     @dragleave.prevent="handleDragLeave"
+                                     @drop.prevent="handleDrop"
+                                     :class="{'drag-over': isDragOver}">
+                                    <input type="file" 
+                                           class="file-input" 
+                                           x-ref="fileInput"
+                                           accept="image/*"
+                                           @change="handleFileSelect">
+                                    <div class="upload-content" @click="$refs.fileInput.click()">
+                                        <div class="upload-icon">
+                                            <i class="bi bi-cloud-upload display-1 text-muted"></i>
+                                        </div>
+                                        <h5>Drop image here or click to browse</h5>
+                                        <p class="text-muted">Supports JPG, PNG, GIF up to 10MB</p>
+                                    </div>
+                                    <div class="upload-preview" x-show="uploadedImage">
+                                        <img :src="uploadedImage" alt="Uploaded image" class="img-fluid">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-danger remove-image"
+                                                @click="removeUploadedImage()">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Search Options</label>
+                                <div class="visual-search-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="exactMatch" 
+                                               x-model="visualSearch.exactMatch">
+                                        <label class="form-check-label" for="exactMatch">
+                                            Exact Match
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="similarColors" 
+                                               x-model="visualSearch.similarColors">
+                                        <label class="form-check-label" for="similarColors">
+                                            Similar Colors
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="similarShapes" 
+                                               x-model="visualSearch.similarShapes">
+                                        <label class="form-check-label" for="similarShapes">
+                                            Similar Shapes
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="similarPatterns" 
+                                               x-model="visualSearch.similarPatterns">
+                                        <label class="form-check-label" for="similarPatterns">
+                                            Similar Patterns
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group mt-3">
+                                <button type="button" 
+                                        class="btn btn-primary w-100"
+                                        @click="performVisualSearch()"
+                                        :disabled="!uploadedImage">
+                                    <i class="bi bi-camera"></i> Search by Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="search-results" x-show="searchPerformed">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="card-title">
+                            <i class="bi bi-list-ul me-2"></i>
+                            Search Results
+                        </h5>
+                        <p class="text-muted mb-0" x-text="`${searchResults.length} products found`"></p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="result-controls">
+                            <div class="btn-group btn-group-sm me-2" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'grid'}"
+                                        @click="viewMode = 'grid'">
+                                    <i class="bi bi-grid"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'list'}"
+                                        @click="viewMode = 'list'">
+                                    <i class="bi bi-list"></i>
+                                </button>
+                            </div>
+                            
+                            <select class="form-select form-select-sm" x-model="sortBy" @change="sortResults()">
+                                <option value="relevance">Relevance</option>
+                                <option value="name">Name</option>
+                                <option value="price_low">Price: Low to High</option>
+                                <option value="price_high">Price: High to Low</option>
+                                <option value="stock">Stock Level</option>
+                                <option value="created">Date Added</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Grid View -->
+                <div class="grid-view" x-show="viewMode === 'grid'">
+                    <div class="row">
+                        <template x-for="product in searchResults" :key="product.id">
+                            <div class="col-md-3 mb-3">
+                                <div class="product-card">
+                                    <div class="product-image">
+                                        <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                             :alt="product.name"
+                                             class="img-fluid">
+                                        <div class="product-badges">
+                                            <span class="badge bg-danger" x-show="product.stock === 0">Out of Stock</span>
+                                            <span class="badge bg-warning" x-show="product.stock < 10">Low Stock</span>
+                                            <span class="badge bg-success" x-show="product.onSale">On Sale</span>
+                                        </div>
+                                    </div>
+                                    <div class="product-info">
+                                        <h6 class="product-name" x-text="product.name"></h6>
+                                        <p class="product-sku">SKU: <span x-text="product.sku"></span></p>
+                                        <p class="product-price">
+                                            <span x-text="formatCurrency(product.price)"></span>
+                                            <small class="text-muted" x-show="product.originalPrice" x-text="formatCurrency(product.originalPrice)"></small>
+                                        </p>
+                                        <p class="product-stock">
+                                            Stock: <span x-text="product.stock"></span>
+                                        </p>
+                                    </div>
+                                    <div class="product-actions">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-primary"
+                                                @click="viewProduct(product.id)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-success"
+                                                @click="addToCart(product.id)">
+                                            <i class="bi bi-cart-plus"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-secondary"
+                                                @click="addToWishlist(product.id)">
+                                            <i class="bi bi-heart"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- List View -->
+                <div class="list-view" x-show="viewMode === 'list'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Image</th>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="product in searchResults" :key="product.id">
+                                    <tr>
+                                        <td>
+                                            <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                                 :alt="product.name"
+                                                 class="product-thumbnail">
+                                        </td>
+                                        <td>
+                                            <div class="product-details">
+                                                <div class="product-name" x-text="product.name"></div>
+                                                <small class="text-muted" x-text="product.description"></small>
+                                            </div>
+                                        </td>
+                                        <td x-text="product.sku"></td>
+                                        <td x-text="product.category"></td>
+                                        <td>
+                                            <div class="price-info">
+                                                <span x-text="formatCurrency(product.price)"></span>
+                                                <small class="text-muted" x-show="product.originalPrice" x-text="formatCurrency(product.originalPrice)"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span :class="{'text-danger': product.stock === 0, 'text-warning': product.stock < 10}" x-text="product.stock"></span>
+                                        </td>
+                                        <td>
+                                            <span class="badge" 
+                                                  :class="getStockStatusClass(product.stock)"
+                                                  x-text="getStockStatusText(product.stock)">
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        @click="viewProduct(product.id)"
+                                                        title="View">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-success"
+                                                        @click="addToCart(product.id)"
+                                                        title="Add to Cart">
+                                                    <i class="bi bi-cart-plus"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        @click="addToWishlist(product.id)"
+                                                        title="Add to Wishlist">
+                                                    <i class="bi bi-heart"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-state" x-show="searchResults.length === 0">
+                    <div class="text-center py-5">
+                        <i class="bi bi-search display-1 text-muted"></i>
+                        <h5>No Products Found</h5>
+                        <p class="text-muted">Try adjusting your search criteria</p>
+                        <button type="button" class="btn btn-primary" @click="clearSearch()">
+                            <i class="bi bi-arrow-clockwise"></i> Clear Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Searches -->
+    <div class="recent-searches" x-show="recentSearches.length > 0">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Recent Searches
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearRecentSearches()">
+                        <i class="bi bi-x"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="recent-searches-list">
+                    <template x-for="search in recentSearches" :key="search.id">
+                        <div class="recent-search-item" @click="applyRecentSearch(search)">
+                            <div class="search-icon">
+                                <i :class="search.type === 'simple' ? 'bi bi-search' : search.type === 'advanced' ? 'bi bi-funnel' : 'bi bi-camera'"></i>
+                            </div>
+                            <div class="search-content">
+                                <div class="search-query" x-text="search.query"></div>
+                                <div class="search-time" x-text="formatTime(search.timestamp)"></div>
+                            </div>
+                            <div class="search-results-count">
+                                <span class="badge bg-light text-dark" x-text="`${search.results} results`"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Searches -->
+    <div class="popular-searches">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-fire me-2"></i>
+                    Popular Searches
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="popular-searches-tags">
+                    <template x-for="search in popularSearches" :key="search.term">
+                        <button type="button" 
+                                class="btn btn-outline-secondary btn-sm me-2 mb-2"
+                                @click="searchPopularTerm(search.term)">
+                            <span x-text="search.term"></span>
+                            <span class="badge bg-light text-dark ms-1" x-text="search.count"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/product_search_main.js') }}"></script>
+<script>
+// Product Search App
+function productSearchApp() {
+    return {
+        // Data
+        searchMode: 'simple',
+        viewMode: 'grid',
+        searchPerformed: false,
+        isDragOver: false,
+        uploadedImage: null,
+        
+        searchQuery: '',
+        searchCategory: '',
+        sortBy: 'relevance',
+        
+        advancedSearch: {
+            name: '',
+            sku: '',
+            category: '',
+            brand: '',
+            supplier: '',
+            minPrice: '',
+            maxPrice: '',
+            minStock: '',
+            maxStock: '',
+            description: '',
+            inStock: false,
+            onSale: false,
+            newArrivals: false,
+            featured: false
+        },
+        
+        visualSearch: {
+            exactMatch: false,
+            similarColors: false,
+            similarShapes: false,
+            similarPatterns: false
+        },
+        
+        categories: [],
+        brands: [],
+        suppliers: [],
+        searchResults: [],
+        searchSuggestions: [],
+        recentSearches: [],
+        popularSearches: [],
+        
+        // Methods
+        init() {
+            this.loadCategories();
+            this.loadBrands();
+            this.loadSuppliers();
+            this.loadRecentSearches();
+            this.loadPopularSearches();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadBrands() {
+            try {
+                const response = await fetch('/api/brands');
+                this.brands = await response.json();
+            } catch (error) {
+                console.error('Error loading brands:', error);
+            }
+        },
+        
+        async loadSuppliers() {
+            try {
+                const response = await fetch('/api/suppliers');
+                this.suppliers = await response.json();
+            } catch (error) {
+                console.error('Error loading suppliers:', error);
+            }
+        },
+        
+        async loadRecentSearches() {
+            try {
+                const response = await fetch('/api/search/recent');
+                this.recentSearches = await response.json();
+            } catch (error) {
+                console.error('Error loading recent searches:', error);
+            }
+        },
+        
+        async loadPopularSearches() {
+            try {
+                const response = await fetch('/api/search/popular');
+                this.popularSearches = await response.json();
+            } catch (error) {
+                console.error('Error loading popular searches:', error);
+            }
+        },
+        
+        async performSearch() {
+            try {
+                let searchParams = {};
+                
+                if (this.searchMode === 'simple') {
+                    searchParams = {
+                        query: this.searchQuery,
+                        category: this.searchCategory,
+                        type: 'simple'
+                    };
+                } else if (this.searchMode === 'advanced') {
+                    searchParams = {
+                        ...this.advancedSearch,
+                        type: 'advanced'
+                    };
+                }
+                
+                const response = await fetch('/api/products/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(searchParams)
+                });
+                
+                const data = await response.json();
+                this.searchResults = data.products;
+                this.searchPerformed = true;
+                
+                // Add to recent searches
+                this.addToRecentSearches(searchParams, this.searchResults.length);
+                
+            } catch (error) {
+                console.error('Error performing search:', error);
+                this.showError('Search failed. Please try again.');
+            }
+        },
+        
+        async performVisualSearch() {
+            if (!this.uploadedImage) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('image', this.uploadedImage);
+                formData.append('options', JSON.stringify(this.visualSearch));
+                
+                const response = await fetch('/api/products/visual-search', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                this.searchResults = data.products;
+                this.searchPerformed = true;
+                
+                // Add to recent searches
+                this.addToRecentSearches({
+                    type: 'visual',
+                    query: 'Image search',
+                    image: this.uploadedImage
+                }, this.searchResults.length);
+                
+            } catch (error) {
+                console.error('Error performing visual search:', error);
+                this.showError('Visual search failed. Please try again.');
+            }
+        },
+        
+        // File handling
+        handleDragOver(event) {
+            this.isDragOver = true;
+        },
+        
+        handleDragLeave(event) {
+            this.isDragOver = false;
+        },
+        
+        handleDrop(event) {
+            this.isDragOver = false;
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                this.processFile(files[0]);
+            }
+        },
+        
+        handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                this.processFile(files[0]);
+            }
+        },
+        
+        processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                this.showError('Please select an image file');
+                return;
+            }
+            
+            if (file.size > 10 * 1024 * 1024) {
+                this.showError('File size must be less than 10MB');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.uploadedImage = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+        
+        removeUploadedImage() {
+            this.uploadedImage = null;
+            this.$refs.fileInput.value = '';
+        },
+        
+        // Search suggestions
+        async loadSearchSuggestions() {
+            if (!this.searchQuery || this.searchQuery.length < 2) {
+                this.searchSuggestions = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/search/suggestions?q=${this.searchQuery}`);
+                this.searchSuggestions = await response.json();
+            } catch (error) {
+                console.error('Error loading suggestions:', error);
+            }
+        },
+        
+        selectSuggestion(suggestion) {
+            this.searchQuery = suggestion.title;
+            this.searchSuggestions = [];
+            this.performSearch();
+        },
+        
+        // Results handling
+        sortResults() {
+            // Sort search results based on selected criteria
+            switch (this.sortBy) {
+                case 'name':
+                    this.searchResults.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'price_low':
+                    this.searchResults.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price_high':
+                    this.searchResults.sort((a, b) => b.price - a.price);
+                    break;
+                case 'stock':
+                    this.searchResults.sort((a, b) => b.stock - a.stock);
+                    break;
+                case 'created':
+                    this.searchResults.sort((a, b) => new Date(b.created) - new Date(a.created));
+                    break;
+            }
+        },
+        
+        // Recent searches
+        addToRecentSearches(searchParams, resultCount) {
+            const search = {
+                id: Date.now(),
+                ...searchParams,
+                results: resultCount,
+                timestamp: new Date().toISOString()
+            };
+            
+            this.recentSearches.unshift(search);
+            
+            // Keep only last 10 searches
+            if (this.recentSearches.length > 10) {
+                this.recentSearches = this.recentSearches.slice(0, 10);
+            }
+            
+            // Save to backend
+            this.saveRecentSearches();
+        },
+        
+        async saveRecentSearches() {
+            try {
+                await fetch('/api/search/recent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ searches: this.recentSearches })
+                });
+            } catch (error) {
+                console.error('Error saving recent searches:', error);
+            }
+        },
+        
+        applyRecentSearch(search) {
+            if (search.type === 'simple') {
+                this.searchMode = 'simple';
+                this.searchQuery = search.query;
+                this.searchCategory = search.category || '';
+            } else if (search.type === 'advanced') {
+                this.searchMode = 'advanced';
+                this.advancedSearch = { ...this.advancedSearch, ...search };
+            } else if (search.type === 'visual') {
+                this.searchMode = 'visual';
+                this.uploadedImage = search.image;
+            }
+            
+            this.performSearch();
+        },
+        
+        clearRecentSearches() {
+            this.recentSearches = [];
+            this.saveRecentSearches();
+        },
+        
+        searchPopularTerm(term) {
+            this.searchMode = 'simple';
+            this.searchQuery = term;
+            this.performSearch();
+        },
+        
+        // Navigation methods
+        viewProduct(productId) {
+            window.location.href = `/products/view/${productId}`;
+        },
+        
+        addToCart(productId) {
+            // Add product to cart
+            window.location.href = `/cart/add?product=${productId}`;
+        },
+        
+        addToWishlist(productId) {
+            // Add product to wishlist
+            window.location.href = `/wishlist/add?product=${productId}`;
+        },
+        
+        advancedSearch() {
+            this.searchMode = 'advanced';
+        },
+        
+        saveSearch() {
+            // Save current search configuration
+            const searchConfig = {
+                mode: this.searchMode,
+                query: this.searchQuery,
+                category: this.searchCategory,
+                advanced: this.advancedSearch,
+                visual: this.visualSearch
+            };
+            
+            localStorage.setItem('savedSearch', JSON.stringify(searchConfig));
+            this.showSuccess('Search saved successfully');
+        },
+        
+        exportResults() {
+            if (this.searchResults.length === 0) {
+                this.showError('No results to export');
+                return;
+            }
+            
+            const csv = this.convertToCSV(this.searchResults);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `search-results-${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        },
+        
+        clearSearch() {
+            this.searchQuery = '';
+            this.searchCategory = '';
+            this.advancedSearch = {
+                name: '',
+                sku: '',
+                category: '',
+                brand: '',
+                supplier: '',
+                minPrice: '',
+                maxPrice: '',
+                minStock: '',
+                maxStock: '',
+                description: '',
+                inStock: false,
+                onSale: false,
+                newArrivals: false,
+                featured: false
+            };
+            this.uploadedImage = null;
+            this.searchResults = [];
+            this.searchPerformed = false;
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString();
+        },
+        
+        getStockStatusClass(stock) {
+            if (stock === 0) return 'bg-danger';
+            if (stock < 10) return 'bg-warning';
+            return 'bg-success';
+        },
+        
+        getStockStatusText(stock) {
+            if (stock === 0) return 'Out of Stock';
+            if (stock < 10) return 'Low Stock';
+            return 'In Stock';
+        },
+        
+        convertToCSV(data) {
+            const headers = ['Name', 'SKU', 'Category', 'Price', 'Stock', 'Status'];
+            const rows = data.map(product => [
+                product.name,
+                product.sku,
+                product.category,
+                product.price,
+                product.stock,
+                this.getStockStatusText(product.stock)
+            ]);
+            
+            return [headers, ...rows].map(row => row.join(',')).join('\n');
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + K: Focus search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.querySelector('.search-input')?.focus();
+                }
+                
+                // Ctrl/Cmd + F: Advanced search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                    e.preventDefault();
+                    this.searchMode = 'advanced';
+                }
+                
+                // Escape: Clear search
+                if (e.key === 'Escape') {
+                    this.clearSearch();
+                }
+                
+                // Enter: Perform search
+                if (e.key === 'Enter' && this.searchMode === 'simple') {
+                    this.performSearch();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

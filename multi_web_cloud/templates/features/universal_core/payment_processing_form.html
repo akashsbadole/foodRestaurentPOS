@@ -1,0 +1,1391 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/payment_processing_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Payment Processing Form Interface -->
+<div class="payment-form-container" x-data="paymentFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-credit-card me-2"></i>
+                    Payment Processing Workflow
+                </h2>
+                <p class="form-subtitle text-muted">Process payments and manage transactions</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="cancelPayment()">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="saveDraft()">
+                        <i class="bi bi-save"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="processPayment()" :disabled="!isFormValid">
+                        <i class="bi bi-check-circle"></i> Process Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Progress Steps -->
+    <div class="payment-progress">
+        <div class="progress-steps">
+            <div class="step" 
+                 :class="{'active': currentStep === 1, 'completed': currentStep > 1}"
+                 @click="goToStep(1)">
+                <div class="step-number">1</div>
+                <div class="step-label">Customer Info</div>
+            </div>
+            <div class="step-connector" :class="{'completed': currentStep > 1}"></div>
+            <div class="step" 
+                 :class="{'active': currentStep === 2, 'completed': currentStep > 2}"
+                 @click="goToStep(2)">
+                <div class="step-number">2</div>
+                <div class="step-label">Order Details</div>
+            </div>
+            <div class="step-connector" :class="{'completed': currentStep > 2}"></div>
+            <div class="step" 
+                 :class="{'active': currentStep === 3, 'completed': currentStep > 3}"
+                 @click="goToStep(3)">
+                <div class="step-number">3</div>
+                <div class="step-label">Payment Method</div>
+            </div>
+            <div class="step-connector" :class="{'completed': currentStep > 3}"></div>
+            <div class="step" 
+                 :class="{'active': currentStep === 4, 'completed': currentStep > 4}"
+                 @click="goToStep(4)">
+                <div class="step-number">4</div>
+                <div class="step-label">Review & Confirm</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1: Customer Information -->
+    <div class="payment-step" x-show="currentStep === 1" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-person me-2"></i>
+                    Customer Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Customer Type</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="customerType" id="walkIn" value="walk_in" x-model="payment.customerType">
+                                <label class="btn btn-outline-secondary" for="walkIn">Walk-in</label>
+                                <input type="radio" class="btn-check" name="customerType" id="existing" value="existing" x-model="payment.customerType">
+                                <label class="btn btn-outline-secondary" for="existing">Existing</label>
+                                <input type="radio" class="btn-check" name="customerType" id="new" value="new" x-model="payment.customerType">
+                                <label class="btn btn-outline-secondary" for="new">New Customer</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6" x-show="payment.customerType === 'existing'">
+                        <div class="form-group">
+                            <label class="form-label">Search Customer</label>
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customerSearch"
+                                       @input="searchCustomers()"
+                                       placeholder="Search by name, email, phone...">
+                                <button type="button" class="btn btn-outline-secondary" @click="clearCustomerSearch()">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                            <div class="customer-search-results" x-show="customerSearchResults.length > 0">
+                                <template x-for="customer in customerSearchResults" :key="customer.id">
+                                    <div class="customer-result" @click="selectCustomer(customer)">
+                                        <div class="customer-info">
+                                            <strong x-text="customer.name"></strong>
+                                            <small class="text-muted" x-text="customer.email"></small>
+                                        </div>
+                                        <div class="customer-contact">
+                                            <small x-text="customer.phone"></small>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3" x-show="payment.customerType !== 'walk_in'">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.customer.firstName"
+                                   :class="{'is-invalid': errors.firstName}"
+                                   @input="validateField('firstName')"
+                                   placeholder="Enter first name">
+                            <div class="invalid-feedback" x-show="errors.firstName" x-text="errors.firstName"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.customer.lastName"
+                                   :class="{'is-invalid': errors.lastName}"
+                                   @input="validateField('lastName')"
+                                   placeholder="Enter last name">
+                            <div class="invalid-feedback" x-show="errors.lastName" x-text="errors.lastName"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Company</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.customer.company"
+                                   placeholder="Enter company name">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Email *</label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   x-model="payment.customer.email"
+                                   :class="{'is-invalid': errors.email}"
+                                   @input="validateField('email')"
+                                   placeholder="Enter email address">
+                            <div class="invalid-feedback" x-show="errors.email" x-text="errors.email"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Phone *</label>
+                            <input type="tel" 
+                                   class="form-control" 
+                                   x-model="payment.customer.phone"
+                                   :class="{'is-invalid': errors.phone}"
+                                   @input="validateField('phone')"
+                                   placeholder="Enter phone number">
+                            <div class="invalid-feedback" x-show="errors.phone" x-text="errors.phone"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Loyalty Program</label>
+                            <select class="form-select" x-model="payment.customer.loyaltyProgram">
+                                <option value="">None</option>
+                                <template x-for="program in loyaltyPrograms" :key="program.id">
+                                    <option :value="program.id" x-text="program.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Billing Address</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.customer.billingAddress"
+                                   placeholder="Enter billing address">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">City</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.customer.city"
+                                   placeholder="Enter city">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">State/Province</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.customer.state"
+                                   placeholder="Enter state/province">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Postal Code</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.customer.postalCode"
+                                   placeholder="Enter postal code">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Order Details -->
+    <div class="payment-step" x-show="currentStep === 2" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-cart me-2"></i>
+                    Order Details
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="addOrderItem()">
+                        <i class="bi bi-plus"></i> Add Item
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Order Type</label>
+                            <select class="form-select" x-model="payment.orderType" @change="updateOrderFields()">
+                                <option value="sale">Sale</option>
+                                <option value="refund">Refund</option>
+                                <option value="exchange">Exchange</option>
+                                <option value="return">Return</option>
+                                <option value="service">Service</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Reference Order</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="payment.referenceOrder"
+                                   placeholder="Enter reference order ID">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="order-items-section">
+                    <h6>Order Items</h6>
+                    <div class="order-items">
+                        <template x-for="(item, index) in payment.items" :key="index">
+                            <div class="order-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Product/Service</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   x-model="item.name"
+                                                   @input="updateItemTotal(index)"
+                                                   placeholder="Enter product/service name">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <label class="form-label">Quantity</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="item.quantity"
+                                                   @input="updateItemTotal(index)"
+                                                   min="1"
+                                                   step="1">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <label class="form-label">Unit Price</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="item.unitPrice"
+                                                   @input="updateItemTotal(index)"
+                                                   min="0"
+                                                   step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <label class="form-label">Total</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   :value="item.total"
+                                                   readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger w-100"
+                                                    @click="removeOrderItem(index)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div class="order-summary">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" 
+                                          x-model="payment.notes"
+                                          rows="3"
+                                          placeholder="Add order notes..."></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="summary-calculations">
+                                <div class="calculation-row">
+                                    <span>Subtotal:</span>
+                                    <span x-text="formatCurrency(orderSummary.subtotal)"></span>
+                                </div>
+                                <div class="calculation-row">
+                                    <span>Tax:</span>
+                                    <span x-text="formatCurrency(orderSummary.tax)"></span>
+                                </div>
+                                <div class="calculation-row">
+                                    <span>Discount:</span>
+                                    <span x-text="formatCurrency(orderSummary.discount)"></span>
+                                </div>
+                                <div class="calculation-row total">
+                                    <span>Total:</span>
+                                    <span x-text="formatCurrency(orderSummary.total)"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Payment Method -->
+    <div class="payment-step" x-show="currentStep === 3" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-wallet2 me-2"></i>
+                    Payment Method
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="payment-methods-grid">
+                    <template x-for="method in availablePaymentMethods" :key="method.id">
+                        <div class="payment-method-card" 
+                             :class="{'selected': payment.method === method.id}"
+                             @click="selectPaymentMethod(method.id)">
+                            <div class="method-icon">
+                                <i :class="method.icon"></i>
+                            </div>
+                            <div class="method-info">
+                                <h6 x-text="method.name"></h6>
+                                <p class="method-description" x-text="method.description"></p>
+                            </div>
+                            <div class="method-status">
+                                <span class="status-indicator" 
+                                      :class="method.available ? 'status-available' : 'status-unavailable'"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <!-- Payment Method Details -->
+                <div class="payment-method-details" x-show="payment.method" x-transition>
+                    <!-- Credit/Debit Card Details -->
+                    <div x-show="payment.method === 'credit_card' || payment.method === 'debit_card'">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Card Number *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.card.number"
+                                           :class="{'is-invalid': errors.cardNumber}"
+                                           @input="validateField('cardNumber')"
+                                           placeholder="1234 5678 9012 3456"
+                                           maxlength="19">
+                                    <div class="invalid-feedback" x-show="errors.cardNumber" x-text="errors.cardNumber"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Cardholder Name *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.card.holderName"
+                                           :class="{'is-invalid': errors.cardHolderName}"
+                                           @input="validateField('cardHolderName')"
+                                           placeholder="Enter cardholder name">
+                                    <div class="invalid-feedback" x-show="errors.cardHolderName" x-text="errors.cardHolderName"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="form-label">Expiry Date *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.card.expiry"
+                                           :class="{'is-invalid': errors.cardExpiry}"
+                                           @input="validateField('cardExpiry')"
+                                           placeholder="MM/YY"
+                                           maxlength="5">
+                                    <div class="invalid-feedback" x-show="errors.cardExpiry" x-text="errors.cardExpiry"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="form-label">CVV *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.card.cvv"
+                                           :class="{'is-invalid': errors.cardCvv}"
+                                           @input="validateField('cardCvv')"
+                                           placeholder="123"
+                                           maxlength="4">
+                                    <div class="invalid-feedback" x-show="errors.cardCvv" x-text="errors.cardCvv"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="form-label">Billing ZIP</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.card.billingZip"
+                                           placeholder="12345">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cash Payment Details -->
+                    <div x-show="payment.method === 'cash'">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Amount Tendered *</label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           x-model="payment.cash.amountTendered"
+                                           :class="{'is-invalid': errors.amountTendered}"
+                                           @input="calculateCashChange()"
+                                           min="0"
+                                           step="0.01">
+                                    <div class="invalid-feedback" x-show="errors.amountTendered" x-text="errors.amountTendered"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Change Due</label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           :value="payment.cash.changeDue"
+                                           readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Check Payment Details -->
+                    <div x-show="payment.method === 'check'">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Check Number *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.check.checkNumber"
+                                           :class="{'is-invalid': errors.checkNumber}"
+                                           @input="validateField('checkNumber')"
+                                           placeholder="Enter check number">
+                                    <div class="invalid-feedback" x-show="errors.checkNumber" x-text="errors.checkNumber"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Bank Name *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.check.bankName"
+                                           :class="{'is-invalid': errors.bankName}"
+                                           @input="validateField('bankName')"
+                                           placeholder="Enter bank name">
+                                    <div class="invalid-feedback" x-show="errors.bankName" x-text="errors.bankName"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Routing Number *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.check.routingNumber"
+                                           :class="{'is-invalid': errors.routingNumber}"
+                                           @input="validateField('routingNumber')"
+                                           placeholder="Enter routing number">
+                                    <div class="invalid-feedback" x-show="errors.routingNumber" x-text="errors.routingNumber"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Account Number *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.check.accountNumber"
+                                           :class="{'is-invalid': errors.accountNumber}"
+                                           @input="validateField('accountNumber')"
+                                           placeholder="Enter account number">
+                                    <div class="invalid-feedback" x-show="errors.accountNumber" x-text="errors.accountNumber"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank Transfer Details -->
+                    <div x-show="payment.method === 'bank_transfer'">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Transfer Reference *</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="payment.transfer.reference"
+                                           :class="{'is-invalid': errors.transferReference}"
+                                           @input="validateField('transferReference')"
+                                           placeholder="Enter transfer reference">
+                                    <div class="invalid-feedback" x-show="errors.transferReference" x-text="errors.transferReference"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Expected Date</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           x-model="payment.transfer.expectedDate">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Mobile Payment Details -->
+                    <div x-show="payment.method === 'mobile'">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Mobile Number *</label>
+                                    <input type="tel" 
+                                           class="form-control" 
+                                           x-model="payment.mobile.phoneNumber"
+                                           :class="{'is-invalid': errors.mobileNumber}"
+                                           @input="validateField('mobileNumber')"
+                                           placeholder="Enter mobile number">
+                                    <div class="invalid-feedback" x-show="errors.mobileNumber" x-text="errors.mobileNumber"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Payment App</label>
+                                    <select class="form-select" x-model="payment.mobile.app">
+                                        <option value="">Select app</option>
+                                        <option value="venmo">Venmo</option>
+                                        <option value="cashapp">Cash App</option>
+                                        <option value="zelle">Zelle</option>
+                                        <option value="paypal">PayPal</option>
+                                        <option value="apple_pay">Apple Pay</option>
+                                        <option value="google_pay">Google Pay</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Split Payment Option -->
+                <div class="split-payment-section">
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               id="splitPayment" 
+                               x-model="payment.splitPayment.enabled">
+                        <label class="form-check-label" for="splitPayment">
+                            Enable Split Payment
+                        </label>
+                    </div>
+                    
+                    <div class="split-payment-details" x-show="payment.splitPayment.enabled" x-transition>
+                        <template x-for="(split, index) in payment.splitPayment.splits" :key="index">
+                            <div class="split-payment-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Payment Method</label>
+                                            <select class="form-select" x-model="split.method">
+                                                <option value="">Select method</option>
+                                                <template x-for="method in availablePaymentMethods" :key="method.id">
+                                                    <option :value="method.id" x-text="method.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Amount</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="split.amount"
+                                                   min="0"
+                                                   step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger w-100"
+                                                    @click="removeSplitPayment(index)"
+                                                    x-show="payment.splitPayment.splits.length > 1">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <button type="button" 
+                                class="btn btn-outline-secondary btn-sm mt-2"
+                                @click="addSplitPayment()">
+                            <i class="bi bi-plus"></i> Add Payment Method
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Review & Confirm -->
+    <div class="payment-step" x-show="currentStep === 4" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Review & Confirm Payment
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="review-sections">
+                    <!-- Customer Review -->
+                    <div class="review-section">
+                        <h6>Customer Information</h6>
+                        <div class="review-content">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Name:</strong> <span x-text="getCustomerFullName()"></span></p>
+                                    <p><strong>Email:</strong> <span x-text="payment.customer.email"></span></p>
+                                    <p><strong>Phone:</strong> <span x-text="payment.customer.phone"></span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Company:</strong> <span x-text="payment.customer.company || 'N/A'"></span></p>
+                                    <p><strong>Address:</strong> <span x-text="getCustomerAddress()"></span></p>
+                                    <p><strong>Loyalty:</strong> <span x-text="getLoyaltyProgramName()"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Review -->
+                    <div class="review-section">
+                        <h6>Order Details</h6>
+                        <div class="review-content">
+                            <div class="order-items-review">
+                                <template x-for="(item, index) in payment.items" :key="index">
+                                    <div class="item-review">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <span x-text="item.name"></span>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <span x-text="item.quantity"></span> × <span x-text="formatCurrency(item.unitPrice)"></span>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <span x-text="formatCurrency(item.total)"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div class="order-summary-review">
+                                <div class="summary-row">
+                                    <span>Subtotal:</span>
+                                    <span x-text="formatCurrency(orderSummary.subtotal)"></span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>Tax:</span>
+                                    <span x-text="formatCurrency(orderSummary.tax)"></span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>Discount:</span>
+                                    <span x-text="formatCurrency(orderSummary.discount)"></span>
+                                </div>
+                                <div class="summary-row total">
+                                    <span>Total:</span>
+                                    <span x-text="formatCurrency(orderSummary.total)"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Method Review -->
+                    <div class="review-section">
+                        <h6>Payment Method</h6>
+                        <div class="review-content">
+                            <div class="payment-method-review">
+                                <p><strong>Method:</strong> <span x-text="getPaymentMethodName()"></span></p>
+                                <template x-if="payment.method === 'credit_card' || payment.method === 'debit_card'">
+                                    <p><strong>Card:</strong> **** **** **** <span x-text="payment.card.number?.slice(-4)"></span></p>
+                                </template>
+                                <template x-if="payment.method === 'cash'">
+                                    <p><strong>Amount Tendered:</strong> <span x-text="formatCurrency(payment.cash.amountTendered)"></span></p>
+                                    <p><strong>Change Due:</strong> <span x-text="formatCurrency(payment.cash.changeDue)"></span></p>
+                                </template>
+                                <template x-if="payment.method === 'check'">
+                                    <p><strong>Check Number:</strong> <span x-text="payment.check.checkNumber"></span></p>
+                                    <p><strong>Bank:</strong> <span x-text="payment.check.bankName"></span></p>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Terms and Conditions -->
+                    <div class="review-section">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="termsAccepted" 
+                                   x-model="payment.termsAccepted"
+                                   :class="{'is-invalid': errors.termsAccepted}">
+                            <label class="form-check-label" for="termsAccepted">
+                                I accept the terms and conditions and confirm that all information is accurate
+                            </label>
+                            <div class="invalid-feedback" x-show="errors.termsAccepted" x-text="errors.termsAccepted"></div>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="emailReceipt" 
+                                   x-model="payment.emailReceipt">
+                            <label class="form-check-label" for="emailReceipt">
+                                Send receipt via email
+                            </label>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="printReceipt" 
+                                   x-model="payment.printReceipt">
+                            <label class="form-check-label" for="printReceipt">
+                                Print receipt
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="form-navigation">
+        <div class="row">
+            <div class="col-md-6">
+                <button type="button" 
+                        class="btn btn-outline-secondary"
+                        @click="previousStep()"
+                        x-show="currentStep > 1">
+                    <i class="bi bi-chevron-left"></i> Previous
+                </button>
+            </div>
+            <div class="col-md-6 text-end">
+                <button type="button" 
+                        class="btn btn-primary"
+                        @click="nextStep()"
+                        x-show="currentStep < 4"
+                        :disabled="!isCurrentStepValid">
+                    Next <i class="bi bi-chevron-right"></i>
+                </button>
+                <button type="button" 
+                        class="btn btn-success"
+                        @click="confirmPayment()"
+                        x-show="currentStep === 4"
+                        :disabled="!isFormValid">
+                    <i class="bi bi-check-circle"></i> Confirm Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/payment_processing_form.js') }}"></script>
+<script>
+// Payment Form App
+function paymentFormApp() {
+    return {
+        // Data
+        currentStep: 1,
+        customerSearch: '',
+        customerSearchResults: [],
+        loyaltyPrograms: [],
+        availablePaymentMethods: [],
+        
+        payment: {
+            customerType: 'walk_in',
+            customer: {
+                firstName: '',
+                lastName: '',
+                company: '',
+                email: '',
+                phone: '',
+                loyaltyProgram: '',
+                billingAddress: '',
+                city: '',
+                state: '',
+                postalCode: ''
+            },
+            orderType: 'sale',
+            referenceOrder: '',
+            items: [
+                {
+                    name: '',
+                    quantity: 1,
+                    unitPrice: 0,
+                    total: 0
+                }
+            ],
+            notes: '',
+            method: '',
+            card: {
+                number: '',
+                holderName: '',
+                expiry: '',
+                cvv: '',
+                billingZip: ''
+            },
+            cash: {
+                amountTendered: 0,
+                changeDue: 0
+            },
+            check: {
+                checkNumber: '',
+                bankName: '',
+                routingNumber: '',
+                accountNumber: ''
+            },
+            transfer: {
+                reference: '',
+                expectedDate: ''
+            },
+            mobile: {
+                phoneNumber: '',
+                app: ''
+            },
+            splitPayment: {
+                enabled: false,
+                splits: [
+                    {
+                        method: '',
+                        amount: 0
+                    }
+                ]
+            },
+            termsAccepted: false,
+            emailReceipt: false,
+            printReceipt: true
+        },
+        
+        errors: {},
+        
+        // Computed properties
+        get isCurrentStepValid() {
+            switch (this.currentStep) {
+                case 1:
+                    return this.validateCustomerStep();
+                case 2:
+                    return this.validateOrderStep();
+                case 3:
+                    return this.validatePaymentStep();
+                case 4:
+                    return this.validateReviewStep();
+                default:
+                    return false;
+            }
+        },
+        
+        get isFormValid() {
+            return this.isCurrentStepValid && this.payment.termsAccepted;
+        },
+        
+        get orderSummary() {
+            const subtotal = this.payment.items.reduce((sum, item) => sum + (item.total || 0), 0);
+            const tax = subtotal * 0.08; // 8% tax rate
+            const discount = 0; // Calculate discount based on promotions
+            const total = subtotal + tax - discount;
+            
+            return {
+                subtotal,
+                tax,
+                discount,
+                total
+            };
+        },
+        
+        // Methods
+        init() {
+            this.loadPaymentMethods();
+            this.loadLoyaltyPrograms();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadPaymentMethods() {
+            try {
+                const response = await fetch('/api/payments/methods');
+                this.availablePaymentMethods = await response.json();
+            } catch (error) {
+                console.error('Error loading payment methods:', error);
+            }
+        },
+        
+        async loadLoyaltyPrograms() {
+            try {
+                const response = await fetch('/api/loyalty/programs');
+                this.loyaltyPrograms = await response.json();
+            } catch (error) {
+                console.error('Error loading loyalty programs:', error);
+            }
+        },
+        
+        goToStep(step) {
+            if (step < this.currentStep || this.isCurrentStepValid) {
+                this.currentStep = step;
+            }
+        },
+        
+        nextStep() {
+            if (this.isCurrentStepValid) {
+                this.currentStep++;
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+            }
+        },
+        
+        // Customer step methods
+        async searchCustomers() {
+            if (this.customerSearch.length < 2) {
+                this.customerSearchResults = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/customers/search?q=${this.customerSearch}`);
+                this.customerSearchResults = await response.json();
+            } catch (error) {
+                console.error('Error searching customers:', error);
+            }
+        },
+        
+        clearCustomerSearch() {
+            this.customerSearch = '';
+            this.customerSearchResults = [];
+        },
+        
+        selectCustomer(customer) {
+            this.payment.customer = {
+                ...this.payment.customer,
+                firstName: customer.firstName,
+                lastName: customer.lastName,
+                company: customer.company,
+                email: customer.email,
+                phone: customer.phone,
+                billingAddress: customer.address,
+                city: customer.city,
+                state: customer.state,
+                postalCode: customer.postalCode
+            };
+            this.clearCustomerSearch();
+        },
+        
+        // Order step methods
+        addOrderItem() {
+            this.payment.items.push({
+                name: '',
+                quantity: 1,
+                unitPrice: 0,
+                total: 0
+            });
+        },
+        
+        removeOrderItem(index) {
+            if (this.payment.items.length > 1) {
+                this.payment.items.splice(index, 1);
+            }
+        },
+        
+        updateItemTotal(index) {
+            const item = this.payment.items[index];
+            item.total = item.quantity * item.unitPrice;
+        },
+        
+        // Payment step methods
+        selectPaymentMethod(methodId) {
+            this.payment.method = methodId;
+            // Reset payment method specific fields
+            this.resetPaymentMethodFields();
+        },
+        
+        resetPaymentMethodFields() {
+            // Reset all payment method fields
+            this.payment.card = {
+                number: '',
+                holderName: '',
+                expiry: '',
+                cvv: '',
+                billingZip: ''
+            };
+            this.payment.cash = {
+                amountTendered: 0,
+                changeDue: 0
+            };
+            this.payment.check = {
+                checkNumber: '',
+                bankName: '',
+                routingNumber: '',
+                accountNumber: ''
+            };
+            this.payment.transfer = {
+                reference: '',
+                expectedDate: ''
+            };
+            this.payment.mobile = {
+                phoneNumber: '',
+                app: ''
+            };
+        },
+        
+        calculateCashChange() {
+            const total = this.orderSummary.total;
+            const tendered = parseFloat(this.payment.cash.amountTendered) || 0;
+            this.payment.cash.changeDue = Math.max(0, tendered - total);
+        },
+        
+        addSplitPayment() {
+            this.payment.splitPayment.splits.push({
+                method: '',
+                amount: 0
+            });
+        },
+        
+        removeSplitPayment(index) {
+            if (this.payment.splitPayment.splits.length > 1) {
+                this.payment.splitPayment.splits.splice(index, 1);
+            }
+        },
+        
+        // Validation methods
+        validateCustomerStep() {
+            if (this.payment.customerType === 'walk_in') {
+                return true;
+            }
+            
+            return this.payment.customer.firstName && 
+                   this.payment.customer.lastName && 
+                   this.payment.customer.email && 
+                   this.payment.customer.phone &&
+                   !this.errors.firstName &&
+                   !this.errors.lastName &&
+                   !this.errors.email &&
+                   !this.errors.phone;
+        },
+        
+        validateOrderStep() {
+            return this.payment.items.some(item => 
+                item.name && 
+                item.quantity > 0 && 
+                item.unitPrice > 0
+            );
+        },
+        
+        validatePaymentStep() {
+            if (!this.payment.method) {
+                return false;
+            }
+            
+            switch (this.payment.method) {
+                case 'credit_card':
+                case 'debit_card':
+                    return this.payment.card.number && 
+                           this.payment.card.holderName && 
+                           this.payment.card.expiry && 
+                           this.payment.card.cvv &&
+                           !this.errors.cardNumber &&
+                           !this.errors.cardHolderName &&
+                           !this.errors.cardExpiry &&
+                           !this.errors.cardCvv;
+                case 'cash':
+                    return this.payment.cash.amountTendered >= this.orderSummary.total &&
+                           !this.errors.amountTendered;
+                case 'check':
+                    return this.payment.check.checkNumber && 
+                           this.payment.check.bankName && 
+                           this.payment.check.routingNumber && 
+                           this.payment.check.accountNumber &&
+                           !this.errors.checkNumber &&
+                           !this.errors.bankName &&
+                           !this.errors.routingNumber &&
+                           !this.errors.accountNumber;
+                case 'bank_transfer':
+                    return this.payment.transfer.reference &&
+                           !this.errors.transferReference;
+                case 'mobile':
+                    return this.payment.mobile.phoneNumber &&
+                           !this.errors.mobileNumber;
+                default:
+                    return false;
+            }
+        },
+        
+        validateReviewStep() {
+            return this.payment.termsAccepted;
+        },
+        
+        validateField(field) {
+            // Remove error when user starts typing
+            if (this.errors[field]) {
+                this.errors[field] = '';
+            }
+            
+            // Field-specific validation
+            switch (field) {
+                case 'firstName':
+                case 'lastName':
+                    if (!this.payment.customer[field]) {
+                        this.errors[field] = 'This field is required';
+                    }
+                    break;
+                case 'email':
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!this.payment.customer.email) {
+                        this.errors.email = 'Email is required';
+                    } else if (!emailRegex.test(this.payment.customer.email)) {
+                        this.errors.email = 'Please enter a valid email';
+                    }
+                    break;
+                case 'phone':
+                    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+                    if (!this.payment.customer.phone) {
+                        this.errors.phone = 'Phone is required';
+                    } else if (!phoneRegex.test(this.payment.customer.phone)) {
+                        this.errors.phone = 'Please enter a valid phone number';
+                    }
+                    break;
+                case 'cardNumber':
+                    const cardRegex = /^[\d\s]+$/;
+                    if (!this.payment.card.number) {
+                        this.errors.cardNumber = 'Card number is required';
+                    } else if (!cardRegex.test(this.payment.card.number)) {
+                        this.errors.cardNumber = 'Please enter a valid card number';
+                    } else if (this.payment.card.number.replace(/\s/g, '').length < 13) {
+                        this.errors.cardNumber = 'Card number is too short';
+                    }
+                    break;
+                case 'cardExpiry':
+                    const expiryRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
+                    if (!this.payment.card.expiry) {
+                        this.errors.cardExpiry = 'Expiry date is required';
+                    } else if (!expiryRegex.test(this.payment.card.expiry)) {
+                        this.errors.cardExpiry = 'Please enter a valid expiry date (MM/YY)';
+                    } else {
+                        const [month, year] = this.payment.card.expiry.split('/');
+                        const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
+                        if (expiryDate < new Date()) {
+                            this.errors.cardExpiry = 'Card has expired';
+                        }
+                    }
+                    break;
+                case 'cardCvv':
+                    const cvvRegex = /^\d{3,4}$/;
+                    if (!this.payment.card.cvv) {
+                        this.errors.cardCvv = 'CVV is required';
+                    } else if (!cvvRegex.test(this.payment.card.cvv)) {
+                        this.errors.cardCvv = 'Please enter a valid CVV';
+                    }
+                    break;
+                case 'amountTendered':
+                    if (this.payment.cash.amountTendered < this.orderSummary.total) {
+                        this.errors.amountTendered = 'Amount tendered must be at least the total amount';
+                    }
+                    break;
+                case 'termsAccepted':
+                    if (!this.payment.termsAccepted) {
+                        this.errors.termsAccepted = 'You must accept the terms and conditions';
+                    }
+                    break;
+            }
+        },
+        
+        // Action methods
+        async processPayment() {
+            if (!this.isFormValid) {
+                this.showError('Please complete all required fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/payments/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.payment)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    this.showSuccess('Payment processed successfully');
+                    window.location.href = `/payments/success/${result.transactionId}`;
+                } else {
+                    const error = await response.json();
+                    this.showError(error.message || 'Payment processing failed');
+                }
+            } catch (error) {
+                console.error('Error processing payment:', error);
+                this.showError('Payment processing failed');
+            }
+        },
+        
+        confirmPayment() {
+            if (confirm('Are you sure you want to process this payment?')) {
+                this.processPayment();
+            }
+        },
+        
+        cancelPayment() {
+            if (confirm('Are you sure you want to cancel this payment? All data will be lost.')) {
+                window.location.href = '/payments';
+            }
+        },
+        
+        saveDraft() {
+            localStorage.setItem('paymentDraft', JSON.stringify(this.payment));
+            this.showSuccess('Payment draft saved');
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        getCustomerFullName() {
+            if (this.payment.customerType === 'walk_in') {
+                return 'Walk-in Customer';
+            }
+            return `${this.payment.customer.firstName} ${this.payment.customer.lastName}`;
+        },
+        
+        getCustomerAddress() {
+            const parts = [
+                this.payment.customer.billingAddress,
+                this.payment.customer.city,
+                this.payment.customer.state,
+                this.payment.customer.postalCode
+            ].filter(Boolean);
+            
+            return parts.length > 0 ? parts.join(', ') : 'N/A';
+        },
+        
+        getLoyaltyProgramName() {
+            const program = this.loyaltyPrograms.find(p => p.id === this.payment.customer.loyaltyProgram);
+            return program ? program.name : 'None';
+        },
+        
+        getPaymentMethodName() {
+            const method = this.availablePaymentMethods.find(m => m.id === this.payment.method);
+            return method ? method.name : 'Unknown';
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save draft
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveDraft();
+                }
+                
+                // Ctrl/Cmd + Enter: Process payment
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (this.isFormValid) {
+                        this.confirmPayment();
+                    }
+                }
+                
+                // Escape: Cancel
+                if (e.key === 'Escape') {
+                    this.cancelPayment();
+                }
+            });
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

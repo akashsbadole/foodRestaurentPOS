@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCS/TDS Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .wizard-step {
+            display: none;
+        }
+        .wizard-step.active {
+            display: block;
+        }
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+        .step-indicator.active {
+            background-color: #6f42c1;
+            color: white;
+        }
+        .step-indicator.completed {
+            background-color: #28a745;
+            color: white;
+        }
+        .form-section {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .deduction-preview {
+            background: linear-gradient(135deg, #6f42c1 0%, #9b59b6 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+        .tax-calculator {
+            background-color: #e9ecef;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        .required-field::after {
+            content: " *";
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="tdsTcsForm()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">TCS/TDS Configuration</h1>
+                        <p class="text-muted mb-0">Set up and configure Tax Collected/Deducted at Source</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="navigateTo('list')">
+                            <i class="bi bi-arrow-left"></i> Back to List
+                        </button>
+                        <button class="btn btn-outline-primary" @click="saveDraft()">
+                            <i class="bi bi-save"></i> Save Draft
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Progress -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <template x-for="(step, index) in wizardSteps" :key="index">
+                                <div class="d-flex align-items-center">
+                                    <div class="step-indicator rounded-circle d-flex align-items-center justify-content-center me-2"
+                                         :class="{
+                                             'active': currentStep === index,
+                                             'completed': currentStep > index
+                                         }"
+                                         style="width: 40px; height: 40px;">
+                                        <template x-if="currentStep > index">
+                                            <i class="bi bi-check"></i>
+                                        </template>
+                                        <template x-else>
+                                            <span x-text="index + 1"></span>
+                                        </template>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0" x-text="step.title"></h6>
+                                        <small class="text-muted" x-text="step.description"></small>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 mx-3" x-show="index < wizardSteps.length - 1">
+                                    <div class="progress" style="height: 2px;">
+                                        <div class="progress-bar" 
+                                             :class="{ 'bg-success': currentStep > index }"
+                                             :style="`width: ${currentStep > index ? 100 : 0}%`"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Content -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-lg-8">
+                <form @submit.prevent="submitForm">
+                    <!-- Step 1: Payer/Recipient Information -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 0 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Payer/Recipient Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Payer/Recipient Name</label>
+                                            <input type="text" class="form-control" x-model="formData.payerName" required>
+                                            <small class="text-muted">Enter name of the person or entity making/receiving payment</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">PAN Number</label>
+                                            <input type="text" class="form-control" x-model="formData.panNumber" placeholder="Enter PAN" required>
+                                            <small class="text-muted">Permanent account number of the payer/recipient</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Type</label>
+                                            <select class="form-select" x-model="formData.type" @change="updateTaxRate" required>
+                                                <option value="">Select Type</option>
+                                                <option value="tds">TDS (Tax Deducted at Source)</option>
+                                                <option value="tcs">TCS (Tax Collected at Source)</option>
+                                            </select>
+                                            <small class="text-muted">Select whether this is TDS or TCS</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Category</label>
+                                            <select class="form-select" x-model="formData.category" @change="updateTaxRate" required>
+                                                <option value="">Select Category</option>
+                                                <option value="individual">Individual</option>
+                                                <option value="huf">HUF</option>
+                                                <option value="company">Company</option>
+                                                <option value="firm">Firm/LLP</option>
+                                                <option value="trust">Trust</option>
+                                            </select>
+                                            <small class="text-muted">Select the category of the payer/recipient</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Address</label>
+                                    <textarea class="form-control" rows="3" x-model="formData.address"></textarea>
+                                    <small class="text-muted">Complete address of the payer/recipient</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Deduction Details -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 1 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Deduction Details</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Section</label>
+                                            <select class="form-select" x-model="formData.section" @change="updateTaxRate" required>
+                                                <option value="">Select Section</option>
+                                                <option value="194C">194C - Commission/Brokerage</option>
+                                                <option value="194I">194I - Professional Fees</option>
+                                                <option value="194J">194J - Technical Fees</option>
+                                                <option value="194LA">194LA - Director Fees</option>
+                                                <option value="192A">192A - Interest Income</option>
+                                                <option value="193">193 - Dividend Income</option>
+                                                <option value="194B">194B - Rent Income</option>
+                                                <option value="206C">206C - TCS on Sale of Goods</option>
+                                                <option value="206CA">206CA - TCS on Sale of Motor Vehicle</option>
+                                            </select>
+                                            <small class="text-muted">Select the applicable section of Income Tax Act</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Deduction Rate (%)</label>
+                                            <input type="number" class="form-control" x-model="formData.deductionRate" min="0" max="100" step="0.1" @input="calculateTax" required>
+                                            <small class="text-muted">Applicable TDS/TCS rate</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label required-field">Description</label>
+                                    <textarea class="form-control" rows="3" x-model="formData.description" required></textarea>
+                                    <small class="text-muted">Detailed description of the transaction</small>
+                                </div>
+                                <div class="form-section">
+                                    <h6>Threshold and Exemptions</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Threshold Limit (₹)</label>
+                                                <input type="number" class="form-control" x-model="formData.thresholdLimit" min="0">
+                                                <small class="text-muted">Threshold limit for deduction applicability</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Exemption Certificate</label>
+                                                <input type="text" class="form-control" x-model="formData.exemptionCertificate" placeholder="Certificate number if applicable">
+                                                <small class="text-muted">Exemption certificate number if any</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.isBelowThreshold" id="isBelowThreshold">
+                                        <label class="form-check-label" for="isBelowThreshold">
+                                            Transaction is below threshold limit
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.isExempted" id="isExempted">
+                                        <label class="form-check-label" for="isExempted">
+                                            Exempted from TDS/TCS
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Financial Details -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 2 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Financial Details</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Transaction Amount (₹)</label>
+                                            <input type="number" class="form-control" x-model="formData.transactionAmount" min="0" @input="calculateTax" required>
+                                            <small class="text-muted">Total amount of the transaction</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Invoice Number</label>
+                                            <input type="text" class="form-control" x-model="formData.invoiceNumber" required>
+                                            <small class="text-muted">Invoice or receipt number</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Transaction Date</label>
+                                            <input type="date" class="form-control" x-model="formData.transactionDate" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Deposit Due Date</label>
+                                            <input type="date" class="form-control" x-model="formData.depositDueDate" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h6>Tax Calculation</h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Transaction Amount</label>
+                                            <input type="text" class="form-control" :value="'₹' + parseFloat(formData.transactionAmount || 0).toLocaleString('en-IN')" readonly>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Deduction Rate</label>
+                                            <input type="text" class="form-control" :value="(formData.deductionRate || 0) + '%'" readonly>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Tax Amount</label>
+                                            <input type="text" class="form-control" :value="'₹' + taxCalculation.taxAmount.toLocaleString('en-IN')" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Net Amount Payable</label>
+                                            <input type="text" class="form-control" :value="'₹' + taxCalculation.netAmount.toLocaleString('en-IN')" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Deposit Due Date</label>
+                                            <input type="text" class="form-control" :value="taxCalculation.depositDueDate" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Payment Method</label>
+                                    <select class="form-select" x-model="formData.paymentMethod">
+                                        <option value="cash">Cash</option>
+                                        <option value="cheque">Cheque</option>
+                                        <option value="neft">NEFT/RTGS</option>
+                                        <option value="upi">UPI</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Compliance & Documentation -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 3 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Compliance & Documentation</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-section">
+                                    <h6>Required Documents</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Upload Documents</label>
+                                        <input type="file" class="form-control" multiple @change="handleFileUpload">
+                                        <small class="text-muted">Upload invoice, payment proof, PAN card, and other relevant documents</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Document List</label>
+                                        <div class="list-group">
+                                            <template x-for="doc in uploadedDocuments" :key="doc.id">
+                                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <i class="bi bi-file-earmark me-2"></i>
+                                                        <span x-text="doc.name"></span>
+                                                        <small class="text-muted ms-2" x-text="doc.size"></small>
+                                                    </div>
+                                                    <button class="btn btn-sm btn-outline-danger" @click="removeDocument(doc.id)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h6>Compliance Requirements</h6>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.panVerified" id="panVerified">
+                                        <label class="form-check-label" for="panVerified">
+                                            PAN has been verified
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.depositWillBeMade" id="depositWillBeMade">
+                                        <label class="form-check-label" for="depositWillBeMade">
+                                            Tax will be deposited by due date
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.recordsMaintained" id="recordsMaintained">
+                                        <label class="form-check-label" for="recordsMaintained">
+                                            Proper records will be maintained
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.complianceUnderstood" id="complianceUnderstood">
+                                        <label class="form-check-label" for="complianceUnderstood">
+                                            TDS/TCS compliance requirements understood
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Remarks</label>
+                                    <textarea class="form-control" rows="3" x-model="formData.remarks" placeholder="Additional remarks or notes"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Review & Submit -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 4 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Review & Submit</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="deduction-preview">
+                                    <h5>TCS/TDS Summary</h5>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Payer/Recipient:</strong> <span x-text="formData.payerName"></span></p>
+                                            <p><strong>Type:</strong> <span x-text="formData.type.toUpperCase()"></span></p>
+                                            <p><strong>Section:</strong> <span x-text="formData.section"></span></p>
+                                            <p><strong>Transaction Amount:</strong> ₹<span x-text="parseFloat(formData.transactionAmount || 0).toLocaleString('en-IN')"></span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Deduction Rate:</strong> <span x-text="formData.deductionRate + '%'"></span></p>
+                                            <p><strong>Tax Amount:</strong> ₹<span x-text="taxCalculation.taxAmount.toLocaleString('en-IN')"></span></p>
+                                            <p><strong>Net Amount:</strong> ₹<span x-text="taxCalculation.netAmount.toLocaleString('en-IN')"></span></p>
+                                            <p><strong>Deposit Due:</strong> <span x-text="taxCalculation.depositDueDate"></span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section mt-3">
+                                    <h6>Declaration</h6>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.declaration" id="declaration" required>
+                                        <label class="form-check-label" for="declaration">
+                                            I hereby declare that all information provided is true and correct to best of my knowledge
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.termsAccepted" id="termsAccepted" required>
+                                        <label class="form-check-label" for="termsAccepted">
+                                            I accept the terms and conditions of TDS/TCS compliance
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i> Upon submission, this TDS/TCS entry will be recorded and tax payment will be due as per Income Tax regulations.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="card mt-4">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-secondary" @click="previousStep" :disabled="currentStep === 0">
+                                    <i class="bi bi-arrow-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" @click="saveDraft">
+                                    <i class="bi bi-save"></i> Save Draft
+                                </button>
+                                <button type="button" class="btn btn-primary" @click="nextStep" x-show="currentStep < wizardSteps.length - 1">
+                                    Next <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <button type="submit" class="btn btn-primary" x-show="currentStep === wizardSteps.length - 1">
+                                    <i class="bi bi-check-circle"></i> Submit TCS/TDS
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Help</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle"></i> TCS/TDS Overview</h6>
+                            <ul class="mb-0">
+                                <li>TCS: Tax Collected at Source by seller</li>
+                                <li>TDS: Tax Deducted at Source by payer</li>
+                                <li>Tax deposit due by 7th of next month</li>
+                                <li>PAN verification mandatory for deductions</li>
+                            </ul>
+                        </div>
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-exclamation-triangle"></i> Important Notes</h6>
+                            <ul class="mb-0">
+                                <li>Verify PAN before deduction</li>
+                                <li>Maintain proper documentation</li>
+                                <li>Deposit tax by due date to avoid penalties</li>
+                                <li>File quarterly TCS/TDS returns</li>
+                                <li>Issue Form 16/16A to deductees</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Contact Support</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><i class="bi bi-telephone"></i> <strong>Phone:</strong> 1800-123-4567</p>
+                        <p class="mb-2"><i class="bi bi-envelope"></i> <strong>Email:</strong> support@tax.gov.in</p>
+                        <p class="mb-0"><i class="bi bi-clock"></i> <strong>Hours:</strong> Mon-Fri, 9AM-6PM</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function tdsTcsForm() {
+            return {
+                currentStep: 0,
+                wizardSteps: [
+                    { title: 'Payer Info', description: 'Payer/Recipient details' },
+                    { title: 'Deduction Details', description: 'TCS/TDS information' },
+                    { title: 'Financial Info', description: 'Payment details' },
+                    { title: 'Compliance', description: 'Documentation' },
+                    { title: 'Review', description: 'Submit deduction' }
+                ],
+                formData: {
+                    payerName: '',
+                    panNumber: '',
+                    type: '',
+                    category: '',
+                    section: '',
+                    deductionRate: '',
+                    description: '',
+                    thresholdLimit: '',
+                    exemptionCertificate: '',
+                    isBelowThreshold: false,
+                    isExempted: false,
+                    transactionAmount: '',
+                    invoiceNumber: '',
+                    transactionDate: '',
+                    depositDueDate: '',
+                    paymentMethod: 'cash',
+                    panVerified: false,
+                    depositWillBeMade: false,
+                    recordsMaintained: false,
+                    complianceUnderstood: false,
+                    remarks: '',
+                    declaration: false,
+                    termsAccepted: false
+                },
+                uploadedDocuments: [],
+                taxCalculation: {
+                    taxAmount: 0,
+                    netAmount: 0,
+                    depositDueDate: ''
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                updateTaxRate() {
+                    const taxRates = {
+                        '194C': { rate: 5, threshold: 15000 },
+                        '194I': { rate: 10, threshold: 30000 },
+                        '194J': { rate: 10, threshold: 30000 },
+                        '194LA': { rate: 10, threshold: 0 },
+                        '192A': { rate: 10, threshold: 40000 },
+                        '193': { rate: 10, threshold: 5000 },
+                        '194B': { rate: 10, threshold: 180000 },
+                        '206C': { rate: 1, threshold: 0 },
+                        '206CA': { rate: 1, threshold: 0 }
+                    };
+                    
+                    if (taxRates[this.formData.section]) {
+                        this.formData.deductionRate = taxRates[this.formData.section].rate;
+                        this.formData.thresholdLimit = taxRates[this.formData.section].threshold;
+                        this.calculateTax();
+                    }
+                },
+                
+                calculateTax() {
+                    const transactionAmount = parseFloat(this.formData.transactionAmount) || 0;
+                    const deductionRate = parseFloat(this.formData.deductionRate) || 0;
+                    
+                    this.taxCalculation.taxAmount = Math.round(transactionAmount * deductionRate / 100);
+                    this.taxCalculation.netAmount = transactionAmount - this.taxCalculation.taxAmount;
+                    
+                    // Calculate deposit due date (7th of next month from transaction date)
+                    if (this.formData.transactionDate) {
+                        const transactionDate = new Date(this.formData.transactionDate);
+                        const nextMonth = new Date(transactionDate);
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        this.taxCalculation.depositDueDate = `07-${nextMonth.toLocaleString('en-US', { month: 'short' })}-${nextMonth.getFullYear()}`;
+                    }
+                },
+                
+                nextStep() {
+                    if (this.validateCurrentStep()) {
+                        if (this.currentStep < this.wizardSteps.length - 1) {
+                            this.currentStep++;
+                        }
+                    }
+                },
+                
+                previousStep() {
+                    if (this.currentStep > 0) {
+                        this.currentStep--;
+                    }
+                },
+                
+                validateCurrentStep() {
+                    // Basic validation for current step
+                    if (this.currentStep === 0) {
+                        if (!this.formData.payerName || !this.formData.panNumber || !this.formData.type || !this.formData.category) {
+                            alert('Please fill in all required payer/recipient information');
+                            return false;
+                        }
+                    } else if (this.currentStep === 1) {
+                        if (!this.formData.section || !this.formData.deductionRate || !this.formData.description) {
+                            alert('Please fill in all required deduction details');
+                            return false;
+                        }
+                    } else if (this.currentStep === 2) {
+                        if (!this.formData.transactionAmount || !this.formData.invoiceNumber || !this.formData.transactionDate || !this.formData.depositDueDate) {
+                            alert('Please fill in all required financial details');
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                
+                submitForm() {
+                    if (!this.formData.declaration || !this.formData.termsAccepted) {
+                        alert('Please accept declaration and terms');
+                        return;
+                    }
+                    
+                    console.log('Submitting TCS/TDS:', this.formData);
+                    alert('TCS/TDS deduction submitted successfully! Tax payment will be due as per Income Tax regulations.');
+                    this.navigateTo('list');
+                },
+                
+                saveDraft() {
+                    console.log('Saving draft:', this.formData);
+                    alert('Draft saved successfully!');
+                },
+                
+                handleFileUpload(event) {
+                    const files = event.target.files;
+                    for (let file of files) {
+                        const doc = {
+                            id: Date.now() + Math.random(),
+                            name: file.name,
+                            size: this.formatFileSize(file.size)
+                        };
+                        this.uploadedDocuments.push(doc);
+                    }
+                },
+                
+                removeDocument(docId) {
+                    this.uploadedDocuments = this.uploadedDocuments.filter(doc => doc.id !== docId);
+                },
+                
+                formatFileSize(bytes) {
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/tcs_tds_${page}.html`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/retail/retail-base.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/retail/feature-aware.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="retail-container" x-data="retailFeatureAwareApp()" x-init="init()">
+    
+    <!-- Feature-Aware Navigation -->
+    {% include 'retail/components/feature_navigation.html' %}
+    
+    <!-- Retail Type Header -->
+    {% include 'retail/components/retail_header.html' %}
+    
+    <!-- Dynamic Content Area -->
+    <main class="retail-main-content" :class="contentClasses">
+        
+        <!-- Feature Gating Messages -->
+        <div x-show="showFeatureGate" x-transition class="feature-gate-overlay">
+            <div class="feature-gate-content">
+                <div class="text-center">
+                    <i class="bi bi-lock-fill feature-lock-icon"></i>
+                    <h3>Feature Not Available</h3>
+                    <p x-text="featureGateMessage"></p>
+                    <button @click="closeFeatureGate()" class="btn btn-primary">
+                        <i class="bi bi-x-circle"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading Overlay -->
+        <div x-show="isLoading" x-transition class="loading-overlay">
+            <div class="loading-content">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p x-text="loadingMessage">Loading...</p>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div x-show="!isLoading && !showFeatureGate">
+            {% block retail_content %}{% endblock %}
+        </div>
+        
+    </main>
+    
+    <!-- Feature-Aware Sidebar -->
+    {% include 'retail/components/feature_sidebar.html' %}
+    
+</div>
+
+<!-- Feature-Aware Modals -->
+{% include 'retail/components/feature_modals.html' %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/retail/feature-aware.js') }}"></script>
+<script>
+// Feature-aware configuration
+window.RETAIL_CONFIG = {
+    retailType: '{{ retail_type | default("general") }}',
+    tenantId: '{{ tenant_id | default("default") }}',
+    userId: '{{ current_user.id if current_user.is_authenticated else "" }}',
+    features: {{ features | tojson | safe }},
+    permissions: {{ permissions | tojson | safe }},
+    theme: '{{ theme | default("light") }}',
+    locale: '{{ locale | default("en") }}'
+};
+
+// Retail type specific configurations
+window.RETAIL_TYPE_CONFIG = {
+    restaurant: {
+        name: 'Restaurant',
+        icon: 'bi-cup-hot',
+        color: '#ff6b6b',
+        features: ['tables', 'reservations', 'kitchen_display', 'menu_management'],
+        modules: ['tables', 'menu', 'reservations', 'kitchen', 'orders']
+    },
+    apparel: {
+        name: 'Apparel & Footwear',
+        icon: 'bi-bag',
+        color: '#4ecdc4',
+        features: ['size_variants', 'color_variants', 'exchanges', 'inventory_tracking'],
+        modules: ['products', 'variants', 'exchanges', 'inventory', 'orders']
+    },
+    books: {
+        name: 'Books & Office Supplies',
+        icon: 'bi-book',
+        color: '#45b7d1',
+        features: ['isbn_tracking', 'author_publisher_db', 'special_orders', 'textbook_buyback'],
+        modules: ['products', 'authors', 'publishers', 'special_orders', 'buyback']
+    },
+    food: {
+        name: 'Food & Confectionery',
+        icon: 'bi-cake2',
+        color: '#f9ca24',
+        features: ['expiry_tracking', 'batch_management', 'temperature_monitoring', 'recipe_management'],
+        modules: ['products', 'batches', 'temperature', 'recipes', 'wastage']
+    },
+    supermarket: {
+        name: 'Supermarket & Groceries',
+        icon: 'bi-basket',
+        color: '#6ab04c',
+        features: ['fresh_produce', 'weighing_scales', 'quality_checks', 'shelf_life_management'],
+        modules: ['produce', 'weighing', 'quality', 'inventory', 'pos']
+    },
+    hypermarket: {
+        name: 'Hypermarket & Departmental',
+        icon: 'bi-shop',
+        color: '#eb4d4b',
+        features: ['departments', 'multi_category', 'self_checkout', 'queue_management'],
+        modules: ['departments', 'products', 'promotions', 'self_checkout', 'analytics']
+    },
+    specialized: {
+        name: 'Specialized Retail',
+        icon: 'bi-gem',
+        color: '#9b59b6',
+        features: ['custom_attributes', 'service_booking', 'repair_tracking', 'rental_management'],
+        modules: ['products', 'services', 'repairs', 'warranty', 'rental', 'consignment']
+    },
+    multi_store: {
+        name: 'Multi-Store & Franchise',
+        icon: 'bi-building',
+        color: '#3498db',
+        features: ['store_management', 'inventory_transfers', 'franchise_management', 'consolidated_reporting'],
+        modules: ['stores', 'transfers', 'franchise', 'reports', 'performance']
+    }
+};
+
+// Initialize feature-aware app
+document.addEventListener('alpine:init', () => {
+    Alpine.data('retailFeatureAwareApp', () => ({
+        isLoading: false,
+        loadingMessage: 'Loading...',
+        showFeatureGate: false,
+        featureGateMessage: '',
+        currentRetailType: window.RETAIL_CONFIG.retailType,
+        features: window.RETAIL_CONFIG.features,
+        permissions: window.RETAIL_CONFIG.permissions,
+        contentClasses: '',
+        
+        init() {
+            this.setupFeatureAwareness();
+            this.setupTheme();
+            this.setupResponsiveBehavior();
+            this.setupKeyboardShortcuts();
+        },
+        
+        setupFeatureAwareness() {
+            // Check feature availability
+            this.checkRequiredFeatures();
+            
+            // Setup feature listeners
+            this.setupFeatureListeners();
+            
+            // Apply retail type specific styling
+            this.applyRetailTypeStyling();
+        },
+        
+        setupTheme() {
+            const theme = window.RETAIL_CONFIG.theme;
+            document.body.setAttribute('data-theme', theme);
+            
+            // Apply retail type specific theme
+            const retailConfig = window.RETAIL_TYPE_CONFIG[this.currentRetailType];
+            if (retailConfig) {
+                document.documentElement.style.setProperty('--retail-primary-color', retailConfig.color);
+            }
+        },
+        
+        setupResponsiveBehavior() {
+            // Handle responsive design
+            const handleResize = () => {
+                if (window.innerWidth < 768) {
+                    this.contentClasses = 'mobile-layout';
+                } else if (window.innerWidth < 1024) {
+                    this.contentClasses = 'tablet-layout';
+                } else {
+                    this.contentClasses = 'desktop-layout';
+                }
+            };
+            
+            window.addEventListener('resize', handleResize);
+            handleResize(); // Initial call
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + K for quick search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    this.openQuickSearch();
+                }
+                
+                // Ctrl/Cmd + / for shortcuts help
+                if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+                    e.preventDefault();
+                    this.showShortcutsHelp();
+                }
+                
+                // Escape to close modals
+                if (e.key === 'Escape') {
+                    this.closeAllModals();
+                }
+            });
+        },
+        
+        checkRequiredFeatures() {
+            // Check if required features for current retail type are available
+            const retailConfig = window.RETAIL_TYPE_CONFIG[this.currentRetailType];
+            if (retailConfig && retailConfig.features) {
+                const missingFeatures = retailConfig.features.filter(
+                    feature => !this.features[feature]
+                );
+                
+                if (missingFeatures.length > 0) {
+                    this.showFeatureGate(
+                        `This retail type requires the following features: ${missingFeatures.join(', ')}`
+                    );
+                }
+            }
+        },
+        
+        setupFeatureListeners() {
+            // Listen for feature flag changes
+            document.addEventListener('featureChanged', (e) => {
+                const { feature, enabled } = e.detail;
+                this.features[feature] = enabled;
+                this.handleFeatureChange(feature, enabled);
+            });
+        },
+        
+        applyRetailTypeStyling() {
+            const retailConfig = window.RETAIL_TYPE_CONFIG[this.currentRetailType];
+            if (retailConfig) {
+                document.body.setAttribute('data-retail-type', this.currentRetailType);
+                document.body.setAttribute('data-retail-icon', retailConfig.icon);
+            }
+        },
+        
+        handleFeatureChange(feature, enabled) {
+            // Handle dynamic feature changes
+            if (enabled) {
+                this.enableFeatureUI(feature);
+            } else {
+                this.disableFeatureUI(feature);
+            }
+        },
+        
+        enableFeatureUI(feature) {
+            // Enable UI elements related to this feature
+            const elements = document.querySelectorAll(`[data-feature="${feature}"]`);
+            elements.forEach(el => {
+                el.style.display = '';
+                el.disabled = false;
+            });
+        },
+        
+        disableFeatureUI(feature) {
+            // Disable UI elements related to this feature
+            const elements = document.querySelectorAll(`[data-feature="${feature}"]`);
+            elements.forEach(el => {
+                el.style.display = 'none';
+                el.disabled = true;
+            });
+        },
+        
+        isFeatureEnabled(feature) {
+            return this.features[feature] || false;
+        },
+        
+        hasPermission(permission) {
+            return this.permissions.includes(permission) || false;
+        },
+        
+        showFeatureGate(message) {
+            this.featureGateMessage = message;
+            this.showFeatureGate = true;
+        },
+        
+        closeFeatureGate() {
+            this.showFeatureGate = false;
+        },
+        
+        setLoading(message = 'Loading...') {
+            this.loadingMessage = message;
+            this.isLoading = true;
+        },
+        
+        unsetLoading() {
+            this.isLoading = false;
+        },
+        
+        openQuickSearch() {
+            // Implement quick search functionality
+            this.$dispatch('openQuickSearch');
+        },
+        
+        showShortcutsHelp() {
+            // Show keyboard shortcuts help
+            this.$dispatch('showShortcutsHelp');
+        },
+        
+        closeAllModals() {
+            // Close all open modals
+            this.$dispatch('closeAllModals');
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(date) {
+            return new Intl.DateTimeFormat('en-US').format(new Date(date));
+        },
+        
+        formatDateTime(dateTime) {
+            return new Intl.DateTimeFormat('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            }).format(new Date(dateTime));
+        }
+    }));
+});
+</script>
+{% endblock %}

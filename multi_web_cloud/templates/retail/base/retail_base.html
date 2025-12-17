@@ -1,0 +1,356 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/retail/retail-specific.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Retail Type Specific Header -->
+<div class="retail-type-header" :class="retailTypeClass">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <i :class="retailTypeIcon" class="retail-type-icon me-3"></i>
+                    <div>
+                        <h1 class="retail-type-title mb-1" x-text="retailTypeName"></h1>
+                        <p class="retail-type-subtitle mb-0" x-text="retailTypeDescription"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="retail-type-actions">
+                    <!-- Retail Type Specific Quick Actions -->
+                    <template x-for="action in retailTypeActions" :key="action.id">
+                        <button @click="action.handler" 
+                                :class="action.class" 
+                                :disabled="!isFeatureEnabled(action.feature)"
+                                class="btn me-2">
+                            <i :class="action.icon"></i>
+                            <span x-text="action.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Retail Type Navigation -->
+<div class="retail-type-nav">
+    <div class="container-fluid">
+        <nav class="retail-nav-pills">
+            <template x-for="module in retailTypeModules" :key="module.id">
+                <a :href="module.url" 
+                   :class="{'active': module.active}"
+                   @click="setActiveModule(module)"
+                   class="retail-nav-pill">
+                    <i :class="module.icon"></i>
+                    <span x-text="module.name"></span>
+                    <span x-show="module.badge" 
+                          :class="module.badgeClass" 
+                          class="badge ms-2" 
+                          x-text="module.badge"></span>
+                </a>
+            </template>
+        </nav>
+    </div>
+</div>
+
+<!-- Main Content Area -->
+<div class="retail-content-area">
+    <div class="container-fluid">
+        <!-- Breadcrumb Navigation -->
+        {% include 'retail/components/breadcrumb.html' %}
+        
+        <!-- Flash Messages -->
+        <div class="retail-flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category or 'info' }} alert-dismissible fade show retail-alert" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <div class="flex-grow-1">{{ message }}</div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <!-- Page Content -->
+        {% block retail_page_content %}{% endblock %}
+    </div>
+</div>
+
+<!-- Retail Type Specific Footer -->
+<div class="retail-type-footer">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="retail-stats">
+                    <template x-for="stat in retailTypeStats" :key="stat.id">
+                        <div class="retail-stat-item">
+                            <span class="stat-label" x-text="stat.label"></span>
+                            <span class="stat-value" x-text="stat.value"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="retail-quick-stats">
+                    <div class="quick-stat">
+                        <i class="bi bi-box-seam"></i>
+                        <span>Products: <strong x-text="quickStats.products"></strong></span>
+                    </div>
+                    <div class="quick-stat">
+                        <i class="bi bi-cart3"></i>
+                        <span>Orders Today: <strong x-text="quickStats.ordersToday"></strong></span>
+                    </div>
+                    <div class="quick-stat">
+                        <i class="bi bi-currency-dollar"></i>
+                        <span>Revenue: <strong x-text="formatCurrency(quickStats.revenueToday)"></strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Retail type specific configuration
+document.addEventListener('alpine:init', () => {
+    Alpine.data('retailTypeApp', () => ({
+        retailTypeClass: '',
+        retailTypeName: '',
+        retailTypeDescription: '',
+        retailTypeIcon: '',
+        retailTypeActions: [],
+        retailTypeModules: [],
+        retailTypeStats: [],
+        quickStats: {
+            products: 0,
+            ordersToday: 0,
+            revenueToday: 0
+        },
+        
+        init() {
+            this.loadRetailTypeConfig();
+            this.loadQuickStats();
+            this.setupRetailTypeSpecificFeatures();
+        },
+        
+        loadRetailTypeConfig() {
+            const config = window.RETAIL_TYPE_CONFIG[window.RETAIL_CONFIG.retailType];
+            if (config) {
+                this.retailTypeName = config.name;
+                this.retailTypeDescription = this.getRetailTypeDescription(window.RETAIL_CONFIG.retailType);
+                this.retailTypeIcon = config.icon;
+                this.retailTypeClass = `retail-type-${window.RETAIL_CONFIG.retailType}`;
+                this.loadRetailTypeModules(config.modules);
+                this.loadRetailTypeActions(config.features);
+                this.loadRetailTypeStats();
+            }
+        },
+        
+        getRetailTypeDescription(retailType) {
+            const descriptions = {
+                restaurant: 'Complete restaurant management with tables, reservations, and kitchen display',
+                apparel: 'Apparel and footwear management with size variants, exchanges, and inventory tracking',
+                books: 'Books and office supplies with ISBN tracking, author database, and special orders',
+                food: 'Food and confectionery with expiry tracking, batch management, and recipes',
+                supermarket: 'Supermarket and groceries with fresh produce, weighing scales, and quality checks',
+                hypermarket: 'Hypermarket and departmental stores with multi-category management and self-checkout',
+                specialized: 'Specialized retail with custom products, services, repairs, and rentals',
+                multi_store: 'Multi-store and franchise management with transfers and consolidated reporting'
+            };
+            return descriptions[retailType] || 'Retail management system';
+        },
+        
+        loadRetailTypeModules(modules) {
+            const moduleConfigs = {
+                tables: { id: 'tables', name: 'Tables', icon: 'bi-grid-3x3-gap', url: '/restaurant/tables', active: false },
+                menu: { id: 'menu', name: 'Menu', icon: 'bi-list-ul', url: '/restaurant/menu', active: false },
+                reservations: { id: 'reservations', name: 'Reservations', icon: 'bi-calendar-check', url: '/restaurant/reservations', active: false },
+                kitchen: { id: 'kitchen', name: 'Kitchen', icon: 'bi-clipboard-check', url: '/restaurant/kitchen', active: false },
+                products: { id: 'products', name: 'Products', icon: 'bi-box', url: '/products', active: false },
+                variants: { id: 'variants', name: 'Variants', icon: 'bi-layers', url: '/apparel/variants', active: false },
+                exchanges: { id: 'exchanges', name: 'Exchanges', icon: 'bi-arrow-left-right', url: '/apparel/exchanges', active: false },
+                inventory: { id: 'inventory', name: 'Inventory', icon: 'bi-box-seam', url: '/inventory', active: false },
+                orders: { id: 'orders', name: 'Orders', icon: 'bi-receipt', url: '/orders', active: false },
+                authors: { id: 'authors', name: 'Authors', icon: 'bi-person', url: '/books/authors', active: false },
+                publishers: { id: 'publishers', name: 'Publishers', icon: 'bi-building', url: '/books/publishers', active: false },
+                special_orders: { id: 'special_orders', name: 'Special Orders', icon: 'bi-star', url: '/books/special-orders', active: false },
+                batches: { id: 'batches', name: 'Batches', icon: 'bi-box-seam', url: '/food/batches', active: false },
+                temperature: { id: 'temperature', name: 'Temperature', icon: 'bi-thermometer', url: '/food/temperature', active: false },
+                recipes: { id: 'recipes', name: 'Recipes', icon: 'bi-book', url: '/food/recipes', active: false },
+                produce: { id: 'produce', name: 'Produce', icon: 'bi-basket', url: '/supermarket/produce', active: false },
+                weighing: { id: 'weighing', name: 'Weighing', icon: 'bi-speedometer2', url: '/supermarket/weighing', active: false },
+                quality: { id: 'quality', name: 'Quality', icon: 'bi-check-circle', url: '/supermarket/quality', active: false },
+                departments: { id: 'departments', name: 'Departments', icon: 'bi-diagram-3', url: '/hypermarket/departments', active: false },
+                promotions: { id: 'promotions', name: 'Promotions', icon: 'bi-tags', url: '/hypermarket/promotions', active: false },
+                self_checkout: { id: 'self_checkout', name: 'Self Checkout', icon: 'bi-person-check', url: '/hypermarket/self-checkout', active: false },
+                services: { id: 'services', name: 'Services', icon: 'bi-tools', url: '/specialized/services', active: false },
+                repairs: { id: 'repairs', name: 'Repairs', icon: 'bi-wrench', url: '/specialized/repairs', active: false },
+                warranty: { id: 'warranty', name: 'Warranty', icon: 'bi-shield-check', url: '/specialized/warranty', active: false },
+                rental: { id: 'rental', name: 'Rental', icon: 'bi-clock-history', url: '/specialized/rental', active: false },
+                stores: { id: 'stores', name: 'Stores', icon: 'bi-building', url: '/multi-store/stores', active: false },
+                transfers: { id: 'transfers', name: 'Transfers', icon: 'bi-arrow-left-right', url: '/multi-store/transfers', active: false },
+                franchise: { id: 'franchise', name: 'Franchise', icon: 'bi-diagram-2', url: '/multi-store/franchise', active: false },
+                reports: { id: 'reports', name: 'Reports', icon: 'bi-graph-up', url: '/multi-store/reports', active: false }
+            };
+            
+            this.retailTypeModules = modules.map(moduleId => 
+                Object.assign({}, moduleConfigs[moduleId] || {}, { active: false })
+            );
+            
+            // Set active module based on current path
+            this.setActiveModuleFromPath();
+        },
+        
+        loadRetailTypeActions(features) {
+            const actionConfigs = {
+                tables: { id: 'new_table', label: 'New Table', icon: 'bi-plus', feature: 'FEATURE_RESTAURANT_TABLES', class: 'btn-primary', handler: () => this.openNewTable() },
+                reservations: { id: 'new_reservation', label: 'New Reservation', icon: 'bi-calendar-plus', feature: 'FEATURE_TABLE_RESERVATIONS', class: 'btn-success', handler: () => this.openNewReservation() },
+                menu: { id: 'new_menu_item', label: 'New Menu Item', icon: 'bi-plus', feature: 'FEATURE_MENU_MANAGEMENT', class: 'btn-primary', handler: () => this.openNewMenuItem() },
+                products: { id: 'new_product', label: 'New Product', icon: 'bi-plus', feature: 'FEATURE_PRODUCT_MANAGEMENT', class: 'btn-primary', handler: () => this.openNewProduct() },
+                exchanges: { id: 'new_exchange', label: 'New Exchange', icon: 'bi-arrow-left-right', feature: 'FEATURE_EXCHANGE_MANAGEMENT', class: 'btn-warning', handler: () => this.openNewExchange() },
+                special_orders: { id: 'new_special_order', label: 'Special Order', icon: 'bi-star', feature: 'FEATURE_SPECIAL_ORDERS', class: 'btn-info', handler: () => this.openNewSpecialOrder() },
+                batches: { id: 'new_batch', label: 'New Batch', icon: 'bi-plus', feature: 'FEATURE_BATCH_MANAGEMENT', class: 'btn-success', handler: () => this.openNewBatch() },
+                transfers: { id: 'new_transfer', label: 'New Transfer', icon: 'bi-arrow-left-right', feature: 'FEATURE_INVENTORY_TRANSFERS', class: 'btn-warning', handler: () => this.openNewTransfer() }
+            };
+            
+            this.retailTypeActions = features.map(featureId => actionConfigs[featureId]).filter(Boolean);
+        },
+        
+        loadRetailTypeStats() {
+            const statConfigs = {
+                restaurant: [
+                    { id: 'tables', label: 'Tables', value: '12' },
+                    { id: 'reservations', label: 'Reservations', value: '8' },
+                    { id: 'orders', label: 'Active Orders', value: '24' }
+                ],
+                apparel: [
+                    { id: 'products', label: 'Products', value: '156' },
+                    { id: 'variants', label: 'Variants', value: '892' },
+                    { id: 'exchanges', label: 'Pending Exchanges', value: '5' }
+                ],
+                books: [
+                    { id: 'titles', label: 'Titles', value: '2,341' },
+                    { id: 'authors', label: 'Authors', value: '487' },
+                    { id: 'special_orders', label: 'Special Orders', value: '12' }
+                ]
+            };
+            
+            this.retailTypeStats = statConfigs[window.RETAIL_CONFIG.retailType] || [];
+        },
+        
+        loadQuickStats() {
+            // Load quick stats from API
+            fetch(`/api/retail/${window.RETAIL_CONFIG.retailType}/quick-stats`)
+                .then(response => response.json())
+                .then(data => {
+                    this.quickStats = data;
+                })
+                .catch(error => {
+                    console.error('Error loading quick stats:', error);
+                    // Use default values
+                    this.quickStats = {
+                        products: Math.floor(Math.random() * 1000),
+                        ordersToday: Math.floor(Math.random() * 100),
+                        revenueToday: Math.floor(Math.random() * 10000)
+                    };
+                });
+        },
+        
+        setupRetailTypeSpecificFeatures() {
+            // Setup retail type specific features
+            switch(window.RETAIL_CONFIG.retailType) {
+                case 'restaurant':
+                    this.setupRestaurantFeatures();
+                    break;
+                case 'apparel':
+                    this.setupApparelFeatures();
+                    break;
+                case 'books':
+                    this.setupBooksFeatures();
+                    break;
+                // ... other retail types
+            }
+        },
+        
+        setupRestaurantFeatures() {
+            // Restaurant-specific feature setup
+            this.setupRealTimeTableUpdates();
+            this.setupKitchenDisplayIntegration();
+        },
+        
+        setupApparelFeatures() {
+            // Apparel-specific feature setup
+            this.setupVariantManagement();
+            this.setupExchangeWorkflow();
+        },
+        
+        setupBooksFeatures() {
+            // Books-specific feature setup
+            this.setupISBNLookup();
+            this.setupAuthorPublisherManagement();
+        },
+        
+        setActiveModule(module) {
+            this.retailTypeModules.forEach(m => m.active = false);
+            if (module) {
+                module.active = true;
+            }
+        },
+        
+        setActiveModuleFromPath() {
+            const currentPath = window.location.pathname;
+            const activeModule = this.retailTypeModules.find(module => 
+                currentPath.startsWith(module.url)
+            );
+            if (activeModule) {
+                this.setActiveModule(activeModule);
+            }
+        },
+        
+        // Action handlers
+        openNewTable() {
+            window.location.href = '/restaurant/tables/new';
+        },
+        
+        openNewReservation() {
+            window.location.href = '/restaurant/reservations/new';
+        },
+        
+        openNewMenuItem() {
+            window.location.href = '/restaurant/menu/new';
+        },
+        
+        openNewProduct() {
+            window.location.href = '/products/new';
+        },
+        
+        openNewExchange() {
+            window.location.href = '/apparel/exchanges/new';
+        },
+        
+        openNewSpecialOrder() {
+            window.location.href = '/books/special-orders/new';
+        },
+        
+        openNewBatch() {
+            window.location.href = '/food/batches/new';
+        },
+        
+        openNewTransfer() {
+            window.location.href = '/multi-store/transfers/new';
+        }
+    }));
+});
+</script>
+{% endblock %}

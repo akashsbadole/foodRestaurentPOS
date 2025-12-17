@@ -1,0 +1,604 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/sales_processing.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Sales Processing Interface -->
+<div class="sales-processing-container" x-data="salesProcessingApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="sales-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="sales-title">
+                    <i class="bi bi-cash-stack me-2"></i>
+                    Sales Processing
+                </h2>
+                <p class="sales-subtitle text-muted">Process sales transactions efficiently</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="sales-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="openQuickSale()">
+                        <i class="bi bi-lightning"></i> Quick Sale
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="startNewSale()">
+                        <i class="bi bi-plus-circle"></i> New Sale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Sales Layout -->
+    <div class="sales-layout">
+        <div class="row">
+            <!-- Left Panel - Product Selection -->
+            <div class="col-lg-8">
+                <div class="product-selection-panel">
+                    <!-- Search Bar -->
+                    <div class="search-section mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="searchQuery"
+                                   @input="searchProducts()"
+                                   placeholder="Search products by name, SKU, or barcode..."
+                                   x-ref="searchInput">
+                            <button class="btn btn-outline-secondary" 
+                                    type="button" 
+                                    @click="openBarcodeScanner()"
+                                    x-show="isFeatureEnabled('FEATURE_BARCODE_SCANNING')">
+                                <i class="bi bi-upc-scan"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Category Tabs -->
+                    <div class="category-tabs" x-show="categories.length > 0">
+                        <ul class="nav nav-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" 
+                                        data-bs-toggle="tab" 
+                                        data-bs-target="#all-products" 
+                                        type="button">
+                                    All Products
+                                </button>
+                            </li>
+                            <template x-for="category in categories" :key="category.id">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" 
+                                            data-bs-toggle="tab" 
+                                            :data-bs-target="`#category-${category.id}`" 
+                                            type="button"
+                                            x-text="category.name">
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+
+                    <!-- Product Grid -->
+                    <div class="tab-content" id="productTabs">
+                        <!-- All Products Tab -->
+                        <div class="tab-pane fade show active" id="all-products">
+                            <div class="product-grid">
+                                <template x-for="product in filteredProducts" :key="product.id">
+                                    <div class="product-card" 
+                                         @click="addToCart(product)"
+                                         :class="{'selected': isInCart(product.id)}">
+                                        <div class="product-image">
+                                            <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                                 :alt="product.name"
+                                                 class="img-fluid">
+                                        </div>
+                                        <div class="product-info">
+                                            <h6 class="product-name" x-text="product.name"></h6>
+                                            <p class="product-sku text-muted small" x-text="product.sku"></p>
+                                            <div class="product-price">
+                                                <span class="current-price" x-text="formatCurrency(product.price)"></span>
+                                                <span class="stock-info" 
+                                                      x-show="product.stock !== undefined"
+                                                      :class="{'low-stock': product.stock <= 10}">
+                                                    Stock: <span x-text="product.stock"></span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Category Tabs -->
+                        <template x-for="category in categories" :key="category.id">
+                            <div class="tab-pane fade" :id="`category-${category.id}`">
+                                <div class="product-grid">
+                                    <template x-for="product in getProductsByCategory(category.id)" :key="product.id">
+                                        <div class="product-card" 
+                                             @click="addToCart(product)"
+                                             :class="{'selected': isInCart(product.id)}">
+                                            <div class="product-image">
+                                                <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                                     :alt="product.name"
+                                                     class="img-fluid">
+                                            </div>
+                                            <div class="product-info">
+                                                <h6 class="product-name" x-text="product.name"></h6>
+                                                <p class="product-sku text-muted small" x-text="product.sku"></p>
+                                                <div class="product-price">
+                                                    <span class="current-price" x-text="formatCurrency(product.price)"></span>
+                                                    <span class="stock-info" 
+                                                          x-show="product.stock !== undefined"
+                                                          :class="{'low-stock': product.stock <= 10}">
+                                                        Stock: <span x-text="product.stock"></span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Cart & Checkout -->
+            <div class="col-lg-4">
+                <div class="cart-panel">
+                    <!-- Cart Header -->
+                    <div class="cart-header">
+                        <h5 class="cart-title">
+                            <i class="bi bi-cart3 me-2"></i>
+                            Shopping Cart
+                        </h5>
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                @click="clearCart()"
+                                x-show="cartItems.length > 0">
+                            <i class="bi bi-trash"></i> Clear
+                        </button>
+                    </div>
+
+                    <!-- Cart Items -->
+                    <div class="cart-items">
+                        <div x-show="cartItems.length === 0" class="empty-cart">
+                            <div class="text-center text-muted py-5">
+                                <i class="bi bi-cart-x display-1"></i>
+                                <p class="mt-3">Your cart is empty</p>
+                                <p class="small">Add products to start processing a sale</p>
+                            </div>
+                        </div>
+
+                        <template x-for="item in cartItems" :key="item.id">
+                            <div class="cart-item">
+                                <div class="item-info">
+                                    <h6 class="item-name" x-text="item.name"></h6>
+                                    <p class="item-details text-muted small">
+                                        SKU: <span x-text="item.sku"></span>
+                                        <template x-if="item.variant">
+                                            | <span x-text="item.variant"></span>
+                                        </template>
+                                    </p>
+                                </div>
+                                <div class="item-controls">
+                                    <div class="quantity-controls">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-secondary"
+                                                @click="updateQuantity(item.id, item.quantity - 1)"
+                                                :disabled="item.quantity <= 1">
+                                            <i class="bi bi-dash"></i>
+                                        </button>
+                                        <span class="quantity" x-text="item.quantity"></span>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-secondary"
+                                                @click="updateQuantity(item.id, item.quantity + 1)">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div class="item-price">
+                                        <span x-text="formatCurrency(item.price * item.quantity)"></span>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger ms-2"
+                                                @click="removeFromCart(item.id)">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Cart Summary -->
+                    <div class="cart-summary" x-show="cartItems.length > 0">
+                        <div class="summary-row">
+                            <span>Subtotal:</span>
+                            <span x-text="formatCurrency(subtotal)"></span>
+                        </div>
+                        <div class="summary-row" x-show="discount > 0">
+                            <span>Discount:</span>
+                            <span class="text-success">-<span x-text="formatCurrency(discount)"></span></span>
+                        </div>
+                        <div class="summary-row" x-show="tax > 0">
+                            <span>Tax:</span>
+                            <span x-text="formatCurrency(tax)"></span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total:</span>
+                            <span x-text="formatCurrency(total)"></span>
+                        </div>
+                    </div>
+
+                    <!-- Customer Selection -->
+                    <div class="customer-section" x-show="isFeatureEnabled('FEATURE_CUSTOMER_MANAGEMENT')">
+                        <label class="form-label">Customer (Optional)</label>
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="customerSearch"
+                                   @input="searchCustomers()"
+                                   placeholder="Search or add customer..."
+                                   x-ref="customerInput">
+                            <button class="btn btn-outline-secondary" 
+                                    type="button" 
+                                    @click="addNewCustomer()">
+                                <i class="bi bi-person-plus"></i> New
+                            </button>
+                        </div>
+                        <div class="customer-info mt-2" x-show="selectedCustomer">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-person-circle me-2"></i>
+                                <div>
+                                    <strong x-text="selectedCustomer.name"></strong>
+                                    <p class="text-muted small mb-0" x-text="selectedCustomer.email || selectedCustomer.phone"></p>
+                                </div>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-secondary ms-auto"
+                                        @click="clearCustomer()">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="cart-actions" x-show="cartItems.length > 0">
+                        <button type="button" 
+                                class="btn btn-outline-secondary w-100 mb-2"
+                                @click="holdSale()"
+                                x-show="isFeatureEnabled('FEATURE_QUICK_SALE')">
+                            <i class="bi bi-pause-circle"></i> Hold Sale
+                        </button>
+                        <button type="button" 
+                                class="btn btn-success w-100"
+                                @click="proceedToPayment()">
+                            <i class="bi bi-credit-card"></i> Proceed to Payment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Sale Modal -->
+    <div class="modal fade" id="quickSaleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Quick Sale</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="processQuickSale()">
+                        <div class="mb-3">
+                            <label class="form-label">Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="quickSaleAmount"
+                                       step="0.01"
+                                       min="0"
+                                       required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="quickSaleDescription"
+                                   placeholder="Enter description...">
+                        </div>
+                        <div class="mb-3" x-show="isFeatureEnabled('FEATURE_PAYMENT_PROCESSING')">
+                            <label class="form-label">Payment Method</label>
+                            <select class="form-select" x-model="quickSalePaymentMethod">
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="upi" x-show="isFeatureEnabled('FEATURE_UPI_PAYMENT')">UPI</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" @click="processQuickSale()">Process Sale</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/sales_processing.js') }}"></script>
+<script>
+// Sales Processing App
+function salesProcessingApp() {
+    return {
+        // Data
+        searchQuery: '',
+        products: [],
+        categories: [],
+        cartItems: [],
+        selectedCustomer: null,
+        customerSearch: '',
+        quickSaleAmount: 0,
+        quickSaleDescription: '',
+        quickSalePaymentMethod: 'cash',
+        
+        // Computed properties
+        get filteredProducts() {
+            if (!this.searchQuery) return this.products;
+            
+            const query = this.searchQuery.toLowerCase();
+            return this.products.filter(product => 
+                product.name.toLowerCase().includes(query) ||
+                product.sku.toLowerCase().includes(query) ||
+                (product.barcode && product.barcode.includes(query))
+            );
+        },
+        
+        get subtotal() {
+            return this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        },
+        
+        get discount() {
+            // Calculate discount based on customer or promotions
+            return 0; // Implement discount logic
+        },
+        
+        get tax() {
+            return this.subtotal * 0.05; // 5% tax - make configurable
+        },
+        
+        get total() {
+            return this.subtotal - this.discount + this.tax;
+        },
+        
+        // Methods
+        init() {
+            this.loadProducts();
+            this.loadCategories();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                this.products = await response.json();
+            } catch (error) {
+                console.error('Error loading products:', error);
+                this.showError('Failed to load products');
+            }
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        searchProducts() {
+            // Products are filtered via computed property
+        },
+        
+        getProductsByCategory(categoryId) {
+            return this.products.filter(product => product.category_id === categoryId);
+        },
+        
+        addToCart(product) {
+            const existingItem = this.cartItems.find(item => item.id === product.id);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                this.cartItems.push({
+                    id: product.id,
+                    name: product.name,
+                    sku: product.sku,
+                    price: product.price,
+                    quantity: 1,
+                    variant: null,
+                    image: product.image
+                });
+            }
+            
+            this.showSuccess(`${product.name} added to cart`);
+        },
+        
+        removeFromCart(productId) {
+            this.cartItems = this.cartItems.filter(item => item.id !== productId);
+        },
+        
+        updateQuantity(productId, newQuantity) {
+            const item = this.cartItems.find(item => item.id === productId);
+            if (item && newQuantity > 0) {
+                item.quantity = newQuantity;
+            }
+        },
+        
+        isInCart(productId) {
+            return this.cartItems.some(item => item.id === productId);
+        },
+        
+        clearCart() {
+            if (confirm('Are you sure you want to clear the cart?')) {
+                this.cartItems = [];
+                this.selectedCustomer = null;
+            }
+        },
+        
+        startNewSale() {
+            this.clearCart();
+            this.$refs.searchInput.focus();
+        },
+        
+        openQuickSale() {
+            const modal = new bootstrap.Modal(document.getElementById('quickSaleModal'));
+            modal.show();
+        },
+        
+        async processQuickSale() {
+            if (!this.quickSaleAmount || this.quickSaleAmount <= 0) {
+                this.showError('Please enter a valid amount');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/sales/quick', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: this.quickSaleAmount,
+                        description: this.quickSaleDescription,
+                        payment_method: this.quickSalePaymentMethod
+                    })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Quick sale processed successfully');
+                    bootstrap.Modal.getInstance(document.getElementById('quickSaleModal')).hide();
+                    this.quickSaleAmount = 0;
+                    this.quickSaleDescription = '';
+                } else {
+                    throw new Error('Failed to process quick sale');
+                }
+            } catch (error) {
+                console.error('Error processing quick sale:', error);
+                this.showError('Failed to process quick sale');
+            }
+        },
+        
+        proceedToPayment() {
+            // Navigate to payment processing
+            window.location.href = `/sales/payment?items=${encodeURIComponent(JSON.stringify(this.cartItems))}&customer=${this.selectedCustomer?.id || ''}`;
+        },
+        
+        async searchCustomers() {
+            if (!this.customerSearch) {
+                this.selectedCustomer = null;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/customers/search?q=${this.customerSearch}`);
+                const customers = await response.json();
+                
+                if (customers.length === 1) {
+                    this.selectedCustomer = customers[0];
+                }
+            } catch (error) {
+                console.error('Error searching customers:', error);
+            }
+        },
+        
+        addNewCustomer() {
+            window.location.href = '/customers/new?return_to=sales';
+        },
+        
+        clearCustomer() {
+            this.selectedCustomer = null;
+            this.customerSearch = '';
+        },
+        
+        holdSale() {
+            // Implement hold sale functionality
+            this.showSuccess('Sale held successfully');
+            this.startNewSale();
+        },
+        
+        openBarcodeScanner() {
+            // Implement barcode scanner functionality
+            this.showInfo('Barcode scanner feature coming soon');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + N: New sale
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.startNewSale();
+                }
+                
+                // Ctrl/Cmd + Q: Quick sale
+                if ((e.ctrlKey || e.metaKey) && e.key === 'q') {
+                    e.preventDefault();
+                    this.openQuickSale();
+                }
+                
+                // F1: Focus search
+                if (e.key === 'F1') {
+                    e.preventDefault();
+                    this.$refs.searchInput.focus();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        isFeatureEnabled(feature) {
+            return window.RETAIL_CONFIG.features[feature] || false;
+        },
+        
+        showSuccess(message) {
+            // Show success notification
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            // Show error notification
+            this.showNotification(message, 'error');
+        },
+        
+        showInfo(message) {
+            // Show info notification
+            this.showNotification(message, 'info');
+        },
+        
+        showNotification(message, type) {
+            // Implement notification system
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

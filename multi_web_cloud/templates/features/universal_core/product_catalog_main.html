@@ -1,0 +1,663 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_catalog.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Catalog Management Interface -->
+<div class="product-catalog-container" x-data="productCatalogApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="catalog-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="catalog-title">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Product Catalog Management
+                </h2>
+                <p class="catalog-subtitle text-muted">Manage your product inventory and catalog</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="catalog-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="importProducts()">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportProducts()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="addNewProduct()">
+                        <i class="bi bi-plus-circle"></i> Add Product
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="catalog-filters">
+        <div class="row">
+            <div class="col-md-4">
+                <label class="form-label">Search Products</label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" 
+                           class="form-control" 
+                           x-model="searchQuery"
+                           @input="searchProducts()"
+                           placeholder="Search by name, SKU, or barcode..."
+                           x-ref="searchInput">
+                    <button class="btn btn-outline-secondary" 
+                            type="button" 
+                            @click="openBarcodeScanner()"
+                            x-show="isFeatureEnabled('FEATURE_BARCODE_SCANNING')">
+                        <i class="bi bi-upc-scan"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Category</label>
+                <select class="form-select" x-model="selectedCategory" @change="filterProducts()">
+                    <option value="">All Categories</option>
+                    <template x-for="category in categories" :key="category.id">
+                        <option :value="category.id" x-text="category.name"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select class="form-select" x-model="selectedStatus" @change="filterProducts()">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Sort By</label>
+                <select class="form-select" x-model="sortBy" @change="sortProducts()">
+                    <option value="name">Name</option>
+                    <option value="sku">SKU</option>
+                    <option value="price">Price</option>
+                    <option value="stock">Stock</option>
+                    <option value="created_date">Created Date</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">View</label>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" 
+                            class="btn btn-outline-secondary"
+                            :class="{'active': viewMode === 'grid'}"
+                            @click="viewMode = 'grid'">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-secondary"
+                            :class="{'active': viewMode === 'list'}"
+                            @click="viewMode = 'list'">
+                        <i class="bi bi-list"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="catalog-stats mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary">
+                        <i class="bi bi-box"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Total Products</h6>
+                        <p class="stat-value" x-text="stats.totalProducts"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Active Products</h6>
+                        <p class="stat-value" x-text="stats.activeProducts"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Low Stock</h6>
+                        <p class="stat-value" x-text="stats.lowStockProducts"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-danger">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Out of Stock</h6>
+                        <p class="stat-value" x-text="stats.outOfStockProducts"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Grid View -->
+    <div class="product-grid-view" x-show="viewMode === 'grid'">
+        <div class="row">
+            <template x-for="product in filteredProducts" :key="product.id">
+                <div class="col-md-3 mb-4">
+                    <div class="product-card" @click="viewProduct(product.id)">
+                        <div class="product-image-container">
+                            <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                 :alt="product.name"
+                                 class="product-image">
+                            <div class="product-badges">
+                                <span class="badge bg-success" x-show="product.status === 'active'">Active</span>
+                                <span class="badge bg-danger" x-show="product.status === 'inactive'">Inactive</span>
+                                <span class="badge bg-warning" x-show="product.stock <= 10">Low Stock</span>
+                                <span class="badge bg-danger" x-show="product.stock === 0">Out of Stock</span>
+                            </div>
+                            <div class="product-actions">
+                                <button type="button" 
+                                        class="btn btn-sm btn-primary"
+                                        @click.stop="editProduct(product.id)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-danger"
+                                        @click.stop="deleteProduct(product.id)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="product-info">
+                            <h6 class="product-name" x-text="product.name"></h6>
+                            <p class="product-sku text-muted small" x-text="product.sku"></p>
+                            <div class="product-price-stock">
+                                <span class="product-price" x-text="formatCurrency(product.price)"></span>
+                                <span class="product-stock" 
+                                      :class="{'low-stock': product.stock <= 10, 'out-of-stock': product.stock === 0}">
+                                    Stock: <span x-text="product.stock"></span>
+                                </span>
+                            </div>
+                            <div class="product-category" x-show="product.category">
+                                <small class="text-muted" x-text="product.category.name"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Product List View -->
+    <div class="product-list-view" x-show="viewMode === 'list'">
+        <div class="table-responsive">
+            <table class="table table-hover product-table">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th @click="sortByField('name')" class="sortable">
+                            Product Name
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'name'"></i>
+                        </th>
+                        <th @click="sortByField('sku')" class="sortable">
+                            SKU
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'sku'"></i>
+                        </th>
+                        <th @click="sortByField('category')" class="sortable">
+                            Category
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'category'"></i>
+                        </th>
+                        <th @click="sortByField('price')" class="sortable">
+                            Price
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'price'"></i>
+                        </th>
+                        <th @click="sortByField('stock')" class="sortable">
+                            Stock
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'stock'"></i>
+                        </th>
+                        <th @click="sortByField('status')" class="sortable">
+                            Status
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'status'"></i>
+                        </th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="product in filteredProducts" :key="product.id">
+                        <tr class="product-row" @click="viewProduct(product.id)">
+                            <td>
+                                <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                     :alt="product.name"
+                                     class="product-thumbnail">
+                            </td>
+                            <td>
+                                <div class="product-name-cell">
+                                    <strong x-text="product.name"></strong>
+                                    <div class="product-description" x-show="product.description">
+                                        <small class="text-muted" x-text="product.description.substring(0, 50) + '...'"></small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="product-sku" x-text="product.sku"></span>
+                            </td>
+                            <td>
+                                <span class="product-category" x-text="product.category?.name || 'Uncategorized'"></span>
+                            </td>
+                            <td>
+                                <span class="product-price" x-text="formatCurrency(product.price)"></span>
+                            </td>
+                            <td>
+                                <span class="product-stock" 
+                                      :class="{'low-stock': product.stock <= 10, 'out-of-stock': product.stock === 0}">
+                                    <span x-text="product.stock"></span>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge" 
+                                      :class="`status-${product.status}`"
+                                      x-text="formatStatus(product.status)"></span>
+                            </td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary me-1"
+                                            @click.stop="viewProduct(product.id)"
+                                            title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success me-1"
+                                            @click.stop="editProduct(product.id)"
+                                            title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            @click.stop="deleteProduct(product.id)"
+                                            title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" x-show="filteredProducts.length === 0">
+        <div class="text-center py-5">
+            <i class="bi bi-box display-1 text-muted"></i>
+            <h3 class="mt-3">No Products Found</h3>
+            <p class="text-muted">
+                <span x-show="searchQuery || selectedCategory || selectedStatus">
+                    No products match your current filters. 
+                    <button type="button" class="btn btn-link p-0" @click="clearFilters()">Clear filters</button>
+                </span>
+                <span x-show="!searchQuery && !selectedCategory && !selectedStatus">
+                    You haven't added any products yet. 
+                    <button type="button" class="btn btn-link p-0" @click="addNewProduct()">Add your first product</button>
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bulk-actions" x-show="selectedProducts.length > 0">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <span class="selected-count">
+                            <span x-text="selectedProducts.length"></span> products selected
+                        </span>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkEdit()">
+                            <i class="bi bi-pencil"></i> Bulk Edit
+                        </button>
+                        <button type="button" class="btn btn-outline-danger me-2" @click="bulkDelete()">
+                            <i class="bi bi-trash"></i> Bulk Delete
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @click="clearSelection()">
+                            <i class="bi bi-x"></i> Clear Selection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/product_catalog.js') }}"></script>
+<script>
+// Product Catalog App
+function productCatalogApp() {
+    return {
+        // Data
+        searchQuery: '',
+        selectedCategory: '',
+        selectedStatus: '',
+        sortBy: 'name',
+        viewMode: 'grid',
+        sortField: 'name',
+        sortDirection: 'asc',
+        
+        products: [],
+        categories: [],
+        filteredProducts: [],
+        selectedProducts: [],
+        
+        stats: {
+            totalProducts: 0,
+            activeProducts: 0,
+            lowStockProducts: 0,
+            outOfStockProducts: 0
+        },
+        
+        // Methods
+        init() {
+            this.loadProducts();
+            this.loadCategories();
+            this.loadStats();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                this.products = await response.json();
+                this.filteredProducts = [...this.products];
+            } catch (error) {
+                console.error('Error loading products:', error);
+                this.showError('Failed to load products');
+            }
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadStats() {
+            try {
+                const response = await fetch('/api/products/stats');
+                this.stats = await response.json();
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        },
+        
+        searchProducts() {
+            this.applyFilters();
+        },
+        
+        filterProducts() {
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            this.filteredProducts = this.products.filter(product => {
+                // Search filter
+                if (this.searchQuery) {
+                    const query = this.searchQuery.toLowerCase();
+                    if (!product.name.toLowerCase().includes(query) &&
+                        !product.sku.toLowerCase().includes(query) &&
+                        !(product.barcode && product.barcode.includes(query))) {
+                        return false;
+                    }
+                }
+                
+                // Category filter
+                if (this.selectedCategory && product.category_id !== this.selectedCategory) {
+                    return false;
+                }
+                
+                // Status filter
+                if (this.selectedStatus && product.status !== this.selectedStatus) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            this.sortProducts();
+        },
+        
+        sortProducts() {
+            this.filteredProducts.sort((a, b) => {
+                let aVal = a[this.sortBy];
+                let bVal = b[this.sortBy];
+                
+                if (this.sortBy === 'category') {
+                    aVal = a.category?.name || '';
+                    bVal = b.category?.name || '';
+                }
+                
+                if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        sortByField(field) {
+            if (this.sortBy === field) {
+                this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortBy = field;
+                this.sortDirection = 'asc';
+            }
+            this.sortProducts();
+        },
+        
+        clearFilters() {
+            this.searchQuery = '';
+            this.selectedCategory = '';
+            this.selectedStatus = '';
+            this.applyFilters();
+        },
+        
+        addNewProduct() {
+            window.location.href = '/products/new';
+        },
+        
+        viewProduct(productId) {
+            window.location.href = `/products/${productId}`;
+        },
+        
+        editProduct(productId) {
+            window.location.href = `/products/${productId}/edit`;
+        },
+        
+        async deleteProduct(productId) {
+            if (!confirm('Are you sure you want to delete this product?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/products/${productId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Product deleted successfully');
+                    this.loadProducts();
+                    this.loadStats();
+                } else {
+                    throw new Error('Failed to delete product');
+                }
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                this.showError('Failed to delete product');
+            }
+        },
+        
+        importProducts() {
+            window.location.href = '/products/import';
+        },
+        
+        async exportProducts() {
+            try {
+                const response = await fetch('/api/products/export');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `products_export_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Products exported successfully');
+                } else {
+                    throw new Error('Failed to export products');
+                }
+            } catch (error) {
+                console.error('Error exporting products:', error);
+                this.showError('Failed to export products');
+            }
+        },
+        
+        bulkEdit() {
+            // Navigate to bulk edit page
+            const ids = this.selectedProducts.map(p => p.id).join(',');
+            window.location.href = `/products/bulk-edit?ids=${ids}`;
+        },
+        
+        async bulkDelete() {
+            if (!confirm(`Are you sure you want to delete ${this.selectedProducts.length} products?`)) {
+                return;
+            }
+            
+            try {
+                const ids = this.selectedProducts.map(p => p.id);
+                const response = await fetch('/api/products/bulk-delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Products deleted successfully');
+                    this.selectedProducts = [];
+                    this.loadProducts();
+                    this.loadStats();
+                } else {
+                    throw new Error('Failed to delete products');
+                }
+            } catch (error) {
+                console.error('Error deleting products:', error);
+                this.showError('Failed to delete products');
+            }
+        },
+        
+        clearSelection() {
+            this.selectedProducts = [];
+        },
+        
+        openBarcodeScanner() {
+            // Implement barcode scanner functionality
+            this.showInfo('Barcode scanner feature coming soon');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + N: New product
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.addNewProduct();
+                }
+                
+                // Ctrl/Cmd + I: Import products
+                if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                    e.preventDefault();
+                    this.importProducts();
+                }
+                
+                // Ctrl/Cmd + E: Export products
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportProducts();
+                }
+                
+                // /: Focus search
+                if (e.key === '/') {
+                    e.preventDefault();
+                    this.$refs.searchInput.focus();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatStatus(status) {
+            const statuses = {
+                active: 'Active',
+                inactive: 'Inactive',
+                out_of_stock: 'Out of Stock'
+            };
+            return statuses[status] || status;
+        },
+        
+        isFeatureEnabled(feature) {
+            return window.RETAIL_CONFIG.features[feature] || false;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showInfo(message) {
+            this.showNotification(message, 'info');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

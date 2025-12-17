@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Returns and Filings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .gst-table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .view-toggle .btn {
+            border-radius: 0;
+        }
+        .view-toggle .btn:first-child {
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+        }
+        .view-toggle .btn:last-child {
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .gst-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #28a745;
+        }
+        .gst-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="gstComplianceList()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="mb-3 mb-md-0">
+                        <h1 class="h3 mb-1">GST Returns and Filings</h1>
+                        <p class="text-muted mb-0">Manage all your GST returns and filing history</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="exportData()">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                        <button class="btn btn-primary" @click="navigateTo('main')">
+                            <i class="bi bi-house"></i> Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Search</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" placeholder="Search returns..." x-model="searchQuery">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Return Type</label>
+                                <select class="form-select" x-model="filters.returnType">
+                                    <option value="">All Types</option>
+                                    <option value="GSTR1">GSTR-1</option>
+                                    <option value="GSTR3B">GSTR-3B</option>
+                                    <option value="GSTR9">GSTR-9</option>
+                                    <option value="GSTR9A">GSTR-9A</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" x-model="filters.status">
+                                    <option value="">All Status</option>
+                                    <option value="Filed">Filed</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Overdue">Overdue</option>
+                                    <option value="Draft">Draft</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Period</label>
+                                <input type="month" class="form-control" x-model="filters.period">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary" @click="applyFilters()">
+                                        <i class="bi bi-funnel"></i> Apply
+                                    </button>
+                                    <button class="btn btn-outline-secondary" @click="resetFilters()">
+                                        <i class="bi bi-arrow-clockwise"></i> Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Toggle and Bulk Actions -->
+        <div class="row mb-3" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-md-6">
+                <div class="btn-group view-toggle" role="group">
+                    <button type="button" class="btn btn-outline-primary" 
+                            :class="{'active': viewMode === 'table'}" 
+                            @click="viewMode = 'table'">
+                        <i class="bi bi-table"></i> Table View
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" 
+                            :class="{'active': viewMode === 'grid'}" 
+                            @click="viewMode = 'grid'">
+                        <i class="bi bi-grid"></i> Grid View
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="dropdown d-inline-block me-2" x-show="selectedItems.length > 0">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        Bulk Actions (<span x-text="selectedItems.length"></span>)
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" @click="bulkFile()">File Selected</a></li>
+                        <li><a class="dropdown-item" href="#" @click="bulkExport()">Export Selected</a></li>
+                        <li><a class="dropdown-item" href="#" @click="bulkDelete()">Delete Selected</a></li>
+                    </ul>
+                </div>
+                <div class="d-inline-block">
+                    <span class="text-muted">Showing <span x-text="filteredReturns.length"></span> of <span x-text="gstReturns.length"></span> returns</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE') && viewMode === 'table'">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 gst-table">
+                                <thead>
+                                    <tr>
+                                        <th width="40">
+                                            <input type="checkbox" class="form-check-input" 
+                                                   @change="toggleSelectAll($event.target.checked)">
+                                        </th>
+                                        <th>Return Type</th>
+                                        <th>Tax Period</th>
+                                        <th>Due Date</th>
+                                        <th>Filing Date</th>
+                                        <th>Status</th>
+                                        <th>Turnover</th>
+                                        <th>Tax Liability</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="returnItem in paginatedReturns" :key="returnItem.id">
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" class="form-check-input" 
+                                                       :checked="selectedItems.includes(returnItem.id)"
+                                                       @change="toggleSelection(returnItem.id)">
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary" x-text="returnItem.type"></span>
+                                            </td>
+                                            <td x-text="returnItem.period"></td>
+                                            <td x-text="returnItem.dueDate"></td>
+                                            <td x-text="returnItem.filingDate || '-'"></td>
+                                            <td>
+                                                <span class="badge status-badge" 
+                                                      :class="{
+                                                          'bg-success': returnItem.status === 'Filed',
+                                                          'bg-warning': returnItem.status === 'Pending',
+                                                          'bg-danger': returnItem.status === 'Overdue',
+                                                          'bg-secondary': returnItem.status === 'Draft'
+                                                      }" 
+                                                      x-text="returnItem.status"></span>
+                                            </td>
+                                            <td>₹<span x-text="returnItem.turnover.toLocaleString('en-IN')"></span></td>
+                                            <td>₹<span x-text="returnItem.taxLiability.toLocaleString('en-IN')"></span></td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @click="viewDetails(returnItem)">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" 
+                                                            x-show="returnItem.status === 'Pending' || returnItem.status === 'Draft'"
+                                                            @click="fileReturn(returnItem)">
+                                                        <i class="bi bi-upload"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary" @click="downloadReturn(returnItem)">
+                                                        <i class="bi bi-download"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid View -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE') && viewMode === 'grid'">
+            <div class="col-12">
+                <div class="card-grid">
+                    <template x-for="returnItem in paginatedReturns" :key="returnItem.id">
+                        <div class="card gst-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <span class="badge bg-primary" x-text="returnItem.type"></span>
+                                    <input type="checkbox" class="form-check-input" 
+                                           :checked="selectedItems.includes(returnItem.id)"
+                                           @change="toggleSelection(returnItem.id)">
+                                </div>
+                                <h6 class="card-title" x-text="returnItem.period"></h6>
+                                <div class="mb-2">
+                                    <small class="text-muted">Due Date:</small>
+                                    <span x-text="returnItem.dueDate"></span>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted">Status:</small>
+                                    <span class="badge status-badge" 
+                                          :class="{
+                                              'bg-success': returnItem.status === 'Filed',
+                                              'bg-warning': returnItem.status === 'Pending',
+                                              'bg-danger': returnItem.status === 'Overdue',
+                                              'bg-secondary': returnItem.status === 'Draft'
+                                          }" 
+                                          x-text="returnItem.status"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted">Turnover:</small><br>
+                                            <strong>₹<span x-text="returnItem.turnover.toLocaleString('en-IN')"></span></strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Tax:</small><br>
+                                            <strong>₹<span x-text="returnItem.taxLiability.toLocaleString('en-IN')"></span></strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-primary flex-fill" @click="viewDetails(returnItem)">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success flex-fill" 
+                                            x-show="returnItem.status === 'Pending' || returnItem.status === 'Draft'"
+                                            @click="fileReturn(returnItem)">
+                                        <i class="bi bi-upload"></i> File
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="row mt-4" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-12">
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" :class="{'disabled': currentPage === 1}">
+                            <a class="page-link" href="#" @click.prevent="currentPage > 1 && currentPage--">Previous</a>
+                        </li>
+                        <template x-for="page in totalPages" :key="page">
+                            <li class="page-item" :class="{'active': page === currentPage}">
+                                <a class="page-link" href="#" @click.prevent="currentPage = page" x-text="page"></a>
+                            </li>
+                        </template>
+                        <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                            <a class="page-link" href="#" @click.prevent="currentPage < totalPages && currentPage++">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Return Details Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">GST Return Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" x-show="selectedReturn">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Basic Information</h6>
+                            <table class="table table-sm">
+                                <tr><td>Return Type:</td><td x-text="selectedReturn?.type"></td></tr>
+                                <tr><td>Tax Period:</td><td x-text="selectedReturn?.period"></td></tr>
+                                <tr><td>Due Date:</td><td x-text="selectedReturn?.dueDate"></td></tr>
+                                <tr><td>Filing Date:</td><td x-text="selectedReturn?.filingDate || 'Not filed yet'"></td></tr>
+                                <tr><td>Status:</td><td x-text="selectedReturn?.status"></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Financial Summary</h6>
+                            <table class="table table-sm">
+                                <tr><td>Total Turnover:</td><td>₹<span x-text="selectedReturn?.turnover.toLocaleString('en-IN')"></span></td></tr>
+                                <tr><td>Taxable Supply:</td><td>₹<span x-text="selectedReturn?.taxableSupply?.toLocaleString('en-IN')"></span></td></tr>
+                                <tr><td>IGST:</td><td>₹<span x-text="selectedReturn?.igst?.toLocaleString('en-IN')"></span></td></tr>
+                                <tr><td>CGST:</td><td>₹<span x-text="selectedReturn?.cgst?.toLocaleString('en-IN')"></span></td></tr>
+                                <tr><td>SGST:</td><td>₹<span x-text="selectedReturn?.sgst?.toLocaleString('en-IN')"></span></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" @click="downloadReturn(selectedReturn)">Download</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function gstComplianceList() {
+            return {
+                viewMode: 'table',
+                searchQuery: '',
+                currentPage: 1,
+                itemsPerPage: 10,
+                selectedItems: [],
+                selectedReturn: null,
+                filters: {
+                    returnType: '',
+                    status: '',
+                    period: ''
+                },
+                gstReturns: [
+                    {
+                        id: 1,
+                        type: 'GSTR1',
+                        period: 'December 2023',
+                        dueDate: 'January 11, 2024',
+                        filingDate: 'January 10, 2024',
+                        status: 'Filed',
+                        turnover: 1500000,
+                        taxLiability: 180000,
+                        taxableSupply: 1200000,
+                        igst: 45000,
+                        cgst: 67500,
+                        sgst: 67500
+                    },
+                    {
+                        id: 2,
+                        type: 'GSTR3B',
+                        period: 'December 2023',
+                        dueDate: 'January 20, 2024',
+                        filingDate: null,
+                        status: 'Pending',
+                        turnover: 1500000,
+                        taxLiability: 180000,
+                        taxableSupply: 1200000,
+                        igst: 45000,
+                        cgst: 67500,
+                        sgst: 67500
+                    },
+                    {
+                        id: 3,
+                        type: 'GSTR1',
+                        period: 'November 2023',
+                        dueDate: 'December 11, 2023',
+                        filingDate: null,
+                        status: 'Overdue',
+                        turnover: 1350000,
+                        taxLiability: 162000,
+                        taxableSupply: 1080000,
+                        igst: 40500,
+                        cgst: 60750,
+                        sgst: 60750
+                    }
+                ],
+                
+                get filteredReturns() {
+                    let filtered = this.gstReturns;
+                    
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        filtered = filtered.filter(item => 
+                            item.type.toLowerCase().includes(query) ||
+                            item.period.toLowerCase().includes(query) ||
+                            item.status.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    if (this.filters.returnType) {
+                        filtered = filtered.filter(item => item.type === this.filters.returnType);
+                    }
+                    
+                    if (this.filters.status) {
+                        filtered = filtered.filter(item => item.status === this.filters.status);
+                    }
+                    
+                    if (this.filters.period) {
+                        filtered = filtered.filter(item => item.period.includes(this.filters.period));
+                    }
+                    
+                    return filtered;
+                },
+                
+                get paginatedReturns() {
+                    const start = (this.currentPage - 1) * this.itemsPerPage;
+                    const end = start + this.itemsPerPage;
+                    return this.filteredReturns.slice(start, end);
+                },
+                
+                get totalPages() {
+                    return Math.ceil(this.filteredReturns.length / this.itemsPerPage);
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                toggleSelectAll(checked) {
+                    if (checked) {
+                        this.selectedItems = this.paginatedReturns.map(item => item.id);
+                    } else {
+                        this.selectedItems = [];
+                    }
+                },
+                
+                toggleSelection(id) {
+                    const index = this.selectedItems.indexOf(id);
+                    if (index > -1) {
+                        this.selectedItems.splice(index, 1);
+                    } else {
+                        this.selectedItems.push(id);
+                    }
+                },
+                
+                applyFilters() {
+                    this.currentPage = 1;
+                },
+                
+                resetFilters() {
+                    this.searchQuery = '';
+                    this.filters = {
+                        returnType: '',
+                        status: '',
+                        period: ''
+                    };
+                    this.currentPage = 1;
+                },
+                
+                viewDetails(returnItem) {
+                    this.selectedReturn = returnItem;
+                    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+                    modal.show();
+                },
+                
+                fileReturn(returnItem) {
+                    console.log('Filing return:', returnItem);
+                    // Navigate to filing form
+                },
+                
+                downloadReturn(returnItem) {
+                    console.log('Downloading return:', returnItem);
+                },
+                
+                exportData() {
+                    console.log('Exporting GST returns data');
+                },
+                
+                bulkFile() {
+                    console.log('Bulk filing selected returns:', this.selectedItems);
+                },
+                
+                bulkExport() {
+                    console.log('Bulk exporting selected returns:', this.selectedItems);
+                },
+                
+                bulkDelete() {
+                    if (confirm('Are you sure you want to delete the selected returns?')) {
+                        console.log('Bulk deleting selected returns:', this.selectedItems);
+                    }
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/gst_compliance_${page}.html`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1592 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/customer_management_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Customer Management Reports -->
+<div class="customer-reports-container" x-data="customerReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Customer Reports & Analytics
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive customer analysis and reporting</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="refreshReports()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-primary me-2" @click="scheduleReport()">
+                        <i class="bi bi-calendar-check"></i> Schedule
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="exportReport()" :disabled="isExporting">
+                        <i class="bi bi-download"></i> 
+                        <span x-show="!isExporting">Export</span>
+                        <span x-show="isExporting">Exporting...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Controls -->
+    <div class="report-controls">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Report Type</label>
+                            <select class="form-select" x-model="reportType" @change="updateReport()">
+                                <option value="overview">Customer Overview</option>
+                                <option value="demographics">Demographics Analysis</option>
+                                <option value="behavior">Customer Behavior</option>
+                                <option value="loyalty">Loyalty Program Analysis</option>
+                                <option value="retention">Customer Retention</option>
+                                <option value="lifetime">Customer Lifetime Value</option>
+                                <option value="segmentation">Customer Segmentation</option>
+                                <option value="communication">Communication Effectiveness</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="dateRange" @change="updateReport()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="this_week">This Week</option>
+                                <option value="last_week">Last Week</option>
+                                <option value="this_month">This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="this_quarter">This Quarter</option>
+                                <option value="last_quarter">Last Quarter</option>
+                                <option value="this_year">This Year</option>
+                                <option value="last_year">Last Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Customer Type</label>
+                            <select class="form-select" x-model="customerType" @change="updateReport()">
+                                <option value="">All Types</option>
+                                <option value="regular">Regular</option>
+                                <option value="loyalty">Loyalty Member</option>
+                                <option value="vip">VIP</option>
+                                <option value="wholesale">Wholesale</option>
+                                <option value="corporate">Corporate</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Location</label>
+                            <select class="form-select" x-model="selectedLocation" @change="updateReport()">
+                                <option value="">All Locations</option>
+                                <template x-for="location in locations" :key="location.id">
+                                    <option :value="location.id" x-text="location.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Custom Date Range -->
+                <div class="row mt-3" x-show="dateRange === 'custom'">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="customStartDate"
+                                   @change="updateReport()">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="customEndDate"
+                                   @change="updateReport()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="key-metrics">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-primary">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Total Customers</h6>
+                        <p class="metric-value" x-text="metrics.totalCustomers"></p>
+                        <small class="metric-change text-success" x-show="metrics.totalCustomersChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.totalCustomersChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.totalCustomersChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.totalCustomersChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-success">
+                        <i class="bi bi-star"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Loyalty Members</h6>
+                        <p class="metric-value" x-text="metrics.loyaltyMembers"></p>
+                        <small class="metric-change text-success" x-show="metrics.loyaltyMembersChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.loyaltyMembersChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.loyaltyMembersChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.loyaltyMembersChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-warning">
+                        <i class="bi bi-person-plus"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">New Customers</h6>
+                        <p class="metric-value" x-text="metrics.newCustomers"></p>
+                        <small class="metric-change text-success" x-show="metrics.newCustomersChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.newCustomersChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.newCustomersChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.newCustomersChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-info">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Avg. Order Value</h6>
+                        <p class="metric-value" x-text="formatCurrency(metrics.averageOrderValue)"></p>
+                        <small class="metric-change text-success" x-show="metrics.averageOrderValueChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.averageOrderValueChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.averageOrderValueChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.averageOrderValueChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-secondary">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Retention Rate</h6>
+                        <p class="metric-value" x-text="metrics.retentionRate + '%'"></p>
+                        <small class="metric-change text-success" x-show="metrics.retentionRateChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.retentionRateChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.retentionRateChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.retentionRateChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-danger">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Lifetime Value</h6>
+                        <p class="metric-value" x-text="formatCurrency(metrics.lifetimeValue)"></p>
+                        <small class="metric-change text-success" x-show="metrics.lifetimeValueChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.lifetimeValueChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.lifetimeValueChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.lifetimeValueChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div class="report-content">
+        
+        <!-- Overview Report -->
+        <div class="report-section" x-show="reportType === 'overview'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Customer Growth Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="customerGrowthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Customer Type Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="customerTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Customer Activity Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Period</th>
+                                            <th>New Customers</th>
+                                            <th>Active Customers</th>
+                                            <th>Total Orders</th>
+                                            <th>Total Revenue</th>
+                                            <th>Avg. Order Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="period in activitySummary" :key="period.period">
+                                            <tr>
+                                                <td x-text="period.period"></td>
+                                                <td x-text="period.newCustomers"></td>
+                                                <td x-text="period.activeCustomers"></td>
+                                                <td x-text="period.totalOrders"></td>
+                                                <td x-text="formatCurrency(period.totalRevenue)"></td>
+                                                <td x-text="formatCurrency(period.avgOrderValue)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demographics Report -->
+        <div class="report-section" x-show="reportType === 'demographics'">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Age Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="ageDistributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Gender Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="genderDistributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Geographic Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="geographicChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Behavior Report -->
+        <div class="report-section" x-show="reportType === 'behavior'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Purchase Frequency Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="purchaseFrequencyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Preferred Contact Methods</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="contactMethodsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Top Customer Behaviors</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Behavior</th>
+                                            <th>Customers</th>
+                                            <th>Percentage</th>
+                                            <th>Avg. Order Value</th>
+                                            <th>Retention Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="behavior in topBehaviors" :key="behavior.behavior">
+                                            <tr>
+                                                <td x-text="behavior.behavior"></td>
+                                                <td x-text="behavior.customers"></td>
+                                                <td x-text="behavior.percentage + '%'"></td>
+                                                <td x-text="formatCurrency(behavior.avgOrderValue)"></td>
+                                                <td x-text="behavior.retentionRate + '%'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loyalty Report -->
+        <div class="report-section" x-show="reportType === 'loyalty'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Loyalty Program Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="loyaltyPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Loyalty Tier Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="loyaltyTierChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Loyalty Metrics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Metric</th>
+                                            <th>Current Period</th>
+                                            <th>Previous Period</th>
+                                            <th>Change</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="metric in loyaltyMetrics" :key="metric.metric">
+                                            <tr>
+                                                <td x-text="metric.metric"></td>
+                                                <td x-text="metric.current"></td>
+                                                <td x-text="metric.previous"></td>
+                                                <td>
+                                                    <span class="change-indicator" 
+                                                          :class="metric.change >= 0 ? 'positive' : 'negative'">
+                                                        <i :class="metric.change >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                                        <span x-text="Math.abs(metric.change) + '%'"></span>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Retention Report -->
+        <div class="report-section" x-show="reportType === 'retention'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Customer Retention Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="retentionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Retention Cohort Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Cohort</th>
+                                            <th>Initial Customers</th>
+                                            <th>Month 1</th>
+                                            <th>Month 3</th>
+                                            <th>Month 6</th>
+                                            <th>Month 12</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="cohort in retentionCohorts" :key="cohort.cohort">
+                                            <tr>
+                                                <td x-text="cohort.cohort"></td>
+                                                <td x-text="cohort.initialCustomers"></td>
+                                                <td x-text="cohort.month1 + '%'"></td>
+                                                <td x-text="cohort.month3 + '%'"></td>
+                                                <td x-text="cohort.month6 + '%'"></td>
+                                                <td x-text="cohort.month12 + '%'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lifetime Value Report -->
+        <div class="report-section" x-show="reportType === 'lifetime'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Customer Lifetime Value Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="lifetimeValueChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">CLV by Customer Type</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="clvByTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Top Customers by Lifetime Value</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Customer</th>
+                                            <th>Type</th>
+                                            <th>Orders</th>
+                                            <th>Total Spent</th>
+                                            <th>Avg. Order Value</th>
+                                            <th>Lifetime Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="customer in topCLVCustomers" :key="customer.id">
+                                            <tr>
+                                                <td x-text="customer.name"></td>
+                                                <td x-text="customer.type"></td>
+                                                <td x-text="customer.orders"></td>
+                                                <td x-text="formatCurrency(customer.totalSpent)"></td>
+                                                <td x-text="formatCurrency(customer.avgOrderValue)"></td>
+                                                <td x-text="formatCurrency(customer.lifetimeValue)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Segmentation Report -->
+        <div class="report-section" x-show="reportType === 'segmentation'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Customer Segments</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="segmentationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Segment Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Segment</th>
+                                            <th>Customers</th>
+                                            <th>Percentage</th>
+                                            <th>Avg. Order Value</th>
+                                            <th>Order Frequency</th>
+                                            <th>Retention Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="segment in customerSegments" :key="segment.segment">
+                                            <tr>
+                                                <td x-text="segment.segment"></td>
+                                                <td x-text="segment.customers"></td>
+                                                <td x-text="segment.percentage + '%'"></td>
+                                                <td x-text="formatCurrency(segment.avgOrderValue)"></td>
+                                                <td x-text="segment.orderFrequency"></td>
+                                                <td x-text="segment.retentionRate + '%'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Communication Report -->
+        <div class="report-section" x-show="reportType === 'communication'">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Email Campaign Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="emailPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">SMS Campaign Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="smsPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Communication Metrics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Campaign</th>
+                                            <th>Type</th>
+                                            <th>Sent</th>
+                                            <th>Delivered</th>
+                                            <th>Opened</th>
+                                            <th>Clicked</th>
+                                            <th>Conversion Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="campaign in communicationCampaigns" :key="campaign.id">
+                                            <tr>
+                                                <td x-text="campaign.name"></td>
+                                                <td x-text="campaign.type"></td>
+                                                <td x-text="campaign.sent"></td>
+                                                <td x-text="campaign.delivered"></td>
+                                                <td x-text="campaign.opened"></td>
+                                                <td x-text="campaign.clicked"></td>
+                                                <td x-text="campaign.conversionRate + '%'"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Report Modal -->
+    <div class="modal fade" id="scheduleReportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Schedule Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Report Name</label>
+                            <input type="text" class="form-control" x-model="scheduleData.reportName" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Frequency</label>
+                            <select class="form-select" x-model="scheduleData.frequency">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Recipients</label>
+                            <textarea class="form-control" 
+                                      x-model="scheduleData.recipients"
+                                      rows="3"
+                                      placeholder="Enter email addresses separated by commas"></textarea>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Format</label>
+                            <select class="form-select" x-model="scheduleData.format">
+                                <option value="pdf">PDF</option>
+                                <option value="excel">Excel</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="saveSchedule()">Save Schedule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/customer_management_reports.js') }}"></script>
+<script>
+// Customer Reports App
+function customerReportsApp() {
+    return {
+        // Data
+        isExporting: false,
+        reportType: 'overview',
+        dateRange: 'this_month',
+        customerType: '',
+        selectedLocation: '',
+        customStartDate: '',
+        customEndDate: '',
+        
+        locations: [],
+        
+        metrics: {
+            totalCustomers: 0,
+            totalCustomersChange: 0,
+            loyaltyMembers: 0,
+            loyaltyMembersChange: 0,
+            newCustomers: 0,
+            newCustomersChange: 0,
+            averageOrderValue: 0,
+            averageOrderValueChange: 0,
+            retentionRate: 0,
+            retentionRateChange: 0,
+            lifetimeValue: 0,
+            lifetimeValueChange: 0
+        },
+        
+        activitySummary: [],
+        topBehaviors: [],
+        loyaltyMetrics: [],
+        retentionCohorts: [],
+        topCLVCustomers: [],
+        customerSegments: [],
+        communicationCampaigns: [],
+        
+        scheduleData: {
+            reportName: '',
+            frequency: 'weekly',
+            recipients: '',
+            format: 'pdf'
+        },
+        
+        // Chart instances
+        charts: {},
+        
+        // Methods
+        init() {
+            this.loadLocations();
+            this.loadMetrics();
+            this.updateReport();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                this.locations = await response.json();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        },
+        
+        async loadMetrics() {
+            try {
+                const response = await fetch('/api/customers/metrics');
+                this.metrics = await response.json();
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        },
+        
+        async updateReport() {
+            // Destroy existing charts
+            Object.values(this.charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            
+            // Load report data based on type
+            switch (this.reportType) {
+                case 'overview':
+                    await this.loadOverviewReport();
+                    break;
+                case 'demographics':
+                    await this.loadDemographicsReport();
+                    break;
+                case 'behavior':
+                    await this.loadBehaviorReport();
+                    break;
+                case 'loyalty':
+                    await this.loadLoyaltyReport();
+                    break;
+                case 'retention':
+                    await this.loadRetentionReport();
+                    break;
+                case 'lifetime':
+                    await this.loadLifetimeValueReport();
+                    break;
+                case 'segmentation':
+                    await this.loadSegmentationReport();
+                    break;
+                case 'communication':
+                    await this.loadCommunicationReport();
+                    break;
+            }
+        },
+        
+        async loadOverviewReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/overview?${params}`);
+                const data = await response.json();
+                
+                this.activitySummary = data.activitySummary;
+                
+                // Create charts
+                this.createCustomerGrowthChart(data.growthData);
+                this.createCustomerTypeChart(data.typeData);
+            } catch (error) {
+                console.error('Error loading overview report:', error);
+            }
+        },
+        
+        async loadDemographicsReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/demographics?${params}`);
+                const data = await response.json();
+                
+                // Create charts
+                this.createAgeDistributionChart(data.ageData);
+                this.createGenderDistributionChart(data.genderData);
+                this.createGeographicChart(data.geographicData);
+            } catch (error) {
+                console.error('Error loading demographics report:', error);
+            }
+        },
+        
+        async loadBehaviorReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/behavior?${params}`);
+                const data = await response.json();
+                
+                this.topBehaviors = data.topBehaviors;
+                
+                // Create charts
+                this.createPurchaseFrequencyChart(data.frequencyData);
+                this.createContactMethodsChart(data.contactMethodsData);
+            } catch (error) {
+                console.error('Error loading behavior report:', error);
+            }
+        },
+        
+        async loadLoyaltyReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/loyalty?${params}`);
+                const data = await response.json();
+                
+                this.loyaltyMetrics = data.loyaltyMetrics;
+                
+                // Create charts
+                this.createLoyaltyPerformanceChart(data.performanceData);
+                this.createLoyaltyTierChart(data.tierData);
+            } catch (error) {
+                console.error('Error loading loyalty report:', error);
+            }
+        },
+        
+        async loadRetentionReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/retention?${params}`);
+                const data = await response.json();
+                
+                this.retentionCohorts = data.retentionCohorts;
+                
+                // Create chart
+                this.createRetentionChart(data.retentionData);
+            } catch (error) {
+                console.error('Error loading retention report:', error);
+            }
+        },
+        
+        async loadLifetimeValueReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/lifetime-value?${params}`);
+                const data = await response.json();
+                
+                this.topCLVCustomers = data.topCustomers;
+                
+                // Create charts
+                this.createLifetimeValueChart(data.clvTrendData);
+                this.createCLVByTypeChart(data.clvByTypeData);
+            } catch (error) {
+                console.error('Error loading lifetime value report:', error);
+            }
+        },
+        
+        async loadSegmentationReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/segmentation?${params}`);
+                const data = await response.json();
+                
+                this.customerSegments = data.segments;
+                
+                // Create chart
+                this.createSegmentationChart(data.segmentationData);
+            } catch (error) {
+                console.error('Error loading segmentation report:', error);
+            }
+        },
+        
+        async loadCommunicationReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/customers/reports/communication?${params}`);
+                const data = await response.json();
+                
+                this.communicationCampaigns = data.campaigns;
+                
+                // Create charts
+                this.createEmailPerformanceChart(data.emailData);
+                this.createSMSPerformanceChart(data.smsData);
+            } catch (error) {
+                console.error('Error loading communication report:', error);
+            }
+        },
+        
+        // Chart creation methods
+        createCustomerGrowthChart(data) {
+            const ctx = document.getElementById('customerGrowthChart').getContext('2d');
+            this.charts.customerGrowth = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Total Customers',
+                        data: data.totalCustomers,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }, {
+                        label: 'New Customers',
+                        data: data.newCustomers,
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createCustomerTypeChart(data) {
+            const ctx = document.getElementById('customerTypeChart').getContext('2d');
+            this.charts.customerType = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)',
+                            'rgba(255, 99, 132, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        },
+        
+        createAgeDistributionChart(data) {
+            const ctx = document.getElementById('ageDistributionChart').getContext('2d');
+            this.charts.ageDistribution = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Customers',
+                        data: data.values,
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createGenderDistributionChart(data) {
+            const ctx = document.getElementById('genderDistributionChart').getContext('2d');
+            this.charts.genderDistribution = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(255, 206, 86, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        },
+        
+        createGeographicChart(data) {
+            const ctx = document.getElementById('geographicChart').getContext('2d');
+            this.charts.geographic = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Customers',
+                        data: data.values,
+                        backgroundColor: 'rgba(153, 102, 255, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createPurchaseFrequencyChart(data) {
+            const ctx = document.getElementById('purchaseFrequencyChart').getContext('2d');
+            this.charts.purchaseFrequency = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Purchase Frequency',
+                        data: data.values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createContactMethodsChart(data) {
+            const ctx = document.getElementById('contactMethodsChart').getContext('2d');
+            this.charts.contactMethods = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        },
+        
+        createLoyaltyPerformanceChart(data) {
+            const ctx = document.getElementById('loyaltyPerformanceChart').getContext('2d');
+            this.charts.loyaltyPerformance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Active Members',
+                        data: data.activeMembers,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }, {
+                        label: 'Points Earned',
+                        data: data.pointsEarned,
+                        borderColor: 'rgb(255, 206, 86)',
+                        backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left'
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        },
+        
+        createLoyaltyTierChart(data) {
+            const ctx = document.getElementById('loyaltyTierChart').getContext('2d');
+            this.charts.loyaltyTier = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Members',
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(205, 127, 50, 0.8)',
+                            'rgba(192, 192, 192, 0.8)',
+                            'rgba(255, 215, 0, 0.8)',
+                            'rgba(75, 192, 192, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createRetentionChart(data) {
+            const ctx = document.getElementById('retentionChart').getContext('2d');
+            this.charts.retention = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Retention Rate (%)',
+                        data: data.values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        },
+        
+        createLifetimeValueChart(data) {
+            const ctx = document.getElementById('lifetimeValueChart').getContext('2d');
+            this.charts.lifetimeValue = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Average CLV',
+                        data: data.values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createCLVByTypeChart(data) {
+            const ctx = document.getElementById('clvByTypeChart').getContext('2d');
+            this.charts.clvByType = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Average CLV',
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)',
+                            'rgba(255, 99, 132, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createSegmentationChart(data) {
+            const ctx = document.getElementById('segmentationChart').getContext('2d');
+            this.charts.segmentation = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: 'Customer Segments',
+                        data: data.values,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Order Frequency'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Average Order Value'
+                            }
+                        }
+                    }
+                }
+            });
+        },
+        
+        createEmailPerformanceChart(data) {
+            const ctx = document.getElementById('emailPerformanceChart').getContext('2d');
+            this.charts.emailPerformance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Open Rate (%)',
+                        data: data.openRates,
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                    }, {
+                        label: 'Click Rate (%)',
+                        data: data.clickRates,
+                        backgroundColor: 'rgba(255, 206, 86, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        },
+        
+        createSMSPerformanceChart(data) {
+            const ctx = document.getElementById('smsPerformanceChart').getContext('2d');
+            this.charts.smsPerformance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Delivery Rate (%)',
+                        data: data.deliveryRates,
+                        backgroundColor: 'rgba(153, 102, 255, 0.8)'
+                    }, {
+                        label: 'Response Rate (%)',
+                        data: data.responseRates,
+                        backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        },
+        
+        async refreshReports() {
+            await this.loadMetrics();
+            await this.updateReport();
+            this.showSuccess('Reports refreshed successfully');
+        },
+        
+        scheduleReport() {
+            const modal = new bootstrap.Modal(document.getElementById('scheduleReportModal'));
+            modal.show();
+        },
+        
+        async saveSchedule() {
+            try {
+                const scheduleData = {
+                    ...this.scheduleData,
+                    reportType: this.reportType,
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation
+                };
+                
+                const response = await fetch('/api/customers/reports/schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(scheduleData)
+                });
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('scheduleReportModal')).hide();
+                    this.showSuccess('Report scheduled successfully');
+                } else {
+                    throw new Error('Failed to schedule report');
+                }
+            } catch (error) {
+                console.error('Error scheduling report:', error);
+                this.showError('Failed to schedule report');
+            }
+        },
+        
+        async exportReport() {
+            this.isExporting = true;
+            
+            try {
+                const params = new URLSearchParams({
+                    reportType: this.reportType,
+                    dateRange: this.dateRange,
+                    customerType: this.customerType,
+                    location: this.selectedLocation,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate,
+                    format: 'pdf'
+                });
+                
+                const response = await fetch(`/api/customers/reports/export?${params}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `customer_report_${this.reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Report exported successfully');
+                } else {
+                    throw new Error('Failed to export report');
+                }
+            } catch (error) {
+                console.error('Error exporting report:', error);
+                this.showError('Failed to export report');
+            } finally {
+                this.isExporting = false;
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + R: Refresh reports
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.refreshReports();
+                }
+                
+                // Ctrl/Cmd + E: Export report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportReport();
+                }
+                
+                // Ctrl/Cmd + S: Schedule report
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.scheduleReport();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

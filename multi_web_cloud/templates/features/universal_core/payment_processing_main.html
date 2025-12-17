@@ -1,0 +1,1048 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/payment_processing_main.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Payment Processing Main Interface -->
+<div class="payment-processing-container" x-data="paymentProcessingApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="main-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="main-title">
+                    <i class="bi bi-credit-card me-2"></i>
+                    Payment Processing
+                </h2>
+                <p class="main-subtitle text-muted">Manage payment methods and transactions</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="main-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="reconcilePayments()">
+                        <i class="bi bi-arrow-left-right"></i> Reconcile
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportTransactions()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="processPayment()">
+                        <i class="bi bi-plus-circle"></i> Process Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Today's Revenue</h6>
+                        <p class="stat-value" x-text="formatCurrency(stats.todayRevenue)"></p>
+                        <small class="stat-change text-success" x-show="stats.revenueChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="stats.revenueChange"></span>%
+                        </small>
+                        <small class="stat-change text-danger" x-show="stats.revenueChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(stats.revenueChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-success">
+                        <i class="bi bi-credit-card"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Transactions</h6>
+                        <p class="stat-value" x-text="stats.totalTransactions"></p>
+                        <small class="stat-change text-success" x-show="stats.transactionChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="stats.transactionChange"></span>%
+                        </small>
+                        <small class="stat-change text-danger" x-show="stats.transactionChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(stats.transactionChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Success Rate</h6>
+                        <p class="stat-value" x-text="stats.successRate + '%'"></p>
+                        <small class="stat-change text-success" x-show="stats.successRateChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="stats.successRateChange"></span>%
+                        </small>
+                        <small class="stat-change text-danger" x-show="stats.successRateChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(stats.successRateChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-info">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6 class="stat-label">Pending</h6>
+                        <p class="stat-value" x-text="stats.pendingPayments"></p>
+                        <small class="stat-change" x-text="`Requires attention`"></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Methods Overview -->
+    <div class="payment-methods-overview">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-wallet2 me-2"></i>
+                    Payment Methods
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="managePaymentMethods()">
+                        <i class="bi bi-gear"></i> Configure
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <template x-for="method in paymentMethods" :key="method.id">
+                        <div class="col-md-3 mb-3">
+                            <div class="payment-method-card" 
+                                 :class="{'active': method.active, 'disabled': !method.active}"
+                                 @click="togglePaymentMethod(method.id)">
+                                <div class="method-icon">
+                                    <i :class="method.icon"></i>
+                                </div>
+                                <div class="method-info">
+                                    <h6 x-text="method.name"></h6>
+                                    <p class="method-stats">
+                                        <span x-text="method.transactions"></span> transactions
+                                    </p>
+                                    <p class="method-amount">
+                                        <span x-text="formatCurrency(method.amount)"></span>
+                                    </p>
+                                </div>
+                                <div class="method-status">
+                                    <span class="status-indicator" 
+                                          :class="method.active ? 'status-active' : 'status-inactive'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="search-filters">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Search Transactions</label>
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="searchQuery"
+                                       @input="searchTransactions()"
+                                       placeholder="Search by ID, customer, amount...">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        @click="clearSearch()"
+                                        title="Clear search">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" x-model="filters.status" @change="applyFilters()">
+                                <option value="">All Status</option>
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                                <option value="failed">Failed</option>
+                                <option value="refunded">Refunded</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Payment Method</label>
+                            <select class="form-select" x-model="filters.paymentMethod" @change="applyFilters()">
+                                <option value="">All Methods</option>
+                                <template x-for="method in paymentMethods" :key="method.id">
+                                    <option :value="method.id" x-text="method.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="filters.dateRange" @change="applyFilters()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="this_week">This Week</option>
+                                <option value="this_month">This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Amount Range</label>
+                            <select class="form-select" x-model="filters.amountRange" @change="applyFilters()">
+                                <option value="">All Amounts</option>
+                                <option value="0-50">$0 - $50</option>
+                                <option value="50-100">$50 - $100</option>
+                                <option value="100-500">$100 - $500</option>
+                                <option value="500+">$500+</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3" x-show="filters.dateRange === 'custom'">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.startDate"
+                                   @change="applyFilters()">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.endDate"
+                                   @change="applyFilters()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Toggle and Actions -->
+    <div class="view-actions">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="view-toggle">
+                    <div class="btn-group" role="group">
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': viewMode === 'grid'}"
+                                @click="viewMode = 'grid'">
+                            <i class="bi bi-grid-3x3-gap"></i> Grid
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': viewMode === 'list'}"
+                                @click="viewMode = 'list'">
+                            <i class="bi bi-list"></i> List
+                        </button>
+                    </div>
+                    <span class="results-count ms-3" x-text="`Showing ${filteredTransactions.length} transactions`"></span>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="bulk-actions">
+                    <button type="button" 
+                            class="btn btn-outline-secondary me-2"
+                            @click="bulkRefund()"
+                            :disabled="selectedTransactions.length === 0">
+                        <i class="bi bi-arrow-return-left"></i> Refund
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-secondary me-2"
+                            @click="bulkExport()"
+                            :disabled="selectedTransactions.length === 0">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-danger"
+                            @click="bulkCancel()"
+                            :disabled="selectedTransactions.length === 0">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Grid View -->
+    <div class="transaction-grid-view" x-show="viewMode === 'grid'">
+        <div class="row">
+            <template x-for="transaction in paginatedTransactions" :key="transaction.id">
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="transaction-card" 
+                         :class="{'selected': selectedTransactions.includes(transaction.id)}"
+                         @click="toggleTransactionSelection(transaction.id)">
+                        <div class="transaction-header">
+                            <div class="transaction-id">
+                                <span class="id-label">Transaction ID:</span>
+                                <span class="id-value" x-text="transaction.id"></span>
+                            </div>
+                            <div class="transaction-status">
+                                <span class="status-badge" 
+                                      :class="`status-${transaction.status}`"
+                                      x-text="transaction.status"></span>
+                            </div>
+                        </div>
+                        <div class="transaction-body">
+                            <div class="transaction-amount">
+                                <span class="amount-value" x-text="formatCurrency(transaction.amount)"></span>
+                                <span class="currency" x-text="transaction.currency"></span>
+                            </div>
+                            <div class="transaction-info">
+                                <div class="customer-info">
+                                    <i class="bi bi-person"></i>
+                                    <span x-text="transaction.customerName"></span>
+                                </div>
+                                <div class="method-info">
+                                    <i :class="getPaymentMethodIcon(transaction.paymentMethod)"></i>
+                                    <span x-text="getPaymentMethodName(transaction.paymentMethod)"></span>
+                                </div>
+                                <div class="date-info">
+                                    <i class="bi bi-calendar"></i>
+                                    <span x-text="formatDate(transaction.createdAt)"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="transaction-footer">
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-primary"
+                                    @click.stop="viewTransaction(transaction.id)"
+                                    title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-secondary"
+                                    @click.stop="refundTransaction(transaction.id)"
+                                    title="Refund"
+                                    x-show="transaction.status === 'completed'">
+                                <i class="bi bi-arrow-return-left"></i>
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-info"
+                                    @click.stop="printReceipt(transaction.id)"
+                                    title="Print Receipt">
+                                <i class="bi bi-printer"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Transaction List View -->
+    <div class="transaction-list-view" x-show="viewMode === 'list'">
+        <div class="table-responsive">
+            <table class="table table-hover transaction-table">
+                <thead class="table-header">
+                    <tr>
+                        <th class="column-checkbox">
+                            <input type="checkbox" 
+                                   class="form-check-input"
+                                   @change="toggleSelectAll($event)">
+                        </th>
+                        <th class="column-id sortable" @click="sortByField('id')">
+                            Transaction ID
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'id'"></i>
+                        </th>
+                        <th class="column-customer sortable" @click="sortByField('customerName')">
+                            Customer
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'customerName'"></i>
+                        </th>
+                        <th class="column-amount sortable" @click="sortByField('amount')">
+                            Amount
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'amount'"></i>
+                        </th>
+                        <th class="column-method sortable" @click="sortByField('paymentMethod')">
+                            Method
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'paymentMethod'"></i>
+                        </th>
+                        <th class="column-date sortable" @click="sortByField('createdAt')">
+                            Date
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'createdAt'"></i>
+                        </th>
+                        <th class="column-status sortable" @click="sortByField('status')">
+                            Status
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'status'"></i>
+                        </th>
+                        <th class="column-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="transaction in paginatedTransactions" :key="transaction.id">
+                        <tr class="transaction-row" 
+                            :class="{'selected': selectedTransactions.includes(transaction.id)}"
+                            @click="toggleTransactionSelection(transaction.id)">
+                            <td class="column-checkbox">
+                                <input type="checkbox" 
+                                       class="form-check-input"
+                                       :checked="selectedTransactions.includes(transaction.id)"
+                                       @click.stop="toggleTransactionSelection(transaction.id)">
+                            </td>
+                            <td class="column-id">
+                                <span class="transaction-id" x-text="transaction.id"></span>
+                            </td>
+                            <td class="column-customer">
+                                <div class="customer-info">
+                                    <i class="bi bi-person"></i>
+                                    <span x-text="transaction.customerName"></span>
+                                </div>
+                            </td>
+                            <td class="column-amount">
+                                <span class="amount" x-text="formatCurrency(transaction.amount)"></span>
+                                <small class="currency" x-text="transaction.currency"></small>
+                            </td>
+                            <td class="column-method">
+                                <div class="method-info">
+                                    <i :class="getPaymentMethodIcon(transaction.paymentMethod)"></i>
+                                    <span x-text="getPaymentMethodName(transaction.paymentMethod)"></span>
+                                </div>
+                            </td>
+                            <td class="column-date">
+                                <div>
+                                    <span x-text="formatDate(transaction.createdAt)"></span>
+                                    <br>
+                                    <small class="text-muted" x-text="formatTime(transaction.createdAt)"></small>
+                                </div>
+                            </td>
+                            <td class="column-status">
+                                <span class="status-badge" 
+                                      :class="`status-${transaction.status}`"
+                                      x-text="transaction.status"></span>
+                            </td>
+                            <td class="column-actions">
+                                <div class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            @click.stop="viewTransaction(transaction.id)"
+                                            title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click.stop="refundTransaction(transaction.id)"
+                                            title="Refund"
+                                            x-show="transaction.status === 'completed'">
+                                        <i class="bi bi-arrow-return-left"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-info"
+                                            @click.stop="printReceipt(transaction.id)"
+                                            title="Print Receipt">
+                                        <i class="bi bi-printer"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" x-show="filteredTransactions.length === 0">
+        <div class="text-center py-5">
+            <i class="bi bi-credit-card display-1 text-muted"></i>
+            <h3 class="mt-3">No Transactions Found</h3>
+            <p class="text-muted">
+                <span x-show="hasActiveFilters">
+                    No transactions match your current filters. 
+                    <button type="button" class="btn btn-link p-0" @click="clearFilters()">Clear filters</button>
+                </span>
+                <span x-show="!hasActiveFilters">
+                    No transactions found yet. 
+                    <button type="button" class="btn btn-link p-0" @click="processPayment()">Process your first payment</button>
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" x-show="totalPages > 1">
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item" :class="{'disabled': currentPage === 1}">
+                    <button class="page-link" @click="goToPage(currentPage - 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </li>
+                <template x-for="page in visiblePages" :key="page">
+                    <li class="page-item" :class="{'active': page === currentPage}">
+                        <button class="page-link" @click="goToPage(page)" x-text="page"></button>
+                    </li>
+                </template>
+                <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                    <button class="page-link" @click="goToPage(currentPage + 1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div class="pagination-info text-center">
+            <span x-text="`Showing ${startItem}-${endItem} of ${filteredTransactions.length} transactions`"></span>
+        </div>
+    </div>
+
+    <!-- Bulk Selection Bar -->
+    <div class="bulk-selection-bar" x-show="selectedTransactions.length > 0" x-transition>
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <span class="selected-count">
+                            <i class="bi bi-check-square me-2"></i>
+                            <span x-text="selectedTransactions.length"></span> transactions selected
+                        </span>
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkRefund()">
+                            <i class="bi bi-arrow-return-left"></i> Refund
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkExport()">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                        <button type="button" class="btn btn-outline-danger me-2" @click="bulkCancel()">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @click="clearSelection()">
+                            <i class="bi bi-x"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Panel -->
+    <div class="quick-actions-panel" x-show="showQuickActions" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-lightning me-2"></i>
+                    Quick Actions
+                </h5>
+                <button type="button" class="btn-close" @click="showQuickActions = false"></button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="action-item">
+                            <h6>Payment Operations</h6>
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2" @click="processPayment()">
+                                    <i class="bi bi-plus-circle"></i> New Payment
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2" @click="batchPayments()">
+                                    <i class="bi bi-list-check"></i> Batch Process
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @click="refundPayments()">
+                                    <i class="bi bi-arrow-return-left"></i> Process Refunds
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="action-item">
+                            <h6>Reporting & Analysis</h6>
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-2" @click="generateReport()">
+                                    <i class="bi bi-file-earmark-text"></i> Generate Report
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-2" @click="viewAnalytics()">
+                                    <i class="bi bi-graph-up"></i> View Analytics
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @click="exportData()">
+                                    <i class="bi bi-download"></i> Export Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="floating-actions">
+        <button type="button" 
+                class="btn btn-primary rounded-circle fab"
+                @click="toggleQuickActions()"
+                title="Quick Actions">
+            <i class="bi bi-lightning"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/payment_processing_main.js') }}"></script>
+<script>
+// Payment Processing App
+function paymentProcessingApp() {
+    return {
+        // Data
+        viewMode: 'list',
+        searchQuery: '',
+        showQuickActions: false,
+        sortField: 'createdAt',
+        sortOrder: 'desc',
+        currentPage: 1,
+        itemsPerPage: 20,
+        
+        transactions: [],
+        paymentMethods: [],
+        filteredTransactions: [],
+        selectedTransactions: [],
+        
+        filters: {
+            status: '',
+            paymentMethod: '',
+            dateRange: 'today',
+            startDate: '',
+            endDate: '',
+            amountRange: ''
+        },
+        
+        stats: {
+            todayRevenue: 0,
+            revenueChange: 0,
+            totalTransactions: 0,
+            transactionChange: 0,
+            successRate: 0,
+            successRateChange: 0,
+            pendingPayments: 0
+        },
+        
+        // Computed properties
+        get hasActiveFilters() {
+            return Object.values(this.filters).some(value => value !== '') || this.searchQuery !== '';
+        },
+        
+        get paginatedTransactions() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.filteredTransactions.slice(start, end);
+        },
+        
+        get totalPages() {
+            return Math.ceil(this.filteredTransactions.length / this.itemsPerPage);
+        },
+        
+        get visiblePages() {
+            const pages = [];
+            const start = Math.max(1, this.currentPage - 2);
+            const end = Math.min(this.totalPages, this.currentPage + 2);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            return pages;
+        },
+        
+        get startItem() {
+            return (this.currentPage - 1) * this.itemsPerPage + 1;
+        },
+        
+        get endItem() {
+            return Math.min(this.currentPage * this.itemsPerPage, this.filteredTransactions.length);
+        },
+        
+        // Methods
+        init() {
+            this.loadTransactions();
+            this.loadPaymentMethods();
+            this.loadStats();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadTransactions() {
+            try {
+                const response = await fetch('/api/payments/transactions');
+                this.transactions = await response.json();
+                this.filteredTransactions = [...this.transactions];
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+                this.showError('Failed to load transactions');
+            }
+        },
+        
+        async loadPaymentMethods() {
+            try {
+                const response = await fetch('/api/payments/methods');
+                this.paymentMethods = await response.json();
+            } catch (error) {
+                console.error('Error loading payment methods:', error);
+            }
+        },
+        
+        async loadStats() {
+            try {
+                const response = await fetch('/api/payments/stats');
+                this.stats = await response.json();
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        },
+        
+        searchTransactions() {
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            this.filteredTransactions = this.transactions.filter(transaction => {
+                // Search filter
+                if (this.searchQuery) {
+                    const query = this.searchQuery.toLowerCase();
+                    if (!transaction.id.toLowerCase().includes(query) &&
+                        !transaction.customerName?.toLowerCase().includes(query) &&
+                        !transaction.amount.toString().includes(query)) {
+                        return false;
+                    }
+                }
+                
+                // Status filter
+                if (this.filters.status && transaction.status !== this.filters.status) {
+                    return false;
+                }
+                
+                // Payment method filter
+                if (this.filters.paymentMethod && transaction.paymentMethod !== this.filters.paymentMethod) {
+                    return false;
+                }
+                
+                // Date range filter
+                if (this.filters.dateRange) {
+                    const transactionDate = new Date(transaction.createdAt);
+                    const now = new Date();
+                    
+                    switch (this.filters.dateRange) {
+                        case 'today':
+                            if (transactionDate.toDateString() !== now.toDateString()) return false;
+                            break;
+                        case 'yesterday':
+                            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                            if (transactionDate.toDateString() !== yesterday.toDateString()) return false;
+                            break;
+                        case 'this_week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (transactionDate < weekAgo) return false;
+                            break;
+                        case 'this_month':
+                            if (transactionDate.getMonth() !== now.getMonth() || 
+                                transactionDate.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                        case 'last_month':
+                            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                            const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                            if (transactionDate < lastMonth || transactionDate >= thisMonth) return false;
+                            break;
+                        case 'custom':
+                            if (this.filters.startDate && transactionDate < new Date(this.filters.startDate)) return false;
+                            if (this.filters.endDate && transactionDate > new Date(this.filters.endDate)) return false;
+                            break;
+                    }
+                }
+                
+                // Amount range filter
+                if (this.filters.amountRange) {
+                    const amount = transaction.amount;
+                    switch (this.filters.amountRange) {
+                        case '0-50':
+                            if (amount < 0 || amount > 50) return false;
+                            break;
+                        case '50-100':
+                            if (amount < 50 || amount > 100) return false;
+                            break;
+                        case '100-500':
+                            if (amount < 100 || amount > 500) return false;
+                            break;
+                        case '500+':
+                            if (amount < 500) return false;
+                            break;
+                    }
+                }
+                
+                return true;
+            });
+            
+            this.sortTransactions();
+            this.currentPage = 1;
+        },
+        
+        clearFilters() {
+            this.filters = {
+                status: '',
+                paymentMethod: '',
+                dateRange: 'today',
+                startDate: '',
+                endDate: '',
+                amountRange: ''
+            };
+            this.searchQuery = '';
+            this.applyFilters();
+        },
+        
+        clearSearch() {
+            this.searchQuery = '';
+            this.applyFilters();
+        },
+        
+        sortByField(field) {
+            if (this.sortField === field) {
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortOrder = 'desc';
+            }
+            this.sortTransactions();
+        },
+        
+        sortTransactions() {
+            this.filteredTransactions.sort((a, b) => {
+                let aVal = a[this.sortField];
+                let bVal = b[this.sortField];
+                
+                // Handle date fields
+                if (this.sortField === 'createdAt') {
+                    aVal = new Date(aVal);
+                    bVal = new Date(bVal);
+                }
+                
+                if (aVal < bVal) return this.sortOrder === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        toggleTransactionSelection(transactionId) {
+            const index = this.selectedTransactions.indexOf(transactionId);
+            if (index > -1) {
+                this.selectedTransactions.splice(index, 1);
+            } else {
+                this.selectedTransactions.push(transactionId);
+            }
+        },
+        
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedTransactions = this.paginatedTransactions.map(transaction => transaction.id);
+            } else {
+                this.selectedTransactions = [];
+            }
+        },
+        
+        clearSelection() {
+            this.selectedTransactions = [];
+        },
+        
+        goToPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+                this.clearSelection();
+            }
+        },
+        
+        toggleQuickActions() {
+            this.showQuickActions = !this.showQuickActions;
+        },
+        
+        togglePaymentMethod(methodId) {
+            const method = this.paymentMethods.find(m => m.id === methodId);
+            if (method) {
+                method.active = !method.active;
+                this.updatePaymentMethod(methodId, method.active);
+            }
+        },
+        
+        async updatePaymentMethod(methodId, active) {
+            try {
+                const response = await fetch(`/api/payments/methods/${methodId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ active })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess(`Payment method ${active ? 'enabled' : 'disabled'} successfully`);
+                } else {
+                    throw new Error('Failed to update payment method');
+                }
+            } catch (error) {
+                console.error('Error updating payment method:', error);
+                this.showError('Failed to update payment method');
+            }
+        },
+        
+        // Navigation methods
+        processPayment() {
+            window.location.href = '/payments/process';
+        },
+        
+        viewTransaction(transactionId) {
+            window.location.href = `/payments/transactions/${transactionId}`;
+        },
+        
+        refundTransaction(transactionId) {
+            window.location.href = `/payments/refund/${transactionId}`;
+        },
+        
+        printReceipt(transactionId) {
+            window.location.href = `/payments/receipt/${transactionId}`;
+        },
+        
+        managePaymentMethods() {
+            window.location.href = '/payments/methods';
+        },
+        
+        // Bulk operations
+        bulkRefund() {
+            const ids = this.selectedTransactions.join(',');
+            window.location.href = `/payments/bulk/refund?ids=${ids}`;
+        },
+        
+        bulkExport() {
+            const ids = this.selectedTransactions.join(',');
+            window.location.href = `/payments/bulk/export?ids=${ids}`;
+        },
+        
+        bulkCancel() {
+            if (confirm(`Are you sure you want to cancel ${this.selectedTransactions.length} transactions? This action cannot be undone.`)) {
+                const ids = this.selectedTransactions.join(',');
+                window.location.href = `/payments/bulk/cancel?ids=${ids}`;
+            }
+        },
+        
+        // Other operations
+        reconcilePayments() {
+            window.location.href = '/payments/reconcile';
+        },
+        
+        exportTransactions() {
+            window.location.href = '/payments/export';
+        },
+        
+        batchPayments() {
+            window.location.href = '/payments/batch';
+        },
+        
+        refundPayments() {
+            window.location.href = '/payments/refunds';
+        },
+        
+        generateReport() {
+            window.location.href = '/payments/reports';
+        },
+        
+        viewAnalytics() {
+            window.location.href = '/payments/analytics';
+        },
+        
+        exportData() {
+            window.location.href = '/payments/data-export';
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + N: New payment
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.processPayment();
+                }
+                
+                // Ctrl/Cmd + R: Reconcile
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.reconcilePayments();
+                }
+                
+                // Ctrl/Cmd + E: Export
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportTransactions();
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        formatTime(dateString) {
+            return new Date(dateString).toLocaleTimeString();
+        },
+        
+        getPaymentMethodIcon(methodId) {
+            const method = this.paymentMethods.find(m => m.id === methodId);
+            return method ? method.icon : 'bi bi-credit-card';
+        },
+        
+        getPaymentMethodName(methodId) {
+            const method = this.paymentMethods.find(m => m.id === methodId);
+            return method ? method.name : 'Unknown';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

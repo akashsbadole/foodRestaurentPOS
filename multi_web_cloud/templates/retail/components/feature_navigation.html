@@ -1,0 +1,315 @@
+<!-- Feature-Aware Navigation Component -->
+<nav class="retail-feature-nav" x-data="featureNavigation()" x-init="init()">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <!-- Retail Type Selector -->
+            <div class="col-auto">
+                <div class="retail-type-selector">
+                    <label class="form-label mb-0 me-2">Retail Type:</label>
+                    <select x-model="selectedRetailType" @change="switchRetailType()" 
+                            class="form-select form-select-sm" 
+                            :disabled="!hasPermission('RETAIL_TYPE_SWITCH')">
+                        <template x-for="type in retailTypes" :key="type.id">
+                            <option :value="type.id" :selected="type.id === selectedRetailType">
+                                <i :class="type.icon"></i>
+                                <span x-text="type.name"></span>
+                            </option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Feature Toggles -->
+            <div class="col-auto">
+                <div class="feature-toggles">
+                    <template x-for="feature in toggleableFeatures" :key="feature.id">
+                        <div class="feature-toggle-item">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       :id="feature.id"
+                                       x-model="feature.enabled"
+                                       @change="toggleFeature(feature)"
+                                       :disabled="!hasPermission(feature.permission)">
+                                <label class="form-check-label" :for="feature.id">
+                                    <i :class="feature.icon"></i>
+                                    <span x-text="feature.name"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="col-auto ms-auto">
+                <div class="quick-actions">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                data-bs-toggle="dropdown">
+                            <i class="bi bi-lightning"></i> Quick Actions
+                        </button>
+                        <ul class="dropdown-menu">
+                            <template x-for="action in quickActions" :key="action.id">
+                                <li>
+                                    <a class="dropdown-item" 
+                                       @click="executeAction(action)"
+                                       :class="{'disabled': !isFeatureEnabled(action.feature)}">
+                                        <i :class="action.icon"></i>
+                                        <span x-text="action.name"></span>
+                                        <small x-show="!isFeatureEnabled(action.feature)" 
+                                               class="text-muted ms-2">
+                                            (Feature Disabled)
+                                        </small>
+                                    </a>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<script>
+function featureNavigation() {
+    return {
+        selectedRetailType: window.RETAIL_CONFIG.retailType,
+        retailTypes: [],
+        toggleableFeatures: [],
+        quickActions: [],
+        
+        init() {
+            this.loadRetailTypes();
+            this.loadToggleableFeatures();
+            this.loadQuickActions();
+            this.setupFeatureListeners();
+        },
+        
+        loadRetailTypes() {
+            this.retailTypes = [
+                { id: 'restaurant', name: 'Restaurant', icon: 'bi-cup-hot' },
+                { id: 'apparel', name: 'Apparel & Footwear', icon: 'bi-bag' },
+                { id: 'books', name: 'Books & Office Supplies', icon: 'bi-book' },
+                { id: 'food', name: 'Food & Confectionery', icon: 'bi-cake2' },
+                { id: 'supermarket', name: 'Supermarket & Groceries', icon: 'bi-basket' },
+                { id: 'hypermarket', name: 'Hypermarket & Departmental', icon: 'bi-shop' },
+                { id: 'specialized', name: 'Specialized Retail', icon: 'bi-gem' },
+                { id: 'multi_store', name: 'Multi-Store & Franchise', icon: 'bi-building' }
+            ];
+        },
+        
+        loadToggleableFeatures() {
+            const featureConfigs = {
+                restaurant: [
+                    { id: 'tables', name: 'Tables', icon: 'bi-grid-3x3-gap', permission: 'FEATURE_RESTAURANT_TABLES' },
+                    { id: 'reservations', name: 'Reservations', icon: 'bi-calendar-check', permission: 'FEATURE_TABLE_RESERVATIONS' },
+                    { id: 'kitchen_display', name: 'Kitchen Display', icon: 'bi-clipboard-check', permission: 'FEATURE_KITCHEN_DISPLAY' }
+                ],
+                apparel: [
+                    { id: 'size_variants', name: 'Size Variants', icon: 'bi-arrows-expand', permission: 'FEATURE_SIZE_VARIANTS' },
+                    { id: 'color_variants', name: 'Color Variants', icon: 'bi-palette', permission: 'FEATURE_COLOR_VARIANTS' },
+                    { id: 'exchanges', name: 'Exchanges', icon: 'bi-arrow-left-right', permission: 'FEATURE_EXCHANGE_MANAGEMENT' }
+                ],
+                books: [
+                    { id: 'isbn_tracking', name: 'ISBN Tracking', icon: 'bi-upc-scan', permission: 'FEATURE_ISBN_TRACKING' },
+                    { id: 'author_publisher_db', name: 'Author/Publisher DB', icon: 'bi-people', permission: 'FEATURE_AUTHOR_PUBLISHER_DB' },
+                    { id: 'special_orders', name: 'Special Orders', icon: 'bi-star', permission: 'FEATURE_SPECIAL_ORDERS' }
+                ],
+                food: [
+                    { id: 'expiry_tracking', name: 'Expiry Tracking', icon: 'bi-clock-history', permission: 'FEATURE_EXPIRY_TRACKING' },
+                    { id: 'batch_management', name: 'Batch Management', icon: 'bi-box-seam', permission: 'FEATURE_BATCH_MANAGEMENT' },
+                    { id: 'temperature_monitoring', name: 'Temperature Monitoring', icon: 'bi-thermometer', permission: 'FEATURE_TEMPERATURE_MONITORING' }
+                ],
+                supermarket: [
+                    { id: 'fresh_produce', name: 'Fresh Produce', icon: 'bi-basket2', permission: 'FEATURE_FRESH_PRODUCE' },
+                    { id: 'weighing_scales', name: 'Weighing Scales', icon: 'bi-speedometer2', permission: 'FEATURE_WEIGHING_SCALES' },
+                    { id: 'quality_checks', name: 'Quality Checks', icon: 'bi-check-circle', permission: 'FEATURE_QUALITY_CHECKS' }
+                ],
+                hypermarket: [
+                    { id: 'departments', name: 'Departments', icon: 'bi-diagram-3', permission: 'FEATURE_DEPARTMENTS' },
+                    { id: 'self_checkout', name: 'Self Checkout', icon: 'bi-person-check', permission: 'FEATURE_SELF_CHECKOUT' },
+                    { id: 'queue_management', name: 'Queue Management', icon: 'bi-people', permission: 'FEATURE_QUEUE_MANAGEMENT' }
+                ],
+                specialized: [
+                    { id: 'custom_attributes', name: 'Custom Attributes', icon: 'bi-tags', permission: 'FEATURE_CUSTOM_ATTRIBUTES' },
+                    { id: 'service_booking', name: 'Service Booking', icon: 'bi-calendar-plus', permission: 'FEATURE_SERVICE_BOOKING' },
+                    { id: 'repair_tracking', name: 'Repair Tracking', icon: 'bi-tools', permission: 'FEATURE_REPAIR_TRACKING' }
+                ],
+                multi_store: [
+                    { id: 'store_management', name: 'Store Management', icon: 'bi-building', permission: 'FEATURE_STORE_MANAGEMENT' },
+                    { id: 'inventory_transfers', name: 'Inventory Transfers', icon: 'bi-arrow-left-right', permission: 'FEATURE_INVENTORY_TRANSFERS' },
+                    { id: 'franchise_management', name: 'Franchise Management', icon: 'bi-diagram-2', permission: 'FEATURE_FRANCHISE_MANAGEMENT' }
+                ]
+            };
+            
+            const features = featureConfigs[this.selectedRetailType] || [];
+            this.toggleableFeatures = features.map(feature => ({
+                ...feature,
+                enabled: window.RETAIL_CONFIG.features[feature.id] || false
+            }));
+        },
+        
+        loadQuickActions() {
+            const actionConfigs = {
+                restaurant: [
+                    { id: 'new_order', name: 'New Order', icon: 'bi-plus-circle', feature: 'FEATURE_ORDER_MANAGEMENT' },
+                    { id: 'table_management', name: 'Table Management', icon: 'bi-grid-3x3-gap', feature: 'FEATURE_RESTAURANT_TABLES' },
+                    { id: 'reservations', name: 'Reservations', icon: 'bi-calendar-check', feature: 'FEATURE_TABLE_RESERVATIONS' }
+                ],
+                apparel: [
+                    { id: 'new_product', name: 'New Product', icon: 'bi-plus-circle', feature: 'FEATURE_PRODUCT_MANAGEMENT' },
+                    { id: 'variant_management', name: 'Variant Management', icon: 'bi-layers', feature: 'FEATURE_SIZE_VARIANTS' },
+                    { id: 'exchange_management', name: 'Exchange Management', icon: 'bi-arrow-left-right', feature: 'FEATURE_EXCHANGE_MANAGEMENT' }
+                ],
+                books: [
+                    { id: 'new_book', name: 'New Book', icon: 'bi-plus-circle', feature: 'FEATURE_PRODUCT_MANAGEMENT' },
+                    { id: 'isbn_lookup', name: 'ISBN Lookup', icon: 'bi-upc-scan', feature: 'FEATURE_ISBN_TRACKING' },
+                    { id: 'special_order', name: 'Special Order', icon: 'bi-star', feature: 'FEATURE_SPECIAL_ORDERS' }
+                ]
+            };
+            
+            this.quickActions = actionConfigs[this.selectedRetailType] || [];
+        },
+        
+        setupFeatureListeners() {
+            // Listen for feature changes
+            document.addEventListener('featureChanged', (e) => {
+                const { feature, enabled } = e.detail;
+                const toggleFeature = this.toggleableFeatures.find(f => f.id === feature);
+                if (toggleFeature) {
+                    toggleFeature.enabled = enabled;
+                }
+            });
+        },
+        
+        switchRetailType() {
+            if (this.selectedRetailType !== window.RETAIL_CONFIG.retailType) {
+                // Show confirmation dialog
+                if (confirm(`Switch to ${this.getRetailTypeName(this.selectedRetailType)}? This will reload the page.`)) {
+                    // Save preference and reload
+                    localStorage.setItem('preferredRetailType', this.selectedRetailType);
+                    window.location.reload();
+                } else {
+                    // Revert selection
+                    this.selectedRetailType = window.RETAIL_CONFIG.retailType;
+                }
+            }
+        },
+        
+        toggleFeature(feature) {
+            // Emit feature change event
+            document.dispatchEvent(new CustomEvent('featureChanged', {
+                detail: {
+                    feature: feature.id,
+                    enabled: feature.enabled
+                }
+            }));
+            
+            // Save to backend (implement API call)
+            this.saveFeaturePreference(feature.id, feature.enabled);
+        },
+        
+        executeAction(action) {
+            if (this.isFeatureEnabled(action.feature)) {
+                // Execute action based on retail type and action
+                this.handleQuickAction(action);
+            } else {
+                // Show feature disabled message
+                this.showFeatureDisabledMessage(action);
+            }
+        },
+        
+        handleQuickAction(action) {
+            switch(action.id) {
+                case 'new_order':
+                    window.location.href = '/orders/new';
+                    break;
+                case 'new_product':
+                case 'new_book':
+                    window.location.href = '/products/new';
+                    break;
+                case 'table_management':
+                    window.location.href = '/restaurant/tables';
+                    break;
+                case 'reservations':
+                    window.location.href = '/restaurant/reservations';
+                    break;
+                case 'variant_management':
+                    window.location.href = '/apparel/variants';
+                    break;
+                case 'exchange_management':
+                    window.location.href = '/apparel/exchanges';
+                    break;
+                case 'isbn_lookup':
+                    this.openISBNLookup();
+                    break;
+                case 'special_order':
+                    window.location.href = '/books/special-orders/new';
+                    break;
+                default:
+                    console.log('Unknown action:', action.id);
+            }
+        },
+        
+        openISBNLookup() {
+            // Open ISBN lookup modal
+            document.dispatchEvent(new CustomEvent('openISBNLookupModal'));
+        },
+        
+        showFeatureDisabledMessage(action) {
+            // Show feature disabled notification
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: 'warning',
+                    title: 'Feature Disabled',
+                    message: `The "${action.name}" feature is not enabled. Please enable it in settings.`
+                }
+            }));
+        },
+        
+        getRetailTypeName(retailType) {
+            const type = this.retailTypes.find(t => t.id === retailType);
+            return type ? type.name : retailType;
+        },
+        
+        isFeatureEnabled(featureId) {
+            return window.RETAIL_CONFIG.features[featureId] || false;
+        },
+        
+        hasPermission(permission) {
+            return window.RETAIL_CONFIG.permissions.includes(permission) || false;
+        },
+        
+        async saveFeaturePreference(featureId, enabled) {
+            try {
+                const response = await fetch('/api/features/preferences', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        feature: featureId,
+                        enabled: enabled
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save feature preference');
+                }
+            } catch (error) {
+                console.error('Error saving feature preference:', error);
+                // Show error notification
+                document.dispatchEvent(new CustomEvent('showNotification', {
+                    detail: {
+                        type: 'error',
+                        title: 'Error',
+                        message: 'Failed to save feature preference'
+                    }
+                }));
+            }
+        }
+    };
+}
+</script>

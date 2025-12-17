@@ -1,0 +1,1463 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/inventory_basic_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Inventory Reports -->
+<div class="inventory-reports-container" x-data="inventoryReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Inventory Reports & Analytics
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive inventory analysis and reporting</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="refreshReports()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-primary me-2" @click="scheduleReport()">
+                        <i class="bi bi-calendar-check"></i> Schedule
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="exportReport()" :disabled="isExporting">
+                        <i class="bi bi-download"></i> 
+                        <span x-show="!isExporting">Export</span>
+                        <span x-show="isExporting">Exporting...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Controls -->
+    <div class="report-controls">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Report Type</label>
+                            <select class="form-select" x-model="reportType" @change="updateReport()">
+                                <option value="overview">Inventory Overview</option>
+                                <option value="stock_levels">Stock Levels Analysis</option>
+                                <option value="movement">Stock Movement Report</option>
+                                <option value="valuation">Inventory Valuation</option>
+                                <option value="performance">Product Performance</option>
+                                <option value="low_stock">Low Stock Analysis</option>
+                                <option value="expiry">Expiry Analysis</option>
+                                <option value="turnover">Turnover Analysis</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="dateRange" @change="updateReport()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="this_week">This Week</option>
+                                <option value="last_week">Last Week</option>
+                                <option value="this_month">This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="this_quarter">This Quarter</option>
+                                <option value="last_quarter">Last Quarter</option>
+                                <option value="this_year">This Year</option>
+                                <option value="last_year">Last Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Location</label>
+                            <select class="form-select" x-model="selectedLocation" @change="updateReport()">
+                                <option value="">All Locations</option>
+                                <template x-for="location in locations" :key="location.id">
+                                    <option :value="location.id" x-text="location.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" x-model="selectedCategory" @change="updateReport()">
+                                <option value="">All Categories</option>
+                                <template x-for="category in categories" :key="category.id">
+                                    <option :value="category.id" x-text="category.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Custom Date Range -->
+                <div class="row mt-3" x-show="dateRange === 'custom'">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="customStartDate"
+                                   @change="updateReport()">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="customEndDate"
+                                   @change="updateReport()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="key-metrics">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-primary">
+                        <i class="bi bi-box"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Total Items</h6>
+                        <p class="metric-value" x-text="metrics.totalItems"></p>
+                        <small class="metric-change text-success" x-show="metrics.totalItemsChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.totalItemsChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.totalItemsChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.totalItemsChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-success">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Total Value</h6>
+                        <p class="metric-value" x-text="formatCurrency(metrics.totalValue)"></p>
+                        <small class="metric-change text-success" x-show="metrics.totalValueChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.totalValueChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.totalValueChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.totalValueChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Low Stock</h6>
+                        <p class="metric-value" x-text="metrics.lowStockItems"></p>
+                        <small class="metric-change text-danger" x-show="metrics.lowStockItemsChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.lowStockItemsChange"></span>%
+                        </small>
+                        <small class="metric-change text-success" x-show="metrics.lowStockItemsChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.lowStockItemsChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-danger">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Out of Stock</h6>
+                        <p class="metric-value" x-text="metrics.outOfStockItems"></p>
+                        <small class="metric-change text-danger" x-show="metrics.outOfStockItemsChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.outOfStockItemsChange"></span>%
+                        </small>
+                        <small class="metric-change text-success" x-show="metrics.outOfStockItemsChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.outOfStockItemsChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-info">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Turnover Rate</h6>
+                        <p class="metric-value" x-text="metrics.turnoverRate"></p>
+                        <small class="metric-change text-success" x-show="metrics.turnoverRateChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.turnoverRateChange"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.turnoverRateChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.turnoverRateChange)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card">
+                    <div class="metric-icon bg-secondary">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Avg. Days Stock</h6>
+                        <p class="metric-value" x-text="metrics.averageDaysStock"></p>
+                        <small class="metric-change text-success" x-show="metrics.averageDaysStockChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(metrics.averageDaysStockChange)"></span>%
+                        </small>
+                        <small class="metric-change text-danger" x-show="metrics.averageDaysStockChange > 0">
+                            <i class="bi bi-arrow-up"></i> <span x-text="metrics.averageDaysStockChange"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div class="report-content">
+        
+        <!-- Overview Report -->
+        <div class="report-section" x-show="reportType === 'overview'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Inventory Overview</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="inventoryOverviewChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Stock Status Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="stockStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Category Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Category</th>
+                                            <th>Items</th>
+                                            <th>Total Stock</th>
+                                            <th>Total Value</th>
+                                            <th>Low Stock Items</th>
+                                            <th>Turnover Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="category in categoryAnalysis" :key="category.id">
+                                            <tr>
+                                                <td x-text="category.name"></td>
+                                                <td x-text="category.itemCount"></td>
+                                                <td x-text="category.totalStock"></td>
+                                                <td x-text="formatCurrency(category.totalValue)"></td>
+                                                <td x-text="category.lowStockCount"></td>
+                                                <td x-text="category.turnoverRate"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Levels Report -->
+        <div class="report-section" x-show="reportType === 'stock_levels'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Stock Levels Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="stockLevelsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Top 10 Products by Stock Level</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="topStockChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Bottom 10 Products by Stock Level</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="bottomStockChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Movement Report -->
+        <div class="report-section" x-show="reportType === 'movement'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Stock Movement Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="movementChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Movement Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Movement Type</th>
+                                            <th>Total Quantity</th>
+                                            <th>Total Value</th>
+                                            <th>Average per Day</th>
+                                            <th>Peak Day</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="movement in movementSummary" :key="movement.type">
+                                            <tr>
+                                                <td x-text="movement.type"></td>
+                                                <td x-text="movement.quantity"></td>
+                                                <td x-text="formatCurrency(movement.value)"></td>
+                                                <td x-text="movement.averagePerDay"></td>
+                                                <td x-text="movement.peakDay"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Valuation Report -->
+        <div class="report-section" x-show="reportType === 'valuation'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Inventory Valuation Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="valuationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Valuation by Method</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="valuationMethodChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Top 10 Products by Value</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>SKU</th>
+                                            <th>Stock</th>
+                                            <th>Cost</th>
+                                            <th>Total Value</th>
+                                            <th>Value %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="product in topValueProducts" :key="product.id">
+                                            <tr>
+                                                <td x-text="product.name"></td>
+                                                <td x-text="product.sku"></td>
+                                                <td x-text="product.stock"></td>
+                                                <td x-text="formatCurrency(product.cost)"></td>
+                                                <td x-text="formatCurrency(product.totalValue)"></td>
+                                                <td x-text="product.valuePercentage"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Report -->
+        <div class="report-section" x-show="reportType === 'performance'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Product Performance Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Best Performing Products</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="bestPerformersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Worst Performing Products</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="worstPerformersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Report -->
+        <div class="report-section" x-show="reportType === 'low_stock'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Low Stock Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>SKU</th>
+                                            <th>Current Stock</th>
+                                            <th>Reorder Level</th>
+                                            <th>Days Until Out of Stock</th>
+                                            <th>Suggested Order</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="product in lowStockProducts" :key="product.id">
+                                            <tr>
+                                                <td x-text="product.name"></td>
+                                                <td x-text="product.sku"></td>
+                                                <td>
+                                                    <span class="stock-badge" 
+                                                          :class="getStockClass(product.currentStock, product.reorderLevel)"
+                                                          x-text="product.currentStock"></span>
+                                                </td>
+                                                <td x-text="product.reorderLevel"></td>
+                                                <td x-text="product.daysUntilOutOfStock"></td>
+                                                <td x-text="product.suggestedOrder"></td>
+                                                <td x-text="formatCurrency(product.value)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expiry Report -->
+        <div class="report-section" x-show="reportType === 'expiry'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Expiry Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="expiryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Products Near Expiry</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>SKU</th>
+                                            <th>Batch</th>
+                                            <th>Quantity</th>
+                                            <th>Expiry Date</th>
+                                            <th>Days Until Expiry</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="product in expiringProducts" :key="product.id">
+                                            <tr>
+                                                <td x-text="product.name"></td>
+                                                <td x-text="product.sku"></td>
+                                                <td x-text="product.batch"></td>
+                                                <td x-text="product.quantity"></td>
+                                                <td x-text="formatDate(product.expiryDate)"></td>
+                                                <td>
+                                                    <span class="expiry-badge" 
+                                                          :class="getExpiryClass(product.daysUntilExpiry)"
+                                                          x-text="product.daysUntilExpiry"></span>
+                                                </td>
+                                                <td x-text="formatCurrency(product.value)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Turnover Report -->
+        <div class="report-section" x-show="reportType === 'turnover'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Inventory Turnover Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="turnoverChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Turnover by Category</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Category</th>
+                                            <th>Turnover Rate</th>
+                                            <th>Days in Inventory</th>
+                                            <th>Cost of Goods Sold</th>
+                                            <th>Average Inventory</th>
+                                            <th>Performance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="category in turnoverByCategory" :key="category.id">
+                                            <tr>
+                                                <td x-text="category.name"></td>
+                                                <td x-text="category.turnoverRate"></td>
+                                                <td x-text="category.daysInInventory"></td>
+                                                <td x-text="formatCurrency(category.costOfGoodsSold)"></td>
+                                                <td x-text="formatCurrency(category.averageInventory)"></td>
+                                                <td>
+                                                    <span class="performance-badge" 
+                                                          :class="getPerformanceClass(category.turnoverRate)"
+                                                          x-text="category.performance"></span>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Report Modal -->
+    <div class="modal fade" id="scheduleReportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Schedule Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Report Name</label>
+                            <input type="text" class="form-control" x-model="scheduleData.reportName" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Frequency</label>
+                            <select class="form-select" x-model="scheduleData.frequency">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Recipients</label>
+                            <textarea class="form-control" 
+                                      x-model="scheduleData.recipients"
+                                      rows="3"
+                                      placeholder="Enter email addresses separated by commas"></textarea>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Format</label>
+                            <select class="form-select" x-model="scheduleData.format">
+                                <option value="pdf">PDF</option>
+                                <option value="excel">Excel</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="saveSchedule()">Save Schedule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/inventory_basic_reports.js') }}"></script>
+<script>
+// Inventory Reports App
+function inventoryReportsApp() {
+    return {
+        // Data
+        isExporting: false,
+        reportType: 'overview',
+        dateRange: 'this_month',
+        selectedLocation: '',
+        selectedCategory: '',
+        customStartDate: '',
+        customEndDate: '',
+        
+        locations: [],
+        categories: [],
+        
+        metrics: {
+            totalItems: 0,
+            totalItemsChange: 0,
+            totalValue: 0,
+            totalValueChange: 0,
+            lowStockItems: 0,
+            lowStockItemsChange: 0,
+            outOfStockItems: 0,
+            outOfStockItemsChange: 0,
+            turnoverRate: 0,
+            turnoverRateChange: 0,
+            averageDaysStock: 0,
+            averageDaysStockChange: 0
+        },
+        
+        categoryAnalysis: [],
+        movementSummary: [],
+        topValueProducts: [],
+        lowStockProducts: [],
+        expiringProducts: [],
+        turnoverByCategory: [],
+        
+        scheduleData: {
+            reportName: '',
+            frequency: 'weekly',
+            recipients: '',
+            format: 'pdf'
+        },
+        
+        // Chart instances
+        charts: {},
+        
+        // Methods
+        init() {
+            this.loadLocations();
+            this.loadCategories();
+            this.loadMetrics();
+            this.updateReport();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                this.locations = await response.json();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadMetrics() {
+            try {
+                const response = await fetch('/api/inventory/metrics');
+                this.metrics = await response.json();
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        },
+        
+        async updateReport() {
+            // Destroy existing charts
+            Object.values(this.charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            
+            // Load report data based on type
+            switch (this.reportType) {
+                case 'overview':
+                    await this.loadOverviewReport();
+                    break;
+                case 'stock_levels':
+                    await this.loadStockLevelsReport();
+                    break;
+                case 'movement':
+                    await this.loadMovementReport();
+                    break;
+                case 'valuation':
+                    await this.loadValuationReport();
+                    break;
+                case 'performance':
+                    await this.loadPerformanceReport();
+                    break;
+                case 'low_stock':
+                    await this.loadLowStockReport();
+                    break;
+                case 'expiry':
+                    await this.loadExpiryReport();
+                    break;
+                case 'turnover':
+                    await this.loadTurnoverReport();
+                    break;
+            }
+        },
+        
+        async loadOverviewReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/overview?${params}`);
+                const data = await response.json();
+                
+                this.categoryAnalysis = data.categoryAnalysis;
+                
+                // Create charts
+                this.createInventoryOverviewChart(data.overviewData);
+                this.createStockStatusChart(data.stockStatusData);
+            } catch (error) {
+                console.error('Error loading overview report:', error);
+            }
+        },
+        
+        async loadStockLevelsReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/stock-levels?${params}`);
+                const data = await response.json();
+                
+                // Create charts
+                this.createStockLevelsChart(data.stockLevelsData);
+                this.createTopStockChart(data.topStockData);
+                this.createBottomStockChart(data.bottomStockData);
+            } catch (error) {
+                console.error('Error loading stock levels report:', error);
+            }
+        },
+        
+        async loadMovementReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/movement?${params}`);
+                const data = await response.json();
+                
+                this.movementSummary = data.movementSummary;
+                
+                // Create chart
+                this.createMovementChart(data.movementData);
+            } catch (error) {
+                console.error('Error loading movement report:', error);
+            }
+        },
+        
+        async loadValuationReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/valuation?${params}`);
+                const data = await response.json();
+                
+                this.topValueProducts = data.topValueProducts;
+                
+                // Create charts
+                this.createValuationChart(data.valuationData);
+                this.createValuationMethodChart(data.valuationMethodData);
+            } catch (error) {
+                console.error('Error loading valuation report:', error);
+            }
+        },
+        
+        async loadPerformanceReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/performance?${params}`);
+                const data = await response.json();
+                
+                // Create charts
+                this.createPerformanceChart(data.performanceData);
+                this.createBestPerformersChart(data.bestPerformersData);
+                this.createWorstPerformersChart(data.worstPerformersData);
+            } catch (error) {
+                console.error('Error loading performance report:', error);
+            }
+        },
+        
+        async loadLowStockReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/low-stock?${params}`);
+                const data = await response.json();
+                
+                this.lowStockProducts = data.lowStockProducts;
+            } catch (error) {
+                console.error('Error loading low stock report:', error);
+            }
+        },
+        
+        async loadExpiryReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/expiry?${params}`);
+                const data = await response.json();
+                
+                this.expiringProducts = data.expiringProducts;
+                
+                // Create chart
+                this.createExpiryChart(data.expiryData);
+            } catch (error) {
+                console.error('Error loading expiry report:', error);
+            }
+        },
+        
+        async loadTurnoverReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate
+                });
+                
+                const response = await fetch(`/api/inventory/reports/turnover?${params}`);
+                const data = await response.json();
+                
+                this.turnoverByCategory = data.turnoverByCategory;
+                
+                // Create chart
+                this.createTurnoverChart(data.turnoverData);
+            } catch (error) {
+                console.error('Error loading turnover report:', error);
+            }
+        },
+        
+        // Chart creation methods
+        createInventoryOverviewChart(data) {
+            const ctx = document.getElementById('inventoryOverviewChart').getContext('2d');
+            this.charts.inventoryOverview = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Total Items',
+                        data: data.totalItems,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }, {
+                        label: 'Total Value',
+                        data: data.totalValue,
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left'
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        },
+        
+        createStockStatusChart(data) {
+            const ctx = document.getElementById('stockStatusChart').getContext('2d');
+            this.charts.stockStatus = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(40, 167, 69, 0.8)',
+                            'rgba(255, 193, 7, 0.8)',
+                            'rgba(220, 53, 69, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        },
+        
+        createStockLevelsChart(data) {
+            const ctx = document.getElementById('stockLevelsChart').getContext('2d');
+            this.charts.stockLevels = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: data.datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createTopStockChart(data) {
+            const ctx = document.getElementById('topStockChart').getContext('2d');
+            this.charts.topStock = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Stock Level',
+                        data: data.values,
+                        backgroundColor: 'rgba(40, 167, 69, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y'
+                }
+            });
+        },
+        
+        createBottomStockChart(data) {
+            const ctx = document.getElementById('bottomStockChart').getContext('2d');
+            this.charts.bottomStock = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Stock Level',
+                        data: data.values,
+                        backgroundColor: 'rgba(220, 53, 69, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y'
+                }
+            });
+        },
+        
+        createMovementChart(data) {
+            const ctx = document.getElementById('movementChart').getContext('2d');
+            this.charts.movement = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: data.datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createValuationChart(data) {
+            const ctx = document.getElementById('valuationChart').getContext('2d');
+            this.charts.valuation = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Inventory Value',
+                        data: data.values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createValuationMethodChart(data) {
+            const ctx = document.getElementById('valuationMethodChart').getContext('2d');
+            this.charts.valuationMethod = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Value',
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        },
+        
+        createPerformanceChart(data) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            this.charts.performance = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Products',
+                        data: data.points,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Sales Volume'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Profit Margin (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        },
+        
+        createBestPerformersChart(data) {
+            const ctx = document.getElementById('bestPerformersChart').getContext('2d');
+            this.charts.bestPerformers = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Performance Score',
+                        data: data.values,
+                        backgroundColor: 'rgba(40, 167, 69, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y'
+                }
+            });
+        },
+        
+        createWorstPerformersChart(data) {
+            const ctx = document.getElementById('worstPerformersChart').getContext('2d');
+            this.charts.worstPerformers = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Performance Score',
+                        data: data.values,
+                        backgroundColor: 'rgba(220, 53, 69, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y'
+                }
+            });
+        },
+        
+        createExpiryChart(data) {
+            const ctx = document.getElementById('expiryChart').getContext('2d');
+            this.charts.expiry = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Quantity',
+                        data: data.values,
+                        backgroundColor: data.colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        createTurnoverChart(data) {
+            const ctx = document.getElementById('turnoverChart').getContext('2d');
+            this.charts.turnover = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Turnover Rate',
+                        data: data.values,
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        async refreshReports() {
+            await this.loadMetrics();
+            await this.updateReport();
+            this.showSuccess('Reports refreshed successfully');
+        },
+        
+        scheduleReport() {
+            const modal = new bootstrap.Modal(document.getElementById('scheduleReportModal'));
+            modal.show();
+        },
+        
+        async saveSchedule() {
+            try {
+                const scheduleData = {
+                    ...this.scheduleData,
+                    reportType: this.reportType,
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory
+                };
+                
+                const response = await fetch('/api/inventory/reports/schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(scheduleData)
+                });
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('scheduleReportModal')).hide();
+                    this.showSuccess('Report scheduled successfully');
+                } else {
+                    throw new Error('Failed to schedule report');
+                }
+            } catch (error) {
+                console.error('Error scheduling report:', error);
+                this.showError('Failed to schedule report');
+            }
+        },
+        
+        async exportReport() {
+            this.isExporting = true;
+            
+            try {
+                const params = new URLSearchParams({
+                    reportType: this.reportType,
+                    dateRange: this.dateRange,
+                    location: this.selectedLocation,
+                    category: this.selectedCategory,
+                    customStartDate: this.customStartDate,
+                    customEndDate: this.customEndDate,
+                    format: 'pdf'
+                });
+                
+                const response = await fetch(`/api/inventory/reports/export?${params}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_report_${this.reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Report exported successfully');
+                } else {
+                    throw new Error('Failed to export report');
+                }
+            } catch (error) {
+                console.error('Error exporting report:', error);
+                this.showError('Failed to export report');
+            } finally {
+                this.isExporting = false;
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + R: Refresh reports
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.refreshReports();
+                }
+                
+                // Ctrl/Cmd + E: Export report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportReport();
+                }
+                
+                // Ctrl/Cmd + S: Schedule report
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.scheduleReport();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        getStockClass(currentStock, reorderLevel) {
+            if (currentStock === 0) return 'out-of-stock';
+            if (currentStock <= reorderLevel) return 'low-stock';
+            return 'in-stock';
+        },
+        
+        getExpiryClass(daysUntilExpiry) {
+            if (daysUntilExpiry <= 7) return 'critical';
+            if (daysUntilExpiry <= 30) return 'warning';
+            return 'normal';
+        },
+        
+        getPerformanceClass(turnoverRate) {
+            if (turnoverRate >= 12) return 'excellent';
+            if (turnoverRate >= 8) return 'good';
+            if (turnoverRate >= 4) return 'average';
+            return 'poor';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

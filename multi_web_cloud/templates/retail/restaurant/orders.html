@@ -1,0 +1,823 @@
+{% extends "retail/base/retail_base.html" %}
+
+{% block title %}Restaurant Orders{% endblock %}
+
+{% block extra_css %}
+<style>
+.restaurant-orders {
+    background: #f8f9fa;
+}
+
+.order-status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-confirmed {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.status-preparing {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-ready {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-completed {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.status-cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.order-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.order-card.status-pending {
+    border-left-color: #ffc107;
+}
+
+.order-card.status-confirmed {
+    border-left-color: #17a2b8;
+}
+
+.order-card.status-preparing {
+    border-left-color: #20c997;
+}
+
+.order-card.status-ready {
+    border-left-color: #28a745;
+}
+
+.order-card.status-completed {
+    border-left-color: #6c757d;
+}
+
+.order-card.status-cancelled {
+    border-left-color: #dc3545;
+}
+
+.order-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.order-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.75rem;
+    top: 0.25rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6c757d;
+    border: 2px solid white;
+}
+
+.timeline-item.completed::before {
+    background: #28a745;
+}
+
+.timeline-item.active::before {
+    background: #007bff;
+}
+
+.menu-item-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.menu-item-row {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.menu-item-row:last-child {
+    border-bottom: none;
+}
+
+.order-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.order-action-btn {
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.order-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.filter-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.order-summary-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.kitchen-order-item {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-left: 4px solid #ff6b6b;
+}
+
+.priority-high {
+    border-left-color: #dc3545;
+}
+
+.priority-medium {
+    border-left-color: #ffc107;
+}
+
+.priority-low {
+    border-left-color: #28a745;
+}
+
+@media (max-width: 768px) {
+    .order-card {
+        margin-bottom: 1rem;
+    }
+    
+    .order-actions {
+        justify-content: center;
+    }
+    
+    .filter-section {
+        padding: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1 class="h3 mb-1">Restaurant Orders</h1>
+            <p class="text-muted mb-0">Manage and track restaurant orders</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-outline-secondary" onclick="exportOrders()">
+                    <i class="bi bi-download"></i> Export
+                </button>
+                <button class="btn btn-primary" onclick="window.location.href='/restaurant/orders/new'">
+                    <i class="bi bi-plus-circle"></i> New Order
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="order-summary-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Pending Orders</h6>
+                        <h2 class="mb-0" id="pending-count">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="order-summary-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Preparing</h6>
+                        <h2 class="mb-0" id="preparing-count">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-fire"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="order-summary-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Ready</h6>
+                        <h2 class="mb-0" id="ready-count">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="order-summary-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Completed Today</h6>
+                        <h2 class="mb-0" id="completed-count">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-check2-all"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters and Search -->
+    <div class="filter-section">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" placeholder="Order #, Customer, Table..." id="search-input">
+                </div>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="status-filter">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="preparing">Preparing</option>
+                    <option value="ready">Ready</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Date</label>
+                <input type="date" class="form-control" id="date-filter">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Table</label>
+                <select class="form-select" id="table-filter">
+                    <option value="">All Tables</option>
+                    <option value="T1">Table 1</option>
+                    <option value="T2">Table 2</option>
+                    <option value="T3">Table 3</option>
+                    <option value="T4">Table 4</option>
+                    <option value="T5">Table 5</option>
+                    <option value="T6">Table 6</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary me-2" onclick="resetFilters()">
+                    <i class="bi bi-arrow-clockwise"></i> Reset
+                </button>
+                <button class="btn btn-primary" onclick="applyFilters()">
+                    <i class="bi bi-funnel"></i> Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Orders List -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div id="orders-list">
+                <!-- Orders will be dynamically loaded here -->
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Kitchen Display -->
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Kitchen Display</h6>
+                </div>
+                <div class="card-body">
+                    <div id="kitchen-orders">
+                        <!-- Kitchen orders will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="window.location.href='/restaurant/orders/new'">
+                            <i class="bi bi-plus-circle"></i> New Order
+                        </button>
+                        <button class="btn btn-outline-info" onclick="window.location.href='/restaurant/menu'">
+                            <i class="bi bi-menu-button-wide"></i> Manage Menu
+                        </button>
+                        <button class="btn btn-outline-success" onclick="window.location.href='/restaurant/tables'">
+                            <i class="bi bi-grid-3x3-gap"></i> Table Status
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="printKitchenOrders()">
+                            <i class="bi bi-printer"></i> Print Kitchen Orders
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="modal fade" id="orderDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="order-detail-content">
+                <!-- Order details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="printOrder()">Print Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature-aware table component -->
+{% include "retail/components/feature_table.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set retail type for feature-aware components
+    if (window.RETAIL_CONFIG) {
+        window.RETAIL_CONFIG.retailType = 'restaurant';
+    }
+    
+    // Load orders
+    loadOrders();
+    
+    // Load kitchen display
+    loadKitchenOrders();
+    
+    // Setup filters
+    setupFilters();
+    
+    // Setup real-time updates
+    setupRealtimeUpdates();
+});
+
+function loadOrders() {
+    const ordersList = document.getElementById('orders-list');
+    
+    // Simulate order data - in production, load from API
+    const orders = [
+        {
+            id: 'ORD001',
+            customer_name: 'John Doe',
+            table_number: 'T1',
+            status: 'preparing',
+            total_amount: 45.50,
+            created_at: '2023-12-16T13:30:00',
+            items: [
+                { name: 'Grilled Chicken Sandwich', quantity: 2, price: 12.50 },
+                { name: 'French Fries', quantity: 2, price: 4.50 },
+                { name: 'Coca Cola', quantity: 2, price: 3.00 }
+            ],
+            notes: 'Extra ketchup please',
+            priority: 'high'
+        },
+        {
+            id: 'ORD002',
+            customer_name: 'Jane Smith',
+            table_number: 'T3',
+            status: 'pending',
+            total_amount: 32.00,
+            created_at: '2023-12-16T13:45:00',
+            items: [
+                { name: 'Caesar Salad', quantity: 1, price: 8.50 },
+                { name: 'Tomato Soup', quantity: 1, price: 6.50 },
+                { name: 'Garlic Bread', quantity: 1, price: 5.00 },
+                { name: 'Iced Tea', quantity: 2, price: 2.50 }
+            ],
+            priority: 'medium'
+        },
+        {
+            id: 'ORD003',
+            customer_name: 'Bob Johnson',
+            table_number: 'T5',
+            status: 'ready',
+            total_amount: 67.75,
+            created_at: '2023-12-16T12:15:00',
+            items: [
+                { name: 'Ribeye Steak', quantity: 1, price: 28.00 },
+                { name: 'Grilled Salmon', quantity: 1, price: 24.00 },
+                { name: 'Mashed Potatoes', quantity: 2, price: 4.50 },
+                { name: 'Red Wine', quantity: 1, price: 8.75 }
+            ],
+            priority: 'low'
+        }
+    ];
+    
+    ordersList.innerHTML = orders.map(order => `
+        <div class="order-card mb-3 status-${order.status}">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="mb-1">${order.id}</h5>
+                                <p class="text-muted mb-1">
+                                    <i class="bi bi-person"></i> ${order.customer_name} • 
+                                    <i class="bi bi-grid-3x3-gap"></i> Table ${order.table_number}
+                                </p>
+                            </div>
+                            <span class="order-status-badge status-${order.status}">
+                                ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            </span>
+                        </div>
+                        
+                        <div class="menu-item-list mb-2">
+                            ${order.items.map(item => `
+                                <div class="menu-item-row">
+                                    <div class="d-flex justify-content-between">
+                                        <span>${item.quantity}x ${item.name}</span>
+                                        <span>$${(item.quantity * item.price).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        ${order.notes ? `
+                            <div class="alert alert-info py-2 mb-2">
+                                <small><i class="bi bi-info-circle"></i> ${order.notes}</small>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> ${formatTime(order.created_at)}
+                            </small>
+                            <strong>Total: $${order.total_amount.toFixed(2)}</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="order-actions justify-content-end">
+                            ${getOrderActionButtons(order)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    // Update summary counts
+    updateOrderCounts(orders);
+}
+
+function loadKitchenOrders() {
+    const kitchenOrders = document.getElementById('kitchen-orders');
+    
+    // Simulate kitchen orders - in production, load from API
+    const orders = [
+        {
+            id: 'ORD001',
+            table_number: 'T1',
+            items: ['2x Grilled Chicken Sandwich', '2x French Fries'],
+            time: '13:30',
+            priority: 'high',
+            status: 'preparing'
+        },
+        {
+            id: 'ORD002',
+            table_number: 'T3',
+            items: ['Caesar Salad', 'Tomato Soup', 'Garlic Bread'],
+            time: '13:45',
+            priority: 'medium',
+            status: 'pending'
+        }
+    ];
+    
+    kitchenOrders.innerHTML = orders.map(order => `
+        <div class="kitchen-order-item priority-${order.priority}">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <strong>${order.id}</strong>
+                    <div class="small text-muted">Table ${order.table_number} • ${order.time}</div>
+                </div>
+                <span class="badge bg-${order.priority === 'high' ? 'danger' : order.priority === 'medium' ? 'warning' : 'success'}">
+                    ${order.priority}
+                </span>
+            </div>
+            <div class="small">
+                ${order.items.map(item => `<div>• ${item}</div>`).join('')}
+            </div>
+            <div class="mt-2">
+                <button class="btn btn-sm btn-success" onclick="markOrderReady('${order.id}')">
+                    <i class="bi bi-check-circle"></i> Ready
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function getOrderActionButtons(order) {
+    let buttons = '';
+    
+    switch (order.status) {
+        case 'pending':
+            buttons = `
+                <button class="btn btn-sm btn-primary order-action-btn" onclick="confirmOrder('${order.id}')">
+                    <i class="bi bi-check"></i> Confirm
+                </button>
+                <button class="btn btn-sm btn-warning order-action-btn" onclick="editOrder('${order.id}')">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+            `;
+            break;
+        case 'confirmed':
+            buttons = `
+                <button class="btn btn-sm btn-success order-action-btn" onclick="startPreparing('${order.id}')">
+                    <i class="bi bi-fire"></i> Start Preparing
+                </button>
+                <button class="btn btn-sm btn-warning order-action-btn" onclick="editOrder('${order.id}')">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+            `;
+            break;
+        case 'preparing':
+            buttons = `
+                <button class="btn btn-sm btn-success order-action-btn" onclick="markReady('${order.id}')">
+                    <i class="bi bi-check-circle"></i> Ready
+                </button>
+            `;
+            break;
+        case 'ready':
+            buttons = `
+                <button class="btn btn-sm btn-success order-action-btn" onclick="completeOrder('${order.id}')">
+                    <i class="bi bi-check2-all"></i> Complete
+                </button>
+            `;
+            break;
+        case 'completed':
+            buttons = `
+                <button class="btn btn-sm btn-info order-action-btn" onclick="viewOrder('${order.id}')">
+                    <i class="bi bi-eye"></i> View
+                </button>
+                <button class="btn btn-sm btn-secondary order-action-btn" onclick="printOrder('${order.id}')">
+                    <i class="bi bi-printer"></i> Print
+                </button>
+            `;
+            break;
+    }
+    
+    buttons += `
+        <button class="btn btn-sm btn-outline-danger order-action-btn" onclick="cancelOrder('${order.id}')">
+            <i class="bi bi-x"></i> Cancel
+        </button>
+    `;
+    
+    return buttons;
+}
+
+function updateOrderCounts(orders) {
+    const counts = {
+        pending: orders.filter(o => o.status === 'pending').length,
+        preparing: orders.filter(o => o.status === 'preparing').length,
+        ready: orders.filter(o => o.status === 'ready').length,
+        completed: orders.filter(o => o.status === 'completed').length
+    };
+    
+    document.getElementById('pending-count').textContent = counts.pending;
+    document.getElementById('preparing-count').textContent = counts.preparing;
+    document.getElementById('ready-count').textContent = counts.ready;
+    document.getElementById('completed-count').textContent = counts.completed;
+}
+
+function setupFilters() {
+    const searchInput = document.getElementById('search-input');
+    const statusFilter = document.getElementById('status-filter');
+    const dateFilter = document.getElementById('date-filter');
+    const tableFilter = document.getElementById('table-filter');
+    
+    // Setup debounced search
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            applyFilters();
+        }, 300);
+    });
+    
+    // Setup filter change handlers
+    [statusFilter, dateFilter, tableFilter].forEach(filter => {
+        filter.addEventListener('change', applyFilters);
+    });
+}
+
+function applyFilters() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const statusFilter = document.getElementById('status-filter').value;
+    const dateFilter = document.getElementById('date-filter').value;
+    const tableFilter = document.getElementById('table-filter').value;
+    
+    // Apply filters to orders
+    // In production, this would make an API call with filter parameters
+    console.log('Applying filters:', { searchTerm, statusFilter, dateFilter, tableFilter });
+    
+    // Reload orders with filters
+    loadOrders();
+}
+
+function resetFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('status-filter').value = '';
+    document.getElementById('date-filter').value = '';
+    document.getElementById('table-filter').value = '';
+    
+    loadOrders();
+}
+
+function confirmOrder(orderId) {
+    if (confirm('Confirm this order?')) {
+        updateOrderStatus(orderId, 'confirmed');
+    }
+}
+
+function startPreparing(orderId) {
+    updateOrderStatus(orderId, 'preparing');
+}
+
+function markReady(orderId) {
+    updateOrderStatus(orderId, 'ready');
+}
+
+function completeOrder(orderId) {
+    updateOrderStatus(orderId, 'completed');
+}
+
+function cancelOrder(orderId) {
+    if (confirm('Are you sure you want to cancel this order?')) {
+        updateOrderStatus(orderId, 'cancelled');
+    }
+}
+
+function markOrderReady(orderId) {
+    updateOrderStatus(orderId, 'ready');
+    loadKitchenOrders(); // Refresh kitchen display
+}
+
+function updateOrderStatus(orderId, newStatus) {
+    // In production, make API call to update order status
+    console.log(`Updating order ${orderId} to status: ${newStatus}`);
+    
+    // Show success notification
+    showNotification('Order status updated successfully', 'success');
+    
+    // Reload orders
+    loadOrders();
+    loadKitchenOrders();
+}
+
+function editOrder(orderId) {
+    window.location.href = `/restaurant/orders/${orderId}/edit`;
+}
+
+function viewOrder(orderId) {
+    // Load order details into modal
+    const modal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
+    document.getElementById('order-detail-content').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Simulate loading order details
+    setTimeout(() => {
+        document.getElementById('order-detail-content').innerHTML = `
+            <h6>Order #${orderId}</h6>
+            <p>Order details would be loaded here...</p>
+        `;
+    }, 500);
+}
+
+function printOrder(orderId) {
+    // In production, implement printing functionality
+    window.print();
+}
+
+function printKitchenOrders() {
+    // In production, implement kitchen order printing
+    window.print();
+}
+
+function exportOrders() {
+    // In production, implement order export functionality
+    const dataStr = JSON.stringify({ orders: [] }, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = 'orders.json';
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+}
+
+function setupRealtimeUpdates() {
+    // Setup WebSocket or polling for real-time updates
+    setInterval(() => {
+        loadOrders();
+        loadKitchenOrders();
+    }, 30000); // Update every 30 seconds
+}
+
+function formatTime(dateString) {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function showNotification(message, type = 'info') {
+    // Show notification using the global notification system
+    document.dispatchEvent(new CustomEvent('showNotification', {
+        detail: {
+            type: type,
+            title: type === 'success' ? 'Success' : 'Info',
+            message: message
+        }
+    }));
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Bootstrap JS for modals -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

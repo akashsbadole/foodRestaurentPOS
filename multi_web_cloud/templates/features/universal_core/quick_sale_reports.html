@@ -1,0 +1,957 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/quick_sale_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Quick Sale Reports Interface -->
+<div class="quick-sale-reports-container" x-data="quickSaleReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Quick Sale Analytics
+                </h2>
+                <p class="reports-subtitle text-muted">Analyze quick sale performance and trends</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="refreshReports()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="printReport()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="scheduleReport()">
+                        <i class="bi bi-calendar-check"></i> Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Selector -->
+    <div class="date-range-selector">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <label class="form-label">Report Period</label>
+                        <select class="form-select" x-model="dateRange" @change="updateDateRange()">
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="week">This Week</option>
+                            <option value="lastWeek">Last Week</option>
+                            <option value="month">This Month</option>
+                            <option value="lastMonth">Last Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="lastQuarter">Last Quarter</option>
+                            <option value="year">This Year</option>
+                            <option value="lastYear">Last Year</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               x-model="startDate"
+                               @change="loadReportData()"
+                               :disabled="dateRange !== 'custom'">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               x-model="endDate"
+                               @change="loadReportData()"
+                               :disabled="dateRange !== 'custom'">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Compare With</label>
+                        <select class="form-select" x-model="compareWith" @change="loadReportData()">
+                            <option value="">No Comparison</option>
+                            <option value="previousPeriod">Previous Period</option>
+                            <option value="samePeriodLastYear">Same Period Last Year</option>
+                            <option value="lastMonth">Last Month</option>
+                            <option value="lastYear">Last Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-primary w-100" @click="loadReportData()">
+                            <i class="bi bi-search"></i> Generate
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="key-metrics">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Total Sales</h6>
+                        <i class="bi bi-cash-stack metric-icon text-success"></i>
+                    </div>
+                    <div class="metric-value" x-text="formatCurrency(metrics.totalSales)"></div>
+                    <div class="metric-change" :class="metrics.salesChange >= 0 ? 'text-success' : 'text-danger'">
+                        <i :class="metrics.salesChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                        <span x-text="`${Math.abs(metrics.salesChange)}%`"></span>
+                        <small class="text-muted">vs last period</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Transactions</h6>
+                        <i class="bi bi-receipt metric-icon text-primary"></i>
+                    </div>
+                    <div class="metric-value" x-text="metrics.totalTransactions.toLocaleString()"></div>
+                    <div class="metric-change" :class="metrics.transactionsChange >= 0 ? 'text-success' : 'text-danger'">
+                        <i :class="metrics.transactionsChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                        <span x-text="`${Math.abs(metrics.transactionsChange)}%`"></span>
+                        <small class="text-muted">vs last period</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Average Sale</h6>
+                        <i class="bi bi-graph-up metric-icon text-info"></i>
+                    </div>
+                    <div class="metric-value" x-text="formatCurrency(metrics.averageSale)"></div>
+                    <div class="metric-change" :class="metrics.averageChange >= 0 ? 'text-success' : 'text-danger'">
+                        <i :class="metrics.averageChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                        <span x-text="`${Math.abs(metrics.averageChange)}%`"></span>
+                        <small class="text-muted">vs last period</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Top Product</h6>
+                        <i class="bi bi-trophy metric-icon text-warning"></i>
+                    </div>
+                    <div class="metric-value" x-text="metrics.topProduct.name"></div>
+                    <div class="metric-change text-muted">
+                        <span x-text="`${metrics.topProduct.quantity} sold`"></span>
+                        <small class="text-muted">• <span x-text="formatCurrency(metrics.topProduct.revenue)"></span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="row">
+            <!-- Sales Trend Chart -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Sales Trend
+                        </h5>
+                        <div class="chart-controls">
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': salesChartPeriod === 'daily'}"
+                                        @click="updateSalesChart('daily')">
+                                    Daily
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': salesChartPeriod === 'weekly'}"
+                                        @click="updateSalesChart('weekly')">
+                                    Weekly
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': salesChartPeriod === 'monthly'}"
+                                        @click="updateSalesChart('monthly')">
+                                    Monthly
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="salesTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Methods Chart -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-pie-chart me-2"></i>
+                            Payment Methods
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="paymentMethodsChart"></canvas>
+                        </div>
+                        <div class="payment-methods-legend">
+                            <template x-for="method in paymentMethodsData" :key="method.name">
+                                <div class="legend-item">
+                                    <span class="legend-color" :style="`background-color: ${method.color}`"></span>
+                                    <span class="legend-label" x-text="method.name"></span>
+                                    <span class="legend-value" x-text="`${method.percentage}%`"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <!-- Hourly Sales Chart -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-clock me-2"></i>
+                            Hourly Sales Distribution
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="hourlySalesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Top Products Chart -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-box me-2"></i>
+                            Top Products
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="topProductsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Reports -->
+    <div class="detailed-reports">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-table me-2"></i>
+                    Detailed Reports
+                </h5>
+                <div class="report-tabs">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <template x-for="(tab, index) in reportTabs" :key="index">
+                            <li class="nav-item">
+                                <button class="nav-link" 
+                                        :class="{'active': activeReportTab === index}"
+                                        @click="activeReportTab = index"
+                                        type="button">
+                                    <span x-text="tab.label"></span>
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Sales by Category Tab -->
+                <div class="tab-content">
+                    <div class="tab-pane" :class="{'show active': activeReportTab === 0}" x-show="activeReportTab === 0">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Items Sold</th>
+                                        <th>Revenue</th>
+                                        <th>Avg Price</th>
+                                        <th>% of Total</th>
+                                        <th>Growth</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="category in salesByCategory" :key="category.name">
+                                        <tr>
+                                            <td x-text="category.name"></td>
+                                            <td x-text="category.itemsSold.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(category.revenue)"></td>
+                                            <td x-text="formatCurrency(category.averagePrice)"></td>
+                                            <td>
+                                                <div class="progress">
+                                                    <div class="progress-bar" 
+                                                         :style="`width: ${category.percentage}%; background-color: ${category.color}`">
+                                                    </div>
+                                                </div>
+                                                <small x-text="`${category.percentage}%`"></small>
+                                            </td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="category.growth >= 0 ? 'bg-success' : 'bg-danger'"
+                                                      x-text="`${category.growth >= 0 ? '+' : ''}${category.growth}%`">
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Sales by Cashier Tab -->
+                    <div class="tab-pane" :class="{'show active': activeReportTab === 1}" x-show="activeReportTab === 1">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Cashier</th>
+                                        <th>Transactions</th>
+                                        <th>Revenue</th>
+                                        <th>Average Sale</th>
+                                        <th>Items/Transaction</th>
+                                        <th>Performance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="cashier in salesByCashier" :key="cashier.name">
+                                        <tr>
+                                            <td x-text="cashier.name"></td>
+                                            <td x-text="cashier.transactions.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(cashier.revenue)"></td>
+                                            <td x-text="formatCurrency(cashier.averageSale)"></td>
+                                            <td x-text="cashier.itemsPerTransaction.toFixed(1)"></td>
+                                            <td>
+                                                <div class="performance-indicator">
+                                                    <div class="progress">
+                                                        <div class="progress-bar" 
+                                                             :class="cashier.performance >= 80 ? 'bg-success' : cashier.performance >= 60 ? 'bg-warning' : 'bg-danger'"
+                                                             :style="`width: ${cashier.performance}%`">
+                                                        </div>
+                                                    </div>
+                                                    <small x-text="`${cashier.performance}%`"></small>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Peak Hours Tab -->
+                    <div class="tab-pane" :class="{'show active': activeReportTab === 2}" x-show="activeReportTab === 2">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Time Period</th>
+                                        <th>Transactions</th>
+                                        <th>Revenue</th>
+                                        <th>Average Sale</th>
+                                        <th>Customers</th>
+                                        <th>Busyness</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="hour in peakHours" :key="hour.period">
+                                        <tr>
+                                            <td x-text="hour.period"></td>
+                                            <td x-text="hour.transactions.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(hour.revenue)"></td>
+                                            <td x-text="formatCurrency(hour.averageSale)"></td>
+                                            <td x-text="hour.customers.toLocaleString()"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="hour.busyness >= 80 ? 'bg-danger' : hour.busyness >= 60 ? 'bg-warning' : 'bg-success'"
+                                                      x-text="getBusynessLabel(hour.busyness)">
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Product Performance Tab -->
+                    <div class="tab-pane" :class="{'show active': activeReportTab === 3}" x-show="activeReportTab === 3">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>SKU</th>
+                                        <th>Units Sold</th>
+                                        <th>Revenue</th>
+                                        <th>Profit</th>
+                                        <th>Margin</th>
+                                        <th>Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="product in productPerformance" :key="product.id">
+                                        <tr>
+                                            <td x-text="product.name"></td>
+                                            <td x-text="product.sku"></td>
+                                            <td x-text="product.unitsSold.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(product.revenue)"></td>
+                                            <td x-text="formatCurrency(product.profit)"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="product.margin >= 30 ? 'bg-success' : product.margin >= 20 ? 'bg-warning' : 'bg-danger'"
+                                                      x-text="`${product.margin}%`">
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <i :class="product.trend >= 0 ? 'bi bi-arrow-up text-success' : 'bi bi-arrow-down text-danger'"></i>
+                                                <span x-text="`${Math.abs(product.trend)}%`"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Summary -->
+    <div class="report-summary">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-file-text me-2"></i>
+                    Report Summary
+                </h5>
+                <div class="summary-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="generatePDF()">
+                        <i class="bi bi-file-pdf"></i> Generate PDF
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="emailReport()">
+                        <i class="bi bi-envelope"></i> Email Report
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="summary-content">
+                    <div class="summary-section">
+                        <h6>Key Insights</h6>
+                        <ul>
+                            <template x-for="insight in reportInsights" :key="insight.id">
+                                <li x-text="insight.text"></li>
+                            </template>
+                        </ul>
+                    </div>
+                    
+                    <div class="summary-section">
+                        <h6>Recommendations</h6>
+                        <ul>
+                            <template x-for="recommendation in reportRecommendations" :key="recommendation.id">
+                                <li x-text="recommendation.text"></li>
+                            </template>
+                        </ul>
+                    </div>
+                    
+                    <div class="summary-section">
+                        <h6>Next Steps</h6>
+                        <ol>
+                            <li>Review top performing products and consider increasing inventory</li>
+                            <li>Analyze peak hours and optimize staff scheduling</li>
+                            <li>Identify underperforming categories for promotional activities</li>
+                            <li>Monitor payment method trends and adjust accordingly</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/quick_sale_reports.js') }}"></script>
+<script>
+// Quick Sale Reports App
+function quickSaleReportsApp() {
+    return {
+        // Data
+        dateRange: 'month',
+        startDate: '',
+        endDate: '',
+        compareWith: 'previousPeriod',
+        activeReportTab: 0,
+        salesChartPeriod: 'daily',
+        
+        reportTabs: [
+            { label: 'Sales by Category', key: 'category' },
+            { label: 'Sales by Cashier', key: 'cashier' },
+            { label: 'Peak Hours', key: 'hours' },
+            { label: 'Product Performance', key: 'products' }
+        ],
+        
+        metrics: {
+            totalSales: 45678.90,
+            salesChange: 12.5,
+            totalTransactions: 342,
+            transactionsChange: 8.3,
+            averageSale: 133.50,
+            averageChange: 3.8,
+            topProduct: {
+                name: 'Premium Coffee',
+                quantity: 89,
+                revenue: 1246.00
+            }
+        },
+        
+        salesByCategory: [
+            { name: 'Beverages', itemsSold: 234, revenue: 12345.67, averagePrice: 52.75, percentage: 35, growth: 12.5, color: '#007bff' },
+            { name: 'Food', itemsSold: 189, revenue: 9876.54, averagePrice: 52.25, percentage: 28, growth: -3.2, color: '#28a745' },
+            { name: 'Snacks', itemsSold: 156, revenue: 6543.21, averagePrice: 41.94, percentage: 18, growth: 8.7, color: '#ffc107' },
+            { name: 'Merchandise', itemsSold: 98, revenue: 5432.10, averagePrice: 55.43, percentage: 15, growth: 15.3, color: '#dc3545' },
+            { name: 'Other', itemsSold: 67, revenue: 3210.98, averagePrice: 47.92, percentage: 4, growth: -1.8, color: '#6c757d' }
+        ],
+        
+        salesByCashier: [
+            { name: 'John Smith', transactions: 89, revenue: 12456.78, averageSale: 140.08, itemsPerTransaction: 3.2, performance: 85 },
+            { name: 'Sarah Johnson', transactions: 76, revenue: 10987.65, averageSale: 144.57, itemsPerTransaction: 2.8, performance: 78 },
+            { name: 'Mike Wilson', transactions: 92, revenue: 11234.56, averageSale: 122.12, itemsPerTransaction: 3.5, performance: 82 },
+            { name: 'Emily Davis', transactions: 85, revenue: 10999.91, averageSale: 129.41, itemsPerTransaction: 3.1, performance: 80 }
+        ],
+        
+        peakHours: [
+            { period: '6:00 - 9:00', transactions: 45, revenue: 2345.67, averageSale: 52.12, customers: 38, busyness: 65 },
+            { period: '9:00 - 12:00', transactions: 78, revenue: 4567.89, averageSale: 58.56, customers: 72, busyness: 85 },
+            { period: '12:00 - 15:00', transactions: 92, revenue: 6789.01, averageSale: 73.79, customers: 85, busyness: 95 },
+            { period: '15:00 - 18:00', transactions: 67, revenue: 3456.78, averageSale: 51.59, customers: 62, busyness: 70 },
+            { period: '18:00 - 21:00', transactions: 60, revenue: 3456.78, averageSale: 57.61, customers: 55, busyness: 75 }
+        ],
+        
+        productPerformance: [
+            { id: 1, name: 'Premium Coffee', sku: 'COF001', unitsSold: 89, revenue: 1246.00, profit: 623.00, margin: 50, trend: 12.5 },
+            { id: 2, name: 'Sandwich Combo', sku: 'SND001', unitsSold: 67, revenue: 1340.00, profit: 536.00, margin: 40, trend: 8.3 },
+            { id: 3, name: 'Fresh Juice', sku: 'JUI001', unitsSold: 45, revenue: 675.00, profit: 270.00, margin: 40, trend: -3.2 },
+            { id: 4, name: 'Pastries', sku: 'PAS001', unitsSold: 78, revenue: 936.00, profit: 374.40, margin: 40, trend: 15.7 },
+            { id: 5, name: 'T-Shirt', sku: 'MER001', unitsSold: 23, revenue: 690.00, profit: 345.00, margin: 50, trend: 5.2 }
+        ],
+        
+        paymentMethodsData: [
+            { name: 'Cash', percentage: 45, color: '#28a745' },
+            { name: 'Credit Card', percentage: 35, color: '#007bff' },
+            { name: 'Mobile', percentage: 15, color: '#ffc107' },
+            { name: 'Gift Card', percentage: 5, color: '#dc3545' }
+        ],
+        
+        reportInsights: [
+            { id: 1, text: 'Sales increased by 12.5% compared to the previous period' },
+            { id: 2, text: 'Beverages category shows the strongest performance with 35% of total sales' },
+            { id: 3, text: 'Peak hours are between 12:00-15:00, accounting for 27% of daily transactions' },
+            { id: 4, text: 'Cash remains the preferred payment method at 45% of all transactions' }
+        ],
+        
+        reportRecommendations: [
+            { id: 1, text: 'Increase inventory of top-performing products during peak hours' },
+            { id: 2, text: 'Consider promotional activities for underperforming categories' },
+            { id: 3, text: 'Optimize staff scheduling to cover peak hours more effectively' },
+            { id: 4, text: 'Implement mobile payment incentives to increase adoption' }
+        ],
+        
+        charts: {
+            salesTrend: null,
+            paymentMethods: null,
+            hourlySales: null,
+            topProducts: null
+        },
+        
+        // Methods
+        init() {
+            this.setDefaultDateRange();
+            this.loadReportData();
+            this.initCharts();
+        },
+        
+        setDefaultDateRange() {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            this.startDate = firstDay.toISOString().split('T')[0];
+            this.endDate = today.toISOString().split('T')[0];
+        },
+        
+        updateDateRange() {
+            if (this.dateRange !== 'custom') {
+                const today = new Date();
+                let startDate, endDate;
+                
+                switch (this.dateRange) {
+                    case 'today':
+                        startDate = endDate = today;
+                        break;
+                    case 'yesterday':
+                        startDate = endDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                        break;
+                    case 'week':
+                        startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        endDate = today;
+                        break;
+                    case 'lastWeek':
+                        startDate = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+                        endDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        break;
+                    case 'month':
+                        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                        endDate = today;
+                        break;
+                    case 'lastMonth':
+                        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                        break;
+                    case 'quarter':
+                        const quarterStart = Math.floor(today.getMonth() / 3) * 3;
+                        startDate = new Date(today.getFullYear(), quarterStart, 1);
+                        endDate = today;
+                        break;
+                    case 'lastQuarter':
+                        const lastQuarterStart = Math.floor((today.getMonth() - 3) / 3) * 3;
+                        startDate = new Date(today.getFullYear(), lastQuarterStart, 1);
+                        endDate = new Date(today.getFullYear(), lastQuarterStart + 3, 0);
+                        break;
+                    case 'year':
+                        startDate = new Date(today.getFullYear(), 0, 1);
+                        endDate = today;
+                        break;
+                    case 'lastYear':
+                        startDate = new Date(today.getFullYear() - 1, 0, 1);
+                        endDate = new Date(today.getFullYear() - 1, 11, 31);
+                        break;
+                }
+                
+                this.startDate = startDate.toISOString().split('T')[0];
+                this.endDate = endDate.toISOString().split('T')[0];
+            }
+            
+            this.loadReportData();
+        },
+        
+        async loadReportData() {
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Update metrics with random variations
+                this.metrics.totalSales = 40000 + Math.random() * 20000;
+                this.metrics.salesChange = -20 + Math.random() * 40;
+                this.metrics.totalTransactions = 300 + Math.floor(Math.random() * 100);
+                this.metrics.transactionsChange = -10 + Math.random() * 20;
+                this.metrics.averageSale = 100 + Math.random() * 100;
+                this.metrics.averageChange = -5 + Math.random() * 10;
+                
+                // Update charts
+                this.updateCharts();
+                
+            } catch (error) {
+                console.error('Error loading report data:', error);
+                this.showError('Failed to load report data');
+            }
+        },
+        
+        initCharts() {
+            this.initSalesTrendChart();
+            this.initPaymentMethodsChart();
+            this.initHourlySalesChart();
+            this.initTopProductsChart();
+        },
+        
+        initSalesTrendChart() {
+            const ctx = document.getElementById('salesTrendChart');
+            if (!ctx) return;
+            
+            this.charts.salesTrend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Sales',
+                        data: [1200, 1900, 1500, 2100, 2300, 1800, 2500],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        },
+        
+        initPaymentMethodsChart() {
+            const ctx = document.getElementById('paymentMethodsChart');
+            if (!ctx) return;
+            
+            this.charts.paymentMethods = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cash', 'Credit Card', 'Mobile', 'Gift Card'],
+                    datasets: [{
+                        data: [45, 35, 15, 5],
+                        backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        },
+        
+        initHourlySalesChart() {
+            const ctx = document.getElementById('hourlySalesChart');
+            if (!ctx) return;
+            
+            this.charts.hourlySales = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['6-9', '9-12', '12-15', '15-18', '18-21'],
+                    datasets: [{
+                        label: 'Transactions',
+                        data: [45, 78, 92, 67, 60],
+                        backgroundColor: '#007bff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        initTopProductsChart() {
+            const ctx = document.getElementById('topProductsChart');
+            if (!ctx) return;
+            
+            this.charts.topProducts = new Chart(ctx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: ['Premium Coffee', 'Sandwich Combo', 'Pastries', 'Fresh Juice', 'T-Shirt'],
+                    datasets: [{
+                        label: 'Units Sold',
+                        data: [89, 67, 78, 45, 23],
+                        backgroundColor: ['#28a745', '#007bff', '#ffc107', '#17a2b8', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        updateCharts() {
+            // Update charts with new data
+            if (this.charts.salesTrend) {
+                const newData = Array.from({length: 7}, () => 1000 + Math.random() * 1500);
+                this.charts.salesTrend.data.datasets[0].data = newData;
+                this.charts.salesTrend.update();
+            }
+            
+            if (this.charts.paymentMethods) {
+                const total = 100;
+                const newData = [
+                    40 + Math.random() * 10,
+                    30 + Math.random() * 10,
+                    10 + Math.random() * 10,
+                    5 + Math.random() * 5
+                ];
+                this.charts.paymentMethods.data.datasets[0].data = newData;
+                this.charts.paymentMethods.update();
+            }
+        },
+        
+        updateSalesChart(period) {
+            this.salesChartPeriod = period;
+            
+            if (this.charts.salesTrend) {
+                let labels, data;
+                
+                switch (period) {
+                    case 'daily':
+                        labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        data = Array.from({length: 7}, () => 1000 + Math.random() * 1500);
+                        break;
+                    case 'weekly':
+                        labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+                        data = Array.from({length: 4}, () => 5000 + Math.random() * 10000);
+                        break;
+                    case 'monthly':
+                        labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                        data = Array.from({length: 6}, () => 20000 + Math.random() * 30000);
+                        break;
+                }
+                
+                this.charts.salesTrend.data.labels = labels;
+                this.charts.salesTrend.data.datasets[0].data = data;
+                this.charts.salesTrend.update();
+            }
+        },
+        
+        // Report actions
+        refreshReports() {
+            this.loadReportData();
+        },
+        
+        exportReport() {
+            const data = {
+                metrics: this.metrics,
+                salesByCategory: this.salesByCategory,
+                salesByCashier: this.salesByCashier,
+                peakHours: this.peakHours,
+                productPerformance: this.productPerformance,
+                dateRange: {
+                    start: this.startDate,
+                    end: this.endDate
+                }
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `quick-sale-report-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        printReport() {
+            window.print();
+        },
+        
+        scheduleReport() {
+            // Open schedule modal or navigate to schedule page
+            alert('Schedule report functionality would open a scheduling interface');
+        },
+        
+        generatePDF() {
+            // Generate PDF report
+            alert('PDF generation would create a formatted PDF report');
+        },
+        
+        emailReport() {
+            // Email report functionality
+            alert('Email report would open email composition dialog');
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        getBusynessLevel(busyness) {
+            if (busyness >= 80) return 'High';
+            if (busyness >= 60) return 'Medium';
+            return 'Low';
+        },
+        
+        getBusynessLabel(busyness) {
+            const level = this.getBusynessLevel(busyness);
+            return `${level} (${busyness}%)`;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

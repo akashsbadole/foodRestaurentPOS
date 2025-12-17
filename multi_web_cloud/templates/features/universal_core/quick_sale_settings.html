@@ -1,0 +1,1308 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/quick_sale_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Quick Sale Settings Interface -->
+<div class="quick-sale-settings-container" x-data="quickSaleSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear-fill me-2"></i>
+                    Quick Sale Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure quick sale preferences and options</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetSettings()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="importSettings()">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveAllSettings()" :disabled="!hasChanges">
+                        <i class="bi bi-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <ul class="nav nav-tabs" role="tablist">
+            <template x-for="(tab, index) in settingsTabs" :key="index">
+                <li class="nav-item">
+                    <button class="nav-link" 
+                            :class="{'active': activeTab === index}"
+                            @click="activeTab = index"
+                            type="button">
+                        <i :class="tab.icon"></i>
+                        <span x-text="tab.label"></span>
+                        <span class="badge bg-danger ms-1" 
+                              x-show="getTabChangesCount(index) > 0"
+                              x-text="getTabChangesCount(index)">
+                        </span>
+                    </button>
+                </li>
+            </template>
+        </ul>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        <div class="tab-content">
+            
+            <!-- General Settings Tab -->
+            <div class="tab-pane" :class="{'show active': activeTab === 0}" x-show="activeTab === 0">
+                <div class="settings-section">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="bi bi-gear me-2"></i>
+                                        General Configuration
+                                    </h5>
+                                    <p class="card-subtitle text-muted">Basic quick sale settings</p>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Enable Quick Sale</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.general.enabled"
+                                                           @change="markAsChanged('general.enabled')"
+                                                           id="quickSaleEnabled">
+                                                    <label class="form-check-label" for="quickSaleEnabled">
+                                                        Enable quick sale functionality
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">
+                                                    Enable or disable the quick sale feature
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Default View</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.general.defaultView"
+                                                        @change="markAsChanged('general.defaultView')">
+                                                    <option value="products">Products First</option>
+                                                    <option value="cart">Cart First</option>
+                                                    <option value="payment">Payment First</option>
+                                                    <option value="balanced">Balanced</option>
+                                                </select>
+                                                <small class="form-text text-muted">
+                                                    Default view when opening quick sale
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Auto-lock Timeout (minutes)</label>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings.general.autoLockTimeout"
+                                                       @change="markAsChanged('general.autoLockTimeout')"
+                                                       min="1"
+                                                       max="60">
+                                                <small class="form-text text-muted">
+                                                    Auto-lock after inactivity
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Session Timeout (minutes)</label>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings.general.sessionTimeout"
+                                                       @change="markAsChanged('general.sessionTimeout')"
+                                                       min="5"
+                                                       max="480">
+                                                <small class="form-text text-muted">
+                                                    Session timeout duration
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Welcome Message</label>
+                                                <input type="text" 
+                                                       class="form-control" 
+                                                       x-model="settings.general.welcomeMessage"
+                                                       @change="markAsChanged('general.welcomeMessage')"
+                                                       placeholder="Welcome to Quick Sale">
+                                                <small class="form-text text-muted">
+                                                    Message displayed on the quick sale screen
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Footer Text</label>
+                                                <input type="text" 
+                                                       class="form-control" 
+                                                       x-model="settings.general.footerText"
+                                                       @change="markAsChanged('general.footerText')"
+                                                       placeholder="Thank you for your purchase">
+                                                <small class="form-text text-muted">
+                                                    Text displayed in the footer
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        Quick Tips
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="tips-list">
+                                        <div class="tip-item">
+                                            <i class="bi bi-lightbulb text-warning"></i>
+                                            <span>Enable auto-lock for security when unattended</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <i class="bi bi-lightbulb text-warning"></i>
+                                            <span>Set session timeout to balance security and convenience</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <i class="bi bi-lightbulb text-warning"></i>
+                                            <span>Customize welcome message for better customer experience</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Product Settings Tab -->
+            <div class="tab-pane" :class="{'show active': activeTab === 1}" x-show="activeTab === 1">
+                <div class="settings-section">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="bi bi-box me-2"></i>
+                                        Product Display Settings
+                                    </h5>
+                                    <p class="card-subtitle text-muted">Configure how products are displayed</p>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Products Per Page</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.products.perPage"
+                                                        @change="markAsChanged('products.perPage')">
+                                                    <option value="12">12 Products</option>
+                                                    <option value="24">24 Products</option>
+                                                    <option value="36">36 Products</option>
+                                                    <option value="48">48 Products</option>
+                                                    <option value="all">All Products</option>
+                                                </select>
+                                                <small class="form-text text-muted">
+                                                    Number of products displayed per page
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Sort Products By</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.products.sortBy"
+                                                        @change="markAsChanged('products.sortBy')">
+                                                    <option value="name">Name</option>
+                                                    <option value="price">Price</option>
+                                                    <option value="category">Category</option>
+                                                    <option value="stock">Stock Level</option>
+                                                    <option value="popularity">Popularity</option>
+                                                    <option value="recent">Recently Added</option>
+                                                </select>
+                                                <small class="form-text text-muted">
+                                                    Default sorting for products
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Show Product Images</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.products.showImages"
+                                                           @change="markAsChanged('products.showImages')"
+                                                           id="showProductImages">
+                                                    <label class="form-check-label" for="showProductImages">
+                                                        Display product images
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Show Stock Levels</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.products.showStock"
+                                                           @change="markAsChanged('products.showStock')"
+                                                           id="showStockLevels">
+                                                    <label class="form-check-label" for="showStockLevels">
+                                                        Display stock quantities
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Show SKU</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.products.showSKU"
+                                                           @change="markAsChanged('products.showSKU')"
+                                                           id="showSKU">
+                                                    <label class="form-check-label" for="showSKU">
+                                                        Display product SKU
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Show Barcode</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.products.showBarcode"
+                                                           @change="markAsChanged('products.showBarcode')"
+                                                           id="showBarcode">
+                                                    <label class="form-check-label" for="showBarcode">
+                                                        Display product barcode
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Featured Products</label>
+                                                <div class="featured-products">
+                                                    <div class="product-selector">
+                                                        <input type="text" 
+                                                               class="form-control" 
+                                                               placeholder="Search products to feature..."
+                                                               x-model="productSearch"
+                                                               @input="searchProducts()">
+                                                        <div class="product-results" x-show="searchResults.length > 0">
+                                                            <template x-for="product in searchResults" :key="product.id">
+                                                                <div class="product-item" @click="addFeaturedProduct(product)">
+                                                                    <span x-text="product.name"></span>
+                                                                    <small class="text-muted" x-text="product.sku"></small>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                    <div class="selected-products">
+                                                        <template x-for="product in settings.products.featured" :key="product.id">
+                                                            <div class="selected-product">
+                                                                <span x-text="product.name"></span>
+                                                                <button type="button" 
+                                                                        class="btn btn-sm btn-outline-danger"
+                                                                        @click="removeFeaturedProduct(product.id)">
+                                                                    <i class="bi bi-x"></i>
+                                                                </button>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">
+                                        <i class="bi bi-layout-text-window-reverse me-2"></i>
+                                        Preview
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="product-preview">
+                                        <div class="preview-product">
+                                            <div class="product-image" x-show="settings.products.showImages">
+                                                <i class="bi bi-image"></i>
+                                            </div>
+                                            <div class="product-info">
+                                                <div class="product-name">Sample Product</div>
+                                                <div class="product-details">
+                                                    <small class="text-muted" x-show="settings.products.showSKU">SKU: 12345</small>
+                                                    <small class="text-muted" x-show="settings.products.showStock">Stock: 10</small>
+                                                </div>
+                                                <div class="product-price">$10.00</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Settings Tab -->
+            <div class="tab-pane" :class="{'show active': activeTab === 2}" x-show="activeTab === 2">
+                <div class="settings-section">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="bi bi-credit-card me-2"></i>
+                                        Payment Configuration
+                                    </h5>
+                                    <p class="card-subtitle text-muted">Configure payment options and methods</p>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Available Payment Methods</label>
+                                                <div class="payment-methods">
+                                                    <template x-for="method in availablePaymentMethods" :key="method.id">
+                                                        <div class="payment-method-item">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" 
+                                                                       type="checkbox" 
+                                                                       :value="method.id"
+                                                                       x-model="settings.payments.methods"
+                                                                       @change="markAsChanged(`payments.methods.${method.id}`)"
+                                                                       :id="`payment_${method.id}`">
+                                                                <label class="form-check-label" 
+                                                                       :for="`payment_${method.id}`">
+                                                                    <i :class="method.icon"></i>
+                                                                    <span x-text="method.name"></span>
+                                                                </label>
+                                                            </div>
+                                                            <div class="payment-settings" x-show="settings.payments.methods.includes(method.id)">
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <label class="form-label">Display Order</label>
+                                                                        <input type="number" 
+                                                                               class="form-control form-control-sm" 
+                                                                               x-model="method.order"
+                                                                               @change="markAsChanged(`payments.order.${method.id}`)"
+                                                                               min="1">
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <label class="form-label">Quick Access</label>
+                                                                        <div class="form-check form-switch">
+                                                                            <input class="form-check-input" 
+                                                                                   type="checkbox" 
+                                                                                   x-model="method.quickAccess"
+                                                                                   @change="markAsChanged(`payments.quickAccess.${method.id}`)"
+                                                                                   :id="`quick_${method.id}`">
+                                                                            <label class="form-check-label" 
+                                                                                   :for="`quick_${method.id}`">
+                                                                                Show in quick access
+                                                                            </label>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Default Payment Method</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.payments.defaultMethod"
+                                                        @change="markAsChanged('payments.defaultMethod')">
+                                                    <option value="">None</option>
+                                                    <template x-for="method in availablePaymentMethods" :key="method.id">
+                                                        <option :value="method.id" 
+                                                                x-show="settings.payments.methods.includes(method.id)"
+                                                                x-text="method.name">
+                                                        </option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Payment Processing</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.payments.requireConfirmation"
+                                                           @change="markAsChanged('payments.requireConfirmation')"
+                                                           id="requireConfirmation">
+                                                    <label class="form-check-label" for="requireConfirmation">
+                                                        Require payment confirmation
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Enable Split Payment</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.payments.enableSplit"
+                                                           @change="markAsChanged('payments.enableSplit')"
+                                                           id="enableSplitPayment">
+                                                    <label class="form-check-label" for="enableSplitPayment">
+                                                        Allow split payments
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Enable Tips</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.payments.enableTips"
+                                                           @change="markAsChanged('payments.enableTips')"
+                                                           id="enableTips">
+                                                    <label class="form-check-label" for="enableTips">
+                                                        Allow tips on payments
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Quick Cash Amounts</label>
+                                                <div class="quick-amounts">
+                                                    <div class="amount-buttons">
+                                                        <template x-for="(amount, index) in settings.payments.quickAmounts" :key="index">
+                                                            <div class="amount-item">
+                                                                <input type="number" 
+                                                                       class="form-control form-control-sm" 
+                                                                       x-model="settings.payments.quickAmounts[index]"
+                                                                       @change="markAsChanged(`payments.quickAmounts.${index}`)"
+                                                                       step="0.01"
+                                                                       min="0">
+                                                                <button type="button" 
+                                                                        class="btn btn-sm btn-outline-danger"
+                                                                        @click="removeQuickAmount(index)">
+                                                                    <i class="bi bi-x"></i>
+                                                                </button>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            @click="addQuickAmount()">
+                                                        <i class="bi bi-plus"></i> Add Amount
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">
+                                        <i class="bi bi-shield-check me-2"></i>
+                                        Security Settings
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label class="form-label">Require Cashier PIN</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   x-model="settings.payments.requirePIN"
+                                                   @change="markAsChanged('payments.requirePIN')"
+                                                   id="requirePIN">
+                                            <label class="form-check-label" for="requirePIN">
+                                                Require PIN for payments
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group mt-3">
+                                        <label class="form-label">Max Transaction Amount</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.payments.maxAmount"
+                                               @change="markAsChanged('payments.maxAmount')"
+                                               min="0"
+                                               step="0.01">
+                                        <small class="form-text text-muted">
+                                            Maximum amount per transaction
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Interface Settings Tab -->
+            <div class="tab-pane" :class="{'show active': activeTab === 3}" x-show="activeTab === 3">
+                <div class="settings-section">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="bi bi-palette me-2"></i>
+                                        Interface Customization
+                                    </h5>
+                                    <p class="card-subtitle text-muted">Customize the quick sale interface</p>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Theme</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.interface.theme"
+                                                        @change="markAsChanged('interface.theme')">
+                                                    <option value="light">Light</option>
+                                                    <option value="dark">Dark</option>
+                                                    <option value="auto">Auto (System)</option>
+                                                    <option value="blue">Blue</option>
+                                                    <option value="green">Green</option>
+                                                    <option value="purple">Purple</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Layout</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.interface.layout"
+                                                        @change="markAsChanged('interface.layout')">
+                                                    <option value="horizontal">Horizontal (Products Left)</option>
+                                                    <option value="vertical">Vertical (Products Top)</option>
+                                                    <option value="compact">Compact (Minimal Space)</option>
+                                                    <option value="full">Full Screen</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Button Size</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.interface.buttonSize"
+                                                        @change="markAsChanged('interface.buttonSize')">
+                                                    <option value="small">Small</option>
+                                                    <option value="medium">Medium</option>
+                                                    <option value="large">Large</option>
+                                                    <option value="extra-large">Extra Large</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Animation Speed</label>
+                                                <select class="form-select" 
+                                                        x-model="settings.interface.animationSpeed"
+                                                        @change="markAsChanged('interface.animationSpeed')">
+                                                    <option value="none">No Animation</option>
+                                                    <option value="fast">Fast</option>
+                                                    <option value="normal">Normal</option>
+                                                    <option value="slow">Slow</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Sound Effects</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.interface.soundEffects"
+                                                           @change="markAsChanged('interface.soundEffects')"
+                                                           id="soundEffects">
+                                                    <label class="form-check-label" for="soundEffects">
+                                                        Enable sound effects
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Keyboard Shortcuts</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.interface.keyboardShortcuts"
+                                                           @change="markAsChanged('interface.keyboardShortcuts')"
+                                                           id="keyboardShortcuts">
+                                                    <label class="form-check-label" for="keyboardShortcuts">
+                                                        Enable keyboard shortcuts
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Custom CSS</label>
+                                                <textarea class="form-control" 
+                                                          x-model="settings.interface.customCSS"
+                                                          @change="markAsChanged('interface.customCSS')"
+                                                          rows="5"
+                                                          placeholder="/* Custom CSS styles */"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">
+                                        <i class="bi bi-eye me-2"></i>
+                                        Preview
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="interface-preview">
+                                        <div class="preview-interface" :class="getPreviewClasses()">
+                                            <div class="preview-header">
+                                                <h5>Quick Sale</h5>
+                                            </div>
+                                            <div class="preview-content">
+                                                <div class="preview-products">
+                                                    <button class="preview-button">Product 1</button>
+                                                    <button class="preview-button">Product 2</button>
+                                                </div>
+                                                <div class="preview-cart">
+                                                    <div class="preview-item">Item 1 - $10.00</div>
+                                                    <div class="preview-item">Item 2 - $15.00</div>
+                                                    <div class="preview-total">Total: $25.00</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Settings Tab -->
+            <div class="tab-pane" :class="{'show active': activeTab === 4}" x-show="activeTab === 4">
+                <div class="settings-section">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title">
+                                        <i class="bi bi-gear-fill me-2"></i>
+                                        Advanced Configuration
+                                    </h5>
+                                    <p class="card-subtitle text-muted">Advanced settings and options</p>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Enable Debug Mode</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.advanced.debugMode"
+                                                           @change="markAsChanged('advanced.debugMode')"
+                                                           id="debugMode">
+                                                    <label class="form-check-label" for="debugMode">
+                                                        Enable debug logging
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Enable API Integration</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" 
+                                                           type="checkbox" 
+                                                           x-model="settings.advanced.apiIntegration"
+                                                           @change="markAsChanged('advanced.apiIntegration')"
+                                                           id="apiIntegration">
+                                                    <label class="form-check-label" for="apiIntegration">
+                                                        Allow external API integration
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Max Items Per Sale</label>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings.advanced.maxItems"
+                                                       @change="markAsChanged('advanced.maxItems')"
+                                                       min="1"
+                                                       max="100">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Max Discount (%)</label>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings.advanced.maxDiscount"
+                                                       @change="markAsChanged('advanced.maxDiscount')"
+                                                       min="0"
+                                                       max="100"
+                                                       step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Webhook URLs</label>
+                                                <div class="webhook-urls">
+                                                    <template x-for="(webhook, index) in settings.advanced.webhooks" :key="index">
+                                                        <div class="webhook-item">
+                                                            <input type="url" 
+                                                                   class="form-control" 
+                                                                   x-model="settings.advanced.webhooks[index]"
+                                                                   @change="markAsChanged(`advanced.webhooks.${index}`)"
+                                                                   placeholder="https://example.com/webhook">
+                                                            <button type="button" 
+                                                                    class="btn btn-sm btn-outline-danger"
+                                                                    @click="removeWebhook(index)">
+                                                                <i class="bi bi-x"></i>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            @click="addWebhook()">
+                                                        <i class="bi bi-plus"></i> Add Webhook
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label">Backup Settings</label>
+                                                <div class="backup-actions">
+                                                    <button type="button" 
+                                                            class="btn btn-outline-primary"
+                                                            @click="backupSettings()">
+                                                        <i class="bi bi-cloud-download"></i> Backup Settings
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-secondary"
+                                                            @click="restoreSettings()">
+                                                        <i class="bi bi-cloud-upload"></i> Restore Settings
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-danger"
+                                                            @click="resetToDefaults()">
+                                                        <i class="bi bi-arrow-counterclockwise"></i> Reset to Defaults
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        System Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="system-info">
+                                        <div class="info-item">
+                                            <label>Version:</label>
+                                            <span>1.0.0</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Last Updated:</label>
+                                            <span x-text="new Date().toLocaleDateString()"></span>
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Configuration:</label>
+                                            <span>Active</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Changes Summary -->
+    <div class="changes-summary" x-show="hasChanges" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                    Unsaved Changes
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    You have <strong x-text="Object.keys(changedSettings).length"></strong> unsaved changes.
+                </p>
+                <div class="changes-list">
+                    <template x-for="(value, key) in changedSettings" :key="key">
+                        <span class="badge bg-light text-dark me-2 mb-2" x-text="formatSettingKey(key)"></span>
+                    </template>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-primary" @click="saveAllSettings()">
+                        <i class="bi bi-save"></i> Save All Changes
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary ms-2" @click="discardChanges()">
+                        <i class="bi bi-x-circle"></i> Discard Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/quick_sale_settings.js') }}"></script>
+<script>
+// Quick Sale Settings App
+function quickSaleSettingsApp() {
+    return {
+        // Data
+        activeTab: 0,
+        settingsTabs: [
+            { label: 'General', icon: 'bi-gear' },
+            { label: 'Products', icon: 'bi-box' },
+            { label: 'Payments', icon: 'bi-credit-card' },
+            { label: 'Interface', icon: 'bi-palette' },
+            { label: 'Advanced', icon: 'bi-gear-fill' }
+        ],
+        
+        settings: {
+            general: {
+                enabled: true,
+                defaultView: 'products',
+                autoLockTimeout: 5,
+                sessionTimeout: 30,
+                welcomeMessage: 'Welcome to Quick Sale',
+                footerText: 'Thank you for your purchase'
+            },
+            products: {
+                perPage: 24,
+                sortBy: 'name',
+                showImages: true,
+                showStock: false,
+                showSKU: false,
+                showBarcode: false,
+                featured: []
+            },
+            payments: {
+                methods: ['cash', 'card'],
+                defaultMethod: 'cash',
+                requireConfirmation: false,
+                enableSplit: false,
+                enableTips: false,
+                requirePIN: false,
+                maxAmount: 10000,
+                quickAmounts: [10, 20, 50, 100]
+            },
+            interface: {
+                theme: 'light',
+                layout: 'horizontal',
+                buttonSize: 'medium',
+                animationSpeed: 'normal',
+                soundEffects: false,
+                keyboardShortcuts: true,
+                customCSS: ''
+            },
+            advanced: {
+                debugMode: false,
+                apiIntegration: false,
+                maxItems: 50,
+                maxDiscount: 10,
+                webhooks: []
+            }
+        },
+        
+        originalSettings: {},
+        changedSettings: {},
+        
+        availablePaymentMethods: [
+            { id: 'cash', name: 'Cash', icon: 'bi-cash', order: 1, quickAccess: true },
+            { id: 'card', name: 'Credit Card', icon: 'bi-credit-card', order: 2, quickAccess: true },
+            { id: 'mobile', name: 'Mobile Payment', icon: 'bi-phone', order: 3, quickAccess: false },
+            { id: 'gift', name: 'Gift Card', icon: 'bi-gift', order: 4, quickAccess: false },
+            { id: 'mixed', name: 'Mixed Payment', icon: 'bi-wallet2', order: 5, quickAccess: false }
+        ],
+        
+        productSearch: '',
+        searchResults: [],
+        
+        // Computed properties
+        get hasChanges() {
+            return Object.keys(this.changedSettings).length > 0;
+        },
+        
+        // Methods
+        init() {
+            this.loadSettings();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/quick-sale/settings');
+                const data = await response.json();
+                
+                if (data.settings) {
+                    this.settings = this.mergeSettings(this.settings, data.settings);
+                    this.originalSettings = JSON.parse(JSON.stringify(this.settings));
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        },
+        
+        mergeSettings(defaultSettings, loadedSettings) {
+            const merged = JSON.parse(JSON.stringify(defaultSettings));
+            
+            for (const section in loadedSettings) {
+                if (merged[section]) {
+                    for (const key in loadedSettings[section]) {
+                        if (merged[section].hasOwnProperty(key)) {
+                            merged[section][key] = loadedSettings[section][key];
+                        }
+                    }
+                }
+            }
+            
+            return merged;
+        },
+        
+        // Change tracking
+        markAsChanged(key) {
+            this.changedSettings[key] = true;
+        },
+        
+        getTabChangesCount(tabIndex) {
+            const tabKeys = {
+                0: ['general.enabled', 'general.defaultView', 'general.autoLockTimeout', 'general.sessionTimeout', 'general.welcomeMessage', 'general.footerText'],
+                1: ['products.perPage', 'products.sortBy', 'products.showImages', 'products.showStock', 'products.showSKU', 'products.showBarcode'],
+                2: ['payments.methods', 'payments.defaultMethod', 'payments.requireConfirmation', 'payments.enableSplit', 'payments.enableTips', 'payments.requirePIN', 'payments.maxAmount'],
+                3: ['interface.theme', 'interface.layout', 'interface.buttonSize', 'interface.animationSpeed', 'interface.soundEffects', 'interface.keyboardShortcuts', 'interface.customCSS'],
+                4: ['advanced.debugMode', 'advanced.apiIntegration', 'advanced.maxItems', 'advanced.maxDiscount', 'advanced.webhooks']
+            };
+            
+            return tabKeys[tabIndex]?.filter(key => this.changedSettings[key]).length || 0;
+        },
+        
+        formatSettingKey(key) {
+            const parts = key.split('.');
+            return parts[parts.length - 1].replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+        },
+        
+        // Settings management
+        async saveAllSettings() {
+            try {
+                const response = await fetch('/api/quick-sale/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.originalSettings = JSON.parse(JSON.stringify(this.settings));
+                    this.changedSettings = {};
+                    this.showSuccess('Settings saved successfully');
+                } else {
+                    throw new Error('Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            }
+        },
+        
+        discardChanges() {
+            this.settings = JSON.parse(JSON.stringify(this.originalSettings));
+            this.changedSettings = {};
+        },
+        
+        resetSettings() {
+            if (confirm('Are you sure you want to reset all settings to default?')) {
+                this.loadSettings();
+                this.changedSettings = {};
+            }
+        },
+        
+        exportSettings() {
+            const dataStr = JSON.stringify(this.settings, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `quick-sale-settings-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        importSettings() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        const importedSettings = JSON.parse(event.target.result);
+                        this.settings = this.mergeSettings(this.settings, importedSettings);
+                        this.showSuccess('Settings imported successfully');
+                    } catch (error) {
+                        this.showError('Failed to import settings');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        },
+        
+        backupSettings() {
+            this.exportSettings();
+        },
+        
+        restoreSettings() {
+            this.importSettings();
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to default values? This cannot be undone.')) {
+                location.reload();
+            }
+        },
+        
+        // Product management
+        async searchProducts() {
+            if (this.productSearch.trim() === '') {
+                this.searchResults = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/products/search?q=${this.productSearch}`);
+                this.searchResults = await response.json();
+            } catch (error) {
+                console.error('Error searching products:', error);
+            }
+        },
+        
+        addFeaturedProduct(product) {
+            if (!this.settings.products.featured.find(p => p.id === product.id)) {
+                this.settings.products.featured.push(product);
+                this.markAsChanged('products.featured');
+            }
+            this.productSearch = '';
+            this.searchResults = [];
+        },
+        
+        removeFeaturedProduct(productId) {
+            this.settings.products.featured = this.settings.products.featured.filter(
+                p => p.id !== productId
+            );
+            this.markAsChanged('products.featured');
+        },
+        
+        // Payment methods
+        addQuickAmount() {
+            this.settings.payments.quickAmounts.push(0);
+            this.markAsChanged('payments.quickAmounts');
+        },
+        
+        removeQuickAmount(index) {
+            this.settings.payments.quickAmounts.splice(index, 1);
+            this.markAsChanged('payments.quickAmounts');
+        },
+        
+        // Webhook management
+        addWebhook() {
+            this.settings.advanced.webhooks.push('');
+            this.markAsChanged('advanced.webhooks');
+        },
+        
+        removeWebhook(index) {
+            this.settings.advanced.webhooks.splice(index, 1);
+            this.markAsChanged('advanced.webhooks');
+        },
+        
+        // Utility methods
+        getPreviewClasses() {
+            return {
+                'theme-dark': this.settings.interface.theme === 'dark',
+                'layout-vertical': this.settings.interface.layout === 'vertical',
+                'layout-compact': this.settings.interface.layout === 'compact',
+                'button-large': this.settings.interface.buttonSize === 'large',
+                'button-small': this.settings.interface.buttonSize === 'small'
+            };
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveAllSettings();
+                }
+                
+                // Ctrl/Cmd + R: Reset settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetSettings();
+                }
+                
+                // Ctrl/Cmd + E: Export settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSettings();
+                }
+                
+                // Ctrl/Cmd + I: Import settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                    e.preventDefault();
+                    this.importSettings();
+                }
+                
+                // Tab numbers: Switch tabs
+                if (e.key >= '1' && e.key <= '5') {
+                    const tabIndex = parseInt(e.key) - 1;
+                    if (tabIndex < this.settingsTabs.length) {
+                        this.activeTab = tabIndex;
+                    }
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

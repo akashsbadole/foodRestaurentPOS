@@ -1,0 +1,1074 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/daily_reports_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Daily Reports Form Interface -->
+<div class="daily-reports-form-container" x-data="dailyReportsFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-file-earmark-plus me-2"></i>
+                    Create Custom Report
+                </h2>
+                <p class="form-subtitle text-muted">Build and configure custom daily reports</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetForm()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="previewReport()">
+                        <i class="bi bi-eye"></i> Preview
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveReport()" :disabled="!isFormValid">
+                        <i class="bi bi-save"></i> Save Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress">
+            <div class="progress-bar" 
+                 :style="`width: ${progressPercentage}%`"
+                 :class="getProgressBarClass()">
+            </div>
+        </div>
+        <div class="progress-steps">
+            <template x-for="(step, index) in steps" :key="index">
+                <div class="step" 
+                     :class="{'active': currentStep === index, 'completed': currentStep > index}">
+                    <div class="step-number" x-text="index + 1"></div>
+                    <div class="step-label" x-text="step.label"></div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Form Content -->
+    <div class="form-content">
+        <div class="row">
+            <!-- Left Panel - Form Steps -->
+            <div class="col-md-8">
+                <div class="form-steps">
+                    
+                    <!-- Step 1: Basic Information -->
+                    <div class="form-step" x-show="currentStep === 0" x-transition>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Basic Information
+                                </h5>
+                                <p class="card-subtitle text-muted">Configure basic report settings</p>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Report Name *</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   x-model="report.name"
+                                                   placeholder="Daily Sales Summary"
+                                                   @change="markAsChanged('name')">
+                                            <small class="form-text text-muted">
+                                                Enter a descriptive name for your report
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Report Type *</label>
+                                            <select class="form-select" 
+                                                    x-model="report.type"
+                                                    @change="markAsChanged('type')">
+                                                <option value="">Select Type</option>
+                                                <option value="summary">Summary Report</option>
+                                                <option value="detailed">Detailed Report</option>
+                                                <option value="comparison">Comparison Report</option>
+                                                <option value="forecast">Forecast Report</option>
+                                                <option value="custom">Custom Report</option>
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                Choose the type of report to generate
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label class="form-label">Description</label>
+                                            <textarea class="form-control" 
+                                                      x-model="report.description"
+                                                      rows="3"
+                                                      placeholder="This report provides a comprehensive overview of daily sales performance..."
+                                                      @change="markAsChanged('description')">
+                                            </textarea>
+                                            <small class="form-text text-muted">
+                                                Brief description of the report purpose
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Category</label>
+                                            <select class="form-select" 
+                                                    x-model="report.category"
+                                                    @change="markAsChanged('category')">
+                                                <option value="">Select Category</option>
+                                                <option value="sales">Sales Reports</option>
+                                                <option value="financial">Financial Reports</option>
+                                                <option value="inventory">Inventory Reports</option>
+                                                <option value="customer">Customer Reports</option>
+                                                <option value="performance">Performance Reports</option>
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                Category for organizing reports
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Priority</label>
+                                            <select class="form-select" 
+                                                    x-model="report.priority"
+                                                    @change="markAsChanged('priority')">
+                                                <option value="low">Low</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="high">High</option>
+                                                <option value="critical">Critical</option>
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                Report priority level
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2: Data Sources -->
+                    <div class="form-step" x-show="currentStep === 1" x-transition>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-database me-2"></i>
+                                    Data Sources
+                                </h5>
+                                <p class="card-subtitle text-muted">Select data sources for the report</p>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label class="form-label">Available Data Sources</label>
+                                            <div class="data-sources">
+                                                <template x-for="source in availableDataSources" :key="source.id">
+                                                    <div class="data-source-item">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" 
+                                                                   type="checkbox" 
+                                                                   :value="source.id"
+                                                                   x-model="report.dataSources"
+                                                                   @change="markAsChanged('dataSources')"
+                                                                   :id="`source_${source.id}`">
+                                                            <label class="form-check-label" 
+                                                                   :for="`source_${source.id}`">
+                                                                <i :class="source.icon"></i>
+                                                                <span x-text="source.name"></span>
+                                                                <small class="text-muted" x-text="source.description"></small>
+                                                            </label>
+                                                        </div>
+                                                        <div class="source-config" x-show="report.dataSources.includes(source.id)">
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label">Date Range</label>
+                                                                    <select class="form-select form-select-sm" 
+                                                                            x-model="source.dateRange"
+                                                                            @change="markAsChanged(`source_${source.id}_dateRange`)">
+                                                                        <option value="today">Today</option>
+                                                                        <option value="yesterday">Yesterday</option>
+                                                                        <option value="week">This Week</option>
+                                                                        <option value="month">This Month</option>
+                                                                        <option value="quarter">This Quarter</option>
+                                                                        <option value="custom">Custom Range</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label">Filters</label>
+                                                                    <button type="button" 
+                                                                            class="btn btn-sm btn-outline-primary"
+                                                                            @click="configureDataSourceFilters(source.id)">
+                                                                        <i class="bi bi-funnel"></i> Configure
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Start Date</label>
+                                            <input type="date" 
+                                                   class="form-control" 
+                                                   x-model="report.startDate"
+                                                   @change="markAsChanged('startDate')">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">End Date</label>
+                                            <input type="date" 
+                                                   class="form-control" 
+                                                   x-model="report.endDate"
+                                                   @change="markAsChanged('endDate')">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: Report Layout -->
+                    <div class="form-step" x-show="currentStep === 2" x-transition>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-layout-text-window-reverse me-2"></i>
+                                    Report Layout
+                                </h5>
+                                <p class="card-subtitle text-muted">Configure the report layout and sections</p>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Layout Template</label>
+                                            <select class="form-select" 
+                                                    x-model="report.layout.template"
+                                                    @change="markAsChanged('layout.template')">
+                                                <option value="standard">Standard Layout</option>
+                                                <option value="executive">Executive Summary</option>
+                                                <option value="detailed">Detailed Analysis</option>
+                                                <option value="dashboard">Dashboard Style</option>
+                                                <option value="custom">Custom Layout</option>
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                Choose a layout template for your report
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Page Orientation</label>
+                                            <select class="form-select" 
+                                                    x-model="report.layout.orientation"
+                                                    @change="markAsChanged('layout.orientation')">
+                                                <option value="portrait">Portrait</option>
+                                                <option value="landscape">Landscape</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label class="form-label">Report Sections</label>
+                                            <div class="report-sections">
+                                                <div class="available-sections">
+                                                    <h6>Available Sections</h6>
+                                                    <template x-for="section in availableSections" :key="section.id">
+                                                        <div class="section-item" 
+                                                             :class="{'selected': report.layout.sections.includes(section.id)}"
+                                                             @click="toggleSection(section.id)">
+                                                            <i :class="section.icon"></i>
+                                                            <span x-text="section.name"></span>
+                                                            <small x-text="section.description"></small>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                
+                                                <div class="selected-sections">
+                                                    <h6>Selected Sections</h6>
+                                                    <div class="selected-list">
+                                                        <template x-for="sectionId in report.layout.sections" :key="sectionId">
+                                                            <div class="selected-section">
+                                                                <i :class="getSectionIcon(sectionId)"></i>
+                                                                <span x-text="getSectionName(sectionId)"></span>
+                                                                <button type="button" 
+                                                                        class="btn btn-sm btn-outline-danger"
+                                                                        @click="removeSection(sectionId)">
+                                                                    <i class="bi bi-x"></i>
+                                                                </button>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Include Charts</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       x-model="report.layout.includeCharts"
+                                                       @change="markAsChanged('layout.includeCharts')"
+                                                       id="includeCharts">
+                                                <label class="form-check-label" for="includeCharts">
+                                                    Include visual charts and graphs
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Include Summary</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       x-model="report.layout.includeSummary"
+                                                       @change="markAsChanged('layout.includeSummary')"
+                                                       id="includeSummary">
+                                                <label class="form-check-label" for="includeSummary">
+                                                    Include executive summary
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 4: Filters & Conditions -->
+                    <div class="form-step" x-show="currentStep === 3" x-transition>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-funnel me-2"></i>
+                                    Filters & Conditions
+                                </h5>
+                                <p class="card-subtitle text-muted">Configure filters and conditions for the report</p>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label class="form-label">Report Filters</label>
+                                            <div class="filters-container">
+                                                <template x-for="(filter, index) in report.filters" :key="index">
+                                                    <div class="filter-item">
+                                                        <select class="form-select form-select-sm" 
+                                                                x-model="filter.field"
+                                                                @change="markAsChanged(`filters.${index}.field`)">
+                                                            <option value="">Select Field</option>
+                                                            <option value="category">Category</option>
+                                                            <option value="product">Product</option>
+                                                            <option value="customer">Customer</option>
+                                                            <option value="paymentMethod">Payment Method</option>
+                                                            <option value="store">Store</option>
+                                                            <option value="cashier">Cashier</option>
+                                                        </select>
+                                                        <select class="form-select form-select-sm" 
+                                                                x-model="filter.operator"
+                                                                @change="markAsChanged(`filters.${index}.operator`)">
+                                                            <option value="equals">Equals</option>
+                                                            <option value="notEquals">Not Equals</option>
+                                                            <option value="contains">Contains</option>
+                                                            <option value="greaterThan">Greater Than</option>
+                                                            <option value="lessThan">Less Than</option>
+                                                            <option value="between">Between</option>
+                                                        </select>
+                                                        <input type="text" 
+                                                               class="form-control form-control-sm" 
+                                                               x-model="filter.value"
+                                                               @change="markAsChanged(`filters.${index}.value`)"
+                                                               placeholder="Filter value">
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-danger"
+                                                                @click="removeFilter(index)">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        @click="addFilter()">
+                                                    <i class="bi bi-plus"></i> Add Filter
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label class="form-label">Advanced Conditions</label>
+                                            <div class="conditions-container">
+                                                <template x-for="(condition, index) in report.conditions" :key="index">
+                                                    <div class="condition-item">
+                                                        <select class="form-select form-select-sm" 
+                                                                x-model="condition.type"
+                                                                @change="markAsChanged(`conditions.${index}.type`)">
+                                                            <option value="time">Time-based</option>
+                                                            <option value="amount">Amount-based</option>
+                                                            <option value="quantity">Quantity-based</option>
+                                                            <option value="custom">Custom Formula</option>
+                                                        </select>
+                                                        <input type="text" 
+                                                               class="form-control form-control-sm" 
+                                                               x-model="condition.expression"
+                                                               @change="markAsChanged(`conditions.${index}.expression`)"
+                                                               placeholder="Condition expression">
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-danger"
+                                                                @click="removeCondition(index)">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        @click="addCondition()">
+                                                    <i class="bi bi-plus"></i> Add Condition
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Group By</label>
+                                            <select class="form-select" 
+                                                    x-model="report.groupBy"
+                                                    @change="markAsChanged('groupBy')">
+                                                <option value="">No Grouping</option>
+                                                <option value="category">Category</option>
+                                                <option value="product">Product</option>
+                                                <option value="customer">Customer</option>
+                                                <option value="date">Date</option>
+                                                <option value="store">Store</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Sort By</label>
+                                            <select class="form-select" 
+                                                    x-model="report.sortBy"
+                                                    @change="markAsChanged('sortBy')">
+                                                <option value="date">Date</option>
+                                                <option value="amount">Amount</option>
+                                                <option value="quantity">Quantity</option>
+                                                <option value="name">Name</option>
+                                                <option value="category">Category</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 5: Scheduling & Delivery -->
+                    <div class="form-step" x-show="currentStep === 4" x-transition>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-clock-history me-2"></i>
+                                    Scheduling & Delivery
+                                </h5>
+                                <p class="card-subtitle text-muted">Configure report scheduling and delivery options</p>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Schedule Type</label>
+                                            <select class="form-select" 
+                                                    x-model="report.schedule.type"
+                                                    @change="markAsChanged('schedule.type')">
+                                                <option value="manual">Manual Only</option>
+                                                <option value="daily">Daily</option>
+                                                <option value="weekly">Weekly</option>
+                                                <option value="monthly">Monthly</option>
+                                                <option value="quarterly">Quarterly</option>
+                                                <option value="custom">Custom Schedule</option>
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                When to automatically generate this report
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Time</label>
+                                            <input type="time" 
+                                                   class="form-control" 
+                                                   x-model="report.schedule.time"
+                                                   @change="markAsChanged('schedule.time')"
+                                                   :disabled="report.schedule.type === 'manual'">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Delivery Method</label>
+                                            <select class="form-select" 
+                                                    x-model="report.delivery.method"
+                                                    @change="markAsChanged('delivery.method')">
+                                                <option value="download">Download Only</option>
+                                                <option value="email">Email</option>
+                                                <option value="ftp">FTP Upload</option>
+                                                <option value="webhook">Webhook</option>
+                                                <option value="multiple">Multiple Methods</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Format</label>
+                                            <select class="form-select" 
+                                                    x-model="report.delivery.format"
+                                                    @change="markAsChanged('delivery.format')">
+                                                <option value="pdf">PDF</option>
+                                                <option value="excel">Excel</option>
+                                                <option value="csv">CSV</option>
+                                                <option value="json">JSON</option>
+                                                <option value="html">HTML</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3" x-show="report.delivery.method === 'email' || report.delivery.method === 'multiple'">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label class="form-label">Email Recipients</label>
+                                            <div class="email-recipients">
+                                                <template x-for="(recipient, index) in report.delivery.recipients" :key="index">
+                                                    <div class="recipient-item">
+                                                        <input type="email" 
+                                                               class="form-control form-control-sm" 
+                                                               x-model="report.delivery.recipients[index]"
+                                                               @change="markAsChanged(`delivery.recipients.${index}`)"
+                                                               placeholder="email@example.com">
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-danger"
+                                                                @click="removeRecipient(index)">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        @click="addRecipient()">
+                                                    <i class="bi bi-plus"></i> Add Recipient
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Retention Period</label>
+                                            <select class="form-select" 
+                                                    x-model="report.retention"
+                                                    @change="markAsChanged('retention')">
+                                                <option value="7">7 Days</option>
+                                                <option value="30">30 Days</option>
+                                                <option value="90">90 Days</option>
+                                                <option value="180">180 Days</option>
+                                                <option value="365">1 Year</option>
+                                                <option value="permanent">Permanent</option>
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                How long to keep generated reports
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Notification</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       x-model="report.notify"
+                                                       @change="markAsChanged('notify')"
+                                                       id="notify">
+                                                <label class="form-check-label" for="notify">
+                                                    Send notification when report is ready
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel - Preview & Summary -->
+            <div class="col-md-4">
+                <div class="form-sidebar">
+                    <!-- Report Summary -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="card-title">
+                                <i class="bi bi-list-check me-2"></i>
+                                Report Summary
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="summary-sections">
+                                <div class="summary-section">
+                                    <h6>Basic Info</h6>
+                                    <ul class="summary-list">
+                                        <li>
+                                            Name: <span x-text="report.name || 'Not set'"></span>
+                                        </li>
+                                        <li>
+                                            Type: <span x-text="report.type || 'Not set'"></span>
+                                        </li>
+                                        <li>
+                                            Category: <span x-text="report.category || 'Not set'"></span>
+                                        </li>
+                                        <li>
+                                            Priority: <span x-text="report.priority || 'Not set'"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="summary-section">
+                                    <h6>Data Sources</h6>
+                                    <ul class="summary-list">
+                                        <li>
+                                            Sources: <span x-text="report.dataSources.length || 'None'"></span>
+                                        </li>
+                                        <li>
+                                            Date Range: <span x-text="getDateRangeText()"></span>
+                                        </li>
+                                        <li>
+                                            Filters: <span x-text="report.filters.length || 'None'"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="summary-section">
+                                    <h6>Layout</h6>
+                                    <ul class="summary-list">
+                                        <li>
+                                            Template: <span x-text="report.layout.template || 'Not set'"></span>
+                                        </li>
+                                        <li>
+                                            Sections: <span x-text="report.layout.sections.length || 'None'"></span>
+                                        </li>
+                                        <li>
+                                            Charts: <span x-text="report.layout.includeCharts ? 'Yes' : 'No'"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="summary-section">
+                                    <h6>Scheduling</h6>
+                                    <ul class="summary-list">
+                                        <li>
+                                            Type: <span x-text="report.schedule.type || 'Manual'"></span>
+                                        </li>
+                                        <li>
+                                            Delivery: <span x-text="report.delivery.method || 'Download'"></span>
+                                        </li>
+                                        <li>
+                                            Format: <span x-text="report.delivery.format || 'PDF'"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Preview -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title">
+                                <i class="bi bi-eye me-2"></i>
+                                Quick Preview
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="preview-container">
+                                <div class="preview-report">
+                                    <div class="preview-header">
+                                        <h5 x-text="report.name || 'Untitled Report'"></h5>
+                                        <p x-text="report.description || 'No description provided'"></p>
+                                    </div>
+                                    <div class="preview-content">
+                                        <div class="preview-section" x-show="report.layout.sections.includes('summary')">
+                                            <h6>Executive Summary</h6>
+                                            <p>Summary statistics and key metrics will appear here...</p>
+                                        </div>
+                                        <div class="preview-section" x-show="report.layout.sections.includes('charts')">
+                                            <h6>Visual Analytics</h6>
+                                            <div class="preview-chart">
+                                                <i class="bi bi-bar-chart"></i>
+                                                <span>Charts and graphs will appear here...</span>
+                                            </div>
+                                        </div>
+                                        <div class="preview-section" x-show="report.layout.sections.includes('details')">
+                                            <h6>Detailed Analysis</h6>
+                                            <p>Detailed breakdown and analysis will appear here...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Navigation Buttons -->
+    <div class="form-navigation">
+        <div class="row">
+            <div class="col-md-6">
+                <button type="button" 
+                        class="btn btn-outline-secondary"
+                        @click="previousStep()"
+                        :disabled="currentStep === 0">
+                    <i class="bi bi-arrow-left"></i> Previous
+                </button>
+            </div>
+            <div class="col-md-6 text-end">
+                <button type="button" 
+                        class="btn btn-primary"
+                        @click="nextStep()"
+                        x-show="currentStep < steps.length - 1">
+                    Next <i class="bi bi-arrow-right"></i>
+                </button>
+                <button type="button" 
+                        class="btn btn-success"
+                        @click="saveReport()"
+                        x-show="currentStep === steps.length - 1"
+                        :disabled="!isFormValid">
+                    <i class="bi bi-check-circle"></i> Save Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/daily_reports_form.js') }}"></script>
+<script>
+// Daily Reports Form App
+function dailyReportsFormApp() {
+    return {
+        // Data
+        currentStep: 0,
+        steps: [
+            { label: 'Basic Info', icon: 'bi-info-circle' },
+            { label: 'Data Sources', icon: 'bi-database' },
+            { label: 'Layout', icon: 'bi-layout-text-window-reverse' },
+            { label: 'Filters', icon: 'bi-funnel' },
+            { label: 'Schedule', icon: 'bi-clock-history' }
+        ],
+        
+        report: {
+            name: '',
+            type: '',
+            description: '',
+            category: '',
+            priority: 'medium',
+            dataSources: [],
+            startDate: '',
+            endDate: '',
+            layout: {
+                template: 'standard',
+                orientation: 'portrait',
+                sections: ['summary'],
+                includeCharts: true,
+                includeSummary: true
+            },
+            filters: [],
+            conditions: [],
+            groupBy: '',
+            sortBy: 'date',
+            schedule: {
+                type: 'manual',
+                time: '09:00'
+            },
+            delivery: {
+                method: 'download',
+                format: 'pdf',
+                recipients: []
+            },
+            retention: '30',
+            notify: true
+        },
+        
+        changedFields: new Set(),
+        
+        availableDataSources: [
+            { id: 'sales', name: 'Sales Data', icon: 'bi-cash-stack', description: 'Transaction and sales data' },
+            { id: 'products', name: 'Products', icon: 'bi-box', description: 'Product information and inventory' },
+            { id: 'customers', name: 'Customers', icon: 'bi-people', description: 'Customer data and demographics' },
+            { id: 'payments', name: 'Payments', icon: 'bi-credit-card', description: 'Payment method and processing data' },
+            { id: 'inventory', name: 'Inventory', icon: 'bi-archive', description: 'Stock levels and movements' }
+        ],
+        
+        availableSections: [
+            { id: 'summary', name: 'Executive Summary', icon: 'bi-file-text', description: 'Key metrics and highlights' },
+            { id: 'charts', name: 'Charts & Graphs', icon: 'bi-bar-chart', description: 'Visual data representations' },
+            { id: 'details', name: 'Detailed Analysis', icon: 'bi-table', description: 'Comprehensive data breakdown' },
+            { id: 'trends', name: 'Trends', icon: 'bi-graph-up', description: 'Trend analysis and patterns' },
+            { id: 'recommendations', name: 'Recommendations', icon: 'bi-lightbulb', description: 'Actionable insights' }
+        ],
+        
+        // Computed properties
+        get progressPercentage() {
+            return ((this.currentStep + 1) / this.steps.length) * 100;
+        },
+        
+        get isFormValid() {
+            return this.report.name.trim() !== '' && 
+                   this.report.type !== '' &&
+                   this.report.dataSources.length > 0 &&
+                   this.report.layout.sections.length > 0;
+        },
+        
+        // Methods
+        init() {
+            this.setDefaultDates();
+            this.setupKeyboardShortcuts();
+        },
+        
+        setDefaultDates() {
+            const today = new Date();
+            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            this.report.startDate = lastWeek.toISOString().split('T')[0];
+            this.report.endDate = today.toISOString().split('T')[0];
+        },
+        
+        // Navigation methods
+        nextStep() {
+            if (this.currentStep < this.steps.length - 1) {
+                this.currentStep++;
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 0) {
+                this.currentStep--;
+            }
+        },
+        
+        // Change tracking
+        markAsChanged(field) {
+            this.changedFields.add(field);
+        },
+        
+        // Section management
+        toggleSection(sectionId) {
+            const index = this.report.layout.sections.indexOf(sectionId);
+            if (index > -1) {
+                this.report.layout.sections.splice(index, 1);
+            } else {
+                this.report.layout.sections.push(sectionId);
+            }
+            this.markAsChanged('layout.sections');
+        },
+        
+        removeSection(sectionId) {
+            const index = this.report.layout.sections.indexOf(sectionId);
+            if (index > -1) {
+                this.report.layout.sections.splice(index, 1);
+                this.markAsChanged('layout.sections');
+            }
+        },
+        
+        getSectionName(sectionId) {
+            const section = this.availableSections.find(s => s.id === sectionId);
+            return section ? section.name : sectionId;
+        },
+        
+        getSectionIcon(sectionId) {
+            const section = this.availableSections.find(s => s.id === sectionId);
+            return section ? section.icon : 'bi-file';
+        },
+        
+        // Filter management
+        addFilter() {
+            this.report.filters.push({
+                field: '',
+                operator: 'equals',
+                value: ''
+            });
+        },
+        
+        removeFilter(index) {
+            this.report.filters.splice(index, 1);
+        },
+        
+        // Condition management
+        addCondition() {
+            this.report.conditions.push({
+                type: 'time',
+                expression: ''
+            });
+        },
+        
+        removeCondition(index) {
+            this.report.conditions.splice(index, 1);
+        },
+        
+        // Recipient management
+        addRecipient() {
+            this.report.delivery.recipients.push('');
+        },
+        
+        removeRecipient(index) {
+            this.report.delivery.recipients.splice(index, 1);
+        },
+        
+        // Data source configuration
+        configureDataSourceFilters(sourceId) {
+            // Open filter configuration modal
+            alert(`Configure filters for ${sourceId}`);
+        },
+        
+        // Form actions
+        resetForm() {
+            if (confirm('Are you sure you want to reset all fields?')) {
+                this.init();
+                this.changedFields.clear();
+            }
+        },
+        
+        previewReport() {
+            // Open preview in new window or modal
+            window.open('/daily-reports/preview', '_blank');
+        },
+        
+        async saveReport() {
+            try {
+                const response = await fetch('/api/daily-reports', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.report)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Report saved successfully');
+                    // Redirect to reports list or view page
+                    window.location.href = '/daily-reports/list';
+                } else {
+                    throw new Error('Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving report:', error);
+                this.showError('Failed to save report');
+            }
+        },
+        
+        // Utility methods
+        getProgressBarClass() {
+            const classes = ['bg-primary', 'bg-success', 'bg-info', 'bg-warning', 'bg-danger'];
+            return classes[this.currentStep] || 'bg-primary';
+        },
+        
+        getDateRangeText() {
+            if (!this.report.startDate && !this.report.endDate) return 'Not set';
+            if (!this.report.endDate) return `From ${this.report.startDate}`;
+            if (!this.report.startDate) return `Until ${this.report.endDate}`;
+            return `${this.report.startDate} to ${this.report.endDate}`;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save report
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveReport();
+                }
+                
+                // Ctrl/Cmd + R: Reset form
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetForm();
+                }
+                
+                // Ctrl/Cmd + P: Preview
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    this.previewReport();
+                }
+                
+                // Arrow keys: Navigate steps
+                if (e.key === 'ArrowRight' && this.currentStep < this.steps.length - 1) {
+                    this.nextStep();
+                } else if (e.key === 'ArrowLeft' && this.currentStep > 0) {
+                    this.previousStep();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1149 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/barcode_scanning_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Barcode Scanning Settings -->
+<div class="barcode-scanning-settings-container" x-data="barcodeScanningSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear-fill me-2"></i>
+                    Barcode Scanner Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure scanner hardware and behavior</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveSettings()" :disabled="!hasChanges">
+                        <i class="bi bi-check-lg"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tabs -->
+    <div class="settings-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'general'}"
+                        @click="activeTab = 'general'">
+                    <i class="bi bi-gear me-1"></i> General
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'scanner'}"
+                        @click="activeTab = 'scanner'">
+                    <i class="bi bi-camera-video me-1"></i> Scanner
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'formats'}"
+                        @click="activeTab = 'formats'">
+                    <i class="bi bi-upc me-1"></i> Formats
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'behavior'}"
+                        @click="activeTab = 'behavior'">
+                    <i class="bi bi-sliders me-1"></i> Behavior
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'integration'}"
+                        @click="activeTab = 'integration'">
+                    <i class="bi bi-link-45deg me-1"></i> Integration
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'advanced'}"
+                        @click="activeTab = 'advanced'">
+                    <i class="bi bi-tools me-1"></i> Advanced
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        
+        <!-- General Settings -->
+        <div class="tab-content" x-show="activeTab === 'general'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        General Settings
+                    </h5>
+                    <p class="text-muted mb-0">Basic barcode scanner configuration</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Default Scanner Mode</label>
+                                <select class="form-select" x-model="settings.general.defaultMode">
+                                    <option value="single">Single Scan</option>
+                                    <option value="continuous">Continuous Scan</option>
+                                    <option value="batch">Batch Scan</option>
+                                </select>
+                                <small class="form-text text-muted">Default scanning mode when opening scanner</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Default Action</label>
+                                <select class="form-select" x-model="settings.general.defaultAction">
+                                    <option value="lookup">Lookup Product</option>
+                                    <option value="add">Add to Inventory</option>
+                                    <option value="sale">Add to Sale</option>
+                                    <option value="none">No Action</option>
+                                </select>
+                                <small class="form-text text-muted">Action to perform after successful scan</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Auto-start Scanner</label>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" 
+                                           class="form-check-input" 
+                                           id="autoStart" 
+                                           x-model="settings.general.autoStart">
+                                    <label class="form-check-label" for="autoStart">
+                                        Automatically start scanner on page load
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Show Instructions</label>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" 
+                                           class="form-check-input" 
+                                           id="showInstructions" 
+                                           x-model="settings.general.showInstructions">
+                                    <label class="form-check-label" for="showInstructions">
+                                        Display scanning instructions for new users
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Welcome Message</label>
+                                <textarea class="form-control" 
+                                          x-model="settings.general.welcomeMessage"
+                                          rows="3"
+                                          placeholder="Custom welcome message for scanner interface..."></textarea>
+                                <small class="form-text text-muted">Message displayed when scanner opens</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scanner Settings -->
+        <div class="tab-content" x-show="activeTab === 'scanner'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-camera-video me-2"></i>
+                        Scanner Configuration
+                    </h5>
+                    <p class="text-muted mb-0">Hardware and camera settings</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Preferred Camera</label>
+                                <select class="form-select" x-model="settings.scanner.preferredCamera">
+                                    <option value="">Auto Select</option>
+                                    <template x-for="camera in availableCameras" :key="camera.id">
+                                        <option :value="camera.id" x-text="camera.label"></option>
+                                    </template>
+                                </select>
+                                <small class="form-text text-muted">Camera to use for barcode scanning</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Camera Resolution</label>
+                                <select class="form-select" x-model="settings.scanner.resolution">
+                                    <option value="640x480">640x480 (VGA)</option>
+                                    <option value="1280x720">1280x720 (HD)</option>
+                                    <option value="1920x1080">1920x1080 (Full HD)</option>
+                                    <option value="auto">Auto (Best Available)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Zoom Level</label>
+                                <input type="range" 
+                                       class="form-range" 
+                                       x-model="settings.scanner.zoom"
+                                       min="1"
+                                       max="5"
+                                       step="0.1">
+                                <div class="zoom-display">
+                                    <span x-text="`${settings.scanner.zoom}x`"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Focus Mode</label>
+                                <select class="form-select" x-model="settings.scanner.focusMode">
+                                    <option value="auto">Auto Focus</option>
+                                    <option value="manual">Manual Focus</option>
+                                    <option value="macro">Macro</option>
+                                    <option value="infinity">Infinity</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Flash Mode</label>
+                                <select class="form-select" x-model="settings.scanner.flashMode">
+                                    <option value="auto">Auto</option>
+                                    <option value="on">Always On</option>
+                                    <option value="off">Always Off</option>
+                                    <option value="torch">Torch</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Scanner Settings</label>
+                                <div class="scanner-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="mirrorMode" 
+                                               x-model="settings.scanner.mirrorMode">
+                                        <label class="form-check-label" for="mirrorMode">
+                                            Mirror mode (front camera)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="continuousFocus" 
+                                               x-model="settings.scanner.continuousFocus">
+                                        <label class="form-check-label" for="continuousFocus">
+                                            Continuous focus
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="highContrast" 
+                                               x-model="settings.scanner.highContrast">
+                                        <label class="form-check-label" for="highContrast">
+                                            High contrast mode
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Performance Settings</label>
+                                <div class="performance-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="hardwareAcceleration" 
+                                               x-model="settings.scanner.hardwareAcceleration">
+                                        <label class="form-check-label" for="hardwareAcceleration">
+                                            Hardware acceleration
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="lowPowerMode" 
+                                               x-model="settings.scanner.lowPowerMode">
+                                        <label class="form-check-label" for="lowPowerMode">
+                                            Low power mode
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="optimizeForSpeed" 
+                                               x-model="settings.scanner.optimizeForSpeed">
+                                        <label class="form-check-label" for="optimizeForSpeed">
+                                            Optimize for speed over accuracy
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Format Settings -->
+        <div class="tab-content" x-show="activeTab === 'formats'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-upc me-2"></i>
+                        Barcode Formats
+                    </h5>
+                    <p class="text-muted mb-0">Configure supported barcode formats</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Enabled Formats</label>
+                                <div class="format-grid">
+                                    <template x-for="format in availableFormats" :key="format.value">
+                                        <div class="format-item">
+                                            <div class="form-check">
+                                                <input type="checkbox" 
+                                                       class="form-check-input" 
+                                                       :id="`format-${format.value}`"
+                                                       :value="format.value"
+                                                       x-model="settings.formats.enabled">
+                                                <label class="form-check-label" :for="`format-${format.value}`">
+                                                    <div class="format-info">
+                                                        <div class="format-name" x-text="format.name"></div>
+                                                        <div class="format-description" x-text="format.description"></div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Format Priority</label>
+                                <div class="format-priority">
+                                    <template x-for="(format, index) in getEnabledFormats()" :key="format.value">
+                                        <div class="priority-item">
+                                            <span x-text="format.name"></span>
+                                            <div class="priority-controls">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        @click="moveFormatUp(index)"
+                                                        :disabled="index === 0">
+                                                    <i class="bi bi-arrow-up"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        @click="moveFormatDown(index)"
+                                                        :disabled="index === getEnabledFormats().length - 1">
+                                                    <i class="bi bi-arrow-down"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Validation Rules</label>
+                                <div class="validation-rules">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="validateChecksum" 
+                                               x-model="settings.formats.validateChecksum">
+                                        <label class="form-check-label" for="validateChecksum">
+                                            Validate checksum digits
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="validateLength" 
+                                               x-model="settings.formats.validateLength">
+                                        <label class="form-check-label" for="validateLength">
+                                            Validate barcode length
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="allowPartial" 
+                                               x-model="settings.formats.allowPartial">
+                                        <label class="form-check-label" for="allowPartial">
+                                            Allow partial barcode matches
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Behavior Settings -->
+        <div class="tab-content" x-show="activeTab === 'behavior'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-sliders me-2"></i>
+                        Scanner Behavior
+                    </h5>
+                    <p class="text-muted mb-0">Configure scanner behavior and responses</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Scan Sensitivity</label>
+                                <input type="range" 
+                                       class="form-range" 
+                                       x-model="settings.behavior.sensitivity"
+                                       min="1"
+                                       max="10"
+                                       step="1">
+                                <div class="sensitivity-display">
+                                    <span class="sensitivity-low">Low</span>
+                                    <span class="sensitivity-value" x-text="settings.behavior.sensitivity"></span>
+                                    <span class="sensitivity-high">High</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Scan Delay (ms)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.behavior.scanDelay"
+                                       min="0"
+                                       max="5000"
+                                       step="100">
+                                <small class="form-text text-muted">Delay between scans in continuous mode</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Success Feedback</label>
+                                <div class="feedback-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="beepOnSuccess" 
+                                               x-model="settings.behavior.beepOnSuccess">
+                                        <label class="form-check-label" for="beepOnSuccess">
+                                            Play beep sound on successful scan
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="vibrateOnSuccess" 
+                                               x-model="settings.behavior.vibrateOnSuccess">
+                                        <label class="form-check-label" for="vibrateOnSuccess">
+                                            Vibrate on successful scan
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="flashOnSuccess" 
+                                               x-model="settings.behavior.flashOnSuccess">
+                                        <label class="form-check-label" for="flashOnSuccess">
+                                            Flash screen on successful scan
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Error Feedback</label>
+                                <div class="feedback-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="beepOnError" 
+                                               x-model="settings.behavior.beepOnError">
+                                        <label class="form-check-label" for="beepOnError">
+                                            Play error sound on failed scan
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showErrorDialog" 
+                                               x-model="settings.behavior.showErrorDialog">
+                                        <label class="form-check-label" for="showErrorDialog">
+                                            Show error dialog for failed scans
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="logErrors" 
+                                               x-model="settings.behavior.logErrors">
+                                        <label class="form-check-label" for="logErrors">
+                                            Log scan errors for debugging
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Timeout Settings</label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label small">Scanner Timeout (seconds)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.behavior.scannerTimeout"
+                                               min="10"
+                                               max="300"
+                                               step="10">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small">Inactivity Timeout (seconds)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.behavior.inactivityTimeout"
+                                               min="30"
+                                               max="600"
+                                               step="30">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small">Auto-close Scanner</label>
+                                        <select class="form-select" x-model="settings.behavior.autoClose">
+                                            <option value="never">Never</option>
+                                            <option value="success">After successful scan</option>
+                                            <option value="timeout">After timeout</option>
+                                            <option value="both">After success or timeout</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Integration Settings -->
+        <div class="tab-content" x-show="activeTab === 'integration'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-link-45deg me-2"></i>
+                        Integration Settings
+                    </h5>
+                    <p class="text-muted mb-0">Configure scanner integration with other systems</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Product Database</label>
+                                <select class="form-select" x-model="settings.integration.productDatabase">
+                                    <option value="local">Local Database</option>
+                                    <option value="remote">Remote API</option>
+                                    <option value="hybrid">Hybrid (Local + Remote)</option>
+                                </select>
+                                <small class="form-text text-muted">Source for product lookup</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">API Endpoint</label>
+                                <input type="url" 
+                                       class="form-control" 
+                                       x-model="settings.integration.apiEndpoint"
+                                       placeholder="https://api.example.com/barcode">
+                                <small class="form-text text-muted">Remote API endpoint for barcode lookup</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Integration Options</label>
+                                <div class="integration-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="syncInventory" 
+                                               x-model="settings.integration.syncInventory">
+                                        <label class="form-check-label" for="syncInventory">
+                                            Sync with inventory system
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="syncSales" 
+                                               x-model="settings.integration.syncSales">
+                                        <label class="form-check-label" for="syncSales">
+                                            Sync with sales system
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="autoCreateProducts" 
+                                               x-model="settings.integration.autoCreateProducts">
+                                        <label class="form-check-label" for="autoCreateProducts">
+                                            Auto-create products for unknown barcodes
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Webhook Settings</label>
+                                <div class="webhook-settings">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="enableWebhooks" 
+                                               x-model="settings.integration.enableWebhooks">
+                                        <label class="form-check-label" for="enableWebhooks">
+                                            Enable webhook notifications
+                                        </label>
+                                    </div>
+                                    <input type="url" 
+                                           class="form-control mt-2" 
+                                           x-model="settings.integration.webhookUrl"
+                                           placeholder="https://webhook.example.com/scan"
+                                           x-show="settings.integration.enableWebhooks">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="tab-content" x-show="activeTab === 'advanced'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-tools me-2"></i>
+                        Advanced Settings
+                    </h5>
+                    <p class="text-muted mb-0">Advanced configuration and debugging options</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Debug Mode</label>
+                                <div class="debug-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="debugMode" 
+                                               x-model="settings.advanced.debugMode">
+                                        <label class="form-check-label" for="debugMode">
+                                            Enable debug mode
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showScanRegion" 
+                                               x-model="settings.advanced.showScanRegion">
+                                        <label class="form-check-label" for="showScanRegion">
+                                            Show scan region overlay
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="logPerformance" 
+                                               x-model="settings.advanced.logPerformance">
+                                        <label class="form-check-label" for="logPerformance">
+                                            Log performance metrics
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Experimental Features</label>
+                                <div class="experimental-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="multiScan" 
+                                               x-model="settings.advanced.multiScan">
+                                        <label class="form-check-label" for="multiScan">
+                                            Multi-barcode detection
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="aiEnhancement" 
+                                               x-model="settings.advanced.aiEnhancement">
+                                        <label class="form-check-label" for="aiEnhancement">
+                                            AI-powered enhancement
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="offlineMode" 
+                                               x-model="settings.advanced.offlineMode">
+                                        <label class="form-check-label" for="offlineMode">
+                                            Offline scanning mode
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Custom CSS</label>
+                                <textarea class="form-control" 
+                                          x-model="settings.advanced.customCSS"
+                                          rows="6"
+                                          placeholder="Enter custom CSS for scanner interface..."></textarea>
+                                <small class="form-text text-muted">Custom CSS to override default scanner styling</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Custom JavaScript</label>
+                                <textarea class="form-control" 
+                                          x-model="settings.advanced.customJS"
+                                          rows="6"
+                                          placeholder="Enter custom JavaScript for scanner behavior..."></textarea>
+                                <small class="form-text text-muted">Custom JavaScript to extend scanner functionality</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Status -->
+    <div class="settings-status">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Settings Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="status-item">
+                            <div class="status-label">Last Saved:</div>
+                            <div class="status-value" x-text="settingsStatus.lastSaved || 'Never'"></div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Version:</div>
+                            <div class="status-value" x-text="settingsStatus.version"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="status-item">
+                            <div class="status-label">Changes:</div>
+                            <div class="status-value" :class="{'text-warning': hasChanges, 'text-success': !hasChanges}">
+                                <span x-text="hasChanges ? 'Unsaved changes' : 'All saved'"></span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Configuration:</div>
+                            <div class="status-value" x-text="settingsStatus.configurationStatus"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/barcode_scanning_settings.js') }}"></script>
+<script>
+// Barcode Scanning Settings App
+function barcodeScanningSettingsApp() {
+    return {
+        // Data
+        activeTab: 'general',
+        availableCameras: [],
+        originalSettings: null,
+        
+        settings: {
+            general: {
+                defaultMode: 'single',
+                defaultAction: 'lookup',
+                autoStart: false,
+                showInstructions: true,
+                welcomeMessage: 'Welcome to Barcode Scanner'
+            },
+            scanner: {
+                preferredCamera: '',
+                resolution: 'auto',
+                zoom: 1,
+                focusMode: 'auto',
+                flashMode: 'auto',
+                mirrorMode: false,
+                continuousFocus: true,
+                highContrast: false,
+                hardwareAcceleration: true,
+                lowPowerMode: false,
+                optimizeForSpeed: false
+            },
+            formats: {
+                enabled: ['code128', 'ean13', 'upca', 'qr'],
+                validateChecksum: true,
+                validateLength: true,
+                allowPartial: false
+            },
+            behavior: {
+                sensitivity: 5,
+                scanDelay: 500,
+                beepOnSuccess: true,
+                vibrateOnSuccess: false,
+                flashOnSuccess: false,
+                beepOnError: true,
+                showErrorDialog: false,
+                logErrors: true,
+                scannerTimeout: 60,
+                inactivityTimeout: 120,
+                autoClose: 'never'
+            },
+            integration: {
+                productDatabase: 'local',
+                apiEndpoint: '',
+                syncInventory: false,
+                syncSales: false,
+                autoCreateProducts: false,
+                enableWebhooks: false,
+                webhookUrl: ''
+            },
+            advanced: {
+                debugMode: false,
+                showScanRegion: false,
+                logPerformance: false,
+                multiScan: false,
+                aiEnhancement: false,
+                offlineMode: false,
+                customCSS: '',
+                customJS: ''
+            }
+        },
+        
+        availableFormats: [
+            { value: 'code128', name: 'Code 128', description: 'High-density barcode supporting all ASCII characters' },
+            { value: 'code39', name: 'Code 39', description: 'Alphanumeric barcode for industrial applications' },
+            { value: 'ean13', name: 'EAN-13', description: '13-digit barcode for retail products' },
+            { value: 'ean8', name: 'EAN-8', description: '8-digit barcode for smaller products' },
+            { value: 'upca', name: 'UPC-A', description: '12-digit barcode used in North America' },
+            { value: 'upce', name: 'UPC-E', description: '6-digit compressed UPC-A' },
+            { value: 'itf14', name: 'ITF-14', description: '14-digit barcode for shipping containers' },
+            { value: 'qr', name: 'QR Code', description: '2D barcode for large data storage' },
+            { value: 'datamatrix', name: 'Data Matrix', description: '2D barcode for small items' }
+        ],
+        
+        settingsStatus: {
+            lastSaved: null,
+            version: '1.0.0',
+            configurationStatus: 'Valid'
+        },
+        
+        // Computed properties
+        get hasChanges() {
+            return JSON.stringify(this.settings) !== JSON.stringify(this.originalSettings);
+        },
+        
+        // Methods
+        init() {
+            this.loadSettings();
+            this.loadAvailableCameras();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/barcode/settings');
+                const data = await response.json();
+                
+                if (data.settings) {
+                    this.settings = { ...this.settings, ...data.settings };
+                    this.originalSettings = JSON.parse(JSON.stringify(this.settings));
+                }
+                
+                if (data.status) {
+                    this.settingsStatus = { ...this.settingsStatus, ...data.status };
+                }
+                
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                this.showError('Failed to load settings');
+            }
+        },
+        
+        async loadAvailableCameras() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                this.availableCameras = devices.filter(device => device.kind === 'videoinput');
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                console.error('Error accessing cameras:', error);
+            }
+        },
+        
+        getEnabledFormats() {
+            return this.availableFormats.filter(format => 
+                this.settings.formats.enabled.includes(format.value)
+            );
+        },
+        
+        moveFormatUp(index) {
+            const enabled = this.getEnabledFormats();
+            if (index > 0) {
+                const format = enabled[index];
+                const formatValue = format.value;
+                const currentIndex = this.settings.formats.enabled.indexOf(formatValue);
+                const prevIndex = this.settings.formats.enabled.indexOf(enabled[index - 1].value);
+                
+                // Swap in the enabled array
+                [this.settings.formats.enabled[currentIndex], this.settings.formats.enabled[prevIndex]] = 
+                [this.settings.formats.enabled[prevIndex], this.settings.formats.enabled[currentIndex]];
+            }
+        },
+        
+        moveFormatDown(index) {
+            const enabled = this.getEnabledFormats();
+            if (index < enabled.length - 1) {
+                const format = enabled[index];
+                const formatValue = format.value;
+                const currentIndex = this.settings.formats.enabled.indexOf(formatValue);
+                const nextIndex = this.settings.formats.enabled.indexOf(enabled[index + 1].value);
+                
+                // Swap in the enabled array
+                [this.settings.formats.enabled[currentIndex], this.settings.formats.enabled[nextIndex]] = 
+                [this.settings.formats.enabled[nextIndex], this.settings.formats.enabled[currentIndex]];
+            }
+        },
+        
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/barcode/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.originalSettings = JSON.parse(JSON.stringify(this.settings));
+                    this.settingsStatus.lastSaved = new Date().toLocaleString();
+                    this.showSuccess('Settings saved successfully');
+                } else {
+                    throw new Error('Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+                // Reset to default values
+                this.settings = {
+                    general: {
+                        defaultMode: 'single',
+                        defaultAction: 'lookup',
+                        autoStart: false,
+                        showInstructions: true,
+                        welcomeMessage: 'Welcome to Barcode Scanner'
+                    },
+                    scanner: {
+                        preferredCamera: '',
+                        resolution: 'auto',
+                        zoom: 1,
+                        focusMode: 'auto',
+                        flashMode: 'auto',
+                        mirrorMode: false,
+                        continuousFocus: true,
+                        highContrast: false,
+                        hardwareAcceleration: true,
+                        lowPowerMode: false,
+                        optimizeForSpeed: false
+                    },
+                    formats: {
+                        enabled: ['code128', 'ean13', 'upca', 'qr'],
+                        validateChecksum: true,
+                        validateLength: true,
+                        allowPartial: false
+                    },
+                    behavior: {
+                        sensitivity: 5,
+                        scanDelay: 500,
+                        beepOnSuccess: true,
+                        vibrateOnSuccess: false,
+                        flashOnSuccess: false,
+                        beepOnError: true,
+                        showErrorDialog: false,
+                        logErrors: true,
+                        scannerTimeout: 60,
+                        inactivityTimeout: 120,
+                        autoClose: 'never'
+                    },
+                    integration: {
+                        productDatabase: 'local',
+                        apiEndpoint: '',
+                        syncInventory: false,
+                        syncSales: false,
+                        autoCreateProducts: false,
+                        enableWebhooks: false,
+                        webhookUrl: ''
+                    },
+                    advanced: {
+                        debugMode: false,
+                        showScanRegion: false,
+                        logPerformance: false,
+                        multiScan: false,
+                        aiEnhancement: false,
+                        offlineMode: false,
+                        customCSS: '',
+                        customJS: ''
+                    }
+                };
+                
+                this.showSuccess('Settings reset to defaults');
+            }
+        },
+        
+        exportSettings() {
+            const dataStr = JSON.stringify(this.settings, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `barcode-scanner-settings-${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    if (this.hasChanges) {
+                        this.saveSettings();
+                    }
+                }
+                
+                // Ctrl/Cmd + E: Export settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSettings();
+                }
+                
+                // Ctrl/Cmd + R: Reset to defaults
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetToDefaults();
+                }
+                
+                // Tab numbers: Switch tabs
+                if (e.key >= '1' && e.key <= '6') {
+                    const tabNumber = parseInt(e.key);
+                    const tabs = ['general', 'scanner', 'formats', 'behavior', 'integration', 'advanced'];
+                    if (tabNumber <= tabs.length) {
+                        this.activeTab = tabs[tabNumber - 1];
+                    }
+                }
+            });
+        },
+        
+        // Utility methods
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

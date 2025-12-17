@@ -1,0 +1,1176 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_search_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Search Configuration Form -->
+<div class="product-search-form-container" x-data="productSearchFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-sliders me-2"></i>
+                    Search Configuration
+                </h2>
+                <p class="form-subtitle text-muted">Configure advanced search settings and indexing</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetForm()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="saveAsDraft()">
+                        <i class="bi bi-save"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveConfiguration()" :disabled="!isFormValid">
+                        <i class="bi bi-check-lg"></i> Save Configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-steps">
+            <div class="step" :class="{'active': currentStep === 1, 'completed': currentStep > 1}">
+                <div class="step-number">1</div>
+                <div class="step-label">Basic Settings</div>
+            </div>
+            <div class="step" :class="{'active': currentStep === 2, 'completed': currentStep > 2}">
+                <div class="step-number">2</div>
+                <div class="step-label">Search Fields</div>
+            </div>
+            <div class="step" :class="{'active': currentStep === 3, 'completed': currentStep > 3}">
+                <div class="step-number">3</div>
+                <div class="step-label">Indexing Options</div>
+            </div>
+            <div class="step" :class="{'active': currentStep === 4, 'completed': currentStep > 4}">
+                <div class="step-number">4</div>
+                <div class="step-label">Performance</div>
+            </div>
+            <div class="step" :class="{'active': currentStep === 5, 'completed': currentStep > 5}">
+                <div class="step-number">5</div>
+                <div class="step-label">Advanced Options</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Steps -->
+    <div class="form-steps">
+        
+        <!-- Step 1: Basic Settings -->
+        <div class="step-content" x-show="currentStep === 1" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        Basic Search Settings
+                    </h5>
+                    <p class="text-muted mb-0">Configure fundamental search behavior</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Search Engine</label>
+                                <select class="form-select" x-model="config.basic.searchEngine">
+                                    <option value="elasticsearch">Elasticsearch</option>
+                                    <option value="algolia">Algolia</option>
+                                    <option value="meilisearch">Meilisearch</option>
+                                    <option value="typesense">Typesense</option>
+                                    <option value="database">Database Full-Text</option>
+                                </select>
+                                <small class="form-text text-muted">Select the search engine to use</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Default Search Mode</label>
+                                <select class="form-select" x-model="config.basic.defaultMode">
+                                    <option value="all">Match All Words</option>
+                                    <option value="any">Match Any Word</option>
+                                    <option value="exact">Exact Phrase</option>
+                                    <option value="fuzzy">Fuzzy Matching</option>
+                                </select>
+                                <small class="form-text text-muted">Default search behavior</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Results Per Page</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="config.basic.resultsPerPage"
+                                       min="10"
+                                       max="100"
+                                       step="10">
+                                <small class="form-text text-muted">Number of results to show per page</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Search Timeout (seconds)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="config.basic.timeout"
+                                       min="1"
+                                       max="30"
+                                       step="1">
+                                <small class="form-text text-muted">Maximum time for search queries</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Search Features</label>
+                                <div class="feature-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="autoSuggest" 
+                                               x-model="config.basic.autoSuggest">
+                                        <label class="form-check-label" for="autoSuggest">
+                                            Enable auto-suggestions
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="spellCheck" 
+                                               x-model="config.basic.spellCheck">
+                                        <label class="form-check-label" for="spellCheck">
+                                            Enable spell checking
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="synonyms" 
+                                               x-model="config.basic.synonyms">
+                                        <label class="form-check-label" for="synonyms">
+                                            Enable synonym matching
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="stemming" 
+                                               x-model="config.basic.stemming">
+                                        <label class="form-check-label" for="stemming">
+                                            Enable word stemming
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="testBasicSettings()">
+                                <i class="bi bi-play-circle"></i> Test Settings
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="nextStep()">
+                                Next Step <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Search Fields -->
+        <div class="step-content" x-show="currentStep === 2" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-input-cursor-text me-2"></i>
+                        Search Fields Configuration
+                    </h5>
+                    <p class="text-muted mb-0">Configure which fields to search and their weights</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Searchable Fields</label>
+                                <div class="fields-table">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th width="40">Enabled</th>
+                                                <th>Field Name</th>
+                                                <th>Weight</th>
+                                                <th>Analyzer</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="field in config.fields.searchable" :key="field.name">
+                                                <tr>
+                                                    <td>
+                                                        <input type="checkbox" 
+                                                               class="form-check-input" 
+                                                               x-model="field.enabled">
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" 
+                                                               class="form-control form-control-sm" 
+                                                               x-model="field.name"
+                                                               :disabled="field.required">
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm" 
+                                                               x-model="field.weight"
+                                                               min="0.1"
+                                                               max="10"
+                                                               step="0.1">
+                                                    </td>
+                                                    <td>
+                                                        <select class="form-select form-select-sm" x-model="field.analyzer">
+                                                            <option value="standard">Standard</option>
+                                                            <option value="keyword">Keyword</option>
+                                                            <option value="whitespace">Whitespace</option>
+                                                            <option value="simple">Simple</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <button type="button" 
+                                                                    class="btn btn-outline-secondary"
+                                                                    @click="moveFieldUp(field)"
+                                                                    :disabled="field.required">
+                                                                <i class="bi bi-arrow-up"></i>
+                                                            </button>
+                                                            <button type="button" 
+                                                                    class="btn btn-outline-secondary"
+                                                                    @click="moveFieldDown(field)"
+                                                                    :disabled="field.required">
+                                                                <i class="bi bi-arrow-down"></i>
+                                                            </button>
+                                                            <button type="button" 
+                                                                    class="btn btn-outline-danger"
+                                                                    @click="removeField(field)"
+                                                                    :disabled="field.required">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @click="addCustomField()">
+                                    <i class="bi bi-plus"></i> Add Custom Field
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Facet Fields</label>
+                                <div class="facet-fields">
+                                    <template x-for="facet in config.fields.facets" :key="facet.name">
+                                        <div class="facet-item">
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   x-model="facet.enabled">
+                                            <label class="form-check-label" x-text="facet.label"></label>
+                                            <input type="number" 
+                                                   class="form-control form-control-sm" 
+                                                   x-model="facet.maxValues"
+                                                   min="5"
+                                                   max="100"
+                                                   step="5"
+                                                   x-show="facet.enabled">
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Sort Options</label>
+                                <div class="sort-options">
+                                    <template x-for="sort in config.fields.sortOptions" :key="sort.field">
+                                        <div class="sort-item">
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   x-model="sort.enabled">
+                                            <label class="form-check-label" x-text="sort.label"></label>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="previewFieldMapping()">
+                                <i class="bi bi-eye"></i> Preview Mapping
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn btn-outline-secondary me-2" @click="previousStep()">
+                                <i class="bi bi-arrow-left me-1"></i> Previous
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="nextStep()">
+                                Next Step <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Indexing Options -->
+        <div class="step-content" x-show="currentStep === 3" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-database me-2"></i>
+                        Indexing Configuration
+                    </h5>
+                    <p class="text-muted mb-0">Configure search indexing and synchronization</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Indexing Strategy</label>
+                                <select class="form-select" x-model="config.indexing.strategy">
+                                    <option value="realtime">Real-time</option>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="manual">Manual</option>
+                                    <option value="hybrid">Hybrid</option>
+                                </select>
+                                <small class="form-text text-muted">How often to update the search index</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Update Frequency</label>
+                                <select class="form-select" x-model="config.indexing.frequency">
+                                    <option value="immediate">Immediate</option>
+                                    <option value="1min">Every 1 minute</option>
+                                    <option value="5min">Every 5 minutes</option>
+                                    <option value="15min">Every 15 minutes</option>
+                                    <option value="30min">Every 30 minutes</option>
+                                    <option value="1hour">Every hour</option>
+                                    <option value="6hours">Every 6 hours</option>
+                                    <option value="daily">Daily</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Index Size Limit</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="config.indexing.sizeLimit"
+                                       placeholder="Number of documents">
+                                <small class="form-text text-muted">Maximum number of documents to index</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Batch Size</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="config.indexing.batchSize"
+                                       min="100"
+                                       max="10000"
+                                       step="100">
+                                <small class="form-text text-muted">Documents per indexing batch</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Indexing Options</label>
+                                <div class="indexing-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="incrementalIndex" 
+                                               x-model="config.indexing.incremental">
+                                        <label class="form-check-label" for="incrementalIndex">
+                                            Use incremental indexing
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="partialUpdates" 
+                                               x-model="config.indexing.partialUpdates">
+                                        <label class="form-check-label" for="partialUpdates">
+                                            Allow partial updates
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="asyncIndexing" 
+                                               x-model="config.indexing.async">
+                                        <label class="form-check-label" for="asyncIndexing">
+                                            Use asynchronous indexing
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="indexBackups" 
+                                               x-model="config.indexing.backups">
+                                        <label class="form-check-label" for="indexBackups">
+                                            Create index backups
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="rebuildIndex()">
+                                <i class="bi bi-arrow-clockwise"></i> Rebuild Index
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn btn-outline-secondary me-2" @click="previousStep()">
+                                <i class="bi bi-arrow-left me-1"></i> Previous
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="nextStep()">
+                                Next Step <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Performance -->
+        <div class="step-content" x-show="currentStep === 4" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        Performance Optimization
+                    </h5>
+                    <p class="text-muted mb-0">Configure performance and caching settings</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Cache Strategy</label>
+                                <select class="form-select" x-model="config.performance.cacheStrategy">
+                                    <option value="none">No Caching</option>
+                                    <option value="memory">Memory Cache</option>
+                                    <option value="redis">Redis Cache</option>
+                                    <option value="memcached">Memcached</option>
+                                    <option value="hybrid">Hybrid Cache</option>
+                                </select>
+                                <small class="form-text text-muted">Caching mechanism for search results</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Cache TTL (minutes)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="config.performance.cacheTTL"
+                                       min="1"
+                                       max="1440"
+                                       step="1">
+                                <small class="form-text text-muted">Time to live for cached results</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Query Optimization</label>
+                                <div class="query-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="queryCaching" 
+                                               x-model="config.performance.queryCaching">
+                                        <label class="form-check-label" for="queryCaching">
+                                            Enable query caching
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="resultCaching" 
+                                               x-model="config.performance.resultCaching">
+                                        <label class="form-check-label" for="resultCaching">
+                                            Enable result caching
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="compression" 
+                                               x-model="config.performance.compression">
+                                        <label class="form-check-label" for="compression">
+                                            Enable result compression
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Resource Limits</label>
+                                <div class="resource-limits">
+                                    <div class="limit-item">
+                                        <label class="form-label small">Max Concurrent Queries</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="config.performance.maxConcurrentQueries"
+                                               min="1"
+                                               max="1000">
+                                    </div>
+                                    <div class="limit-item">
+                                        <label class="form-label small">Query Timeout (ms)</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="config.performance.queryTimeout"
+                                               min="100"
+                                               max="30000"
+                                               step="100">
+                                    </div>
+                                    <div class="limit-item">
+                                        <label class="form-label small">Memory Limit (MB)</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="config.performance.memoryLimit"
+                                               min="64"
+                                               max="8192"
+                                               step="64">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary" @click="runPerformanceTest()">
+                                <i class="bi bi-speedometer2"></i> Performance Test
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn btn-outline-secondary me-2" @click="previousStep()">
+                                <i class="bi bi-arrow-left me-1"></i> Previous
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="nextStep()">
+                                Next Step <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Advanced Options -->
+        <div class="step-content" x-show="currentStep === 5" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-tools me-2"></i>
+                        Advanced Options
+                    </h5>
+                    <p class="text-muted mb-0">Advanced search configuration and customization</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Analytics & Tracking</label>
+                                <div class="analytics-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="trackQueries" 
+                                               x-model="config.advanced.trackQueries">
+                                        <label class="form-check-label" for="trackQueries">
+                                            Track search queries
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="trackClicks" 
+                                               x-model="config.advanced.trackClicks">
+                                        <label class="form-check-label" for="trackClicks">
+                                            Track result clicks
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="trackConversions" 
+                                               x-model="config.advanced.trackConversions">
+                                        <label class="form-check-label" for="trackConversions">
+                                            Track conversions
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="personalization" 
+                                               x-model="config.advanced.personalization">
+                                        <label class="form-check-label" for="personalization">
+                                            Enable result personalization
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Security & Access</label>
+                                <div class="security-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="rateLimiting" 
+                                               x-model="config.advanced.rateLimiting">
+                                        <label class="form-check-label" for="rateLimiting">
+                                            Enable rate limiting
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="queryValidation" 
+                                               x-model="config.advanced.queryValidation">
+                                        <label class="form-check-label" for="queryValidation">
+                                            Enable query validation
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="accessControl" 
+                                               x-model="config.advanced.accessControl">
+                                        <label class="form-check-label" for="accessControl">
+                                            Enable access control
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="auditLogging" 
+                                               x-model="config.advanced.auditLogging">
+                                        <label class="form-check-label" for="auditLogging">
+                                            Enable audit logging
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Custom Configuration</label>
+                                <div class="custom-config">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Custom Query DSL</label>
+                                            <textarea class="form-control" 
+                                                      x-model="config.advanced.customDSL"
+                                                      rows="4"
+                                                      placeholder="Enter custom query DSL..."></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Custom Filters</label>
+                                            <textarea class="form-control" 
+                                                      x-model="config.advanced.customFilters"
+                                                      rows="4"
+                                                      placeholder="Enter custom filters..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-secondary me-2" @click="validateConfiguration()">
+                                <i class="bi bi-check-circle"></i> Validate
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" @click="exportConfiguration()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn btn-outline-secondary me-2" @click="previousStep()">
+                                <i class="bi bi-arrow-left me-1"></i> Previous
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    @click="saveConfiguration()"
+                                    :disabled="!isFormValid">
+                                <i class="bi bi-check-lg"></i> Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Summary -->
+    <div class="config-summary" x-show="currentStep === 5">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-clipboard-check me-2"></i>
+                    Configuration Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Basic Settings</h6>
+                        <p><strong>Search Engine:</strong> <span x-text="config.basic.searchEngine"></span></p>
+                        <p><strong>Default Mode:</strong> <span x-text="config.basic.defaultMode"></span></p>
+                        <p><strong>Results Per Page:</strong> <span x-text="config.basic.resultsPerPage"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Indexing</h6>
+                        <p><strong>Strategy:</strong> <span x-text="config.indexing.strategy"></span></p>
+                        <p><strong>Frequency:</strong> <span x-text="config.indexing.frequency"></span></p>
+                        <p><strong>Batch Size:</strong> <span x-text="config.indexing.batchSize"></span></p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6>Performance</h6>
+                        <p><strong>Cache Strategy:</strong> <span x-text="config.performance.cacheStrategy"></span></p>
+                        <p><strong>Cache TTL:</strong> <span x-text="`${config.performance.cacheTTL} minutes`"></span></p>
+                        <p><strong>Max Concurrent:</strong> <span x-text="config.performance.maxConcurrentQueries"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Advanced</h6>
+                        <p><strong>Query Tracking:</strong> <span x-text="config.advanced.trackQueries ? 'Enabled' : 'Disabled'"></span></p>
+                        <p><strong>Rate Limiting:</strong> <span x-text="config.advanced.rateLimiting ? 'Enabled' : 'Disabled'"></span></p>
+                        <p><strong>Personalization:</strong> <span x-text="config.advanced.personalization ? 'Enabled' : 'Disabled'"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/product_search_form.js') }}"></script>
+<script>
+// Product Search Form App
+function productSearchFormApp() {
+    return {
+        // Data
+        currentStep: 1,
+        
+        config: {
+            basic: {
+                searchEngine: 'elasticsearch',
+                defaultMode: 'all',
+                resultsPerPage: 20,
+                timeout: 10,
+                autoSuggest: true,
+                spellCheck: true,
+                synonyms: false,
+                stemming: true
+            },
+            fields: {
+                searchable: [
+                    { name: 'name', enabled: true, weight: 3.0, analyzer: 'standard', required: true },
+                    { name: 'description', enabled: true, weight: 1.0, analyzer: 'standard', required: true },
+                    { name: 'sku', enabled: true, weight: 2.0, analyzer: 'keyword', required: true },
+                    { name: 'category', enabled: true, weight: 1.5, analyzer: 'keyword', required: true },
+                    { name: 'brand', enabled: true, weight: 1.5, analyzer: 'keyword', required: false },
+                    { name: 'tags', enabled: true, weight: 2.0, analyzer: 'keyword', required: false }
+                ],
+                facets: [
+                    { name: 'category', label: 'Category', enabled: true, maxValues: 10 },
+                    { name: 'brand', label: 'Brand', enabled: true, maxValues: 10 },
+                    { name: 'price_range', label: 'Price Range', enabled: true, maxValues: 5 },
+                    { name: 'rating', label: 'Rating', enabled: true, maxValues: 5 },
+                    { name: 'availability', label: 'Availability', enabled: true, maxValues: 3 }
+                ],
+                sortOptions: [
+                    { field: 'relevance', label: 'Relevance', enabled: true },
+                    { field: 'name', label: 'Name', enabled: true },
+                    { field: 'price', label: 'Price', enabled: true },
+                    { field: 'rating', label: 'Rating', enabled: true },
+                    { field: 'created', label: 'Date Added', enabled: true }
+                ]
+            },
+            indexing: {
+                strategy: 'realtime',
+                frequency: 'immediate',
+                sizeLimit: 100000,
+                batchSize: 1000,
+                incremental: true,
+                partialUpdates: false,
+                async: true,
+                backups: true
+            },
+            performance: {
+                cacheStrategy: 'memory',
+                cacheTTL: 15,
+                queryCaching: true,
+                resultCaching: true,
+                compression: false,
+                maxConcurrentQueries: 100,
+                queryTimeout: 5000,
+                memoryLimit: 512
+            },
+            advanced: {
+                trackQueries: true,
+                trackClicks: true,
+                trackConversions: false,
+                personalization: false,
+                rateLimiting: true,
+                queryValidation: true,
+                accessControl: false,
+                auditLogging: true,
+                customDSL: '',
+                customFilters: ''
+            }
+        },
+        
+        // Computed properties
+        get isFormValid() {
+            return this.config.basic.searchEngine && 
+                   this.config.basic.resultsPerPage > 0 &&
+                   this.config.basic.timeout > 0 &&
+                   this.config.fields.searchable.filter(f => f.enabled).length > 0;
+        },
+        
+        // Methods
+        init() {
+            this.loadExistingConfiguration();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadExistingConfiguration() {
+            try {
+                const response = await fetch('/api/search/configuration');
+                const data = await response.json();
+                
+                if (data.config) {
+                    this.config = { ...this.config, ...data.config };
+                }
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+            }
+        },
+        
+        // Step navigation
+        nextStep() {
+            if (this.currentStep < 5) {
+                this.currentStep++;
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+            }
+        },
+        
+        // Field management
+        addCustomField() {
+            this.config.fields.searchable.push({
+                name: '',
+                enabled: true,
+                weight: 1.0,
+                analyzer: 'standard',
+                required: false
+            });
+        },
+        
+        removeField(field) {
+            const index = this.config.fields.searchable.indexOf(field);
+            if (index > -1) {
+                this.config.fields.searchable.splice(index, 1);
+            }
+        },
+        
+        moveFieldUp(field) {
+            const index = this.config.fields.searchable.indexOf(field);
+            if (index > 0) {
+                [this.config.fields.searchable[index], this.config.fields.searchable[index - 1]] = 
+                [this.config.fields.searchable[index - 1], this.config.fields.searchable[index]];
+            }
+        },
+        
+        moveFieldDown(field) {
+            const index = this.config.fields.searchable.indexOf(field);
+            if (index < this.config.fields.searchable.length - 1) {
+                [this.config.fields.searchable[index], this.config.fields.searchable[index + 1]] = 
+                [this.config.fields.searchable[index + 1], this.config.fields.searchable[index]];
+            }
+        },
+        
+        // Actions
+        async testBasicSettings() {
+            try {
+                const response = await fetch('/api/search/test-basic', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.config.basic)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Basic settings test passed');
+                } else {
+                    this.showError('Basic settings test failed: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error testing basic settings:', error);
+                this.showError('Failed to test basic settings');
+            }
+        },
+        
+        previewFieldMapping() {
+            // Show field mapping preview
+            const mapping = this.config.fields.searchable.filter(f => f.enabled);
+            console.log('Field mapping:', mapping);
+            this.showSuccess('Field mapping preview logged to console');
+        },
+        
+        async rebuildIndex() {
+            if (!confirm('Are you sure you want to rebuild the search index? This may take some time.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/search/rebuild-index', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.config.indexing)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Index rebuild started successfully');
+                } else {
+                    this.showError('Failed to rebuild index: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error rebuilding index:', error);
+                this.showError('Failed to rebuild index');
+            }
+        },
+        
+        async runPerformanceTest() {
+            try {
+                const response = await fetch('/api/search/performance-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.config.performance)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess(`Performance test completed. Average query time: ${result.avgTime}ms`);
+                } else {
+                    this.showError('Performance test failed: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error running performance test:', error);
+                this.showError('Failed to run performance test');
+            }
+        },
+        
+        async validateConfiguration() {
+            try {
+                const response = await fetch('/api/search/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.valid) {
+                    this.showSuccess('Configuration is valid');
+                } else {
+                    this.showError('Configuration validation failed: ' + result.errors.join(', '));
+                }
+            } catch (error) {
+                console.error('Error validating configuration:', error);
+                this.showError('Failed to validate configuration');
+            }
+        },
+        
+        exportConfiguration() {
+            const dataStr = JSON.stringify(this.config, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `search-configuration-${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        },
+        
+        async saveConfiguration() {
+            if (!this.isFormValid) {
+                this.showError('Please complete all required fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/search/configuration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Configuration saved successfully');
+                } else {
+                    this.showError('Failed to save configuration: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error saving configuration:', error);
+                this.showError('Failed to save configuration');
+            }
+        },
+        
+        resetForm() {
+            if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                this.init();
+                this.showSuccess('Form reset to defaults');
+            }
+        },
+        
+        saveAsDraft() {
+            const draftData = {
+                config: this.config,
+                currentStep: this.currentStep,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('searchConfigDraft', JSON.stringify(draftData));
+            this.showSuccess('Draft saved successfully');
+        },
+        
+        // Utility methods
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save configuration
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveConfiguration();
+                }
+                
+                // Ctrl/Cmd + T: Test configuration
+                if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+                    e.preventDefault();
+                    this.validateConfiguration();
+                }
+                
+                // Ctrl/Cmd + E: Export configuration
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportConfiguration();
+                }
+                
+                // Arrow keys: Navigate steps
+                if (e.key === 'ArrowRight' && this.currentStep < 5) {
+                    e.preventDefault();
+                    this.nextStep();
+                }
+                if (e.key === 'ArrowLeft' && this.currentStep > 1) {
+                    e.preventDefault();
+                    this.previousStep();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

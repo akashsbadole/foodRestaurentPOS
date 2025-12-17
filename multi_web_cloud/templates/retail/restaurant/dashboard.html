@@ -1,0 +1,715 @@
+{% extends "retail/base/retail_base.html" %}
+
+{% block title %}Restaurant Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.restaurant-dashboard {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+    color: white;
+}
+
+.restaurant-metric-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.restaurant-metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.table-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+}
+
+.table-status-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.table-status-card:hover {
+    border-color: #ff6b6b;
+    transform: scale(1.05);
+}
+
+.table-status-card.occupied {
+    background: #ffebee;
+    border-color: #f44336;
+}
+
+.table-status-card.available {
+    background: #e8f5e8;
+    border-color: #4caf50;
+}
+
+.table-status-card.reserved {
+    background: #fff3e0;
+    border-color: #ff9800;
+}
+
+.kitchen-queue-item {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-left: 4px solid #ff6b6b;
+    transition: all 0.3s ease;
+}
+
+.kitchen-queue-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.order-priority-high {
+    border-left-color: #f44336;
+    background: #ffebee;
+}
+
+.order-priority-medium {
+    border-left-color: #ff9800;
+    background: #fff3e0;
+}
+
+.order-priority-low {
+    border-left-color: #4caf50;
+    background: #e8f5e8;
+}
+
+.reservation-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.reservation-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e0e0e0;
+}
+
+.reservation-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reservation-item::before {
+    content: '';
+    position: absolute;
+    left: -1.75rem;
+    top: 1rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ff6b6b;
+    border: 2px solid white;
+}
+
+.revenue-chart-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.staff-performance-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.performance-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.performance-bar {
+    flex: 1;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.performance-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff6b6b, #ff8787);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.quick-action-btn {
+    background: white;
+    border: 2px solid #ff6b6b;
+    color: #ff6b6b;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover {
+    background: #ff6b6b;
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+}
+
+@media (max-width: 768px) {
+    .table-status-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+    
+    .kitchen-queue-item {
+        padding: 0.75rem;
+    }
+    
+    .reservation-timeline {
+        padding-left: 1.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="restaurant-dashboard">
+    <!-- Restaurant Header -->
+    <div class="restaurant-header mb-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="display-4 fw-bold mb-2">Restaurant Dashboard</h1>
+                    <p class="lead mb-0">Real-time restaurant operations and management</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="d-flex justify-content-end align-items-center gap-3">
+                        <div class="text-end">
+                            <div class="small">Current Time</div>
+                            <div class="h4 mb-0" id="current-time"></div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small">Open Tables</div>
+                            <div class="h4 mb-0" id="open-tables-count">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid mt-4">
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="restaurant-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Today's Revenue</h6>
+                        <h2 class="mb-0" id="today-revenue">$0.00</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-arrow-up me-1"></i>
+                    <span class="small">+12.5% from yesterday</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="restaurant-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Total Orders</h6>
+                        <h2 class="mb-0" id="total-orders">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-arrow-up me-1"></i>
+                    <span class="small">+8.3% from yesterday</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="restaurant-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Active Tables</h6>
+                        <h2 class="mb-0" id="active-tables">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="small" id="occupancy-rate">0% occupancy</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="restaurant-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Avg Order Value</h6>
+                        <h2 class="mb-0" id="avg-order-value">$0.00</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-arrow-down me-1"></i>
+                    <span class="small">-2.1% from yesterday</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Table Status Grid -->
+        <div class="col-lg-8 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Table Status</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary active" data-filter="all">All</button>
+                            <button class="btn btn-outline-secondary" data-filter="available">Available</button>
+                            <button class="btn btn-outline-secondary" data-filter="occupied">Occupied</button>
+                            <button class="btn btn-outline-secondary" data-filter="reserved">Reserved</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-status-grid" id="table-grid">
+                        <!-- Tables will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Kitchen Queue -->
+        <div class="col-lg-4 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Kitchen Queue</h5>
+                        <span class="badge bg-danger" id="kitchen-queue-count">0</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="kitchen-queue">
+                        <!-- Kitchen queue items will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Revenue Chart -->
+        <div class="col-lg-8 mb-4">
+            <div class="revenue-chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Revenue Trend</h5>
+                    <select class="form-select form-select-sm" style="width: auto;" id="revenue-period">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                    </select>
+                </div>
+                <canvas id="revenue-chart" height="100"></canvas>
+            </div>
+        </div>
+        
+        <!-- Reservations -->
+        <div class="col-lg-4 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Today's Reservations</h5>
+                        <button class="btn btn-sm btn-primary" onclick="window.location.href='/restaurant/reservations'">
+                            <i class="bi bi-plus-circle"></i> Add
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="reservation-timeline" id="reservations">
+                        <!-- Reservations will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Staff Performance -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">Staff Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div id="staff-performance">
+                        <!-- Staff performance will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/restaurant/orders/new'">
+                                <i class="bi bi-plus-circle fs-3 mb-2"></i>
+                                <div>New Order</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/restaurant/tables'">
+                                <i class="bi bi-grid-3x3-gap fs-3 mb-2"></i>
+                                <div>Manage Tables</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/restaurant/reservations'">
+                                <i class="bi bi-calendar-check fs-3 mb-2"></i>
+                                <div>Reservations</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/restaurant/menu'">
+                                <i class="bi bi-menu-button-wide fs-3 mb-2"></i>
+                                <div>Menu Items</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature-aware dashboard component -->
+{% include "retail/components/feature_dashboard.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize restaurant dashboard
+    initRestaurantDashboard();
+    
+    // Load real-time data
+    loadDashboardData();
+    
+    // Setup real-time updates
+    setupRealtimeUpdates();
+    
+    // Initialize clock
+    updateClock();
+    setInterval(updateClock, 1000);
+});
+
+function initRestaurantDashboard() {
+    // Set retail type for feature-aware components
+    if (window.RETAIL_CONFIG) {
+        window.RETAIL_CONFIG.retailType = 'restaurant';
+    }
+    
+    // Initialize table grid
+    loadTableStatus();
+    
+    // Initialize kitchen queue
+    loadKitchenQueue();
+    
+    // Initialize reservations
+    loadReservations();
+    
+    // Initialize staff performance
+    loadStaffPerformance();
+    
+    // Initialize revenue chart
+    initRevenueChart();
+}
+
+function loadTableStatus() {
+    const tableGrid = document.getElementById('table-grid');
+    
+    // Simulate table data - in production, load from API
+    const tables = [
+        { id: 1, number: 'T1', status: 'occupied', order: 'ORD001', time: '15:30' },
+        { id: 2, number: 'T2', status: 'available', capacity: 4 },
+        { id: 3, number: 'T3', status: 'reserved', customer: 'John Doe', time: '19:00' },
+        { id: 4, number: 'T4', status: 'occupied', order: 'ORD002', time: '16:45' },
+        { id: 5, number: 'T5', status: 'available', capacity: 2 },
+        { id: 6, number: 'T6', status: 'occupied', order: 'ORD003', time: '17:15' },
+        { id: 7, number: 'T7', status: 'available', capacity: 6 },
+        { id: 8, number: 'T8', status: 'reserved', customer: 'Jane Smith', time: '20:00' }
+    ];
+    
+    tableGrid.innerHTML = tables.map(table => `
+        <div class="table-status-card ${table.status}" onclick="handleTableClick(${table.id})">
+            <div class="h5 mb-1">${table.number}</div>
+            <div class="small text-muted mb-2">Capacity: ${table.capacity || 4}</div>
+            ${table.status === 'occupied' ? `
+                <div class="small">
+                    <div>Order: ${table.order}</div>
+                    <div>Time: ${table.time}</div>
+                </div>
+            ` : ''}
+            ${table.status === 'reserved' ? `
+                <div class="small">
+                    <div>${table.customer}</div>
+                    <div>${table.time}</div>
+                </div>
+            ` : ''}
+            ${table.status === 'available' ? `
+                <div class="text-success">
+                    <i class="bi bi-check-circle"></i> Available
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+    
+    // Update metrics
+    const occupiedTables = tables.filter(t => t.status === 'occupied').length;
+    document.getElementById('active-tables').textContent = occupiedTables;
+    document.getElementById('open-tables-count').textContent = occupiedTables;
+    document.getElementById('occupancy-rate').textContent = `${Math.round((occupiedTables / tables.length) * 100)}% occupancy`;
+}
+
+function loadKitchenQueue() {
+    const kitchenQueue = document.getElementById('kitchen-queue');
+    
+    // Simulate kitchen queue data - in production, load from API
+    const orders = [
+        { id: 'ORD001', table: 'T1', items: 3, time: '15:30', priority: 'high', status: 'preparing' },
+        { id: 'ORD002', table: 'T4', items: 5, time: '16:45', priority: 'medium', status: 'pending' },
+        { id: 'ORD003', table: 'T6', items: 2, time: '17:15', priority: 'low', status: 'ready' }
+    ];
+    
+    kitchenQueue.innerHTML = orders.map(order => `
+        <div class="kitchen-queue-item order-priority-${order.priority}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-bold">${order.id}</div>
+                    <div class="small text-muted">Table ${order.table} • ${order.items} items</div>
+                    <div class="small">${order.time}</div>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-${order.priority === 'high' ? 'danger' : order.priority === 'medium' ? 'warning' : 'success'}">
+                        ${order.priority}
+                    </span>
+                    <div class="small mt-1">${order.status}</div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    document.getElementById('kitchen-queue-count').textContent = orders.length;
+}
+
+function loadReservations() {
+    const reservations = document.getElementById('reservations');
+    
+    // Simulate reservation data - in production, load from API
+    const reservationData = [
+        { id: 1, customer: 'John Doe', time: '18:00', guests: 4, table: 'T3', phone: '555-0101' },
+        { id: 2, customer: 'Jane Smith', time: '19:30', guests: 2, table: 'T8', phone: '555-0102' },
+        { id: 3, customer: 'Bob Johnson', time: '20:00', guests: 6, table: 'T7', phone: '555-0103' }
+    ];
+    
+    reservations.innerHTML = reservationData.map(reservation => `
+        <div class="reservation-item">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-bold">${reservation.customer}</div>
+                    <div class="small text-muted">
+                        <i class="bi bi-clock"></i> ${reservation.time} • 
+                        <i class="bi bi-people"></i> ${reservation.guests} guests • 
+                        Table ${reservation.table}
+                    </div>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="editReservation(${reservation.id})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="cancelReservation(${reservation.id})">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadStaffPerformance() {
+    const staffPerformance = document.getElementById('staff-performance');
+    
+    // Simulate staff performance data - in production, load from API
+    const staff = [
+        { name: 'Sarah Johnson', role: 'Waiter', orders: 24, revenue: 1250, rating: 4.8 },
+        { name: 'Mike Chen', role: 'Waiter', orders: 18, revenue: 980, rating: 4.6 },
+        { name: 'Emily Davis', role: 'Hostess', reservations: 12, satisfaction: 4.9 }
+    ];
+    
+    staffPerformance.innerHTML = staff.map(member => `
+        <div class="staff-performance-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <div class="fw-bold">${member.name}</div>
+                    <div class="small text-muted">${member.role}</div>
+                </div>
+                <div class="text-end">
+                    ${member.orders ? `<div class="small">${member.orders} orders</div>` : ''}
+                    ${member.revenue ? `<div class="small">$${member.revenue}</div>` : ''}
+                    ${member.reservations ? `<div class="small">${member.reservations} reservations</div>` : ''}
+                </div>
+            </div>
+            ${member.rating || member.satisfaction ? `
+                <div class="performance-indicator">
+                    <span class="small me-2">Rating:</span>
+                    <div class="performance-bar">
+                        <div class="performance-fill" style="width: ${(member.rating || member.satisfaction) * 20}%"></div>
+                    </div>
+                    <span class="small ms-2">${member.rating || member.satisfaction}/5.0</span>
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function initRevenueChart() {
+    const ctx = document.getElementById('revenue-chart').getContext('2d');
+    
+    // Simulate revenue data - in production, use Chart.js or similar
+    ctx.fillStyle = '#ff6b6b';
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Revenue Chart', ctx.canvas.width / 2, ctx.canvas.height / 2);
+}
+
+function loadDashboardData() {
+    // Simulate loading dashboard metrics - in production, load from API
+    const metrics = {
+        todayRevenue: 3456.78,
+        totalOrders: 67,
+        avgOrderValue: 51.59
+    };
+    
+    document.getElementById('today-revenue').textContent = `$${metrics.todayRevenue.toFixed(2)}`;
+    document.getElementById('total-orders').textContent = metrics.totalOrders;
+    document.getElementById('avg-order-value').textContent = `$${metrics.avgOrderValue.toFixed(2)}`;
+}
+
+function updateClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    const clockElement = document.getElementById('current-time');
+    if (clockElement) {
+        clockElement.textContent = timeString;
+    }
+}
+
+function handleTableClick(tableId) {
+    // Handle table click - show table details or open order
+    console.log('Table clicked:', tableId);
+    window.location.href = `/restaurant/tables/${tableId}`;
+}
+
+function editReservation(reservationId) {
+    // Handle reservation edit
+    window.location.href = `/restaurant/reservations/${reservationId}/edit`;
+}
+
+function cancelReservation(reservationId) {
+    if (confirm('Are you sure you want to cancel this reservation?')) {
+        // Handle reservation cancellation
+        console.log('Cancel reservation:', reservationId);
+        loadReservations(); // Reload reservations
+    }
+}
+
+function setupRealtimeUpdates() {
+    // Setup WebSocket or polling for real-time updates
+    setInterval(() => {
+        loadDashboardData();
+        loadTableStatus();
+        loadKitchenQueue();
+    }, 30000); // Update every 30 seconds
+}
+
+// Handle table filter buttons
+document.addEventListener('click', function(e) {
+    if (e.target.matches('[data-filter]')) {
+        // Update active state
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        e.target.classList.add('active');
+        
+        // Filter tables
+        const filter = e.target.dataset.filter;
+        const tables = document.querySelectorAll('.table-status-card');
+        tables.forEach(table => {
+            if (filter === 'all' || table.classList.contains(filter)) {
+                table.style.display = 'block';
+            } else {
+                table.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Handle revenue period change
+document.getElementById('revenue-period')?.addEventListener('change', function() {
+    // Reload revenue chart with selected period
+    initRevenueChart();
+});
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js for revenue chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}

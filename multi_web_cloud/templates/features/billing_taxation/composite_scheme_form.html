@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Composite Scheme Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .wizard-step {
+            display: none;
+        }
+        .wizard-step.active {
+            display: block;
+        }
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+        .step-indicator.active {
+            background-color: #fd7e14;
+            color: white;
+        }
+        .step-indicator.completed {
+            background-color: #28a745;
+            color: white;
+        }
+        .form-section {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .scheme-preview {
+            background: linear-gradient(135deg, #fd7e14 0%, #f59e0b 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+        .tax-calculator {
+            background-color: #e9ecef;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        .required-field::after {
+            content: " *";
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="compositeSchemeForm()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">Composite Scheme Configuration</h1>
+                        <p class="text-muted mb-0">Set up and configure composite tax schemes</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="navigateTo('list')">
+                            <i class="bi bi-arrow-left"></i> Back to List
+                        </button>
+                        <button class="btn btn-outline-primary" @click="saveDraft()">
+                            <i class="bi bi-save"></i> Save Draft
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Progress -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <template x-for="(step, index) in wizardSteps" :key="index">
+                                <div class="d-flex align-items-center">
+                                    <div class="step-indicator rounded-circle d-flex align-items-center justify-content-center me-2"
+                                         :class="{
+                                             'active': currentStep === index,
+                                             'completed': currentStep > index
+                                         }"
+                                         style="width: 40px; height: 40px;">
+                                        <template x-if="currentStep > index">
+                                            <i class="bi bi-check"></i>
+                                        </template>
+                                        <template x-else>
+                                            <span x-text="index + 1"></span>
+                                        </template>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0" x-text="step.title"></h6>
+                                        <small class="text-muted" x-text="step.description"></small>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 mx-3" x-show="index < wizardSteps.length - 1">
+                                    <div class="progress" style="height: 2px;">
+                                        <div class="progress-bar" 
+                                             :class="{ 'bg-success': currentStep > index }"
+                                             :style="`width: ${currentStep > index ? 100 : 0}%`"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Content -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-lg-8">
+                <form @submit.prevent="submitForm">
+                    <!-- Step 1: Basic Information -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 0 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Basic Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Scheme Name</label>
+                                            <input type="text" class="form-control" x-model="formData.schemeName" required>
+                                            <small class="text-muted">Enter a descriptive name for the composite scheme</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Scheme Type</label>
+                                            <select class="form-select" x-model="formData.schemeType" @change="updateTaxRate" required>
+                                                <option value="">Select Scheme Type</option>
+                                                <option value="manufacturer">Manufacturer</option>
+                                                <option value="restaurant">Restaurant</option>
+                                                <option value="service">Service Provider</option>
+                                                <option value="retailer">Retailer</option>
+                                            </select>
+                                            <small class="text-muted">Select the appropriate business category</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label required-field">Description</label>
+                                    <textarea class="form-control" rows="3" x-model="formData.description" required></textarea>
+                                    <small class="text-muted">Provide a detailed description of the scheme</small>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Effective Date</label>
+                                            <input type="date" class="form-control" x-model="formData.effectiveDate" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Expiry Date</label>
+                                            <input type="date" class="form-control" x-model="formData.expiryDate">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Tax Configuration -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 1 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Tax Configuration</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Composite Tax Rate (%)</label>
+                                            <input type="number" class="form-control" x-model="formData.taxRate" min="0" max="28" step="0.1" @input="calculateTax" required>
+                                            <small class="text-muted">Tax rate applicable under composite scheme</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label required-field">Turnover Limit (₹)</label>
+                                            <input type="number" class="form-control" x-model="formData.turnoverLimit" min="0" @input="calculateTax" required>
+                                            <small class="text-muted">Maximum annual turnover for scheme eligibility</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h6>Tax Calculation Preview</h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Annual Turnover</label>
+                                            <input type="number" class="form-control" x-model="taxCalculation.annualTurnover" @input="calculateTax" placeholder="Enter estimated turnover">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Regular Tax (18%)</label>
+                                            <input type="text" class="form-control" :value="'₹' + taxCalculation.regularTax.toLocaleString('en-IN')" readonly>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Composite Tax</label>
+                                            <input type="text" class="form-control" :value="'₹' + taxCalculation.compositeTax.toLocaleString('en-IN')" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-success">
+                                                <strong>Tax Savings:</strong> ₹<span x-text="taxCalculation.savings.toLocaleString('en-IN')"></span> 
+                                                (<span x-text="taxCalculation.savingsPercentage"></span>%)
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Applicable Taxes</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.includesCGST" id="includesCGST">
+                                        <label class="form-check-label" for="includesCGST">
+                                            Includes CGST
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.includesSGST" id="includesSGST">
+                                        <label class="form-check-label" for="includesSGST">
+                                            Includes SGST
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.includesIGST" id="includesIGST">
+                                        <label class="form-check-label" for="includesIGST">
+                                            Includes IGST
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Eligibility Criteria -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 2 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Eligibility Criteria</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-section">
+                                    <h6>Business Requirements</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Business Registration Type</label>
+                                                <select class="form-select" x-model="formData.registrationType">
+                                                    <option value="proprietorship">Proprietorship</option>
+                                                    <option value="partnership">Partnership</option>
+                                                    <option value="llp">LLP</option>
+                                                    <option value="company">Company</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">PAN Number</label>
+                                                <input type="text" class="form-control" x-model="formData.panNumber" placeholder="Enter PAN">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">GSTIN</label>
+                                                <input type="text" class="form-control" x-model="formData.gstin" placeholder="Enter GSTIN">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">State</label>
+                                                <select class="form-select" x-model="formData.state">
+                                                    <option value="">Select State</option>
+                                                    <option value="andhra-pradesh">Andhra Pradesh</option>
+                                                    <option value="karnataka">Karnataka</option>
+                                                    <option value="maharashtra">Maharashtra</option>
+                                                    <option value="tamil-nadu">Tamil Nadu</option>
+                                                    <option value="uttar-pradesh">Uttar Pradesh</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h6>Turnover Requirements</h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Previous Year Turnover (₹)</label>
+                                                <input type="number" class="form-control" x-model="formData.previousYearTurnover" min="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Current Year Turnover (₹)</label>
+                                                <input type="number" class="form-control" x-model="formData.currentYearTurnover" min="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Projected Turnover (₹)</label>
+                                                <input type="number" class="form-control" x-model="formData.projectedTurnover" min="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Additional Requirements</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.noInterStateSupply" id="noInterStateSupply">
+                                        <label class="form-check-label" for="noInterStateSupply">
+                                            No Inter-state Supply of Goods
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.noServiceSupply" id="noServiceSupply">
+                                        <label class="form-check-label" for="noServiceSupply">
+                                            No Supply of Services (except restaurant)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.notManufacturer" id="notManufacturer">
+                                        <label class="form-check-label" for="notManufacturer">
+                                            Not a Manufacturer of Ice Cream, Pan Masala, or Tobacco Products
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Compliance & Reporting -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 3 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Compliance & Reporting</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-section">
+                                    <h6>Filing Requirements</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Filing Frequency</label>
+                                                <select class="form-select" x-model="formData.filingFrequency">
+                                                    <option value="quarterly">Quarterly</option>
+                                                    <option value="annually">Annually</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Filing Day</label>
+                                                <select class="form-select" x-model="formData.filingDay">
+                                                    <option value="18">18th of the month</option>
+                                                    <option value="30">30th of the month</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Required Documents</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="formData.requirePAN" id="requirePAN">
+                                            <label class="form-check-label" for="requirePAN">
+                                                PAN Card Copy
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="formData.requireAadhaar" id="requireAadhaar">
+                                            <label class="form-check-label" for="requireAadhaar">
+                                                Aadhaar Card Copy
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="formData.requireBankStatement" id="requireBankStatement">
+                                            <label class="form-check-label" for="requireBankStatement">
+                                                Bank Statement
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="formData.requirePhoto" id="requirePhoto">
+                                            <label class="form-check-label" for="requirePhoto">
+                                                Photograph
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section">
+                                    <h6>Notification Settings</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email Notifications</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="formData.emailFilingReminder" id="emailFilingReminder">
+                                            <label class="form-check-label" for="emailFilingReminder">
+                                                Filing Reminders
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="formData.emailComplianceAlert" id="emailComplianceAlert">
+                                            <label class="form-check-label" for="emailComplianceAlert">
+                                                Compliance Alerts
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" x-model="formData.emailSchemeUpdates" id="emailSchemeUpdates">
+                                            <label class="form-check-label" for="emailSchemeUpdates">
+                                                Scheme Updates
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Review & Submit -->
+                    <div class="wizard-step" :class="{ 'active': currentStep === 4 }">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Review & Submit</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="scheme-preview">
+                                    <h5>Scheme Summary</h5>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Name:</strong> <span x-text="formData.schemeName"></span></p>
+                                            <p><strong>Type:</strong> <span x-text="formData.schemeType"></span></p>
+                                            <p><strong>Tax Rate:</strong> <span x-text="formData.taxRate + '%'"></span></p>
+                                            <p><strong>Turnover Limit:</strong> ₹<span x-text="formData.turnoverLimit.toLocaleString('en-IN')"></span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Effective Date:</strong> <span x-text="formData.effectiveDate"></span></p>
+                                            <p><strong>Expiry Date:</strong> <span x-text="formData.expiryDate || 'Not specified'"></span></p>
+                                            <p><strong>Filing Frequency:</strong> <span x-text="formData.filingFrequency"></span></p>
+                                            <p><strong>Status:</strong> Pending Approval</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-section mt-3">
+                                    <h6>Declaration</h6>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.declaration" id="declaration" required>
+                                        <label class="form-check-label" for="declaration">
+                                            I hereby declare that all information provided is true and correct to the best of my knowledge
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="formData.termsAccepted" id="termsAccepted" required>
+                                        <label class="form-check-label" for="termsAccepted">
+                                            I accept the terms and conditions of the composite scheme
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i> Upon submission, this scheme will be reviewed by the tax authorities before approval.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="card mt-4">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-secondary" @click="previousStep" :disabled="currentStep === 0">
+                                    <i class="bi bi-arrow-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" @click="saveDraft">
+                                    <i class="bi bi-save"></i> Save Draft
+                                </button>
+                                <button type="button" class="btn btn-primary" @click="nextStep" x-show="currentStep < wizardSteps.length - 1">
+                                    Next <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <button type="submit" class="btn btn-success" x-show="currentStep === wizardSteps.length - 1">
+                                    <i class="bi bi-check-circle"></i> Submit Scheme
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Help</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle"></i> Composite Scheme Benefits</h6>
+                            <ul class="mb-0">
+                                <li>Simplified tax compliance</li>
+                                <li>Lower tax rates</li>
+                                <li>Reduced filing requirements</li>
+                                <li>Quarterly filing instead of monthly</li>
+                            </ul>
+                        </div>
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-exclamation-triangle"></i> Important Notes</h6>
+                            <ul class="mb-0">
+                                <li>Cannot claim input tax credit</li>
+                                <li>Cannot supply goods to other states</li>
+                                <li>Turnover limit applies annually</li>
+                                <li>Cannot switch back to regular scheme within the same financial year</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Contact Support</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><i class="bi bi-telephone"></i> <strong>Phone:</strong> 1800-123-4567</p>
+                        <p class="mb-2"><i class="bi bi-envelope"></i> <strong>Email:</strong> support@tax.gov.in</p>
+                        <p class="mb-0"><i class="bi bi-clock"></i> <strong>Hours:</strong> Mon-Fri, 9AM-6PM</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function compositeSchemeForm() {
+            return {
+                currentStep: 0,
+                wizardSteps: [
+                    { title: 'Basic Info', description: 'Scheme details' },
+                    { title: 'Tax Config', description: 'Tax rates & limits' },
+                    { title: 'Eligibility', description: 'Business requirements' },
+                    { title: 'Compliance', description: 'Filing & reporting' },
+                    { title: 'Review', description: 'Submit scheme' }
+                ],
+                formData: {
+                    schemeName: '',
+                    schemeType: '',
+                    description: '',
+                    effectiveDate: '',
+                    expiryDate: '',
+                    taxRate: '',
+                    turnoverLimit: '',
+                    includesCGST: true,
+                    includesSGST: true,
+                    includesIGST: false,
+                    registrationType: '',
+                    panNumber: '',
+                    gstin: '',
+                    state: '',
+                    previousYearTurnover: '',
+                    currentYearTurnover: '',
+                    projectedTurnover: '',
+                    noInterStateSupply: false,
+                    noServiceSupply: false,
+                    notManufacturer: false,
+                    filingFrequency: 'quarterly',
+                    filingDay: '18',
+                    requirePAN: true,
+                    requireAadhaar: true,
+                    requireBankStatement: false,
+                    requirePhoto: false,
+                    emailFilingReminder: true,
+                    emailComplianceAlert: true,
+                    emailSchemeUpdates: false,
+                    declaration: false,
+                    termsAccepted: false
+                },
+                taxCalculation: {
+                    annualTurnover: 1000000,
+                    regularTax: 0,
+                    compositeTax: 0,
+                    savings: 0,
+                    savingsPercentage: 0
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                updateTaxRate() {
+                    const taxRates = {
+                        'manufacturer': 1.0,
+                        'restaurant': 1.5,
+                        'service': 6.0,
+                        'retailer': 1.0
+                    };
+                    
+                    if (taxRates[this.formData.schemeType]) {
+                        this.formData.taxRate = taxRates[this.formData.schemeType];
+                        this.calculateTax();
+                    }
+                },
+                
+                calculateTax() {
+                    const turnover = parseFloat(this.taxCalculation.annualTurnover) || 0;
+                    const regularRate = 0.18; // 18% regular GST
+                    const compositeRate = parseFloat(this.formData.taxRate) / 100 || 0;
+                    
+                    this.taxCalculation.regularTax = Math.round(turnover * regularRate);
+                    this.taxCalculation.compositeTax = Math.round(turnover * compositeRate);
+                    this.taxCalculation.savings = this.taxCalculation.regularTax - this.taxCalculation.compositeTax;
+                    this.taxCalculation.savingsPercentage = ((this.taxCalculation.savings / this.taxCalculation.regularTax) * 100).toFixed(1);
+                },
+                
+                nextStep() {
+                    if (this.validateCurrentStep()) {
+                        if (this.currentStep < this.wizardSteps.length - 1) {
+                            this.currentStep++;
+                        }
+                    }
+                },
+                
+                previousStep() {
+                    if (this.currentStep > 0) {
+                        this.currentStep--;
+                    }
+                },
+                
+                validateCurrentStep() {
+                    // Basic validation for current step
+                    if (this.currentStep === 0) {
+                        if (!this.formData.schemeName || !this.formData.schemeType || !this.formData.effectiveDate) {
+                            alert('Please fill in all required fields');
+                            return false;
+                        }
+                    } else if (this.currentStep === 1) {
+                        if (!this.formData.taxRate || !this.formData.turnoverLimit) {
+                            alert('Please configure tax settings');
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                
+                submitForm() {
+                    if (!this.formData.declaration || !this.formData.termsAccepted) {
+                        alert('Please accept the declaration and terms');
+                        return;
+                    }
+                    
+                    console.log('Submitting composite scheme:', this.formData);
+                    alert('Composite scheme submitted successfully! It will be reviewed by tax authorities.');
+                    this.navigateTo('list');
+                },
+                
+                saveDraft() {
+                    console.log('Saving draft:', this.formData);
+                    alert('Draft saved successfully!');
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/composite_scheme_${page}.html`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAT Rules and Rates</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .settings-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #6f42c1;
+        }
+        .settings-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .rate-item {
+            border-left: 3px solid #6f42c1;
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+        }
+        .nav-pills .nav-link {
+            border-radius: 0.5rem;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #6f42c1;
+        }
+        .setting-group {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #6f42c1;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .rate-card {
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        .rate-card:hover {
+            border-color: #6f42c1;
+            box-shadow: 0 4px 8px rgba(111, 66, 193, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="vatSupportSettings()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">VAT Rules and Rates</h1>
+                        <p class="text-muted mb-0">Configure VAT rates, rules, and compliance settings</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="resetToDefaults()">
+                            <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                        </button>
+                        <button class="btn btn-primary" @click="saveAllSettings()">
+                            <i class="bi bi-save"></i> Save All Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" x-show="isFeatureEnabled('FEATURE_VAT_SUPPORT')">
+            <!-- Settings Navigation -->
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <nav class="nav nav-pills flex-column">
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'general'}"
+                               href="#" @click.prevent="activeTab = 'general'">
+                                <i class="bi bi-gear me-2"></i> General Settings
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'rates'}"
+                               href="#" @click.prevent="activeTab = 'rates'">
+                                <i class="bi bi-percent me-2"></i> VAT Rates
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'schemes'}"
+                               href="#" @click.prevent="activeTab = 'schemes'">
+                                <i class="bi bi-calculator me-2"></i> VAT Schemes
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'exemptions'}"
+                               href="#" @click.prevent="activeTab = 'exemptions'">
+                                <i class="bi bi-shield-check me-2"></i> Exemptions
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'eu'}"
+                               href="#" @click.prevent="activeTab = 'eu'">
+                                <i class="bi bi-globe-europe me-2"></i> EU Transactions
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'compliance'}"
+                               href="#" @click.prevent="activeTab = 'compliance'">
+                                <i class="bi bi-clipboard-check me-2"></i> Compliance
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Content -->
+            <div class="col-md-9">
+                <!-- General Settings -->
+                <div class="card settings-card" x-show="activeTab === 'general'">
+                    <div class="card-header">
+                        <h5 class="mb-0">General VAT Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Business Configuration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">VAT Number</label>
+                                        <input type="text" class="form-control" x-model="settings.general.vatNumber" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Legal Name</label>
+                                        <input type="text" class="form-control" x-model="settings.general.legalName">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">VAT Scheme</label>
+                                        <select class="form-select" x-model="settings.general.vatScheme">
+                                            <option value="standard">Standard VAT Accounting</option>
+                                            <option value="cash">Cash Accounting Scheme</option>
+                                            <option value="flat">Flat Rate Scheme</option>
+                                            <option value="annual">Annual Accounting Scheme</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Registration Date</label>
+                                        <input type="date" class="form-control" x-model="settings.general.registrationDate">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">Calculation Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tax Calculation Method</label>
+                                        <select class="form-select" x-model="settings.general.calculationMethod">
+                                            <option value="invoice">Invoice Basis</option>
+                                            <option value="cash">Cash Basis</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Rounding Method</label>
+                                        <select class="form-select" x-model="settings.general.roundingMethod">
+                                            <option value="normal">Normal Rounding</option>
+                                            <option value="up">Round Up</option>
+                                            <option value="down">Round Down</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">VAT Inclusive Pricing</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="settings.general.vatInclusive">
+                                            <label class="form-check-label">Enable VAT inclusive pricing</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Auto-Calculate VAT</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" x-model="settings.general.autoCalculate">
+                                            <label class="form-check-label">Automatically calculate VAT on invoices</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VAT Rates -->
+                <div class="card settings-card" x-show="activeTab === 'rates'">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">VAT Rates Configuration</h5>
+                        <button class="btn btn-sm btn-primary" @click="addVatRate()">
+                            <i class="bi bi-plus"></i> Add Rate
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <template x-for="rate in settings.vatRates" :key="rate.id">
+                                <div class="col-md-6">
+                                    <div class="rate-card">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 x-text="rate.name"></h6>
+                                                <p class="text-muted mb-2" x-text="rate.description"></p>
+                                                <div class="d-flex gap-2">
+                                                    <span class="badge bg-primary" x-text="rate.rate + '%'"></span>
+                                                    <span class="badge" 
+                                                          :class="{'bg-success': rate.enabled, 'bg-secondary': !rate.enabled}"
+                                                          x-text="rate.enabled ? 'Active' : 'Inactive'"></span>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" x-model="rate.enabled">
+                                                    <span class="slider"></span>
+                                                </label>
+                                                <button class="btn btn-sm btn-outline-primary" @click="editVatRate(rate)">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @click="deleteVatRate(rate.id)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VAT Schemes -->
+                <div class="card settings-card" x-show="activeTab === 'schemes'">
+                    <div class="card-header">
+                        <h5 class="mb-0">VAT Schemes Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <template x-for="scheme in settings.vatSchemes" :key="scheme.id">
+                            <div class="rate-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 x-text="scheme.name"></h6>
+                                        <p class="text-muted mb-2" x-text="scheme.description"></p>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Turnover Threshold:</small>
+                                                <strong>£<span x-text="scheme.threshold.toLocaleString('en-GB')"></span></strong>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Flat Rate:</small>
+                                                <strong x-text="scheme.flatRate + '%'"></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" x-model="scheme.enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <button class="btn btn-sm btn-outline-primary" @click="editVatScheme(scheme)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Exemptions -->
+                <div class="card settings-card" x-show="activeTab === 'exemptions'">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">VAT Exemptions</h5>
+                        <button class="btn btn-sm btn-primary" @click="addExemption()">
+                            <i class="bi bi-plus"></i> Add Exemption
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <template x-for="exemption in settings.exemptions" :key="exemption.id">
+                            <div class="rate-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 x-text="exemption.name"></h6>
+                                        <p class="text-muted mb-2" x-text="exemption.description"></p>
+                                        <div class="d-flex gap-2">
+                                            <span class="badge bg-secondary" x-text="exemption.type"></span>
+                                            <span class="badge bg-info" x-text="exemption.category"></span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" x-model="exemption.enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <button class="btn btn-sm btn-outline-primary" @click="editExemption(exemption)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @click="deleteExemption(exemption.id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- EU Transactions -->
+                <div class="card settings-card" x-show="activeTab === 'eu'">
+                    <div class="card-header">
+                        <h5 class="mb-0">EU Transactions Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">EU Configuration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">EU VAT Number</label>
+                                        <input type="text" class="form-control" x-model="settings.eu.euVatNumber">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">EORI Number</label>
+                                        <input type="text" class="form-control" x-model="settings.eu.eoriNumber">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Default EU VAT Rate (%)</label>
+                                        <input type="number" class="form-control" x-model="settings.eu.defaultRate" min="0" max="100" step="0.1">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Distance Selling Threshold (£)</label>
+                                        <input type="number" class="form-control" x-model="settings.eu.distanceSellingThreshold" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">EU Reporting</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.eu.ecSalesListEnabled">
+                                        <label class="form-check-label">EC Sales List Reporting</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.eu.intrastatEnabled">
+                                        <label class="form-check-label">Intrastat Reporting</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">ECSL Filing Frequency</label>
+                                        <select class="form-select" x-model="settings.eu.ecslFrequency">
+                                            <option value="quarterly">Quarterly</option>
+                                            <option value="monthly">Monthly</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compliance -->
+                <div class="card settings-card" x-show="activeTab === 'compliance'">
+                    <div class="card-header">
+                        <h5 class="mb-0">Compliance Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Filing Requirements</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Filing Frequency</label>
+                                        <select class="form-select" x-model="settings.compliance.filingFrequency">
+                                            <option value="monthly">Monthly</option>
+                                            <option value="quarterly">Quarterly</option>
+                                            <option value="annually">Annually</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">VAT Return Due Day</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.dueDay" min="1" max="31">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Accounting Period</label>
+                                        <select class="form-select" x-model="settings.compliance.accountingPeriod">
+                                            <option value="calendar">Calendar Year (Jan-Dec)</option>
+                                            <option value="financial">Financial Year (Apr-Mar)</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Payment Method</label>
+                                        <select class="form-select" x-model="settings.compliance.paymentMethod">
+                                            <option value="direct_debit">Direct Debit</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="card">Debit/Credit Card</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">Thresholds and Limits</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">VAT Registration Threshold (£)</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.registrationThreshold" min="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Deregistration Threshold (£)</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.deregistrationThreshold" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Cash Scheme Threshold (£)</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.cashSchemeThreshold" min="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Annual Scheme Threshold (£)</label>
+                                        <input type="number" class="form-control" x-model="settings.compliance.annualSchemeThreshold" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function vatSupportSettings() {
+            return {
+                activeTab: 'general',
+                settings: {
+                    general: {
+                        vatNumber: 'GB123456789',
+                        legalName: 'ABC Enterprises Ltd',
+                        vatScheme: 'standard',
+                        registrationDate: '2020-01-15',
+                        calculationMethod: 'invoice',
+                        roundingMethod: 'normal',
+                        vatInclusive: false,
+                        autoCalculate: true
+                    },
+                    vatRates: [
+                        { id: 1, name: 'Standard Rate', description: 'Most goods and services', rate: 20, enabled: true },
+                        { id: 2, name: 'Reduced Rate', description: 'Some goods and services', rate: 5, enabled: true },
+                        { id: 3, name: 'Zero Rate', description: 'Zero-rated goods and services', rate: 0, enabled: true },
+                        { id: 4, name: 'Exempt', description: 'Exempt goods and services', rate: 0, enabled: true }
+                    ],
+                    vatSchemes: [
+                        { 
+                            id: 1, 
+                            name: 'Standard VAT Accounting', 
+                            description: 'Standard method of accounting for VAT',
+                            threshold: 85000,
+                            flatRate: 0,
+                            enabled: true
+                        },
+                        { 
+                            id: 2, 
+                            name: 'Cash Accounting Scheme', 
+                            description: 'Account for VAT when you receive payment',
+                            threshold: 1600000,
+                            flatRate: 0,
+                            enabled: false
+                        },
+                        { 
+                            id: 3, 
+                            name: 'Flat Rate Scheme', 
+                            description: 'Pay a fixed rate of VAT to HMRC',
+                            threshold: 150000,
+                            flatRate: 12.5,
+                            enabled: false
+                        }
+                    ],
+                    exemptions: [
+                        { id: 1, name: 'Education', description: 'Educational services and training', type: 'Exempt', category: 'Services', enabled: true },
+                        { id: 2, name: 'Financial Services', description: 'Banking and financial services', type: 'Exempt', category: 'Services', enabled: true },
+                        { id: 3, name: 'Food', description: 'Most food items', type: 'Zero-rated', category: 'Goods', enabled: true }
+                    ],
+                    eu: {
+                        euVatNumber: '',
+                        eoriNumber: '',
+                        defaultRate: 20,
+                        distanceSellingThreshold: 70000,
+                        ecSalesListEnabled: false,
+                        intrastatEnabled: false,
+                        ecslFrequency: 'quarterly'
+                    },
+                    compliance: {
+                        filingFrequency: 'quarterly',
+                        dueDay: 7,
+                        accountingPeriod: 'financial',
+                        paymentMethod: 'direct_debit',
+                        registrationThreshold: 85000,
+                        deregistrationThreshold: 83000,
+                        cashSchemeThreshold: 1600000,
+                        annualSchemeThreshold: 1350000
+                    }
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                addVatRate() {
+                    console.log('Adding new VAT rate');
+                },
+                
+                editVatRate(rate) {
+                    console.log('Editing VAT rate:', rate);
+                },
+                
+                deleteVatRate(id) {
+                    if (confirm('Are you sure you want to delete this VAT rate?')) {
+                        this.settings.vatRates = this.settings.vatRates.filter(rate => rate.id !== id);
+                    }
+                },
+                
+                editVatScheme(scheme) {
+                    console.log('Editing VAT scheme:', scheme);
+                },
+                
+                addExemption() {
+                    console.log('Adding new exemption');
+                },
+                
+                editExemption(exemption) {
+                    console.log('Editing exemption:', exemption);
+                },
+                
+                deleteExemption(id) {
+                    if (confirm('Are you sure you want to delete this exemption?')) {
+                        this.settings.exemptions = this.settings.exemptions.filter(ex => ex.id !== id);
+                    }
+                },
+                
+                resetToDefaults() {
+                    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                        console.log('Resetting to defaults');
+                    }
+                },
+                
+                saveAllSettings() {
+                    console.log('Saving all settings:', this.settings);
+                    alert('Settings saved successfully!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

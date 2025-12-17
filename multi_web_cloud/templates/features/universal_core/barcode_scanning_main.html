@@ -1,0 +1,933 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/barcode_scanning_main.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Barcode Scanning Main Interface -->
+<div class="barcode-scanning-container" x-data="barcodeScanningApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="main-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="main-title">
+                    <i class="bi bi-upc-scan me-2"></i>
+                    Barcode Scanner Interface
+                </h2>
+                <p class="main-subtitle text-muted">Scan and manage barcodes efficiently</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="main-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="toggleScanner()">
+                        <i class="bi bi-camera"></i> Toggle Scanner
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="importBarcodes()">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateBarcode()">
+                        <i class="bi bi-plus-circle"></i> Generate Barcode
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Status -->
+    <div class="scanner-status">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-camera-video me-2"></i>
+                    Scanner Status
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="configureScanner()">
+                        <i class="bi bi-gear"></i> Configure
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="status-item">
+                            <div class="status-icon" :class="scannerStatus.status === 'active' ? 'status-active' : 'status-inactive'">
+                                <i :class="scannerStatus.status === 'active' ? 'bi bi-check-circle' : 'bi bi-x-circle'"></i>
+                            </div>
+                            <div class="status-info">
+                                <h6>Scanner Status</h6>
+                                <p class="status-value" x-text="scannerStatus.status"></p>
+                                <small class="status-detail" x-text="scannerStatus.message"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="status-item">
+                            <div class="status-icon bg-info">
+                                <i class="bi bi-upc"></i>
+                            </div>
+                            <div class="status-info">
+                                <h6>Scans Today</h6>
+                                <p class="status-value" x-text="scannerStatus.scansToday.toLocaleString()"></p>
+                                <small class="status-change text-success" x-show="scannerStatus.scansChange > 0">
+                                    <i class="bi bi-arrow-up"></i> <span x-text="scannerStatus.scansChange"></span>%
+                                </small>
+                                <small class="status-change text-danger" x-show="scannerStatus.scansChange < 0">
+                                    <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(scannerStatus.scansChange)"></span>%
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="status-item">
+                            <div class="status-icon bg-success">
+                                <i class="bi bi-check2"></i>
+                            </div>
+                            <div class="status-info">
+                                <h6>Success Rate</h6>
+                                <p class="status-value" x-text="scannerStatus.successRate + '%'"></p>
+                                <small class="status-detail" x-text="`${scannerStatus.successfulScans} successful`"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="status-item">
+                            <div class="status-icon bg-warning">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <div class="status-info">
+                                <h6>Failed Scans</h6>
+                                <p class="status-value" x-text="scannerStatus.failedScans"></p>
+                                <small class="status-detail" x-text="`Requires attention`"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Interface -->
+    <div class="scanner-interface">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-upc-scan me-2"></i>
+                    Scanner Interface
+                </h5>
+                <div class="card-actions">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': scanMode === 'single'}"
+                                @click="scanMode = 'single'">
+                            Single Scan
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': scanMode === 'continuous'}"
+                                @click="scanMode = 'continuous'">
+                            Continuous
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': scanMode === 'batch'}"
+                                @click="scanMode = 'batch'">
+                            Batch Scan
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="scanner-view">
+                    <div class="scanner-viewport" 
+                         x-show="!scannerActive"
+                         @click="activateScanner()">
+                        <div class="scanner-placeholder">
+                            <i class="bi bi-camera display-1 text-muted"></i>
+                            <h4>Click to Activate Scanner</h4>
+                            <p class="text-muted">Position barcode in front of camera</p>
+                        </div>
+                    </div>
+                    
+                    <div class="scanner-active" x-show="scannerActive">
+                        <video class="scanner-video" 
+                               x-ref="scannerVideo"
+                               autoplay
+                               playsinline>
+                        </video>
+                        <canvas class="scanner-canvas" 
+                                x-ref="scannerCanvas"
+                                :style="scannerCanvasStyle">
+                        </canvas>
+                        <div class="scanner-overlay">
+                            <div class="scan-line" :style="scanLineStyle"></div>
+                            <div class="scan-region" :style="scanRegionStyle"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="scanner-controls">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Scan Type</label>
+                                <select class="form-select" x-model="scanSettings.type">
+                                    <option value="barcode">Barcode</option>
+                                    <option value="qr">QR Code</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Camera</label>
+                                <select class="form-select" x-model="scanSettings.camera">
+                                    <option value="">Auto Select</option>
+                                    <template x-for="camera in availableCameras" :key="camera.id">
+                                        <option :value="camera.id" x-text="camera.label"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Zoom Level</label>
+                                <input type="range" 
+                                       class="form-range" 
+                                       x-model="scanSettings.zoom"
+                                       min="1"
+                                       max="5"
+                                       step="0.1">
+                                <span class="zoom-value" x-text="scanSettings.zoom + 'x'"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="autoFocus" 
+                                           x-model="scanSettings.autoFocus">
+                                    <label class="form-check-label" for="autoFocus">
+                                        Auto Focus
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="beepOnScan" 
+                                           x-model="scanSettings.beepOnScan">
+                                    <label class="form-check-label" for="beepOnScan">
+                                        Beep on Successful Scan
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Scans -->
+    <div class="recent-scans">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Recent Scans
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearRecentScans()">
+                        <i class="bi bi-x"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="recent-scans-list">
+                    <template x-for="scan in recentScans" :key="scan.id">
+                        <div class="scan-item" 
+                             :class="{'scan-success': scan.status === 'success', 'scan-error': scan.status === 'error'}"
+                             @click="viewScanDetails(scan.id)">
+                            <div class="scan-info">
+                                <div class="scan-type">
+                                    <i :class="scan.type === 'qr' ? 'bi bi-qr-code' : 'bi bi-upc'"></i>
+                                </div>
+                                <div class="scan-details">
+                                    <div class="scan-code">
+                                        <span x-text="scan.code"></span>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-link p-0 ms-1"
+                                                @click.stop="copyScanCode(scan.code)"
+                                                title="Copy">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="scan-product" x-show="scan.product">
+                                        <span class="product-name" x-text="scan.product.name"></span>
+                                        <small class="product-sku" x-text="scan.product.sku"></small>
+                                    </div>
+                                    <div class="scan-time">
+                                        <span x-text="formatTime(scan.timestamp)"></span>
+                                        <small class="text-muted" x-text="formatDate(scan.timestamp)"></small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="scan-actions">
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary"
+                                        @click.stop="addToInventory(scan.id)"
+                                        title="Add to Inventory"
+                                        x-show="scan.status === 'success' && scan.product">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-secondary"
+                                        @click.stop="rescan(scan.code)"
+                                        title="Rescan">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <div class="empty-state" x-show="recentScans.length === 0">
+                    <div class="text-center py-4">
+                        <i class="bi bi-upc-scan display-1 text-muted"></i>
+                        <h5>No Recent Scans</h5>
+                        <p class="text-muted">Start scanning to see recent activity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-lightning me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="batchScan()">
+                                <i class="bi bi-list-check"></i>
+                                <span>Batch Scan</span>
+                            </button>
+                            <p class="action-description">Scan multiple items at once</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="lookupBarcode()">
+                                <i class="bi bi-search"></i>
+                                <span>Lookup Barcode</span>
+                            </button>
+                            <p class="action-description">Search by barcode number</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="generateLabels()">
+                                <i class="bi bi-tags"></i>
+                                <span>Generate Labels</span>
+                            </button>
+                            <p class="action-description">Create barcode labels</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="scanHistory()">
+                                <i class="bi bi-clock-history"></i>
+                                <span>Scan History</span>
+                            </button>
+                            <p class="action-description">View all scan records</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Settings Panel -->
+    <div class="scanner-settings-panel" x-show="showSettings" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Scanner Settings
+                </h5>
+                <button type="button" class="btn-close" @click="showSettings = false"></button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Scan Sensitivity</label>
+                            <input type="range" 
+                                   class="form-range" 
+                                   x-model="scannerSettings.sensitivity"
+                                   min="1"
+                                   max="10"
+                                   step="1">
+                            <div class="sensitivity-indicator">
+                                <span class="indicator-low">Low</span>
+                                <span class="indicator-medium">Medium</span>
+                                <span class="indicator-high">High</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Scan Delay (ms)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="scannerSettings.scanDelay"
+                                   min="0"
+                                   max="5000"
+                                   step="100">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Barcode Formats</label>
+                            <div class="barcode-formats">
+                                <template x-for="format in availableFormats" :key="format.value">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               :id="`format-${format.value}`"
+                                               :value="format.value"
+                                               x-model="scannerSettings.formats">
+                                        <label class="form-check-label" :for="`format-${format.value}`">
+                                            <span x-text="format.label"></span>
+                                        </label>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Action</label>
+                            <select class="form-select" x-model="scannerSettings.defaultAction">
+                                <option value="lookup">Lookup Product</option>
+                                <option value="add">Add to Inventory</option>
+                                <option value="sale">Add to Sale</option>
+                                <option value="none">No Action</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="vibrateOnScan" 
+                                       x-model="scannerSettings.vibrateOnScan">
+                                <label class="form-check-label" for="vibrateOnScan">
+                                    Vibrate on Successful Scan
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="flashOnScan" 
+                                       x-model="scannerSettings.flashOnScan">
+                                <label class="form-check-label" for="flashOnScan">
+                                    Flash on Successful Scan
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="floating-actions">
+        <button type="button" 
+                class="btn btn-primary rounded-circle fab"
+                @click="toggleSettings()"
+                title="Scanner Settings">
+            <i class="bi bi-gear"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/barcode_scanning_main.js') }}"></script>
+<script>
+// Barcode Scanning App
+function barcodeScanningApp() {
+    return {
+        // Data
+        scannerActive: false,
+        scanMode: 'single',
+        showSettings: false,
+        availableCameras: [],
+        availableFormats: [
+            { value: 'code128', label: 'Code 128' },
+            { value: 'code39', label: 'Code 39' },
+            { value: 'ean13', label: 'EAN-13' },
+            { value: 'ean8', label: 'EAN-8' },
+            { value: 'upca', label: 'UPC-A' },
+            { value: 'upce', label: 'UPC-E' },
+            { value: 'qr', label: 'QR Code' },
+            { value: 'datamatrix', label: 'Data Matrix' }
+        ],
+        
+        scannerStatus: {
+            status: 'inactive',
+            message: 'Scanner not active',
+            scansToday: 0,
+            scansChange: 0,
+            successRate: 0,
+            successfulScans: 0,
+            failedScans: 0
+        },
+        
+        scanSettings: {
+            type: 'both',
+            camera: '',
+            zoom: 1,
+            autoFocus: true,
+            beepOnScan: true,
+            sensitivity: 5,
+            scanDelay: 500,
+            formats: ['code128', 'ean13', 'upca', 'qr'],
+            defaultAction: 'lookup',
+            vibrateOnScan: false,
+            flashOnScan: false
+        },
+        
+        recentScans: [],
+        
+        // Computed properties
+        get scannerCanvasStyle() {
+            return {
+                width: '100%',
+                height: '300px',
+                border: '2px solid #007bff',
+                borderRadius: '8px'
+            };
+        },
+        
+        get scanLineStyle() {
+            return {
+                height: '2px',
+                backgroundColor: '#28a745',
+                width: '100%',
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                animation: 'scan 2s linear infinite'
+            };
+        },
+        
+        get scanRegionStyle() {
+            return {
+                border: '2px dashed #ffc107',
+                borderRadius: '8px',
+                position: 'absolute',
+                top: '20%',
+                left: '10%',
+                right: '10%',
+                bottom: '20%',
+                pointerEvents: 'none'
+            };
+        },
+        
+        // Methods
+        init() {
+            this.loadScannerStatus();
+            this.loadRecentScans();
+            this.loadAvailableCameras();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadScannerStatus() {
+            try {
+                const response = await fetch('/api/barcode/scanner/status');
+                this.scannerStatus = await response.json();
+            } catch (error) {
+                console.error('Error loading scanner status:', error);
+            }
+        },
+        
+        async loadRecentScans() {
+            try {
+                const response = await fetch('/api/barcode/scans/recent');
+                this.recentScans = await response.json();
+            } catch (error) {
+                console.error('Error loading recent scans:', error);
+            }
+        },
+        
+        async loadAvailableCameras() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                this.availableCameras = devices.filter(device => device.kind === 'videoinput');
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                console.error('Error accessing cameras:', error);
+            }
+        },
+        
+        async activateScanner() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                if (this.scanSettings.camera) {
+                    constraints.video.deviceId = { exact: this.scanSettings.camera };
+                }
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = this.$refs.scannerVideo;
+                video.srcObject = stream;
+                video.play();
+                
+                this.scannerActive = true;
+                this.scannerStatus.status = 'active';
+                this.scannerStatus.message = 'Scanner ready';
+                
+                // Start barcode detection
+                this.startBarcodeDetection();
+                
+            } catch (error) {
+                console.error('Error activating scanner:', error);
+                this.scannerStatus.status = 'error';
+                this.scannerStatus.message = 'Failed to activate scanner';
+            }
+        },
+        
+        deactivateScanner() {
+            const video = this.$refs.scannerVideo;
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            this.scannerActive = false;
+            this.scannerStatus.status = 'inactive';
+            this.scannerStatus.message = 'Scanner deactivated';
+        },
+        
+        toggleScanner() {
+            if (this.scannerActive) {
+                this.deactivateScanner();
+            } else {
+                this.activateScanner();
+            }
+        },
+        
+        startBarcodeDetection() {
+            // This would integrate with a barcode scanning library
+            // For now, simulate detection
+            console.log('Barcode detection started');
+        },
+        
+        async onBarcodeDetected(barcode) {
+            try {
+                const response = await fetch('/api/barcode/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: barcode,
+                        type: this.scanSettings.type,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                const result = await response.json();
+                
+                // Add to recent scans
+                this.recentScans.unshift({
+                    id: Date.now(),
+                    code: barcode,
+                    type: result.type || 'barcode',
+                    status: result.success ? 'success' : 'error',
+                    product: result.product || null,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Keep only last 50 scans
+                if (this.recentScans.length > 50) {
+                    this.recentScans = this.recentScans.slice(0, 50);
+                }
+                
+                // Update scanner status
+                this.scannerStatus.scansToday++;
+                if (result.success) {
+                    this.scannerStatus.successfulScans++;
+                    this.playSuccessSound();
+                    this.performDefaultAction(result);
+                } else {
+                    this.scannerStatus.failedScans++;
+                    this.playErrorSound();
+                }
+                
+                this.scannerStatus.successRate = Math.round(
+                    (this.scannerStatus.successfulScans / (this.scannerStatus.successfulScans + this.scannerStatus.failedScans)) * 100
+                );
+                
+                // Vibrate if enabled
+                if (this.scanSettings.vibrateOnScan && navigator.vibrate) {
+                    navigator.vibrate(200);
+                }
+                
+                // Flash if enabled
+                if (this.scanSettings.flashOnScan) {
+                    this.performFlash();
+                }
+                
+            } catch (error) {
+                console.error('Error processing barcode:', error);
+            }
+        },
+        
+        playSuccessSound() {
+            if (this.scanSettings.beepOnScan) {
+                const audio = new Audio('/static/sounds/success-beep.mp3');
+                audio.play().catch(e => console.log('Audio play failed:', e));
+            }
+        },
+        
+        playErrorSound() {
+            const audio = new Audio('/static/sounds/error-beep.mp3');
+            audio.play().catch(e => console.log('Audio play failed:', e));
+        },
+        
+        performFlash() {
+            // Implement flash effect
+            const flashElement = document.createElement('div');
+            flashElement.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: white;
+                z-index: 9999;
+                opacity: 0.8;
+            `;
+            document.body.appendChild(flashElement);
+            
+            setTimeout(() => {
+                document.body.removeChild(flashElement);
+            }, 100);
+        },
+        
+        performDefaultAction(scanResult) {
+            switch (this.scanSettings.defaultAction) {
+                case 'lookup':
+                    this.lookupProduct(scanResult.product);
+                    break;
+                case 'add':
+                    this.addToInventory(scanResult.product);
+                    break;
+                case 'sale':
+                    this.addToSale(scanResult.product);
+                    break;
+            }
+        },
+        
+        // Navigation methods
+        generateBarcode() {
+            window.location.href = '/barcode/generate';
+        },
+        
+        importBarcodes() {
+            window.location.href = '/barcode/import';
+        },
+        
+        configureScanner() {
+            this.showSettings = !this.showSettings;
+        },
+        
+        toggleSettings() {
+            this.showSettings = !this.showSettings;
+        },
+        
+        batchScan() {
+            window.location.href = '/barcode/batch-scan';
+        },
+        
+        lookupBarcode() {
+            window.location.href = '/barcode/lookup';
+        },
+        
+        generateLabels() {
+            window.location.href = '/barcode/labels';
+        },
+        
+        scanHistory() {
+            window.location.href = '/barcode/history';
+        },
+        
+        viewScanDetails(scanId) {
+            const scan = this.recentScans.find(s => s.id === scanId);
+            if (scan && scan.product) {
+                window.location.href = `/products/view/${scan.product.id}`;
+            }
+        },
+        
+        copyScanCode(code) {
+            navigator.clipboard.writeText(code);
+            this.showSuccess('Barcode copied to clipboard');
+        },
+        
+        addToInventory(scanId) {
+            const scan = this.recentScans.find(s => s.id === scanId);
+            if (scan && scan.product) {
+                window.location.href = `/inventory/add?product=${scan.product.id}`;
+            }
+        },
+        
+        rescan(code) {
+            // Trigger rescan with the same code
+            console.log('Rescanning:', code);
+        },
+        
+        clearRecentScans() {
+            if (confirm('Are you sure you want to clear all recent scans?')) {
+                this.recentScans = [];
+                this.showSuccess('Recent scans cleared');
+            }
+        },
+        
+        lookupProduct(product) {
+            if (product) {
+                window.location.href = `/products/lookup?sku=${product.sku}`;
+            }
+        },
+        
+        addToInventory(product) {
+            if (product) {
+                window.location.href = `/inventory/add?product=${product.id}`;
+            }
+        },
+        
+        addToSale(product) {
+            if (product) {
+                window.location.href = `/sales/add?product=${product.id}`;
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Space: Toggle scanner
+                if (e.key === ' ' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    this.toggleScanner();
+                }
+                
+                // Ctrl/Cmd + G: Generate barcode
+                if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+                    e.preventDefault();
+                    this.generateBarcode();
+                }
+                
+                // Ctrl/Cmd + L: Lookup barcode
+                if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                    e.preventDefault();
+                    this.lookupBarcode();
+                }
+                
+                // Ctrl/Cmd + B: Batch scan
+                if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                    e.preventDefault();
+                    this.batchScan();
+                }
+                
+                // Escape: Deactivate scanner
+                if (e.key === 'Escape') {
+                    this.deactivateScanner();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString();
+        },
+        
+        formatDate(timestamp) {
+            return new Date(timestamp).toLocaleDateString();
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+
+<style>
+@keyframes scan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+</style>
+{% endblock %}

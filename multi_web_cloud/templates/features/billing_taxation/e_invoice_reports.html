@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Invoice Analytics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .report-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #17a2b8;
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+        .metric-card h3 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .metric-card p {
+            margin: 0;
+            opacity: 0.8;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .report-filters {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .export-menu {
+            min-width: 200px;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="eInvoiceReports()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">E-Invoice Analytics</h1>
+                        <p class="text-muted mb-0">Comprehensive reports and analytics for electronic invoices</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                            <ul class="dropdown-menu export-menu">
+                                <li><a class="dropdown-item" href="#" @click="exportReport('pdf')">
+                                    <i class="bi bi-file-pdf"></i> Export as PDF
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" @click="exportReport('excel')">
+                                    <i class="bi bi-file-excel"></i> Export as Excel
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" @click="exportReport('csv')">
+                                    <i class="bi bi-file-csv"></i> Export as CSV
+                                </a></li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-primary" @click="generateCustomReport()">
+                            <i class="bi bi-plus-circle"></i> Custom Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="totalInvoices.toLocaleString('en-IN')"></h3>
+                    <p>Total E-Invoices</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="successRate"></h3>
+                    <p>Success Rate (%)</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="totalAmount.toLocaleString('en-IN')"></h3>
+                    <p>Total Value (₹)</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3 x-text="todayInvoices.toLocaleString('en-IN')"></h3>
+                    <p>Generated Today</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Filters -->
+        <div class="report-filters" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Date Range</label>
+                    <select class="form-select" x-model="filters.dateRange" @change="updateCharts">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="quarter">This Quarter</option>
+                        <option value="year">This Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div class="col-md-2" x-show="filters.dateRange === 'custom'">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" x-model="filters.startDate" @change="updateCharts">
+                </div>
+                <div class="col-md-2" x-show="filters.dateRange === 'custom'">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" x-model="filters.endDate" @change="updateCharts">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Supply Type</label>
+                    <select class="form-select" x-model="filters.supplyType" @change="updateCharts">
+                        <option value="">All Types</option>
+                        <option value="B2B">B2B</option>
+                        <option value="SEZWP">SEZ With Payment</option>
+                        <option value="SEZWOP">SEZ Without Payment</option>
+                        <option value="EXPWP">Export With Payment</option>
+                        <option value="EXPWOP">Export Without Payment</option>
+                        <option value="DE">Deemed Export</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" x-model="filters.status" @change="updateCharts">
+                        <option value="">All Status</option>
+                        <option value="Generated">Generated</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Reports -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Reports</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-graph-up display-4 text-primary mb-3"></i>
+                                        <h6>Generation Trend</h6>
+                                        <p class="text-muted small">Analyze e-invoice generation patterns</p>
+                                        <button class="btn btn-sm btn-outline-primary" @click="generateReport('generation-trend')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-people display-4 text-success mb-3"></i>
+                                        <h6>Customer Analysis</h6>
+                                        <p class="text-muted small">Analyze customer-wise e-invoices</p>
+                                        <button class="btn btn-sm btn-outline-success" @click="generateReport('customer-analysis')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-exclamation-triangle display-4 text-warning mb-3"></i>
+                                        <h6>Failure Analysis</h6>
+                                        <p class="text-muted small">Analyze failed e-invoices</p>
+                                        <button class="btn btn-sm btn-outline-warning" @click="generateReport('failure-analysis')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-currency-rupee display-4 text-info mb-3"></i>
+                                        <h6>Revenue Analysis</h6>
+                                        <p class="text-muted small">Analyze e-invoice revenue trends</p>
+                                        <button class="btn btn-sm btn-outline-info" @click="generateReport('revenue-analysis')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-lg-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">E-Invoice Generation Trends</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="generationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Status Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Analytics -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-lg-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Supply Type Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="supplyTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Monthly Comparison</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Table -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">E-Invoice Details</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" @click="refreshTable()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button class="btn btn-outline-success" @click="exportTable()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th @click="sortBy('irn')" style="cursor: pointer;">
+                                            IRN <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('invoiceNo')" style="cursor: pointer;">
+                                            Invoice No. <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('customer')" style="cursor: pointer;">
+                                            Customer <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('supplyType')" style="cursor: pointer;">
+                                            Supply Type <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('amount')" style="cursor: pointer;">
+                                            Amount <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('status')" style="cursor: pointer;">
+                                            Status <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('generated')" style="cursor: pointer;">
+                                            Generated <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="invoice in paginatedInvoices" :key="invoice.id">
+                                        <tr>
+                                            <td x-text="invoice.irn"></td>
+                                            <td x-text="invoice.invoiceNo"></td>
+                                            <td x-text="invoice.customer"></td>
+                                            <td>
+                                                <span class="badge status-badge" 
+                                                      :style="`background-color: ${invoice.supplyTypeColor}`"
+                                                      x-text="invoice.supplyType"></span>
+                                            </td>
+                                            <td>₹<span x-text="invoice.amount.toLocaleString('en-IN')"></span></td>
+                                            <td>
+                                                <span class="badge status-badge" 
+                                                      :class="{
+                                                          'bg-success': invoice.status === 'Generated',
+                                                          'bg-warning': invoice.status === 'Pending',
+                                                          'bg-danger': invoice.status === 'Failed',
+                                                          'bg-info': invoice.status === 'Cancelled'
+                                                      }"
+                                                      x-text="invoice.status"></span>
+                                            </td>
+                                            <td x-text="invoice.generated"></td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @click="viewDetails(invoice)">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" @click="downloadReport(invoice)">
+                                                        <i class="bi bi-download"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <span class="me-2">Showing <span x-text="startIndex + 1"></span> to <span x-text="endIndex"></span> of <span x-text="filteredInvoices.length"></span> entries</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <nav>
+                    <ul class="pagination justify-content-end mb-0">
+                        <li class="page-item" :class="{ 'disabled': currentPage === 1 }">
+                            <button class="page-link" @click="currentPage = 1" :disabled="currentPage === 1">First</button>
+                        </li>
+                        <li class="page-item" :class="{ 'disabled': currentPage === 1 }">
+                            <button class="page-link" @click="currentPage--" :disabled="currentPage === 1">Previous</button>
+                        </li>
+                        <template x-for="page in visiblePages" :key="page">
+                            <li class="page-item" :class="{ 'active': page === currentPage }">
+                                <button class="page-link" @click="currentPage = page" x-text="page"></button>
+                            </li>
+                        </template>
+                        <li class="page-item" :class="{ 'disabled': currentPage === totalPages }">
+                            <button class="page-link" @click="currentPage++" :disabled="currentPage === totalPages">Next</button>
+                        </li>
+                        <li class="page-item" :class="{ 'disabled': currentPage === totalPages }">
+                            <button class="page-link" @click="currentPage = totalPages" :disabled="currentPage === totalPages">Last</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function eInvoiceReports() {
+            return {
+                totalInvoices: 2847,
+                successRate: 98.5,
+                totalAmount: 12500000,
+                todayInvoices: 45,
+                currentPage: 1,
+                itemsPerPage: 10,
+                sortField: 'generated',
+                sortDirection: 'desc',
+                filters: {
+                    dateRange: 'month',
+                    startDate: '',
+                    endDate: '',
+                    supplyType: '',
+                    status: ''
+                },
+                invoices: [
+                    { id: 1, irn: 'IRN2023120001234', invoiceNo: 'INV-2023-001', customer: 'ABC Trading Co.', supplyType: 'B2B', amount: 125000, status: 'Generated', generated: '2023-12-16 10:30', supplyTypeColor: '#17a2b8' },
+                    { id: 2, irn: 'IRN2023120001235', invoiceNo: 'INV-2023-002', customer: 'Tech Solutions Ltd.', supplyType: 'B2B', amount: 87500, status: 'Generated', generated: '2023-12-16 09:45', supplyTypeColor: '#17a2b8' },
+                    { id: 3, irn: '-', invoiceNo: 'INV-2023-003', customer: 'Global Exports', supplyType: 'EXPWP', amount: 234000, status: 'Pending', generated: '-', supplyTypeColor: '#28a745' },
+                    { id: 4, irn: 'IRN2023120001236', invoiceNo: 'INV-2023-004', customer: 'Metro Stores', supplyType: 'B2B', amount: 156000, status: 'Generated', generated: '2023-12-16 08:20', supplyTypeColor: '#17a2b8' },
+                    { id: 5, irn: 'IRN2023120001232', invoiceNo: 'INV-2023-005', customer: 'Fast Logistics', supplyType: 'SEZWP', amount: 67000, status: 'Cancelled', generated: '2023-12-15 16:30', supplyTypeColor: '#ffc107' },
+                    { id: 6, irn: '-', invoiceNo: 'INV-2023-006', customer: 'Retail Chain', supplyType: 'B2B', amount: 189000, status: 'Failed', generated: '-', supplyTypeColor: '#17a2b8' },
+                    { id: 7, irn: 'IRN2023120001230', invoiceNo: 'INV-2023-007', customer: 'Wholesale Mart', supplyType: 'B2B', amount: 98000, status: 'Generated', generated: '2023-12-15 14:15', supplyTypeColor: '#17a2b8' },
+                    { id: 8, irn: 'IRN2023120001231', invoiceNo: 'INV-2023-008', customer: 'Industrial Supplies', supplyType: 'DE', amount: 267000, status: 'Generated', generated: '2023-12-15 11:40', supplyTypeColor: '#6f42c1' }
+                ],
+                
+                get filteredInvoices() {
+                    return this.invoices.filter(invoice => {
+                        if (this.filters.supplyType && invoice.supplyType !== this.filters.supplyType) {
+                            return false;
+                        }
+                        if (this.filters.status && invoice.status !== this.filters.status) {
+                            return false;
+                        }
+                        return true;
+                    }).sort((a, b) => {
+                        let aVal = a[this.sortField];
+                        let bVal = b[this.sortField];
+                        
+                        if (this.sortDirection === 'asc') {
+                            return aVal > bVal ? 1 : -1;
+                        } else {
+                            return aVal < bVal ? 1 : -1;
+                        }
+                    });
+                },
+                
+                get paginatedInvoices() {
+                    const start = (this.currentPage - 1) * this.itemsPerPage;
+                    const end = start + this.itemsPerPage;
+                    return this.filteredInvoices.slice(start, end);
+                },
+                
+                get totalPages() {
+                    return Math.ceil(this.filteredInvoices.length / this.itemsPerPage);
+                },
+                
+                get startIndex() {
+                    return (this.currentPage - 1) * this.itemsPerPage;
+                },
+                
+                get endIndex() {
+                    return Math.min(this.startIndex + this.itemsPerPage, this.filteredInvoices.length);
+                },
+                
+                get visiblePages() {
+                    const pages = [];
+                    const maxVisible = 5;
+                    const half = Math.floor(maxVisible / 2);
+                    
+                    let start = Math.max(1, this.currentPage - half);
+                    let end = Math.min(this.totalPages, start + maxVisible - 1);
+                    
+                    if (end - start + 1 < maxVisible) {
+                        start = Math.max(1, end - maxVisible + 1);
+                    }
+                    
+                    for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                    }
+                    
+                    return pages;
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                init() {
+                    this.initCharts();
+                },
+                
+                initCharts() {
+                    // Generation Chart
+                    const generationCtx = document.getElementById('generationChart').getContext('2d');
+                    new Chart(generationCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                            datasets: [{
+                                label: 'Generated',
+                                data: [42, 38, 45, 52, 48, 35, 45],
+                                borderColor: '#17a2b8',
+                                backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                                tension: 0.4
+                            }, {
+                                label: 'Failed',
+                                data: [2, 1, 3, 1, 2, 1, 0],
+                                borderColor: '#dc3545',
+                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Status Chart
+                    const statusCtx = document.getElementById('statusChart').getContext('2d');
+                    new Chart(statusCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Generated', 'Pending', 'Failed', 'Cancelled'],
+                            datasets: [{
+                                data: [2824, 23, 5, 15],
+                                backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#6c757d'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Supply Type Chart
+                    const supplyTypeCtx = document.getElementById('supplyTypeChart').getContext('2d');
+                    new Chart(supplyTypeCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['B2B', 'SEZWP', 'EXPWP', 'DE'],
+                            datasets: [{
+                                label: 'Count',
+                                data: [1847, 234, 567, 199],
+                                backgroundColor: ['#17a2b8', '#ffc107', '#28a745', '#6f42c1']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Monthly Chart
+                    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+                    new Chart(monthlyCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                label: 'This Year',
+                                data: [245, 312, 289, 367, 425, 489],
+                                backgroundColor: '#17a2b8'
+                            }, {
+                                label: 'Last Year',
+                                data: [198, 267, 245, 312, 367, 425],
+                                backgroundColor: '#6c757d'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                updateCharts() {
+                    console.log('Updating charts with filters:', this.filters);
+                },
+                
+                sortBy(field) {
+                    if (this.sortField === field) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortField = field;
+                        this.sortDirection = 'asc';
+                    }
+                },
+                
+                generateReport(type) {
+                    console.log('Generating report:', type);
+                    alert(`${type} report generated successfully!`);
+                },
+                
+                generateCustomReport() {
+                    console.log('Generating custom report');
+                    alert('Custom report configuration opened!');
+                },
+                
+                exportReport(format) {
+                    console.log('Exporting report as:', format);
+                    alert(`Report exported as ${format.toUpperCase()} successfully!`);
+                },
+                
+                viewDetails(invoice) {
+                    console.log('Viewing invoice details:', invoice);
+                },
+                
+                downloadReport(invoice) {
+                    console.log('Downloading report for invoice:', invoice);
+                },
+                
+                refreshTable() {
+                    console.log('Refreshing table data');
+                },
+                
+                exportTable() {
+                    console.log('Exporting table data');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

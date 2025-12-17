@@ -1,0 +1,798 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/barcode_scanning_list.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Barcode Scanning List Interface -->
+<div class="barcode-scanning-list-container" x-data="barcodeScanningListApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="list-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="list-title">
+                    <i class="bi bi-upc me-2"></i>
+                    Barcode Management
+                </h2>
+                <p class="list-subtitle text-muted">Manage and lookup barcodes efficiently</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="list-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportBarcodes()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="importBarcodes()">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateBarcode()">
+                        <i class="bi bi-plus-circle"></i> Generate Barcode
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="search-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-funnel me-2"></i>
+                    Search & Filters
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetFilters()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Search Barcodes</label>
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       placeholder="Enter barcode, SKU, or product name..."
+                                       x-model="filters.search"
+                                       @keyup.enter="applyFilters()">
+                                <button class="btn btn-outline-secondary" type="button" @click="applyFilters()">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Type</label>
+                            <select class="form-select" x-model="filters.type" @change="applyFilters()">
+                                <option value="">All Types</option>
+                                <option value="barcode">Barcode</option>
+                                <option value="qr">QR Code</option>
+                                <option value="code128">Code 128</option>
+                                <option value="ean13">EAN-13</option>
+                                <option value="upca">UPC-A</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" x-model="filters.status" @change="applyFilters()">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="error">Error</option>
+                                <option value="duplicate">Duplicate</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" x-model="filters.category" @change="applyFilters()">
+                                <option value="">All Categories</option>
+                                <template x-for="category in categories" :key="category.id">
+                                    <option :value="category.id" x-text="category.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="filters.dateRange" @change="applyFilters()">
+                                <option value="">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="year">This Year</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="filter-tags">
+                            <template x-for="(value, key) in activeFilters" :key="key">
+                                <span class="badge bg-light text-dark me-2 mb-2">
+                                    <span x-text="getFilterLabel(key, value)"></span>
+                                    <button type="button" 
+                                            class="btn-close btn-close-sm ms-1"
+                                            @click="removeFilter(key)">
+                                    </button>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barcode List -->
+    <div class="barcode-list">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="card-title">
+                            <i class="bi bi-list-ul me-2"></i>
+                            Barcode List
+                        </h5>
+                        <p class="text-muted mb-0" x-text="`${pagination.total} barcodes found`"></p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="list-controls">
+                            <div class="btn-group btn-group-sm me-2" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'list'}"
+                                        @click="viewMode = 'list'">
+                                    <i class="bi bi-list"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'grid'}"
+                                        @click="viewMode = 'grid'">
+                                    <i class="bi bi-grid"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                        type="button" 
+                                        data-bs-toggle="dropdown">
+                                    <i class="bi bi-gear"></i> Bulk Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" @click="bulkUpdateStatus('active')">Mark as Active</a></li>
+                                    <li><a class="dropdown-item" href="#" @click="bulkUpdateStatus('inactive')">Mark as Inactive</a></li>
+                                    <li><a class="dropdown-item" href="#" @click="bulkExport()">Export Selected</a></li>
+                                    <li><a class="dropdown-item" href="#" @click="bulkPrint()">Print Labels</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" @click="bulkDelete()">Delete Selected</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- List View -->
+                <div class="list-view" x-show="viewMode === 'list'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="40">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               @change="toggleSelectAll($event)">
+                                    </th>
+                                    <th>Barcode</th>
+                                    <th>Type</th>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Last Scanned</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="barcode in barcodes" :key="barcode.id">
+                                    <tr class="barcode-row">
+                                        <td>
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   :checked="selectedBarcodes.includes(barcode.id)"
+                                                   @change="toggleBarcodeSelection(barcode.id, $event)">
+                                        </td>
+                                        <td>
+                                            <div class="barcode-cell">
+                                                <div class="barcode-code">
+                                                    <span x-text="barcode.code"></span>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-link p-0 ms-1"
+                                                            @click="copyBarcode(barcode.code)"
+                                                            title="Copy">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="barcode-preview">
+                                                    <img :src="`/api/barcode/preview/${barcode.id}`" 
+                                                         :alt="barcode.code"
+                                                         class="barcode-image">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge" 
+                                                  :class="getTypeBadgeClass(barcode.type)"
+                                                  x-text="barcode.type">
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="product-info">
+                                                <div class="product-name" x-text="barcode.product?.name || 'N/A'"></div>
+                                                <small class="text-muted" x-text="barcode.product?.description || ''"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="sku" x-text="barcode.product?.sku || 'N/A'"></span>
+                                        </td>
+                                        <td>
+                                            <span class="category" x-text="barcode.product?.category || 'N/A'"></span>
+                                        </td>
+                                        <td>
+                                            <span class="badge" 
+                                                  :class="getStatusBadgeClass(barcode.status)"
+                                                  x-text="barcode.status">
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="date-info">
+                                                <span x-text="formatDate(barcode.created_at)"></span>
+                                                <small class="text-muted" x-text="formatTime(barcode.created_at)"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="scan-info">
+                                                <span x-text="barcode.last_scanned ? formatDate(barcode.last_scanned) : 'Never'"></span>
+                                                <small class="text-muted" x-show="barcode.last_scanned" x-text="formatTime(barcode.last_scanned)"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        @click="editBarcode(barcode.id)"
+                                                        title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        @click="viewBarcode(barcode.id)"
+                                                        title="View">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-success"
+                                                        @click="printLabel(barcode.id)"
+                                                        title="Print Label">
+                                                    <i class="bi bi-printer"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        @click="deleteBarcode(barcode.id)"
+                                                        title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Grid View -->
+                <div class="grid-view" x-show="viewMode === 'grid'">
+                    <div class="row">
+                        <template x-for="barcode in barcodes" :key="barcode.id">
+                            <div class="col-md-3 mb-3">
+                                <div class="barcode-card">
+                                    <div class="card-header">
+                                        <div class="form-check">
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   :checked="selectedBarcodes.includes(barcode.id)"
+                                                   @change="toggleBarcodeSelection(barcode.id, $event)">
+                                        </div>
+                                        <div class="card-actions">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @click="editBarcode(barcode.id)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="barcode-preview">
+                                            <img :src="`/api/barcode/preview/${barcode.id}`" 
+                                                 :alt="barcode.code"
+                                                 class="barcode-image">
+                                        </div>
+                                        <div class="barcode-info">
+                                            <h6 class="barcode-code" x-text="barcode.code"></h6>
+                                            <p class="product-name" x-text="barcode.product?.name || 'N/A'"></p>
+                                            <div class="barcode-meta">
+                                                <span class="badge me-1" 
+                                                      :class="getTypeBadgeClass(barcode.type)"
+                                                      x-text="barcode.type">
+                                                </span>
+                                                <span class="badge" 
+                                                      :class="getStatusBadgeClass(barcode.status)"
+                                                      x-text="barcode.status">
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <div class="action-buttons">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    @click="viewBarcode(barcode.id)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-success"
+                                                    @click="printLabel(barcode.id)">
+                                                <i class="bi bi-printer"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    @click="deleteBarcode(barcode.id)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-state" x-show="barcodes.length === 0">
+                    <div class="text-center py-5">
+                        <i class="bi bi-upc display-1 text-muted"></i>
+                        <h5>No Barcodes Found</h5>
+                        <p class="text-muted">Try adjusting your search or filters</p>
+                        <button type="button" class="btn btn-primary" @click="generateBarcode()">
+                            <i class="bi bi-plus-circle"></i> Generate First Barcode
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="card-footer" x-show="barcodes.length > 0">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="pagination-info">
+                            <span x-text="`Showing ${pagination.start} to ${pagination.end} of ${pagination.total} barcodes`"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <nav>
+                            <ul class="pagination justify-content-end mb-0">
+                                <li class="page-item" :class="{'disabled': pagination.current_page === 1}">
+                                    <a class="page-link" href="#" @click.prevent="changePage(pagination.current_page - 1)">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                <template x-for="page in pagination.pages" :key="page">
+                                    <li class="page-item" :class="{'active': page === pagination.current_page}">
+                                        <a class="page-link" href="#" @click.prevent="changePage(page)" x-text="page"></a>
+                                    </li>
+                                </template>
+                                <li class="page-item" :class="{'disabled': pagination.current_page === pagination.total_pages}">
+                                    <a class="page-link" href="#" @click.prevent="changePage(pagination.current_page + 1)">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Operations Panel -->
+    <div class="bulk-operations-panel" x-show="selectedBarcodes.length > 0" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-check-square me-2"></i>
+                    Bulk Operations
+                </h5>
+                <button type="button" class="btn-close" @click="clearSelection()"></button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <p class="mb-0">
+                            <strong x-text="`${selectedBarcodes.length} barcodes selected`"></strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="bulk-actions">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-2" @click="bulkExport()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success me-2" @click="bulkPrint()">
+                                <i class="bi bi-printer"></i> Print Labels
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @click="bulkDelete()">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/barcode_scanning_list.js') }}"></script>
+<script>
+// Barcode Scanning List App
+function barcodeScanningListApp() {
+    return {
+        // Data
+        viewMode: 'list',
+        barcodes: [],
+        categories: [],
+        selectedBarcodes: [],
+        
+        filters: {
+            search: '',
+            type: '',
+            status: '',
+            category: '',
+            dateRange: ''
+        },
+        
+        pagination: {
+            current_page: 1,
+            total_pages: 1,
+            total: 0,
+            start: 0,
+            end: 0,
+            pages: []
+        },
+        
+        // Methods
+        init() {
+            this.loadBarcodes();
+            this.loadCategories();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadBarcodes() {
+            try {
+                const params = new URLSearchParams({
+                    page: this.pagination.current_page,
+                    ...this.filters
+                });
+                
+                const response = await fetch(`/api/barcodes?${params}`);
+                const data = await response.json();
+                
+                this.barcodes = data.barcodes;
+                this.pagination = data.pagination;
+                
+            } catch (error) {
+                console.error('Error loading barcodes:', error);
+                this.showError('Failed to load barcodes');
+            }
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        applyFilters() {
+            this.pagination.current_page = 1;
+            this.loadBarcodes();
+        },
+        
+        resetFilters() {
+            this.filters = {
+                search: '',
+                type: '',
+                status: '',
+                category: '',
+                dateRange: ''
+            };
+            this.applyFilters();
+        },
+        
+        removeFilter(key) {
+            this.filters[key] = '';
+            this.applyFilters();
+        },
+        
+        get activeFilters() {
+            const active = {};
+            for (const [key, value] of Object.entries(this.filters)) {
+                if (value) {
+                    active[key] = value;
+                }
+            }
+            return active;
+        },
+        
+        getFilterLabel(key, value) {
+            const labels = {
+                search: `Search: ${value}`,
+                type: `Type: ${value}`,
+                status: `Status: ${value}`,
+                category: `Category: ${this.categories.find(c => c.id === value)?.name || value}`,
+                dateRange: `Date: ${value}`
+            };
+            return labels[key] || `${key}: ${value}`;
+        },
+        
+        // Selection methods
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedBarcodes = this.barcodes.map(b => b.id);
+            } else {
+                this.selectedBarcodes = [];
+            }
+        },
+        
+        toggleBarcodeSelection(barcodeId, event) {
+            if (event.target.checked) {
+                if (!this.selectedBarcodes.includes(barcodeId)) {
+                    this.selectedBarcodes.push(barcodeId);
+                }
+            } else {
+                this.selectedBarcodes = this.selectedBarcodes.filter(id => id !== barcodeId);
+            }
+        },
+        
+        clearSelection() {
+            this.selectedBarcodes = [];
+        },
+        
+        // Navigation methods
+        generateBarcode() {
+            window.location.href = '/barcode/generate';
+        },
+        
+        importBarcodes() {
+            window.location.href = '/barcode/import';
+        },
+        
+        exportBarcodes() {
+            const params = new URLSearchParams(this.filters);
+            window.open(`/api/barcodes/export?${params}`);
+        },
+        
+        editBarcode(barcodeId) {
+            window.location.href = `/barcode/edit/${barcodeId}`;
+        },
+        
+        viewBarcode(barcodeId) {
+            window.location.href = `/barcode/view/${barcodeId}`;
+        },
+        
+        printLabel(barcodeId) {
+            window.open(`/api/barcode/print/${barcodeId}`);
+        },
+        
+        deleteBarcode(barcodeId) {
+            if (confirm('Are you sure you want to delete this barcode?')) {
+                this.performDelete([barcodeId]);
+            }
+        },
+        
+        // Bulk operations
+        bulkUpdateStatus(status) {
+            if (this.selectedBarcodes.length === 0) return;
+            
+            if (confirm(`Are you sure you want to mark ${this.selectedBarcodes.length} barcodes as ${status}?`)) {
+                this.performBulkUpdateStatus(status);
+            }
+        },
+        
+        bulkExport() {
+            if (this.selectedBarcodes.length === 0) return;
+            
+            const params = new URLSearchParams({
+                barcodes: this.selectedBarcodes.join(',')
+            });
+            window.open(`/api/barcodes/export?${params}`);
+        },
+        
+        bulkPrint() {
+            if (this.selectedBarcodes.length === 0) return;
+            
+            const params = new URLSearchParams({
+                barcodes: this.selectedBarcodes.join(',')
+            });
+            window.open(`/api/barcode/print-bulk?${params}`);
+        },
+        
+        bulkDelete() {
+            if (this.selectedBarcodes.length === 0) return;
+            
+            if (confirm(`Are you sure you want to delete ${this.selectedBarcodes.length} barcodes?`)) {
+                this.performDelete(this.selectedBarcodes);
+            }
+        },
+        
+        async performDelete(barcodeIds) {
+            try {
+                const response = await fetch('/api/barcodes/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ barcodes: barcodeIds })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Barcodes deleted successfully');
+                    this.clearSelection();
+                    this.loadBarcodes();
+                } else {
+                    throw new Error('Delete failed');
+                }
+            } catch (error) {
+                console.error('Error deleting barcodes:', error);
+                this.showError('Failed to delete barcodes');
+            }
+        },
+        
+        async performBulkUpdateStatus(status) {
+            try {
+                const response = await fetch('/api/barcodes/update-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        barcodes: this.selectedBarcodes,
+                        status: status 
+                    })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess(`Barcodes marked as ${status}`);
+                    this.clearSelection();
+                    this.loadBarcodes();
+                } else {
+                    throw new Error('Update failed');
+                }
+            } catch (error) {
+                console.error('Error updating barcodes:', error);
+                this.showError('Failed to update barcodes');
+            }
+        },
+        
+        // Pagination
+        changePage(page) {
+            if (page >= 1 && page <= this.pagination.total_pages) {
+                this.pagination.current_page = page;
+                this.loadBarcodes();
+            }
+        },
+        
+        // Utility methods
+        copyBarcode(code) {
+            navigator.clipboard.writeText(code);
+            this.showSuccess('Barcode copied to clipboard');
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        formatTime(dateString) {
+            return new Date(dateString).toLocaleTimeString();
+        },
+        
+        getTypeBadgeClass(type) {
+            const classes = {
+                'barcode': 'bg-primary',
+                'qr': 'bg-info',
+                'code128': 'bg-success',
+                'ean13': 'bg-warning',
+                'upca': 'bg-secondary'
+            };
+            return classes[type] || 'bg-secondary';
+        },
+        
+        getStatusBadgeClass(status) {
+            const classes = {
+                'active': 'bg-success',
+                'inactive': 'bg-secondary',
+                'error': 'bg-danger',
+                'duplicate': 'bg-warning'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + N: Generate new barcode
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.generateBarcode();
+                }
+                
+                // Ctrl/Cmd + E: Export
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportBarcodes();
+                }
+                
+                // Ctrl/Cmd + I: Import
+                if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                    e.preventDefault();
+                    this.importBarcodes();
+                }
+                
+                // Ctrl/Cmd + A: Select all
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    this.selectedBarcodes = this.barcodes.map(b => b.id);
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

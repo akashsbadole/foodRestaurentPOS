@@ -1,0 +1,990 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/quick_sale_main.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Quick Sale Main Interface -->
+<div class="quick-sale-container" x-data="quickSaleApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="sale-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="sale-title">
+                    <i class="bi bi-lightning-charge me-2"></i>
+                    Quick Sale
+                </h2>
+                <p class="sale-subtitle text-muted">Fast and efficient point of sale</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="sale-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="suspendSale()">
+                        <i class="bi bi-pause-circle"></i> Suspend
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="holdSale()">
+                        <i class="bi bi-clock-history"></i> Hold
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="completeSale()" :disabled="cart.items.length === 0">
+                        <i class="bi bi-check-lg"></i> Complete Sale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sale Information -->
+    <div class="sale-info">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Sale Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="info-item">
+                            <div class="info-label">Sale #</div>
+                            <div class="info-value" x-text="saleInfo.saleNumber"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="info-item">
+                            <div class="info-label">Cashier</div>
+                            <div class="info-value" x-text="saleInfo.cashier"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="info-item">
+                            <div class="info-label">Terminal</div>
+                            <div class="info-value" x-text="saleInfo.terminal"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="info-item">
+                            <div class="info-label">Date & Time</div>
+                            <div class="info-value" x-text="formatDateTime(saleInfo.timestamp)"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="info-item">
+                            <div class="info-label">Customer</div>
+                            <div class="info-value">
+                                <span x-show="!customer.name" class="text-muted">Walk-in Customer</span>
+                                <span x-show="customer.name" x-text="customer.name"></span>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary ms-2"
+                                        @click="selectCustomer()"
+                                        x-show="!customer.name">
+                                    <i class="bi bi-person-plus"></i> Add
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-secondary ms-2"
+                                        @click="selectCustomer()"
+                                        x-show="customer.name">
+                                    <i class="bi bi-pencil"></i> Change
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-item">
+                            <div class="info-label">Order Type</div>
+                            <div class="info-value">
+                                <select class="form-select form-select-sm" x-model="saleInfo.orderType">
+                                    <option value="dinein">Dine-in</option>
+                                    <option value="takeaway">Takeaway</option>
+                                    <option value="delivery">Delivery</option>
+                                    <option value="online">Online Order</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-item">
+                            <div class="info-label">Table/Order #</div>
+                            <div class="info-value">
+                                <input type="text" 
+                                       class="form-control form-control-sm" 
+                                       x-model="saleInfo.tableNumber"
+                                       placeholder="Enter table or order #">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Search and Cart -->
+    <div class="sale-content">
+        <div class="row">
+            <!-- Product Search -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-search me-2"></i>
+                            Add Products
+                        </h5>
+                        <div class="card-actions">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': searchMode === 'search'}"
+                                        @click="searchMode = 'search'">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': searchMode === 'barcode'}"
+                                        @click="searchMode = 'barcode'">
+                                    <i class="bi bi-upc-scan"></i> Barcode
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': searchMode === 'categories'}"
+                                        @click="searchMode = 'categories'">
+                                    <i class="bi bi-grid"></i> Categories
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Search Mode -->
+                        <div class="search-mode" x-show="searchMode === 'search'">
+                            <div class="input-group input-group-lg">
+                                <input type="text" 
+                                       class="form-control" 
+                                       placeholder="Search products by name, SKU, or barcode..."
+                                       x-model="searchQuery"
+                                       @keyup.enter="searchProducts()"
+                                       @input="onSearchInput()">
+                                <button class="btn btn-primary" type="button" @click="searchProducts()">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                            </div>
+                            
+                            <div class="search-suggestions" x-show="searchSuggestions.length > 0">
+                                <div class="suggestion-list">
+                                    <template x-for="product in searchSuggestions" :key="product.id">
+                                        <div class="suggestion-item" @click="addToCart(product)">
+                                            <div class="suggestion-image">
+                                                <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                                     :alt="product.name"
+                                                     class="img-thumbnail">
+                                            </div>
+                                            <div class="suggestion-info">
+                                                <div class="suggestion-name" x-text="product.name"></div>
+                                                <div class="suggestion-details">
+                                                    <span class="sku" x-text="product.sku"></span>
+                                                    <span class="price" x-text="formatCurrency(product.price)"></span>
+                                                    <span class="stock" x-text="`Stock: ${product.stock}`"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Barcode Mode -->
+                        <div class="barcode-mode" x-show="searchMode === 'barcode'">
+                            <div class="barcode-scanner">
+                                <div class="scanner-input">
+                                    <input type="text" 
+                                           class="form-control form-control-lg" 
+                                           placeholder="Scan barcode or enter manually..."
+                                           x-model="barcodeInput"
+                                           @keyup.enter="processBarcode()"
+                                           @input="onBarcodeInput()">
+                                    <button type="button" 
+                                            class="btn btn-primary btn-lg"
+                                            @click="processBarcode()">
+                                        <i class="bi bi-upc-scan"></i> Scan
+                                    </button>
+                                </div>
+                                <div class="scanner-status" x-show="scannerActive">
+                                    <div class="status-indicator">
+                                        <i class="bi bi-camera-video"></i>
+                                        <span>Scanner Active</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Categories Mode -->
+                        <div class="categories-mode" x-show="searchMode === 'categories'">
+                            <div class="category-grid">
+                                <template x-for="category in categories" :key="category.id">
+                                    <div class="category-item" @click="selectCategory(category)">
+                                        <div class="category-icon">
+                                            <i :class="category.icon"></i>
+                                        </div>
+                                        <div class="category-name" x-text="category.name"></div>
+                                        <div class="category-count" x-text="`${category.productCount} products`"></div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div class="category-products" x-show="selectedCategory">
+                                <div class="category-header">
+                                    <h6 x-text="selectedCategory.name"></h6>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click="selectedCategory = null">
+                                        <i class="bi bi-arrow-left"></i> Back
+                                    </button>
+                                </div>
+                                <div class="product-grid">
+                                    <template x-for="product in categoryProducts" :key="product.id">
+                                        <div class="product-item" @click="addToCart(product)">
+                                            <div class="product-image">
+                                                <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                                     :alt="product.name"
+                                                     class="img-fluid">
+                                            </div>
+                                            <div class="product-info">
+                                                <div class="product-name" x-text="product.name"></div>
+                                                <div class="product-price" x-text="formatCurrency(product.price)"></div>
+                                                <div class="product-stock" x-text="`Stock: ${product.stock}`"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Products -->
+                        <div class="recent-products">
+                            <h6>Recent Products</h6>
+                            <div class="recent-grid">
+                                <template x-for="product in recentProducts" :key="product.id">
+                                    <div class="recent-item" @click="addToCart(product)">
+                                        <div class="recent-image">
+                                            <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                                 :alt="product.name"
+                                                 class="img-thumbnail">
+                                        </div>
+                                        <div class="recent-info">
+                                            <div class="recent-name" x-text="product.name"></div>
+                                            <div class="recent-price" x-text="formatCurrency(product.price)"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cart -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-cart3 me-2"></i>
+                            Cart
+                        </h5>
+                        <div class="card-actions">
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger"
+                                    @click="clearCart()"
+                                    x-show="cart.items.length > 0">
+                                <i class="bi bi-trash"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="cart-items">
+                            <template x-for="item in cart.items" :key="item.id">
+                                <div class="cart-item">
+                                    <div class="item-info">
+                                        <div class="item-name" x-text="item.name"></div>
+                                        <div class="item-details">
+                                            <span class="item-price" x-text="formatCurrency(item.price)"></span>
+                                            <span class="item-quantity" x-text="`x${item.quantity}`"></span>
+                                        </div>
+                                    </div>
+                                    <div class="item-actions">
+                                        <div class="quantity-controls">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @click="updateQuantity(item.id, item.quantity - 1)"
+                                                    :disabled="item.quantity <= 1">
+                                                <i class="bi bi-dash"></i>
+                                            </button>
+                                            <span class="quantity-display" x-text="item.quantity"></span>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @click="updateQuantity(item.id, item.quantity + 1)">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                @click="removeFromCart(item.id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="item-total" x-text="formatCurrency(item.price * item.quantity)"></div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <div class="empty-cart" x-show="cart.items.length === 0">
+                            <div class="text-center py-4">
+                                <i class="bi bi-cart-x display-1 text-muted"></i>
+                                <h5>Cart is Empty</h5>
+                                <p class="text-muted">Add products to start the sale</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cart Summary -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-calculator me-2"></i>
+                            Summary
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="summary-row">
+                            <div class="summary-label">Subtotal</div>
+                            <div class="summary-value" x-text="formatCurrency(cart.subtotal)"></div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">Tax</div>
+                            <div class="summary-value" x-text="formatCurrency(cart.tax)"></div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">Discount</div>
+                            <div class="summary-value" x-text="formatCurrency(cart.discount)"></div>
+                        </div>
+                        <div class="summary-row total">
+                            <div class="summary-label">Total</div>
+                            <div class="summary-value" x-text="formatCurrency(cart.total)"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Methods -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-credit-card me-2"></i>
+                            Payment
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="payment-methods">
+                            <template x-for="method in paymentMethods" :key="method.id">
+                                <div class="payment-method" 
+                                     :class="{'active': selectedPayment === method.id}"
+                                     @click="selectPayment(method.id)">
+                                    <div class="method-icon">
+                                        <i :class="method.icon"></i>
+                                    </div>
+                                    <div class="method-name" x-text="method.name"></div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <div class="payment-details" x-show="selectedPayment">
+                            <div class="form-group">
+                                <label class="form-label">Amount Received</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="payment.amount"
+                                       @input="calculateChange()"
+                                       step="0.01">
+                            </div>
+                            <div class="form-group" x-show="payment.change > 0">
+                                <label class="form-label">Change</label>
+                                <div class="change-amount" x-text="formatCurrency(payment.change)"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-lightning me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="priceLookup()">
+                                <i class="bi bi-search"></i>
+                                <span>Price Lookup</span>
+                            </button>
+                            <p class="action-description">Check product price</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="openDrawer()">
+                                <i class="bi bi-cash-stack"></i>
+                                <span>Open Drawer</span>
+                            </button>
+                            <p class="action-description">Open cash drawer</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="returnSale()">
+                                <i class="bi bi-arrow-return-left"></i>
+                                <span>Return Sale</span>
+                            </button>
+                            <p class="action-description">Process return</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="action-item">
+                            <button type="button" 
+                                    class="btn btn-outline-primary w-100"
+                                    @click="voidSale()">
+                                <i class="bi bi-x-circle"></i>
+                                <span>Void Sale</span>
+                            </button>
+                            <p class="action-description">Void current sale</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Selection Modal -->
+    <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="customer-search">
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   placeholder="Search by name, phone, or email..."
+                                   x-model="customerSearch">
+                            <button class="btn btn-outline-secondary" type="button" @click="searchCustomers()">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="customer-list">
+                        <template x-for="cust in customerResults" :key="cust.id">
+                            <div class="customer-item" @click="selectCustomer(cust)">
+                                <div class="customer-info">
+                                    <div class="customer-name" x-text="cust.name"></div>
+                                    <div class="customer-details">
+                                        <span x-text="cust.phone"></span>
+                                        <span x-text="cust.email"></span>
+                                    </div>
+                                </div>
+                                <div class="customer-balance" x-text="formatCurrency(cust.balance)"></div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div class="new-customer">
+                        <button type="button" class="btn btn-outline-primary" @click="createNewCustomer()">
+                            <i class="bi bi-person-plus"></i> Create New Customer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/quick_sale_main.js') }}"></script>
+<script>
+// Quick Sale App
+function quickSaleApp() {
+    return {
+        // Data
+        searchMode: 'search',
+        searchQuery: '',
+        barcodeInput: '',
+        scannerActive: false,
+        
+        saleInfo: {
+            saleNumber: '',
+            cashier: 'John Doe',
+            terminal: 'POS-001',
+            timestamp: new Date(),
+            orderType: 'dinein',
+            tableNumber: ''
+        },
+        
+        customer: {
+            id: null,
+            name: null,
+            phone: null,
+            email: null,
+            balance: 0
+        },
+        
+        cart: {
+            items: [],
+            subtotal: 0,
+            tax: 0,
+            discount: 0,
+            total: 0
+        },
+        
+        payment: {
+            amount: 0,
+            change: 0
+        },
+        
+        selectedPayment: null,
+        paymentMethods: [
+            { id: 'cash', name: 'Cash', icon: 'bi-cash' },
+            { id: 'card', name: 'Credit Card', icon: 'bi-credit-card' },
+            { id: 'mobile', name: 'Mobile Payment', icon: 'bi-phone' },
+            { id: 'gift', name: 'Gift Card', icon: 'bi-gift' }
+        ],
+        
+        categories: [],
+        selectedCategory: null,
+        categoryProducts: [],
+        searchSuggestions: [],
+        recentProducts: [],
+        customerSearch: '',
+        customerResults: [],
+        
+        // Methods
+        init() {
+            this.generateSaleNumber();
+            this.loadCategories();
+            this.loadRecentProducts();
+            this.setupKeyboardShortcuts();
+            this.startBarcodeScanner();
+        },
+        
+        generateSaleNumber() {
+            const date = new Date();
+            const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            this.saleInfo.saleNumber = `SALE${dateStr}${random}`;
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadRecentProducts() {
+            try {
+                const response = await fetch('/api/products/recent');
+                this.recentProducts = await response.json();
+            } catch (error) {
+                console.error('Error loading recent products:', error);
+            }
+        },
+        
+        // Search functionality
+        async searchProducts() {
+            if (!this.searchQuery.trim()) return;
+            
+            try {
+                const response = await fetch(`/api/products/search?q=${this.searchQuery}`);
+                const data = await response.json();
+                this.searchSuggestions = data.products.slice(0, 5);
+            } catch (error) {
+                console.error('Error searching products:', error);
+            }
+        },
+        
+        onSearchInput() {
+            if (this.searchQuery.length < 2) {
+                this.searchSuggestions = [];
+                return;
+            }
+            
+            // Debounce search
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => {
+                this.searchProducts();
+            }, 300);
+        },
+        
+        // Barcode functionality
+        processBarcode() {
+            if (!this.barcodeInput.trim()) return;
+            
+            this.lookupBarcode(this.barcodeInput);
+            this.barcodeInput = '';
+        },
+        
+        onBarcodeInput() {
+            // Process barcode on enter or when input is complete
+            if (this.barcodeInput.includes('\n') || this.barcodeInput.length >= 13) {
+                this.processBarcode();
+            }
+        },
+        
+        async lookupBarcode(barcode) {
+            try {
+                const response = await fetch(`/api/products/barcode/${barcode}`);
+                const product = await response.json();
+                
+                if (product.id) {
+                    this.addToCart(product);
+                } else {
+                    this.showError('Product not found');
+                }
+            } catch (error) {
+                console.error('Error looking up barcode:', error);
+                this.showError('Failed to lookup barcode');
+            }
+        },
+        
+        startBarcodeScanner() {
+            // Initialize barcode scanner if available
+            if ('BarcodeDetector' in window) {
+                this.scannerActive = true;
+            }
+        },
+        
+        // Category functionality
+        async selectCategory(category) {
+            this.selectedCategory = category;
+            
+            try {
+                const response = await fetch(`/api/products/category/${category.id}`);
+                this.categoryProducts = await response.json();
+            } catch (error) {
+                console.error('Error loading category products:', error);
+            }
+        },
+        
+        // Cart functionality
+        addToCart(product) {
+            const existingItem = this.cart.items.find(item => item.id === product.id);
+            
+            if (existingItem) {
+                existingItem.quantity++;
+            } else {
+                this.cart.items.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: 1
+                });
+            }
+            
+            this.updateCartTotals();
+            this.clearSearch();
+        },
+        
+        updateQuantity(productId, newQuantity) {
+            if (newQuantity <= 0) {
+                this.removeFromCart(productId);
+                return;
+            }
+            
+            const item = this.cart.items.find(item => item.id === productId);
+            if (item) {
+                item.quantity = newQuantity;
+                this.updateCartTotals();
+            }
+        },
+        
+        removeFromCart(productId) {
+            const index = this.cart.items.findIndex(item => item.id === productId);
+            if (index > -1) {
+                this.cart.items.splice(index, 1);
+                this.updateCartTotals();
+            }
+        },
+        
+        clearCart() {
+            if (confirm('Are you sure you want to clear the cart?')) {
+                this.cart.items = [];
+                this.updateCartTotals();
+            }
+        },
+        
+        updateCartTotals() {
+            this.cart.subtotal = this.cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            this.cart.tax = this.cart.subtotal * 0.08; // 8% tax
+            this.cart.discount = 0; // Calculate discounts if applicable
+            this.cart.total = this.cart.subtotal + this.cart.tax - this.cart.discount;
+            this.payment.amount = this.cart.total;
+            this.calculateChange();
+        },
+        
+        // Payment functionality
+        selectPayment(methodId) {
+            this.selectedPayment = methodId;
+            this.calculateChange();
+        },
+        
+        calculateChange() {
+            if (this.payment.amount > this.cart.total) {
+                this.payment.change = this.payment.amount - this.cart.total;
+            } else {
+                this.payment.change = 0;
+            }
+        },
+        
+        // Customer functionality
+        selectCustomer(customer) {
+            this.customer = customer;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('customerModal'));
+            modal.hide();
+        },
+        
+        async searchCustomers() {
+            if (!this.customerSearch.trim()) return;
+            
+            try {
+                const response = await fetch(`/api/customers/search?q=${this.customerSearch}`);
+                this.customerResults = await response.json();
+            } catch (error) {
+                console.error('Error searching customers:', error);
+            }
+        },
+        
+        createNewCustomer() {
+            window.location.href = '/customers/create';
+        },
+        
+        // Sale actions
+        async completeSale() {
+            if (this.cart.items.length === 0) {
+                this.showError('Cart is empty');
+                return;
+            }
+            
+            if (!this.selectedPayment) {
+                this.showError('Please select a payment method');
+                return;
+            }
+            
+            try {
+                const saleData = {
+                    saleInfo: this.saleInfo,
+                    customer: this.customer,
+                    cart: this.cart,
+                    payment: {
+                        method: this.selectedPayment,
+                        amount: this.payment.amount,
+                        change: this.payment.change
+                    }
+                };
+                
+                const response = await fetch('/api/sales/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(saleData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Sale completed successfully');
+                    this.printReceipt(result.saleId);
+                    this.resetSale();
+                } else {
+                    this.showError('Failed to complete sale: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error completing sale:', error);
+                this.showError('Failed to complete sale');
+            }
+        },
+        
+        suspendSale() {
+            if (this.cart.items.length === 0) {
+                this.showError('Cart is empty');
+                return;
+            }
+            
+            // Save current sale state
+            const saleData = {
+                saleInfo: this.saleInfo,
+                customer: this.customer,
+                cart: this.cart
+            };
+            
+            localStorage.setItem('suspendedSale', JSON.stringify(saleData));
+            this.showSuccess('Sale suspended');
+            this.resetSale();
+        },
+        
+        holdSale() {
+            if (this.cart.items.length === 0) {
+                this.showError('Cart is empty');
+                return;
+            }
+            
+            // Similar to suspend but with different logic
+            this.suspendSale();
+        },
+        
+        resetSale() {
+            this.cart.items = [];
+            this.updateCartTotals();
+            this.customer = { id: null, name: null, phone: null, email: null, balance: 0 };
+            this.selectedPayment = null;
+            this.payment = { amount: 0, change: 0 };
+            this.generateSaleNumber();
+            this.clearSearch();
+        },
+        
+        printReceipt(saleId) {
+            window.open(`/api/sales/receipt/${saleId}`);
+        },
+        
+        // Quick actions
+        priceLookup() {
+            const barcode = prompt('Enter barcode or SKU:');
+            if (barcode) {
+                this.lookupBarcode(barcode);
+            }
+        },
+        
+        openDrawer() {
+            fetch('/api/pos/open-drawer', { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        this.showSuccess('Cash drawer opened');
+                    } else {
+                        this.showError('Failed to open cash drawer');
+                    }
+                });
+        },
+        
+        returnSale() {
+            window.location.href = '/returns/new';
+        },
+        
+        voidSale() {
+            if (confirm('Are you sure you want to void this sale?')) {
+                this.resetSale();
+                this.showSuccess('Sale voided');
+            }
+        },
+        
+        // Utility methods
+        clearSearch() {
+            this.searchQuery = '';
+            this.barcodeInput = '';
+            this.searchSuggestions = [];
+            this.selectedCategory = null;
+            this.categoryProducts = [];
+        },
+        
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDateTime(timestamp) {
+            return new Date(timestamp).toLocaleString();
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // F1-F12: Quick actions
+                if (e.key === 'F1') {
+                    e.preventDefault();
+                    this.priceLookup();
+                }
+                if (e.key === 'F2') {
+                    e.preventDefault();
+                    this.openDrawer();
+                }
+                if (e.key === 'F3') {
+                    e.preventDefault();
+                    this.returnSale();
+                }
+                if (e.key === 'F4') {
+                    e.preventDefault();
+                    this.voidSale();
+                }
+                if (e.key === 'F5') {
+                    e.preventDefault();
+                    this.completeSale();
+                }
+                
+                // Ctrl/Cmd + N: New customer
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.createNewCustomer();
+                }
+                
+                // Ctrl/Cmd + P: Print receipt
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    // Print current sale if completed
+                }
+                
+                // Escape: Clear search
+                if (e.key === 'Escape') {
+                    this.clearSearch();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

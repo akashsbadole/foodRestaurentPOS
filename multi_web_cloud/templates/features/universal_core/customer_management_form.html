@@ -1,0 +1,1183 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/customer_management_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Customer Management Form -->
+<div class="customer-form-container" x-data="customerFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-person-plus me-2"></i>
+                    <span x-text="isEditMode ? 'Edit Customer' : 'New Customer'"></span>
+                </h2>
+                <p class="form-subtitle text-muted">
+                    <span x-show="isEditMode">Modify existing customer information</span>
+                    <span x-show="!isEditMode">Add a new customer to the system</span>
+                </p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="cancelForm()">
+                        <i class="bi bi-x"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-primary me-2" @click="saveDraft()">
+                        <i class="bi bi-file-earmark"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="submitForm()" :disabled="isSubmitting">
+                        <i class="bi bi-check-circle"></i> 
+                        <span x-show="!isSubmitting">Save Customer</span>
+                        <span x-show="isSubmitting">Saving...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Progress Indicator -->
+    <div class="form-progress">
+        <div class="progress">
+            <div class="progress-bar" 
+                 role="progressbar" 
+                 :style="`width: ${progressPercentage}%`"
+                 :aria-valuenow="progressPercentage"
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+                <span x-text="`${progressPercentage}% Complete`"></span>
+            </div>
+        </div>
+        <div class="progress-steps">
+            <div class="step" 
+                 :class="{'active': currentStep >= 1, 'completed': currentStep > 1}"
+                 @click="goToStep(1)">
+                <div class="step-number">1</div>
+                <div class="step-label">Basic Info</div>
+            </div>
+            <div class="step" 
+                 :class="{'active': currentStep >= 2, 'completed': currentStep > 2}"
+                 @click="goToStep(2)">
+                <div class="step-number">2</div>
+                <div class="step-label">Contact Details</div>
+            </div>
+            <div class="step" 
+                 :class="{'active': currentStep >= 3, 'completed': currentStep > 3}"
+                 @click="goToStep(3)">
+                <div class="step-number">3</div>
+                <div class="step-label">Preferences</div>
+            </div>
+            <div class="step" 
+                 :class="{'active': currentStep >= 4, 'completed': currentStep > 4}"
+                 @click="goToStep(4)">
+                <div class="step-number">4</div>
+                <div class="step-label">Loyalty & Groups</div>
+            </div>
+            <div class="step" 
+                 :class="{'active': currentStep >= 5, 'completed': currentStep > 5}"
+                 @click="goToStep(5)">
+                <div class="step-number">5</div>
+                <div class="step-label">Review & Save</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Content -->
+    <div class="form-content">
+        
+        <!-- Step 1: Basic Information -->
+        <div class="form-step" x-show="currentStep === 1">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-person me-2"></i>
+                        Basic Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">First Name *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.firstName"
+                                       @input="validateField('firstName')"
+                                       :class="{'is-invalid': errors.firstName}"
+                                       placeholder="Enter first name">
+                                <div class="invalid-feedback" x-show="errors.firstName" x-text="errors.firstName"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Last Name *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.lastName"
+                                       @input="validateField('lastName')"
+                                       :class="{'is-invalid': errors.lastName}"
+                                       placeholder="Enter last name">
+                                <div class="invalid-feedback" x-show="errors.lastName" x-text="errors.lastName"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Date of Birth</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       x-model="customer.dateOfBirth"
+                                       @change="calculateAge()">
+                                <small class="form-text text-muted" x-show="customer.age">Age: <span x-text="customer.age"></span> years</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Gender</label>
+                                <select class="form-select" x-model="customer.gender">
+                                    <option value="">Select gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                    <option value="prefer_not_to_say">Prefer not to say</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Customer Type *</label>
+                                <select class="form-select" 
+                                        x-model="customer.type"
+                                        @change="updateCustomerTypeFields()"
+                                        :class="{'is-invalid': errors.type}">
+                                    <option value="">Select customer type</option>
+                                    <option value="regular">Regular</option>
+                                    <option value="loyalty">Loyalty Member</option>
+                                    <option value="vip">VIP</option>
+                                    <option value="wholesale">Wholesale</option>
+                                    <option value="corporate">Corporate</option>
+                                </select>
+                                <div class="invalid-feedback" x-show="errors.type" x-text="errors.type"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" x-model="customer.status">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                    <option value="blacklisted">Blacklisted</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" x-show="customer.type === 'corporate'">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Company Name *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.companyName"
+                                       :class="{'is-invalid': errors.companyName}"
+                                       placeholder="Enter company name">
+                                <div class="invalid-feedback" x-show="errors.companyName" x-text="errors.companyName"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Profile Photo</label>
+                                <div class="avatar-upload">
+                                    <div class="avatar-preview">
+                                        <img :src="customer.avatar || '/static/images/default-avatar.png'" 
+                                             :alt="customer.firstName + ' ' + customer.lastName"
+                                             class="avatar-img">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                @click="removeAvatar()"
+                                                x-show="customer.avatar"
+                                                title="Remove photo">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="avatar-controls">
+                                        <input type="file" 
+                                               class="form-control" 
+                                               id="avatarUpload"
+                                               @change="handleAvatarUpload($event)"
+                                               accept="image/*">
+                                        <button type="button" 
+                                                class="btn btn-outline-secondary btn-sm"
+                                                @click="document.getElementById('avatarUpload').click()">
+                                            <i class="bi bi-upload"></i> Upload Photo
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-secondary btn-sm"
+                                                @click="captureFromCamera()"
+                                                title="Capture from camera">
+                                            <i class="bi bi-camera"></i> Camera
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="step-navigation">
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="nextStep()"
+                                :disabled="!isStep1Valid()">
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Contact Details -->
+        <div class="form-step" x-show="currentStep === 2">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-envelope me-2"></i>
+                        Contact Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Email Address *</label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       x-model="customer.email"
+                                       @input="validateField('email')"
+                                       :class="{'is-invalid': errors.email}"
+                                       placeholder="Enter email address">
+                                <div class="invalid-feedback" x-show="errors.email" x-text="errors.email"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Phone Number *</label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       x-model="customer.phone"
+                                       @input="validateField('phone')"
+                                       :class="{'is-invalid': errors.phone}"
+                                       placeholder="Enter phone number">
+                                <div class="invalid-feedback" x-show="errors.phone" x-text="errors.phone"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Address</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.address"
+                                       placeholder="Enter street address">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">City</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.city"
+                                       placeholder="Enter city">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">State/Province</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.state"
+                                       placeholder="Enter state/province">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Postal Code</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.postalCode"
+                                       placeholder="Enter postal code">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Country</label>
+                                <select class="form-select" x-model="customer.country">
+                                    <option value="">Select country</option>
+                                    <template x-for="country in countries" :key="country.code">
+                                        <option :value="country.code" x-text="country.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Preferred Contact Method</label>
+                                <select class="form-select" x-model="customer.preferredContact">
+                                    <option value="email">Email</option>
+                                    <option value="phone">Phone</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="step-navigation">
+                        <button type="button" 
+                                class="btn btn-outline-secondary me-2"
+                                @click="previousStep()">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="nextStep()"
+                                :disabled="!isStep2Valid()">
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Preferences -->
+        <div class="form-step" x-show="currentStep === 3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-sliders me-2"></i>
+                        Preferences
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Language</label>
+                                <select class="form-select" x-model="customer.language">
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="it">Italian</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="zh">Chinese</option>
+                                    <option value="ja">Japanese</option>
+                                    <option value="hi">Hindi</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Time Zone</label>
+                                <select class="form-select" x-model="customer.timeZone">
+                                    <option value="UTC">UTC</option>
+                                    <option value="America/New_York">Eastern Time</option>
+                                    <option value="America/Chicago">Central Time</option>
+                                    <option value="America/Denver">Mountain Time</option>
+                                    <option value="America/Los_Angeles">Pacific Time</option>
+                                    <option value="Europe/London">London</option>
+                                    <option value="Europe/Paris">Paris</option>
+                                    <option value="Asia/Tokyo">Tokyo</option>
+                                    <option value="Asia/Shanghai">Shanghai</option>
+                                    <option value="Asia/Kolkata">Kolkata</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Communication Preferences</label>
+                                <div class="communication-preferences">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="emailMarketing"
+                                               x-model="customer.preferences.emailMarketing">
+                                        <label class="form-check-label" for="emailMarketing">
+                                            Email marketing and promotions
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="smsMarketing"
+                                               x-model="customer.preferences.smsMarketing">
+                                        <label class="form-check-label" for="smsMarketing">
+                                            SMS marketing and offers
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="orderUpdates"
+                                               x-model="customer.preferences.orderUpdates">
+                                        <label class="form-check-label" for="orderUpdates">
+                                            Order status updates
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="newsletter"
+                                               x-model="customer.preferences.newsletter">
+                                        <label class="form-check-label" for="newsletter">
+                                            Monthly newsletter
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="birthdayOffers"
+                                               x-model="customer.preferences.birthdayOffers">
+                                        <label class="form-check-label" for="birthdayOffers">
+                                            Birthday special offers
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" 
+                                          x-model="customer.notes"
+                                          rows="4"
+                                          placeholder="Enter any additional notes about this customer..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Tags</label>
+                                <div class="tag-input">
+                                    <div class="tag-list">
+                                        <template x-for="(tag, index) in customer.tags" :key="index">
+                                            <span class="tag">
+                                                <span x-text="tag"></span>
+                                                <button type="button" 
+                                                        class="tag-remove"
+                                                        @click="removeTag(index)">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </span>
+                                        </template>
+                                    </div>
+                                    <input type="text" 
+                                           class="form-control tag-input-field"
+                                           x-model="newTag"
+                                           @keydown.enter="addTag()"
+                                           @keydown.comma="addTag()"
+                                           placeholder="Add tags (press Enter or Comma)">
+                                </div>
+                                <small class="form-text text-muted">Press Enter or Comma to add tags</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="step-navigation">
+                        <button type="button" 
+                                class="btn btn-outline-secondary me-2"
+                                @click="previousStep()">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="nextStep()">
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Loyalty & Groups -->
+        <div class="form-step" x-show="currentStep === 4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-star me-2"></i>
+                        Loyalty & Groups
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="loyaltyMember"
+                                           x-model="customer.loyaltyMember"
+                                           @change="updateLoyaltyFields()">
+                                    <label class="form-check-label" for="loyaltyMember">
+                                        Loyalty Program Member
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group" x-show="customer.loyaltyMember">
+                                <label class="form-label">Loyalty Tier</label>
+                                <select class="form-select" x-model="customer.loyaltyTier">
+                                    <option value="bronze">Bronze</option>
+                                    <option value="silver">Silver</option>
+                                    <option value="gold">Gold</option>
+                                    <option value="platinum">Platinum</option>
+                                    <option value="diamond">Diamond</option>
+                                </select>
+                            </div>
+                            <div class="form-group" x-show="customer.loyaltyMember">
+                                <label class="form-label">Loyalty Points</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="customer.loyaltyPoints"
+                                       min="0"
+                                       placeholder="Enter loyalty points">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Customer Groups</label>
+                                <div class="group-selection">
+                                    <template x-for="group in customerGroups" :key="group.id">
+                                        <div class="form-check">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   :id="`group-${group.id}`"
+                                                   :value="group.id"
+                                                   x-model="customer.groups">
+                                            <label class="form-check-label" :for="`group-${group.id}`" x-text="group.name"></label>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" x-show="customer.type === 'wholesale' || customer.type === 'corporate'">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Credit Limit</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="customer.creditLimit"
+                                       min="0"
+                                       step="0.01"
+                                       placeholder="Enter credit limit">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Payment Terms</label>
+                                <select class="form-select" x-model="customer.paymentTerms">
+                                    <option value="immediate">Immediate</option>
+                                    <option value="net15">Net 15</option>
+                                    <option value="net30">Net 30</option>
+                                    <option value="net45">Net 45</option>
+                                    <option value="net60">Net 60</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" x-show="customer.type === 'wholesale' || customer.type === 'corporate'">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Tax ID / VAT Number</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="customer.taxId"
+                                       placeholder="Enter tax ID or VAT number">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="step-navigation">
+                        <button type="button" 
+                                class="btn btn-outline-secondary me-2"
+                                @click="previousStep()">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="nextStep()">
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Review & Save -->
+        <div class="form-step" x-show="currentStep === 5">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Review & Save
+                    </h5>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Customer Summary -->
+                    <div class="customer-summary">
+                        <h6 class="section-title">Customer Information</h6>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <label>Name:</label>
+                                <span x-text="`${customer.firstName} ${customer.lastName}`"></span>
+                            </div>
+                            <div class="summary-item">
+                                <label>Type:</label>
+                                <span x-text="customer.type"></span>
+                            </div>
+                            <div class="summary-item">
+                                <label>Email:</label>
+                                <span x-text="customer.email"></span>
+                            </div>
+                            <div class="summary-item">
+                                <label>Phone:</label>
+                                <span x-text="customer.phone"></span>
+                            </div>
+                            <div class="summary-item" x-show="customer.companyName">
+                                <label>Company:</label>
+                                <span x-text="customer.companyName"></span>
+                            </div>
+                            <div class="summary-item">
+                                <label>Status:</label>
+                                <span class="status-badge" :class="`status-${customer.status}`" x-text="customer.status"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Summary -->
+                    <div class="contact-summary">
+                        <h6 class="section-title">Contact Information</h6>
+                        <div class="summary-grid">
+                            <div class="summary-item" x-show="customer.address">
+                                <label>Address:</label>
+                                <span x-text="customer.address"></span>
+                            </div>
+                            <div class="summary-item" x-show="customer.city || customer.state">
+                                <label>City/State:</label>
+                                <span x-text="`${customer.city || ''}, ${customer.state || ''}`"></span>
+                            </div>
+                            <div class="summary-item" x-show="customer.country">
+                                <label>Country:</label>
+                                <span x-text="getCountryName(customer.country)"></span>
+                            </div>
+                            <div class="summary-item">
+                                <label>Preferred Contact:</label>
+                                <span x-text="customer.preferredContact"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loyalty Summary -->
+                    <div class="loyalty-summary" x-show="customer.loyaltyMember">
+                        <h6 class="section-title">Loyalty Information</h6>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <label>Loyalty Tier:</label>
+                                <span x-text="customer.loyaltyTier"></span>
+                            </div>
+                            <div class="summary-item">
+                                <label>Loyalty Points:</label>
+                                <span x-text="customer.loyaltyPoints"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Groups Summary -->
+                    <div class="groups-summary" x-show="customer.groups.length > 0">
+                        <h6 class="section-title">Customer Groups</h6>
+                        <div class="selected-groups">
+                            <template x-for="groupId in customer.groups" :key="groupId">
+                                <span class="group-badge" x-text="getGroupName(groupId)"></span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation -->
+                    <div class="confirmation-section">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="confirmSave"
+                                   x-model="confirmSave">
+                            <label class="form-check-label" for="confirmSave">
+                                I confirm that all the information above is accurate and I want to save this customer.
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="step-navigation">
+                        <button type="button" 
+                                class="btn btn-outline-secondary me-2"
+                                @click="previousStep()">
+                            <i class="bi bi-arrow-left"></i> Previous
+                        </button>
+                        <button type="button" 
+                                class="btn btn-primary"
+                                @click="submitForm()"
+                                :disabled="!confirmSave || isSubmitting">
+                            <i class="bi bi-check-circle"></i> 
+                            <span x-show="!isSubmitting">Save Customer</span>
+                            <span x-show="isSubmitting">Saving...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Customer Saved</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="bi bi-check-circle text-success display-1"></i>
+                        <h4 class="mt-3">Customer Created Successfully</h4>
+                        <p x-text="successMessage"></p>
+                        <div class="mt-3">
+                            <button type="button" 
+                                    class="btn btn-primary me-2"
+                                    @click="viewCustomerDetails()">
+                                View Customer
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-secondary"
+                                    @click="createNewCustomer()">
+                                Create New
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/customer_management_form.js') }}"></script>
+<script>
+// Customer Form App
+function customerFormApp() {
+    return {
+        // Form state
+        isEditMode: false,
+        currentStep: 1,
+        isSubmitting: false,
+        confirmSave: false,
+        newTag: '',
+        
+        // Customer data
+        customer: {
+            firstName: '',
+            lastName: '',
+            dateOfBirth: '',
+            age: null,
+            gender: '',
+            type: '',
+            status: 'active',
+            companyName: '',
+            avatar: '',
+            email: '',
+            phone: '',
+            address: '',
+            city: '',
+            state: '',
+            postalCode: '',
+            country: '',
+            preferredContact: 'email',
+            language: 'en',
+            timeZone: 'UTC',
+            preferences: {
+                emailMarketing: true,
+                smsMarketing: false,
+                orderUpdates: true,
+                newsletter: true,
+                birthdayOffers: true
+            },
+            notes: '',
+            tags: [],
+            loyaltyMember: false,
+            loyaltyTier: 'bronze',
+            loyaltyPoints: 0,
+            groups: [],
+            creditLimit: 0,
+            paymentTerms: 'immediate',
+            taxId: ''
+        },
+        
+        // Validation errors
+        errors: {},
+        
+        // Reference data
+        customerGroups: [],
+        countries: [],
+        
+        // Computed properties
+        get progressPercentage() {
+            return Math.round((this.currentStep / 5) * 100);
+        },
+        
+        // Methods
+        init() {
+            this.loadCustomerGroups();
+            this.loadCountries();
+            this.setupFormMode();
+            this.setupKeyboardShortcuts();
+        },
+        
+        setupFormMode() {
+            // Check if we're editing an existing customer
+            const urlParams = new URLSearchParams(window.location.search);
+            const customerId = urlParams.get('id');
+            
+            if (customerId) {
+                this.isEditMode = true;
+                this.loadCustomer(customerId);
+            }
+        },
+        
+        async loadCustomerGroups() {
+            try {
+                const response = await fetch('/api/customer-groups');
+                this.customerGroups = await response.json();
+            } catch (error) {
+                console.error('Error loading customer groups:', error);
+            }
+        },
+        
+        async loadCountries() {
+            try {
+                const response = await fetch('/api/countries');
+                this.countries = await response.json();
+            } catch (error) {
+                console.error('Error loading countries:', error);
+            }
+        },
+        
+        async loadCustomer(customerId) {
+            try {
+                const response = await fetch(`/api/customers/${customerId}`);
+                const customer = await response.json();
+                this.customer = { ...this.customer, ...customer };
+            } catch (error) {
+                console.error('Error loading customer:', error);
+                this.showError('Failed to load customer');
+            }
+        },
+        
+        validateField(field) {
+            this.errors[field] = '';
+            
+            switch (field) {
+                case 'firstName':
+                    if (!this.customer.firstName.trim()) {
+                        this.errors.firstName = 'First name is required';
+                    }
+                    break;
+                case 'lastName':
+                    if (!this.customer.lastName.trim()) {
+                        this.errors.lastName = 'Last name is required';
+                    }
+                    break;
+                case 'email':
+                    if (!this.customer.email.trim()) {
+                        this.errors.email = 'Email is required';
+                    } else if (!this.isValidEmail(this.customer.email)) {
+                        this.errors.email = 'Please enter a valid email address';
+                    }
+                    break;
+                case 'phone':
+                    if (!this.customer.phone.trim()) {
+                        this.errors.phone = 'Phone number is required';
+                    } else if (!this.isValidPhone(this.customer.phone)) {
+                        this.errors.phone = 'Please enter a valid phone number';
+                    }
+                    break;
+                case 'type':
+                    if (!this.customer.type) {
+                        this.errors.type = 'Customer type is required';
+                    }
+                    break;
+                case 'companyName':
+                    if (this.customer.type === 'corporate' && !this.customer.companyName.trim()) {
+                        this.errors.companyName = 'Company name is required for corporate customers';
+                    }
+                    break;
+            }
+        },
+        
+        isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        },
+        
+        isValidPhone(phone) {
+            const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+            return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+        },
+        
+        calculateAge() {
+            if (this.customer.dateOfBirth) {
+                const birthDate = new Date(this.customer.dateOfBirth);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                
+                this.customer.age = age;
+            }
+        },
+        
+        updateCustomerTypeFields() {
+            // Reset corporate-specific fields when type changes
+            if (this.customer.type !== 'corporate') {
+                this.customer.companyName = '';
+                this.errors.companyName = '';
+            }
+        },
+        
+        updateLoyaltyFields() {
+            if (!this.customer.loyaltyMember) {
+                this.customer.loyaltyTier = 'bronze';
+                this.customer.loyaltyPoints = 0;
+            }
+        },
+        
+        handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.customer.avatar = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        },
+        
+        removeAvatar() {
+            this.customer.avatar = '';
+        },
+        
+        captureFromCamera() {
+            // Implement camera capture functionality
+            console.log('Camera capture not implemented');
+        },
+        
+        addTag() {
+            if (this.newTag.trim() && !this.customer.tags.includes(this.newTag.trim())) {
+                this.customer.tags.push(this.newTag.trim());
+                this.newTag = '';
+            }
+        },
+        
+        removeTag(index) {
+            this.customer.tags.splice(index, 1);
+        },
+        
+        goToStep(step) {
+            if (step >= 1 && step <= 5) {
+                this.currentStep = step;
+            }
+        },
+        
+        nextStep() {
+            if (this.currentStep < 5) {
+                this.currentStep++;
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+            }
+        },
+        
+        isStep1Valid() {
+            this.validateField('firstName');
+            this.validateField('lastName');
+            this.validateField('type');
+            this.validateField('companyName');
+            
+            return !this.errors.firstName && 
+                   !this.errors.lastName && 
+                   !this.errors.type && 
+                   !this.errors.companyName;
+        },
+        
+        isStep2Valid() {
+            this.validateField('email');
+            this.validateField('phone');
+            
+            return !this.errors.email && !this.errors.phone;
+        },
+        
+        async submitForm() {
+            if (this.currentStep === 5 && !this.confirmSave) return;
+            
+            this.isSubmitting = true;
+            
+            try {
+                const customerData = {
+                    ...this.customer,
+                    fullName: `${this.customer.firstName} ${this.customer.lastName}`
+                };
+                
+                const url = this.isEditMode ? 
+                    `/api/customers/${this.customer.id}` : 
+                    '/api/customers';
+                
+                const method = this.isEditMode ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(customerData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    this.showSuccessModal(result);
+                } else {
+                    throw new Error('Failed to save customer');
+                }
+            } catch (error) {
+                console.error('Error saving customer:', error);
+                this.showError('Failed to save customer');
+            } finally {
+                this.isSubmitting = false;
+            }
+        },
+        
+        showSuccessModal(result) {
+            this.successMessage = `Customer ${result.fullName} has been successfully ${this.isEditMode ? 'updated' : 'created'}.`;
+            this.customerId = result.id;
+            
+            const modal = new bootstrap.Modal(document.getElementById('successModal'));
+            modal.show();
+        },
+        
+        viewCustomerDetails() {
+            window.location.href = `/customers/${this.customerId}`;
+        },
+        
+        createNewCustomer() {
+            window.location.href = '/customers/new';
+        },
+        
+        cancelForm() {
+            if (confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
+                window.location.href = '/customers';
+            }
+        },
+        
+        async saveDraft() {
+            // Save draft functionality
+            try {
+                const draftData = {
+                    customer: this.customer,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('customerDraft', JSON.stringify(draftData));
+                this.showSuccess('Draft saved successfully');
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                this.showError('Failed to save draft');
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save customer
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.submitForm();
+                }
+                
+                // Ctrl/Cmd + D: Save draft
+                if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                    e.preventDefault();
+                    this.saveDraft();
+                }
+                
+                // Escape: Cancel form
+                if (e.key === 'Escape') {
+                    this.cancelForm();
+                }
+            });
+        },
+        
+        // Utility methods
+        getCountryName(countryCode) {
+            const country = this.countries.find(c => c.code === countryCode);
+            return country ? country.name : countryCode;
+        },
+        
+        getGroupName(groupId) {
+            const group = this.customerGroups.find(g => g.id === groupId);
+            return group ? group.name : groupId;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

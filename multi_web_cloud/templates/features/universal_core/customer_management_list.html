@@ -1,0 +1,1129 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/customer_management_list.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Customer List View -->
+<div class="customer-list-container" x-data="customerListApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="list-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="list-title">
+                    <i class="bi bi-list-ul me-2"></i>
+                    Customer List
+                </h2>
+                <p class="list-subtitle text-muted">Detailed view of all customers</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="list-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportList()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="toggleColumns()">
+                        <i class="bi bi-columns-gap"></i> Columns
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="addNewCustomer()">
+                        <i class="bi bi-plus-circle"></i> Add Customer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="advanced-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <button type="button" class="btn btn-link p-0" @click="toggleFilters()">
+                        <i class="bi bi-funnel" :class="{'bi-funnel-fill': showFilters}"></i>
+                        Advanced Filters
+                        <i class="bi bi-chevron-down ms-1" :class="{'rotate-180': showFilters}"></i>
+                    </button>
+                </h5>
+            </div>
+            <div class="card-body" x-show="showFilters" x-transition>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Search</label>
+                        <input type="text" 
+                               class="form-control" 
+                               x-model="filters.search"
+                               @input="applyFilters()"
+                               placeholder="Search customers...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Customer Type</label>
+                        <select class="form-select" x-model="filters.customerType" @change="applyFilters()">
+                            <option value="">All Types</option>
+                            <option value="regular">Regular</option>
+                            <option value="loyalty">Loyalty Member</option>
+                            <option value="vip">VIP</option>
+                            <option value="wholesale">Wholesale</option>
+                            <option value="corporate">Corporate</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" x-model="filters.status" @change="applyFilters()">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                            <option value="blacklisted">Blacklisted</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Group</label>
+                        <select class="form-select" x-model="filters.group" @change="applyFilters()">
+                            <option value="">All Groups</option>
+                            <template x-for="group in customerGroups" :key="group.id">
+                                <option :value="group.id" x-text="group.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Registration Date</label>
+                        <select class="form-select" x-model="filters.registrationDate" @change="applyFilters()">
+                            <option value="">Any Time</option>
+                            <option value="today">Today</option>
+                            <option value="this_week">This Week</option>
+                            <option value="this_month">This Month</option>
+                            <option value="this_quarter">This Quarter</option>
+                            <option value="this_year">This Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Last Purchase</label>
+                        <select class="form-select" x-model="filters.lastPurchase" @change="applyFilters()">
+                            <option value="">Any Time</option>
+                            <option value="today">Today</option>
+                            <option value="this_week">This Week</option>
+                            <option value="this_month">This Month</option>
+                            <option value="last_30_days">Last 30 Days</option>
+                            <option value="last_90_days">Last 90 Days</option>
+                            <option value="never">Never</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Total Spent Range</label>
+                        <select class="form-select" x-model="filters.totalSpentRange" @change="applyFilters()">
+                            <option value="">Any Amount</option>
+                            <option value="0-100">$0 - $100</option>
+                            <option value="100-500">$100 - $500</option>
+                            <option value="500-1000">$500 - $1,000</option>
+                            <option value="1000-5000">$1,000 - $5,000</option>
+                            <option value="5000+">$5,000+</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Location</label>
+                        <select class="form-select" x-model="filters.location" @change="applyFilters()">
+                            <option value="">All Locations</option>
+                            <template x-for="location in locations" :key="location.id">
+                                <option :value="location.id" x-text="location.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Min Orders</label>
+                        <input type="number" 
+                               class="form-control" 
+                               x-model="filters.minOrders"
+                               @input="applyFilters()"
+                               placeholder="0"
+                               min="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Max Orders</label>
+                        <input type="number" 
+                               class="form-control" 
+                               x-model="filters.maxOrders"
+                               @input="applyFilters()"
+                               placeholder="9999"
+                               min="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Age Range</label>
+                        <select class="form-select" x-model="filters.ageRange" @change="applyFilters()">
+                            <option value="">All Ages</option>
+                            <option value="18-25">18-25</option>
+                            <option value="26-35">26-35</option>
+                            <option value="36-45">36-45</option>
+                            <option value="46-55">46-55</option>
+                            <option value="56-65">56-65</option>
+                            <option value="65+">65+</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Gender</label>
+                        <select class="form-select" x-model="filters.gender" @change="applyFilters()">
+                            <option value="">All Genders</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                            <option value="prefer_not_to_say">Prefer not to say</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-outline-secondary" @click="resetFilters()">
+                            <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards mb-4">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-primary">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Total Customers</h6>
+                        <p class="summary-value" x-text="summary.totalCustomers"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Active</h6>
+                        <p class="summary-value" x-text="summary.activeCustomers"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-warning">
+                        <i class="bi bi-star"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Loyalty Members</h6>
+                        <p class="summary-value" x-text="summary.loyaltyMembers"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-info">
+                        <i class="bi bi-bag"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">This Month</h6>
+                        <p class="summary-value" x-text="summary.newThisMonth"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-secondary">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Avg. Value</h6>
+                        <p class="summary-value" x-text="formatCurrency(summary.averageValue)"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-danger">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Growth Rate</h6>
+                        <p class="summary-value" x-text="summary.growthRate + '%'"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Table -->
+    <div class="customer-table-container">
+        <div class="table-responsive">
+            <table class="table table-hover customer-table">
+                <thead class="table-header">
+                    <tr>
+                        <th class="column-checkbox">
+                            <input type="checkbox" 
+                                   class="form-check-input"
+                                   @change="toggleSelectAll($event)">
+                        </th>
+                        <th class="column-avatar">Photo</th>
+                        <th class="column-name sortable" @click="sortBy('name')">
+                            Customer
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'name'"></i>
+                        </th>
+                        <th class="column-type sortable" @click="sortBy('type')" x-show="visibleColumns.type">
+                            Type
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'type'"></i>
+                        </th>
+                        <th class="column-contact sortable" @click="sortBy('email')" x-show="visibleColumns.contact">
+                            Contact
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'email'"></i>
+                        </th>
+                        <th class="column-phone sortable" @click="sortBy('phone')" x-show="visibleColumns.phone">
+                            Phone
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'phone'"></i>
+                        </th>
+                        <th class="column-location sortable" @click="sortBy('location')" x-show="visibleColumns.location">
+                            Location
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'location'"></i>
+                        </th>
+                        <th class="column-joined sortable" @click="sortBy('created_date')" x-show="visibleColumns.joined">
+                            Joined
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'created_date'"></i>
+                        </th>
+                        <th class="column-orders sortable" @click="sortBy('order_count')" x-show="visibleColumns.orders">
+                            Orders
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'order_count'"></i>
+                        </th>
+                        <th class="column-spent sortable" @click="sortBy('total_spent')" x-show="visibleColumns.spent">
+                            Total Spent
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'total_spent'"></i>
+                        </th>
+                        <th class="column-avg-order sortable" @click="sortBy('avg_order_value')" x-show="visibleColumns.avgOrder">
+                            Avg Order
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'avg_order_value'"></i>
+                        </th>
+                        <th class="column-last-order sortable" @click="sortBy('last_purchase_date')" x-show="visibleColumns.lastOrder">
+                            Last Order
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'last_purchase_date'"></i>
+                        </th>
+                        <th class="column-loyalty sortable" @click="sortBy('loyalty_points')" x-show="visibleColumns.loyalty">
+                            Loyalty
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'loyalty_points'"></i>
+                        </th>
+                        <th class="column-status sortable" @click="sortBy('status')">
+                            Status
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'status'"></i>
+                        </th>
+                        <th class="column-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="customer in paginatedCustomers" :key="customer.id">
+                        <tr class="customer-row" 
+                            :class="{'selected': selectedCustomers.includes(customer.id)}"
+                            @click="toggleSelectItem(customer.id)">
+                            <td class="column-checkbox">
+                                <input type="checkbox" 
+                                       class="form-check-input"
+                                       :checked="selectedCustomers.includes(customer.id)"
+                                       @click.stop="toggleSelectItem(customer.id)">
+                            </td>
+                            <td class="column-avatar">
+                                <img :src="customer.avatar || '/static/images/default-avatar.png'" 
+                                     :alt="customer.name"
+                                     class="customer-thumbnail"
+                                     @click.stop="viewCustomer(customer.id)">
+                            </td>
+                            <td class="column-name">
+                                <div class="customer-name-cell">
+                                    <strong x-text="customer.name" @click.stop="viewCustomer(customer.id)"></strong>
+                                    <div class="customer-details">
+                                        <small class="text-muted">ID: <span x-text="customer.id"></span></small>
+                                        <small class="text-muted ms-2" x-show="customer.date_of_birth">
+                                            DOB: <span x-text="formatDate(customer.date_of_birth)"></span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-type" x-show="visibleColumns.type">
+                                <span class="type-badge" 
+                                      :class="getTypeClass(customer.type)"
+                                      x-text="customer.type"></span>
+                            </td>
+                            <td class="column-contact" x-show="visibleColumns.contact">
+                                <div class="contact-info">
+                                    <div class="email" x-show="customer.email">
+                                        <i class="bi bi-envelope"></i>
+                                        <span x-text="customer.email"></span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-phone" x-show="visibleColumns.phone">
+                                <div class="phone-info" x-show="customer.phone">
+                                    <i class="bi bi-telephone"></i>
+                                    <span x-text="customer.phone"></span>
+                                </div>
+                            </td>
+                            <td class="column-location" x-show="visibleColumns.location">
+                                <span class="location-badge" x-text="customer.location?.name || 'Unknown'"></span>
+                            </td>
+                            <td class="column-joined" x-show="visibleColumns.joined">
+                                <div>
+                                    <span x-text="formatDate(customer.created_date)"></span>
+                                    <br>
+                                    <small class="text-muted" x-text="getTimeAgo(customer.created_date)"></small>
+                                </div>
+                            </td>
+                            <td class="column-orders" x-show="visibleColumns.orders">
+                                <span class="order-count" x-text="customer.order_count || 0"></span>
+                            </td>
+                            <td class="column-spent" x-show="visibleColumns.spent">
+                                <span class="total-spent" x-text="formatCurrency(customer.total_spent || 0)"></span>
+                            </td>
+                            <td class="column-avg-order" x-show="visibleColumns.avgOrder">
+                                <span class="avg-order" x-text="formatCurrency(customer.avg_order_value || 0)"></span>
+                            </td>
+                            <td class="column-last-order" x-show="visibleColumns.lastOrder">
+                                <div x-show="customer.last_purchase_date">
+                                    <span x-text="formatDate(customer.last_purchase_date)"></span>
+                                    <br>
+                                    <small class="text-muted" x-text="getTimeAgo(customer.last_purchase_date)"></small>
+                                </div>
+                                <span class="text-muted" x-show="!customer.last_purchase_date">Never</span>
+                            </td>
+                            <td class="column-loyalty" x-show="visibleColumns.loyalty">
+                                <div class="loyalty-info" x-show="customer.loyalty_member">
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <span x-text="customer.loyalty_points || 0"></span>
+                                    <br>
+                                    <small class="text-muted" x-text="customer.loyalty_tier || 'Bronze'"></small>
+                                </div>
+                                <span class="text-muted" x-show="!customer.loyalty_member">Not Member</span>
+                            </td>
+                            <td class="column-status">
+                                <span class="status-badge" 
+                                      :class="`status-${customer.status}`"
+                                      x-text="customer.status"></span>
+                            </td>
+                            <td class="column-actions">
+                                <div class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            @click.stop="viewCustomer(customer.id)"
+                                            title="View Customer">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click.stop="editCustomer(customer.id)"
+                                            title="Edit Customer">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-info"
+                                            @click.stop="viewOrders(customer.id)"
+                                            title="View Orders">
+                                        <i class="bi bi-bag"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success"
+                                            @click.stop="sendEmail(customer.id)"
+                                            title="Send Email">
+                                        <i class="bi bi-envelope"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" x-show="filteredCustomers.length === 0">
+        <div class="text-center py-5">
+            <i class="bi bi-search display-1 text-muted"></i>
+            <h3 class="mt-3">No Customers Found</h3>
+            <p class="text-muted">
+                <span x-show="hasActiveFilters">
+                    No customers match your current filters. 
+                    <button type="button" class="btn btn-link p-0" @click="resetFilters()">Clear filters</button>
+                </span>
+                <span x-show="!hasActiveFilters">
+                    No customers found yet. 
+                    <button type="button" class="btn btn-link p-0" @click="addNewCustomer()">Add your first customer</button>
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" x-show="totalPages > 1">
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item" :class="{'disabled': currentPage === 1}">
+                    <button class="page-link" @click="goToPage(currentPage - 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </li>
+                <template x-for="page in visiblePages" :key="page">
+                    <li class="page-item" :class="{'active': page === currentPage}">
+                        <button class="page-link" @click="goToPage(page)" x-text="page"></button>
+                    </li>
+                </template>
+                <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                    <button class="page-link" @click="goToPage(currentPage + 1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div class="pagination-info text-center">
+            <span x-text="`Showing ${startItem}-${endItem} of ${filteredCustomers.length} customers`"></span>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" x-show="selectedCustomers.length > 0" x-transition>
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <span class="selected-count">
+                            <i class="bi bi-check-square me-2"></i>
+                            <span x-text="selectedCustomers.length"></span> customers selected
+                        </span>
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkEmail()">
+                            <i class="bi bi-envelope"></i> Send Email
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkSMS()">
+                            <i class="bi bi-chat-text"></i> Send SMS
+                        </button>
+                        <button type="button" class="btn btn-outline-warning me-2" @click="bulkGroupAssign()">
+                            <i class="bi bi-people"></i> Assign Group
+                        </button>
+                        <button type="button" class="btn btn-outline-info me-2" @click="bulkLoyalty()">
+                            <i class="bi bi-star"></i> Update Loyalty
+                        </button>
+                        <button type="button" class="btn btn-outline-danger me-2" @click="bulkExport()">
+                            <i class="bi bi-download"></i> Export Selected
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @click="clearSelection()">
+                            <i class="bi bi-x"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Selector Modal -->
+    <div class="modal fade" id="columnSelectorModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select Columns</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-check form-switch mb-2" x-for="(visible, column) in visibleColumns" :key="column">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               :id="`column-${column}`"
+                               x-model="visibleColumns[column]">
+                        <label class="form-check-label" :for="`column-${column}`" x-text="formatColumnName(column)"></label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="saveColumnSettings()">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/customer_management_list.js') }}"></script>
+<script>
+// Customer List App
+function customerListApp() {
+    return {
+        // Data
+        showFilters: false,
+        customers: [],
+        customerGroups: [],
+        locations: [],
+        filteredCustomers: [],
+        selectedCustomers: [],
+        
+        filters: {
+            search: '',
+            customerType: '',
+            status: '',
+            group: '',
+            registrationDate: '',
+            lastPurchase: '',
+            totalSpentRange: '',
+            location: '',
+            minOrders: '',
+            maxOrders: '',
+            ageRange: '',
+            gender: ''
+        },
+        
+        sortField: 'name',
+        sortDirection: 'asc',
+        currentPage: 1,
+        itemsPerPage: 25,
+        
+        visibleColumns: {
+            type: true,
+            contact: true,
+            phone: true,
+            location: false,
+            joined: true,
+            orders: true,
+            spent: true,
+            avgOrder: false,
+            lastOrder: true,
+            loyalty: true
+        },
+        
+        summary: {
+            totalCustomers: 0,
+            activeCustomers: 0,
+            loyaltyMembers: 0,
+            newThisMonth: 0,
+            averageValue: 0,
+            growthRate: 0
+        },
+        
+        // Computed properties
+        get hasActiveFilters() {
+            return Object.values(this.filters).some(value => value !== '');
+        },
+        
+        get paginatedCustomers() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.filteredCustomers.slice(start, end);
+        },
+        
+        get totalPages() {
+            return Math.ceil(this.filteredCustomers.length / this.itemsPerPage);
+        },
+        
+        get visiblePages() {
+            const pages = [];
+            const start = Math.max(1, this.currentPage - 2);
+            const end = Math.min(this.totalPages, this.currentPage + 2);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            return pages;
+        },
+        
+        get startItem() {
+            return (this.currentPage - 1) * this.itemsPerPage + 1;
+        },
+        
+        get endItem() {
+            return Math.min(this.currentPage * this.itemsPerPage, this.filteredCustomers.length);
+        },
+        
+        // Methods
+        init() {
+            this.loadCustomers();
+            this.loadCustomerGroups();
+            this.loadLocations();
+            this.loadSummary();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadCustomers() {
+            try {
+                const response = await fetch('/api/customers');
+                this.customers = await response.json();
+                this.filteredCustomers = [...this.customers];
+            } catch (error) {
+                console.error('Error loading customers:', error);
+                this.showError('Failed to load customers');
+            }
+        },
+        
+        async loadCustomerGroups() {
+            try {
+                const response = await fetch('/api/customer-groups');
+                this.customerGroups = await response.json();
+            } catch (error) {
+                console.error('Error loading customer groups:', error);
+            }
+        },
+        
+        async loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                this.locations = await response.json();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        },
+        
+        async loadSummary() {
+            try {
+                const response = await fetch('/api/customers/summary');
+                this.summary = await response.json();
+            } catch (error) {
+                console.error('Error loading summary:', error);
+            }
+        },
+        
+        toggleFilters() {
+            this.showFilters = !this.showFilters;
+        },
+        
+        applyFilters() {
+            this.filteredCustomers = this.customers.filter(customer => {
+                // Search filter
+                if (this.filters.search) {
+                    const query = this.filters.search.toLowerCase();
+                    if (!customer.name.toLowerCase().includes(query) &&
+                        !customer.email?.toLowerCase().includes(query) &&
+                        !customer.phone?.includes(query) &&
+                        !customer.id.toString().includes(query)) {
+                        return false;
+                    }
+                }
+                
+                // Customer type filter
+                if (this.filters.customerType && customer.type !== this.filters.customerType) {
+                    return false;
+                }
+                
+                // Status filter
+                if (this.filters.status && customer.status !== this.filters.status) {
+                    return false;
+                }
+                
+                // Group filter
+                if (this.filters.group && customer.group_id !== this.filters.group) {
+                    return false;
+                }
+                
+                // Registration date filter
+                if (this.filters.registrationDate) {
+                    const registrationDate = new Date(customer.created_date);
+                    const now = new Date();
+                    
+                    switch (this.filters.registrationDate) {
+                        case 'today':
+                            if (registrationDate.toDateString() !== now.toDateString()) return false;
+                            break;
+                        case 'this_week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (registrationDate < weekAgo) return false;
+                            break;
+                        case 'this_month':
+                            if (registrationDate.getMonth() !== now.getMonth() || 
+                                registrationDate.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                        case 'this_quarter':
+                            const quarter = Math.floor(now.getMonth() / 3);
+                            const customerQuarter = Math.floor(registrationDate.getMonth() / 3);
+                            if (customerQuarter !== quarter || 
+                                registrationDate.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                        case 'this_year':
+                            if (registrationDate.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                    }
+                }
+                
+                // Last purchase filter
+                if (this.filters.lastPurchase) {
+                    const lastPurchase = customer.last_purchase_date ? new Date(customer.last_purchase_date) : null;
+                    
+                    switch (this.filters.lastPurchase) {
+                        case 'today':
+                            if (!lastPurchase || lastPurchase.toDateString() !== now.toDateString()) return false;
+                            break;
+                        case 'this_week':
+                            if (!lastPurchase) return false;
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (lastPurchase < weekAgo) return false;
+                            break;
+                        case 'this_month':
+                            if (!lastPurchase) return false;
+                            if (lastPurchase.getMonth() !== now.getMonth() || 
+                                lastPurchase.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                        case 'last_30_days':
+                            if (!lastPurchase) return false;
+                            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                            if (lastPurchase < thirtyDaysAgo) return false;
+                            break;
+                        case 'last_90_days':
+                            if (!lastPurchase) return false;
+                            const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                            if (lastPurchase < ninetyDaysAgo) return false;
+                            break;
+                        case 'never':
+                            if (lastPurchase) return false;
+                            break;
+                    }
+                }
+                
+                // Total spent range filter
+                if (this.filters.totalSpentRange) {
+                    const totalSpent = customer.total_spent || 0;
+                    switch (this.filters.totalSpentRange) {
+                        case '0-100':
+                            if (totalSpent < 0 || totalSpent > 100) return false;
+                            break;
+                        case '100-500':
+                            if (totalSpent < 100 || totalSpent > 500) return false;
+                            break;
+                        case '500-1000':
+                            if (totalSpent < 500 || totalSpent > 1000) return false;
+                            break;
+                        case '1000-5000':
+                            if (totalSpent < 1000 || totalSpent > 5000) return false;
+                            break;
+                        case '5000+':
+                            if (totalSpent < 5000) return false;
+                            break;
+                    }
+                }
+                
+                // Location filter
+                if (this.filters.location && customer.location_id !== this.filters.location) {
+                    return false;
+                }
+                
+                // Order count filter
+                if (this.filters.minOrders && (customer.order_count || 0) < parseInt(this.filters.minOrders)) {
+                    return false;
+                }
+                if (this.filters.maxOrders && (customer.order_count || 0) > parseInt(this.filters.maxOrders)) {
+                    return false;
+                }
+                
+                // Age range filter
+                if (this.filters.ageRange && customer.date_of_birth) {
+                    const age = this.calculateAge(customer.date_of_birth);
+                    const [minAge, maxAge] = this.filters.ageRange.split('-').map(Number);
+                    
+                    if (this.filters.ageRange === '65+') {
+                        if (age < 65) return false;
+                    } else {
+                        if (age < minAge || age > maxAge) return false;
+                    }
+                }
+                
+                // Gender filter
+                if (this.filters.gender && customer.gender !== this.filters.gender) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            this.sortCustomers();
+            this.currentPage = 1;
+        },
+        
+        resetFilters() {
+            this.filters = {
+                search: '',
+                customerType: '',
+                status: '',
+                group: '',
+                registrationDate: '',
+                lastPurchase: '',
+                totalSpentRange: '',
+                location: '',
+                minOrders: '',
+                maxOrders: '',
+                ageRange: '',
+                gender: ''
+            };
+            this.applyFilters();
+        },
+        
+        sortBy(field) {
+            if (this.sortField === field) {
+                this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortDirection = 'asc';
+            }
+            this.sortCustomers();
+        },
+        
+        sortCustomers() {
+            this.filteredCustomers.sort((a, b) => {
+                let aVal = a[this.sortField];
+                let bVal = b[this.sortField];
+                
+                // Handle null/undefined values
+                if (aVal === null || aVal === undefined) aVal = '';
+                if (bVal === null || bVal === undefined) bVal = '';
+                
+                // Handle date fields
+                if (this.sortField.includes('date')) {
+                    aVal = new Date(aVal);
+                    bVal = new Date(bVal);
+                }
+                
+                if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedCustomers = this.paginatedCustomers.map(customer => customer.id);
+            } else {
+                this.selectedCustomers = [];
+            }
+        },
+        
+        toggleSelectItem(customerId) {
+            const index = this.selectedCustomers.indexOf(customerId);
+            if (index > -1) {
+                this.selectedCustomers.splice(index, 1);
+            } else {
+                this.selectedCustomers.push(customerId);
+            }
+        },
+        
+        clearSelection() {
+            this.selectedCustomers = [];
+        },
+        
+        goToPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+                this.clearSelection();
+            }
+        },
+        
+        toggleColumns() {
+            const modal = new bootstrap.Modal(document.getElementById('columnSelectorModal'));
+            modal.show();
+        },
+        
+        saveColumnSettings() {
+            localStorage.setItem('customerListColumns', JSON.stringify(this.visibleColumns));
+            bootstrap.Modal.getInstance(document.getElementById('columnSelectorModal')).hide();
+            this.showSuccess('Column settings saved');
+        },
+        
+        viewCustomer(customerId) {
+            window.location.href = `/customers/${customerId}`;
+        },
+        
+        editCustomer(customerId) {
+            window.location.href = `/customers/${customerId}/edit`;
+        },
+        
+        viewOrders(customerId) {
+            window.location.href = `/customers/${customerId}/orders`;
+        },
+        
+        sendEmail(customerId) {
+            window.location.href = `/customers/${customerId}/email`;
+        },
+        
+        bulkEmail() {
+            const ids = this.selectedCustomers.join(',');
+            window.location.href = `/customers/bulk/email?ids=${ids}`;
+        },
+        
+        bulkSMS() {
+            const ids = this.selectedCustomers.join(',');
+            window.location.href = `/customers/bulk/sms?ids=${ids}`;
+        },
+        
+        bulkGroupAssign() {
+            const ids = this.selectedCustomers.join(',');
+            window.location.href = `/customers/bulk/group?ids=${ids}`;
+        },
+        
+        bulkLoyalty() {
+            const ids = this.selectedCustomers.join(',');
+            window.location.href = `/customers/bulk/loyalty?ids=${ids}`;
+        },
+        
+        async bulkExport() {
+            try {
+                const response = await fetch('/api/customers/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: this.selectedCustomers })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `customers_selected_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Selected customers exported successfully');
+                } else {
+                    throw new Error('Failed to export selected customers');
+                }
+            } catch (error) {
+                console.error('Error exporting selected customers:', error);
+                this.showError('Failed to export selected customers');
+            }
+        },
+        
+        addNewCustomer() {
+            window.location.href = '/customers/new';
+        },
+        
+        async exportList() {
+            try {
+                const response = await fetch('/api/customers/export');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `customers_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Customers exported successfully');
+                } else {
+                    throw new Error('Failed to export customers');
+                }
+            } catch (error) {
+                console.error('Error exporting customers:', error);
+                this.showError('Failed to export customers');
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + A: Select all
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    this.selectedCustomers = this.paginatedCustomers.map(customer => customer.id);
+                }
+                
+                // Ctrl/Cmd + E: Export customers
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportList();
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        getTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) return '1 day ago';
+            if (diffDays < 30) return `${diffDays} days ago`;
+            if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+            return `${Math.floor(diffDays / 365)} years ago`;
+        },
+        
+        calculateAge(dateString) {
+            const birthDate = new Date(dateString);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            
+            return age;
+        },
+        
+        formatColumnName(column) {
+            const names = {
+                type: 'Customer Type',
+                contact: 'Email',
+                phone: 'Phone',
+                location: 'Location',
+                joined: 'Joined Date',
+                orders: 'Order Count',
+                spent: 'Total Spent',
+                avgOrder: 'Average Order',
+                lastOrder: 'Last Order',
+                loyalty: 'Loyalty Points'
+            };
+            return names[column] || column;
+        },
+        
+        getTypeClass(type) {
+            const classes = {
+                regular: 'bg-secondary',
+                loyalty: 'bg-warning',
+                vip: 'bg-danger',
+                wholesale: 'bg-info',
+                corporate: 'bg-dark'
+            };
+            return classes[type] || 'bg-secondary';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

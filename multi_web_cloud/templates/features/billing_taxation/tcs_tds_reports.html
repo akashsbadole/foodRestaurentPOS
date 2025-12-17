@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCS/TDS Analytics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .report-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #6f42c1;
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #6f42c1 0%, #9b59b6 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+        .metric-card h3 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .metric-card p {
+            margin: 0;
+            opacity: 0.8;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .deduction-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .report-filters {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .export-menu {
+            min-width: 200px;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="tdsTcsReports()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">TCS/TDS Analytics</h1>
+                        <p class="text-muted mb-0">Comprehensive reports and analytics for Tax Collected/Deducted at Source</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                            <ul class="dropdown-menu export-menu">
+                                <li><a class="dropdown-item" href="#" @click="exportReport('pdf')">
+                                    <i class="bi bi-file-pdf"></i> Export as PDF
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" @click="exportReport('excel')">
+                                    <i class="bi bi-file-excel"></i> Export as Excel
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" @click="exportReport('csv')">
+                                    <i class="bi bi-file-csv"></i> Export as CSV
+                                </a></li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-primary" @click="generateCustomReport()">
+                            <i class="bi bi-plus-circle"></i> Custom Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3>₹<span x-text="totalDeductions.toLocaleString('en-IN')"></span></h3>
+                    <p>Total Deductions (YTD)</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3>₹<span x-text="totalDeposits.toLocaleString('en-IN')"></span></h3>
+                    <p>Total Deposits (YTD)</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3>₹<span x-text="pendingDeposits.toLocaleString('en-IN')"></span></h3>
+                    <p>Pending Deposits</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3><span x-text="complianceRate"></span>%</h3>
+                    <p>Deposit Compliance Rate</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Filters -->
+        <div class="report-filters" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Date Range</label>
+                    <select class="form-select" x-model="filters.dateRange" @change="updateCharts">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="quarter">This Quarter</option>
+                        <option value="year">This Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div class="col-md-2" x-show="filters.dateRange === 'custom'">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" x-model="filters.startDate" @change="updateCharts">
+                </div>
+                <div class="col-md-2" x-show="filters.dateRange === 'custom'">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" x-model="filters.endDate" @change="updateCharts">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Deduction Type</label>
+                    <select class="form-select" x-model="filters.deductionType" @change="updateCharts">
+                        <option value="">All Types</option>
+                        <option value="tds">TDS</option>
+                        <option value="tcs">TCS</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Section</label>
+                    <select class="form-select" x-model="filters.section" @change="updateCharts">
+                        <option value="">All Sections</option>
+                        <option value="194C">194C</option>
+                        <option value="194I">194I</option>
+                        <option value="194J">194J</option>
+                        <option value="206C">206C</option>
+                        <option value="206CA">206CA</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Reports -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Reports</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-graph-up display-4 text-primary mb-3"></i>
+                                        <h6>Deduction Trend</h6>
+                                        <p class="text-muted small">Analyze TCS/TDS deduction patterns</p>
+                                        <button class="btn btn-sm btn-outline-primary" @click="generateReport('deduction-trend')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-people display-4 text-success mb-3"></i>
+                                        <h6>Payer Analysis</h6>
+                                        <p class="text-muted small">Analyze payer-wise deductions</p>
+                                        <button class="btn btn-sm btn-outline-success" @click="generateReport('payer-analysis')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-shield-check display-4 text-warning mb-3"></i>
+                                        <h6>Compliance Report</h6>
+                                        <p class="text-muted small">Deposit compliance and violations</p>
+                                        <button class="btn btn-sm btn-outline-warning" @click="generateReport('compliance')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="report-card card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-currency-rupee display-4 text-info mb-3"></i>
+                                        <h6>Tax Impact Analysis</h6>
+                                        <p class="text-muted small">Overall tax impact and savings</p>
+                                        <button class="btn btn-sm btn-outline-info" @click="generateReport('tax-impact')">
+                                            Generate Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-lg-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Deduction Trends</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="deductionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Type Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="distributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Analytics -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-lg-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Section-wise Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="sectionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Deposit Status Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="depositChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Table -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">TCS/TDS Details</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" @click="refreshTable()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button class="btn btn-outline-success" @click="exportTable()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th @click="sortBy('payerName')" style="cursor: pointer;">
+                                            Payer <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('deductionType')" style="cursor: pointer;">
+                                            Type <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('section')" style="cursor: pointer;">
+                                            Section <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('totalAmount')" style="cursor: pointer;">
+                                            Total Amount <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('taxAmount')" style="cursor: pointer;">
+                                            Tax Amount <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('depositAmount')" style="cursor: pointer;">
+                                            Deposit Amount <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th @click="sortBy('complianceRate')" style="cursor: pointer;">
+                                            Compliance <i class="bi bi-arrow-down-up"></i>
+                                        </th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="deduction in paginatedDeductions" :key="deduction.id">
+                                        <tr>
+                                            <td x-text="deduction.payerName"></td>
+                                            <td>
+                                                <span class="badge deduction-badge" 
+                                                      :style="`background-color: ${deduction.typeColor}`"
+                                                      x-text="deduction.deductionType"></span>
+                                            </td>
+                                            <td x-text="deduction.section"></td>
+                                            <td>₹<span x-text="deduction.totalAmount.toLocaleString('en-IN')"></span></td>
+                                            <td>₹<span x-text="deduction.taxAmount.toLocaleString('en-IN')"></span></td>
+                                            <td>₹<span x-text="deduction.depositAmount.toLocaleString('en-IN')"></span></td>
+                                            <td>
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar" 
+                                                         :class="{
+                                                             'bg-success': deduction.complianceRate >= 90,
+                                                             'bg-warning': deduction.complianceRate >= 70 && deduction.complianceRate < 90,
+                                                             'bg-danger': deduction.complianceRate < 70
+                                                         }"
+                                                         :style="`width: ${deduction.complianceRate}%`"
+                                                         x-text="deduction.complianceRate + '%'"></div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @click="viewDetails(deduction)">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" @click="downloadReport(deduction)">
+                                                        <i class="bi bi-download"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <span class="me-2">Showing <span x-text="startIndex + 1"></span> to <span x-text="endIndex"></span> of <span x-text="filteredDeductions.length"></span> entries</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <nav>
+                    <ul class="pagination justify-content-end mb-0">
+                        <li class="page-item" :class="{ 'disabled': currentPage === 1 }">
+                            <button class="page-link" @click="currentPage = 1" :disabled="currentPage === 1">First</button>
+                        </li>
+                        <li class="page-item" :class="{ 'disabled': currentPage === 1 }">
+                            <button class="page-link" @click="currentPage--" :disabled="currentPage === 1">Previous</button>
+                        </li>
+                        <template x-for="page in visiblePages" :key="page">
+                            <li class="page-item" :class="{ 'active': page === currentPage }">
+                                <button class="page-link" @click="currentPage = page" x-text="page"></button>
+                            </li>
+                        </template>
+                        <li class="page-item" :class="{ 'disabled': currentPage === totalPages }">
+                            <button class="page-link" @click="currentPage++" :disabled="currentPage === totalPages">Next</button>
+                        </li>
+                        <li class="page-item" :class="{ 'disabled': currentPage === totalPages }">
+                            <button class="page-link" @click="currentPage = totalPages" :disabled="currentPage === totalPages">Last</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function tdsTcsReports() {
+            return {
+                totalDeductions: 485000,
+                totalDeposits: 425000,
+                pendingDeposits: 60000,
+                complianceRate: 87,
+                currentPage: 1,
+                itemsPerPage: 10,
+                sortField: 'payerName',
+                sortDirection: 'asc',
+                filters: {
+                    dateRange: 'year',
+                    startDate: '',
+                    endDate: '',
+                    deductionType: '',
+                    section: ''
+                },
+                deductions: [
+                    { id: 1, payerName: 'ABC Services Ltd.', deductionType: 'TDS', section: '194C', totalAmount: 52500, taxAmount: 2500, depositAmount: 2500, complianceRate: 100, typeColor: '#6f42c1' },
+                    { id: 2, payerName: 'Tech Solutions Inc.', deductionType: 'TDS', section: '194I', totalAmount: 88500, taxAmount: 13500, depositAmount: 13500, complianceRate: 100, typeColor: '#6f42c1' },
+                    { id: 3, payerName: 'Retail Store Chain', deductionType: 'TCS', section: '206C', totalAmount: 118000, taxAmount: 1000, depositAmount: 1000, complianceRate: 67, typeColor: '#0d6efd' },
+                    { id: 4, payerName: 'Car Dealership', deductionType: 'TCS', section: '206CA', totalAmount: 141600, taxAmount: 1200, depositAmount: 1200, complianceRate: 100, typeColor: '#0d6efd' },
+                    { id: 5, payerName: 'Insurance Brokers', deductionType: 'TDS', section: '194J', totalAmount: 29500, taxAmount: 4500, depositAmount: 0, complianceRate: 0, typeColor: '#6f42c1' },
+                    { id: 6, payerName: 'Quick Logistics', deductionType: 'TDS', section: '194C', totalAmount: 36750, taxAmount: 1750, depositAmount: 1750, complianceRate: 100, typeColor: '#6f42c1' },
+                    { id: 7, payerName: 'Legal Associates', deductionType: 'TDS', section: '194I', totalAmount: 70800, taxAmount: 10800, depositAmount: 5400, complianceRate: 50, typeColor: '#6f42c1' },
+                    { id: 8, payerName: 'Sports Federation', deductionType: 'TDS', section: '194B', totalAmount: 94400, taxAmount: 14400, depositAmount: 14400, complianceRate: 100, typeColor: '#6f42c1' }
+                ],
+                
+                get filteredDeductions() {
+                    return this.deductions.filter(deduction => {
+                        if (this.filters.deductionType && deduction.deductionType !== this.filters.deductionType) {
+                            return false;
+                        }
+                        if (this.filters.section && deduction.section !== this.filters.section) {
+                            return false;
+                        }
+                        return true;
+                    }).sort((a, b) => {
+                        let aVal = a[this.sortField];
+                        let bVal = b[this.sortField];
+                        
+                        if (this.sortDirection === 'asc') {
+                            return aVal > bVal ? 1 : -1;
+                        } else {
+                            return aVal < bVal ? 1 : -1;
+                        }
+                    });
+                },
+                
+                get paginatedDeductions() {
+                    const start = (this.currentPage - 1) * this.itemsPerPage;
+                    const end = start + this.itemsPerPage;
+                    return this.filteredDeductions.slice(start, end);
+                },
+                
+                get totalPages() {
+                    return Math.ceil(this.filteredDeductions.length / this.itemsPerPage);
+                },
+                
+                get startIndex() {
+                    return (this.currentPage - 1) * this.itemsPerPage;
+                },
+                
+                get endIndex() {
+                    return Math.min(this.startIndex + this.itemsPerPage, this.filteredDeductions.length);
+                },
+                
+                get visiblePages() {
+                    const pages = [];
+                    const maxVisible = 5;
+                    const half = Math.floor(maxVisible / 2);
+                    
+                    let start = Math.max(1, this.currentPage - half);
+                    let end = Math.min(this.totalPages, start + maxVisible - 1);
+                    
+                    if (end - start + 1 < maxVisible) {
+                        start = Math.max(1, end - maxVisible + 1);
+                    }
+                    
+                    for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                    }
+                    
+                    return pages;
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                init() {
+                    this.initCharts();
+                },
+                
+                initCharts() {
+                    // Deduction Chart
+                    const deductionCtx = document.getElementById('deductionChart').getContext('2d');
+                    new Chart(deductionCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                            datasets: [{
+                                label: 'TDS Deducted',
+                                data: [28000, 32000, 35000, 38000, 42000, 45000, 48000, 52000, 55000, 58000, 62000, 285000],
+                                borderColor: '#6f42c1',
+                                backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                                tension: 0.4
+                            }, {
+                                label: 'TCS Collected',
+                                data: [8000, 8500, 9000, 9500, 10000, 10500, 11000, 11500, 12000, 12500, 13000, 100000],
+                                borderColor: '#0d6efd',
+                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Distribution Chart
+                    const distributionCtx = document.getElementById('distributionChart').getContext('2d');
+                    new Chart(distributionCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['TDS', 'TCS'],
+                            datasets: [{
+                                data: [285000, 100000],
+                                backgroundColor: ['#6f42c1', '#0d6efd'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Section Chart
+                    const sectionCtx = document.getElementById('sectionChart').getContext('2d');
+                    new Chart(sectionCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['194C', '194I', '194J', '194B', '206C', '206CA'],
+                            datasets: [{
+                                label: 'Tax Amount (₹)',
+                                data: [4250, 24300, 4500, 14400, 1000, 1200],
+                                backgroundColor: ['#6f42c1', '#6f42c1', '#6f42c1', '#6f42c1', '#0d6efd', '#0d6efd']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Deposit Chart
+                    const depositCtx = document.getElementById('depositChart').getContext('2d');
+                    new Chart(depositCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Deposited', 'Pending', 'Overdue'],
+                            datasets: [{
+                                label: 'Amount (₹)',
+                                data: [425000, 60000, 0],
+                                backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                updateCharts() {
+                    console.log('Updating charts with filters:', this.filters);
+                },
+                
+                sortBy(field) {
+                    if (this.sortField === field) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortField = field;
+                        this.sortDirection = 'asc';
+                    }
+                },
+                
+                generateReport(type) {
+                    console.log('Generating report:', type);
+                    alert(`${type} report generated successfully!`);
+                },
+                
+                generateCustomReport() {
+                    console.log('Generating custom report');
+                    alert('Custom report configuration opened!');
+                },
+                
+                exportReport(format) {
+                    console.log('Exporting report as:', format);
+                    alert(`Report exported as ${format.toUpperCase()} successfully!`);
+                },
+                
+                viewDetails(deduction) {
+                    console.log('Viewing deduction details:', deduction);
+                },
+                
+                downloadReport(deduction) {
+                    console.log('Downloading report for deduction:', deduction);
+                },
+                
+                refreshTable() {
+                    console.log('Refreshing table data');
+                },
+                
+                exportTable() {
+                    console.log('Exporting table data');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

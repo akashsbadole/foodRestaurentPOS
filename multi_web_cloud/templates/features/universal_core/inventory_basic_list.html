@@ -1,0 +1,1073 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/inventory_basic_list.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Inventory List View -->
+<div class="inventory-list-container" x-data="inventoryListApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="list-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="list-title">
+                    <i class="bi bi-list-ul me-2"></i>
+                    Inventory List
+                </h2>
+                <p class="list-subtitle text-muted">Detailed view of all inventory items</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="list-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportList()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="toggleColumns()">
+                        <i class="bi bi-columns-gap"></i> Columns
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="addStockAdjustment()">
+                        <i class="bi bi-plus-circle"></i> Stock Adjustment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="advanced-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <button type="button" class="btn btn-link p-0" @click="toggleFilters()">
+                        <i class="bi bi-funnel" :class="{'bi-funnel-fill': showFilters}"></i>
+                        Advanced Filters
+                        <i class="bi bi-chevron-down ms-1" :class="{'rotate-180': showFilters}"></i>
+                    </button>
+                </h5>
+            </div>
+            <div class="card-body" x-show="showFilters" x-transition>
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Search</label>
+                        <input type="text" 
+                               class="form-control" 
+                               x-model="filters.search"
+                               @input="applyFilters()"
+                               placeholder="Search products...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" x-model="filters.category" @change="applyFilters()">
+                            <option value="">All Categories</option>
+                            <template x-for="category in categories" :key="category.id">
+                                <option :value="category.id" x-text="category.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Location</label>
+                        <select class="form-select" x-model="filters.location" @change="applyFilters()">
+                            <option value="">All Locations</option>
+                            <template x-for="location in locations" :key="location.id">
+                                <option :value="location.id" x-text="location.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Stock Status</label>
+                        <select class="form-select" x-model="filters.stockStatus" @change="applyFilters()">
+                            <option value="">All Status</option>
+                            <option value="in_stock">In Stock</option>
+                            <option value="low_stock">Low Stock</option>
+                            <option value="out_of_stock">Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Min Stock Level</label>
+                        <input type="number" 
+                               class="form-control" 
+                               x-model="filters.minStock"
+                               @input="applyFilters()"
+                               placeholder="0"
+                               min="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Max Stock Level</label>
+                        <input type="number" 
+                               class="form-control" 
+                               x-model="filters.maxStock"
+                               @input="applyFilters()"
+                               placeholder="9999"
+                               min="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Min Value</label>
+                        <input type="number" 
+                               class="form-control" 
+                               x-model="filters.minValue"
+                               @input="applyFilters()"
+                               placeholder="0.00"
+                               min="0"
+                               step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Max Value</label>
+                        <input type="number" 
+                               class="form-control" 
+                               x-model="filters.maxValue"
+                               @input="applyFilters()"
+                               placeholder="99999.99"
+                               min="0"
+                               step="0.01">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Last Movement</label>
+                        <select class="form-select" x-model="filters.lastMovement" @change="applyFilters()">
+                            <option value="">Any Time</option>
+                            <option value="today">Today</option>
+                            <option value="this_week">This Week</option>
+                            <option value="this_month">This Month</option>
+                            <option value="this_quarter">This Quarter</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Supplier</label>
+                        <select class="form-select" x-model="filters.supplier" @change="applyFilters()">
+                            <option value="">All Suppliers</option>
+                            <template x-for="supplier in suppliers" :key="supplier.id">
+                                <option :value="supplier.id" x-text="supplier.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Reorder Status</label>
+                        <select class="form-select" x-model="filters.reorderStatus" @change="applyFilters()">
+                            <option value="">All Items</option>
+                            <option value="needs_reorder">Needs Reorder</option>
+                            <option value="overstocked">Overstocked</option>
+                            <option value="optimal">Optimal Level</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date Range</label>
+                        <select class="form-select" x-model="filters.dateRange" @change="applyFilters()">
+                            <option value="">All Time</option>
+                            <option value="today">Added Today</option>
+                            <option value="this_week">Added This Week</option>
+                            <option value="this_month">Added This Month</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-outline-secondary" @click="resetFilters()">
+                            <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards mb-4">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-primary">
+                        <i class="bi bi-box"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Total Items</h6>
+                        <p class="summary-value" x-text="summary.totalItems"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">In Stock</h6>
+                        <p class="summary-value" x-text="summary.inStock"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Low Stock</h6>
+                        <p class="summary-value" x-text="summary.lowStock"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-danger">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Out of Stock</h6>
+                        <p class="summary-value" x-text="summary.outOfStock"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-info">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Total Value</h6>
+                        <p class="summary-value" x-text="formatCurrency(summary.totalValue)"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <div class="summary-icon bg-secondary">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Avg. Value</h6>
+                        <p class="summary-value" x-text="formatCurrency(summary.averageValue)"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="inventory-table-container">
+        <div class="table-responsive">
+            <table class="table table-hover inventory-table">
+                <thead class="table-header">
+                    <tr>
+                        <th class="column-checkbox">
+                            <input type="checkbox" 
+                                   class="form-check-input"
+                                   @change="toggleSelectAll($event)">
+                        </th>
+                        <th class="column-image">Image</th>
+                        <th class="column-product sortable" @click="sortBy('name')">
+                            Product
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'name'"></i>
+                        </th>
+                        <th class="column-sku sortable" @click="sortBy('sku')">
+                            SKU
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'sku'"></i>
+                        </th>
+                        <th class="column-category sortable" @click="sortBy('category')" x-show="visibleColumns.category">
+                            Category
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'category'"></i>
+                        </th>
+                        <th class="column-location sortable" @click="sortBy('location')" x-show="visibleColumns.location">
+                            Location
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'location'"></i>
+                        </th>
+                        <th class="column-current-stock sortable" @click="sortBy('current_stock')">
+                            Current Stock
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'current_stock'"></i>
+                        </th>
+                        <th class="column-allocated sortable" @click="sortBy('allocated')" x-show="visibleColumns.allocated">
+                            Allocated
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'allocated'"></i>
+                        </th>
+                        <th class="column-available sortable" @click="sortBy('available')">
+                            Available
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'available'"></i>
+                        </th>
+                        <th class="column-reorder-level sortable" @click="sortBy('reorder_level')" x-show="visibleColumns.reorderLevel">
+                            Reorder Level
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'reorder_level'"></i>
+                        </th>
+                        <th class="column-cost sortable" @click="sortBy('cost')" x-show="visibleColumns.cost">
+                            Cost
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'cost'"></i>
+                        </th>
+                        <th class="column-value sortable" @click="sortBy('value')" x-show="visibleColumns.value">
+                            Total Value
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'value'"></i>
+                        </th>
+                        <th class="column-last-movement sortable" @click="sortBy('last_movement')" x-show="visibleColumns.lastMovement">
+                            Last Movement
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'last_movement'"></i>
+                        </th>
+                        <th class="column-status sortable" @click="sortBy('status')">
+                            Status
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'status'"></i>
+                        </th>
+                        <th class="column-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="item in paginatedInventory" :key="item.id">
+                        <tr class="inventory-row" 
+                            :class="{'selected': selectedItems.includes(item.id)}"
+                            @click="toggleSelectItem(item.id)">
+                            <td class="column-checkbox">
+                                <input type="checkbox" 
+                                       class="form-check-input"
+                                       :checked="selectedItems.includes(item.id)"
+                                       @click.stop="toggleSelectItem(item.id)">
+                            </td>
+                            <td class="column-image">
+                                <img :src="item.image || '/static/images/placeholder-product.png'" 
+                                     :alt="item.name"
+                                     class="product-thumbnail"
+                                     @click.stop="viewProduct(item.id)">
+                            </td>
+                            <td class="column-product">
+                                <div class="product-name-cell">
+                                    <strong x-text="item.name" @click.stop="viewProduct(item.id)"></strong>
+                                    <div class="product-details">
+                                        <small class="text-muted" x-text="item.sku"></small>
+                                        <small class="text-muted ms-2" x-show="item.barcode">
+                                            Barcode: <span x-text="item.barcode"></span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-sku">
+                                <span class="sku-text" x-text="item.sku"></span>
+                            </td>
+                            <td class="column-category" x-show="visibleColumns.category">
+                                <span class="category-badge" x-text="item.category?.name || 'Uncategorized'"></span>
+                            </td>
+                            <td class="column-location" x-show="visibleColumns.location">
+                                <span class="location-badge" x-text="item.location?.name || 'Default'"></span>
+                            </td>
+                            <td class="column-current-stock">
+                                <div class="stock-info">
+                                    <span class="stock-quantity" 
+                                          :class="getStockClass(item.current_stock, item.reorder_level)"
+                                          x-text="item.current_stock"></span>
+                                    <div class="stock-indicator" 
+                                         :class="getStockClass(item.current_stock, item.reorder_level)">
+                                        <div class="stock-bar" 
+                                             :style="`width: ${getStockPercentage(item.current_stock, item.reorder_level)}%`"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-allocated" x-show="visibleColumns.allocated">
+                                <span class="allocated-quantity" x-text="item.allocated || 0"></span>
+                            </td>
+                            <td class="column-available">
+                                <span class="available-quantity" 
+                                      :class="getStockClass(item.available || item.current_stock, item.reorder_level)"
+                                      x-text="item.available || item.current_stock"></span>
+                            </td>
+                            <td class="column-reorder-level" x-show="visibleColumns.reorderLevel">
+                                <span class="reorder-level" x-text="item.reorder_level || 0"></span>
+                            </td>
+                            <td class="column-cost" x-show="visibleColumns.cost">
+                                <span class="cost-value" x-text="formatCurrency(item.cost || 0)"></span>
+                            </td>
+                            <td class="column-value" x-show="visibleColumns.value">
+                                <span class="inventory-value" x-text="formatCurrency(item.value || 0)"></span>
+                            </td>
+                            <td class="column-last-movement" x-show="visibleColumns.lastMovement">
+                                <div>
+                                    <span x-text="formatDate(item.last_movement)"></span>
+                                    <br>
+                                    <small class="text-muted" x-text="formatTime(item.last_movement)"></small>
+                                </div>
+                            </td>
+                            <td class="column-status">
+                                <span class="status-badge" 
+                                      :class="`status-${getStockStatus(item.current_stock, item.reorder_level)}`"
+                                      x-text="getStockStatusText(item.current_stock, item.reorder_level)"></span>
+                            </td>
+                            <td class="column-actions">
+                                <div class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            @click.stop="viewProduct(item.id)"
+                                            title="View Product">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success"
+                                            @click.stop="adjustStock(item.id)"
+                                            title="Adjust Stock">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-info"
+                                            @click.stop="viewHistory(item.id)"
+                                            title="View History">
+                                        <i class="bi bi-clock-history"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-warning"
+                                            @click.stop="setReorderLevel(item.id)"
+                                            title="Set Reorder Level">
+                                        <i class="bi bi-tag"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" x-show="filteredInventory.length === 0">
+        <div class="text-center py-5">
+            <i class="bi bi-search display-1 text-muted"></i>
+            <h3 class="mt-3">No Inventory Items Found</h3>
+            <p class="text-muted">
+                <span x-show="hasActiveFilters">
+                    No items match your current filters. 
+                    <button type="button" class="btn btn-link p-0" @click="resetFilters()">Clear filters</button>
+                </span>
+                <span x-show="!hasActiveFilters">
+                    No inventory items found. 
+                    <button type="button" class="btn btn-link p-0" @click="importInventory()">Import inventory data</button>
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" x-show="totalPages > 1">
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item" :class="{'disabled': currentPage === 1}">
+                    <button class="page-link" @click="goToPage(currentPage - 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </li>
+                <template x-for="page in visiblePages" :key="page">
+                    <li class="page-item" :class="{'active': page === currentPage}">
+                        <button class="page-link" @click="goToPage(page)" x-text="page"></button>
+                    </li>
+                </template>
+                <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                    <button class="page-link" @click="goToPage(currentPage + 1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div class="pagination-info text-center">
+            <span x-text="`Showing ${startItem}-${endItem} of ${filteredInventory.length} items`"></span>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" x-show="selectedItems.length > 0" x-transition>
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <span class="selected-count">
+                            <i class="bi bi-check-square me-2"></i>
+                            <span x-text="selectedItems.length"></span> items selected
+                        </span>
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkAdjustStock()">
+                            <i class="bi bi-arrow-left-right"></i> Adjust Stock
+                        </button>
+                        <button type="button" class="btn btn-outline-warning me-2" @click="bulkUpdateReorderLevel()">
+                            <i class="bi bi-tag"></i> Update Reorder Level
+                        </button>
+                        <button type="button" class="btn btn-outline-info me-2" @click="bulkUpdateLocation()">
+                            <i class="bi bi-geo-alt"></i> Update Location
+                        </button>
+                        <button type="button" class="btn btn-outline-danger me-2" @click="exportSelected()">
+                            <i class="bi bi-download"></i> Export Selected
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @click="clearSelection()">
+                            <i class="bi bi-x"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Selector Modal -->
+    <div class="modal fade" id="columnSelectorModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select Columns</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-check form-switch mb-2" x-for="(visible, column) in visibleColumns" :key="column">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               :id="`column-${column}`"
+                               x-model="visibleColumns[column]">
+                        <label class="form-check-label" :for="`column-${column}`" x-text="formatColumnName(column)"></label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="saveColumnSettings()">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/inventory_basic_list.js') }}"></script>
+<script>
+// Inventory List App
+function inventoryListApp() {
+    return {
+        // Data
+        showFilters: false,
+        inventory: [],
+        categories: [],
+        locations: [],
+        suppliers: [],
+        filteredInventory: [],
+        selectedItems: [],
+        
+        filters: {
+            search: '',
+            category: '',
+            location: '',
+            stockStatus: '',
+            minStock: '',
+            maxStock: '',
+            minValue: '',
+            maxValue: '',
+            lastMovement: '',
+            supplier: '',
+            reorderStatus: '',
+            dateRange: ''
+        },
+        
+        sortField: 'name',
+        sortDirection: 'asc',
+        currentPage: 1,
+        itemsPerPage: 25,
+        
+        visibleColumns: {
+            category: true,
+            location: true,
+            allocated: false,
+            reorderLevel: true,
+            cost: true,
+            value: true,
+            lastMovement: true
+        },
+        
+        summary: {
+            totalItems: 0,
+            inStock: 0,
+            lowStock: 0,
+            outOfStock: 0,
+            totalValue: 0,
+            averageValue: 0
+        },
+        
+        // Computed properties
+        get hasActiveFilters() {
+            return Object.values(this.filters).some(value => value !== '');
+        },
+        
+        get paginatedInventory() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.filteredInventory.slice(start, end);
+        },
+        
+        get totalPages() {
+            return Math.ceil(this.filteredInventory.length / this.itemsPerPage);
+        },
+        
+        get visiblePages() {
+            const pages = [];
+            const start = Math.max(1, this.currentPage - 2);
+            const end = Math.min(this.totalPages, this.currentPage + 2);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            return pages;
+        },
+        
+        get startItem() {
+            return (this.currentPage - 1) * this.itemsPerPage + 1;
+        },
+        
+        get endItem() {
+            return Math.min(this.currentPage * this.itemsPerPage, this.filteredInventory.length);
+        },
+        
+        // Methods
+        init() {
+            this.loadInventory();
+            this.loadCategories();
+            this.loadLocations();
+            this.loadSuppliers();
+            this.loadSummary();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadInventory() {
+            try {
+                const response = await fetch('/api/inventory');
+                this.inventory = await response.json();
+                this.filteredInventory = [...this.inventory];
+            } catch (error) {
+                console.error('Error loading inventory:', error);
+                this.showError('Failed to load inventory');
+            }
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                this.locations = await response.json();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        },
+        
+        async loadSuppliers() {
+            try {
+                const response = await fetch('/api/suppliers');
+                this.suppliers = await response.json();
+            } catch (error) {
+                console.error('Error loading suppliers:', error);
+            }
+        },
+        
+        async loadSummary() {
+            try {
+                const response = await fetch('/api/inventory/summary');
+                this.summary = await response.json();
+            } catch (error) {
+                console.error('Error loading summary:', error);
+            }
+        },
+        
+        toggleFilters() {
+            this.showFilters = !this.showFilters;
+        },
+        
+        applyFilters() {
+            this.filteredInventory = this.inventory.filter(item => {
+                // Search filter
+                if (this.filters.search) {
+                    const query = this.filters.search.toLowerCase();
+                    if (!item.name.toLowerCase().includes(query) &&
+                        !item.sku.toLowerCase().includes(query) &&
+                        !item.description?.toLowerCase().includes(query)) {
+                        return false;
+                    }
+                }
+                
+                // Category filter
+                if (this.filters.category && item.category_id !== this.filters.category) {
+                    return false;
+                }
+                
+                // Location filter
+                if (this.filters.location && item.location_id !== this.filters.location) {
+                    return false;
+                }
+                
+                // Stock status filter
+                if (this.filters.stockStatus) {
+                    const stockStatus = this.getStockStatus(item.current_stock, item.reorder_level);
+                    if (stockStatus !== this.filters.stockStatus) {
+                        return false;
+                    }
+                }
+                
+                // Stock level filters
+                if (this.filters.minStock && item.current_stock < parseInt(this.filters.minStock)) {
+                    return false;
+                }
+                if (this.filters.maxStock && item.current_stock > parseInt(this.filters.maxStock)) {
+                    return false;
+                }
+                
+                // Value filters
+                if (this.filters.minValue && item.value < parseFloat(this.filters.minValue)) {
+                    return false;
+                }
+                if (this.filters.maxValue && item.value > parseFloat(this.filters.maxValue)) {
+                    return false;
+                }
+                
+                // Last movement filter
+                if (this.filters.lastMovement) {
+                    const movementDate = new Date(item.last_movement);
+                    const now = new Date();
+                    
+                    switch (this.filters.lastMovement) {
+                        case 'today':
+                            if (movementDate.toDateString() !== now.toDateString()) return false;
+                            break;
+                        case 'this_week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (movementDate < weekAgo) return false;
+                            break;
+                        case 'this_month':
+                            if (movementDate.getMonth() !== now.getMonth() || 
+                                movementDate.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                    }
+                }
+                
+                // Supplier filter
+                if (this.filters.supplier && item.supplier_id !== this.filters.supplier) {
+                    return false;
+                }
+                
+                // Reorder status filter
+                if (this.filters.reorderStatus) {
+                    switch (this.filters.reorderStatus) {
+                        case 'needs_reorder':
+                            if (item.current_stock > item.reorder_level) return false;
+                            break;
+                        case 'overstocked':
+                            if (item.current_stock <= item.reorder_level * 2) return false;
+                            break;
+                        case 'optimal':
+                            if (item.current_stock <= item.reorder_level || 
+                                item.current_stock > item.reorder_level * 2) return false;
+                            break;
+                    }
+                }
+                
+                // Date range filter
+                if (this.filters.dateRange) {
+                    const itemDate = new Date(item.created_date);
+                    const now = new Date();
+                    
+                    switch (this.filters.dateRange) {
+                        case 'today':
+                            if (itemDate.toDateString() !== now.toDateString()) return false;
+                            break;
+                        case 'this_week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (itemDate < weekAgo) return false;
+                            break;
+                        case 'this_month':
+                            if (itemDate.getMonth() !== now.getMonth() || 
+                                itemDate.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                    }
+                }
+                
+                return true;
+            });
+            
+            this.sortInventory();
+            this.currentPage = 1;
+        },
+        
+        resetFilters() {
+            this.filters = {
+                search: '',
+                category: '',
+                location: '',
+                stockStatus: '',
+                minStock: '',
+                maxStock: '',
+                minValue: '',
+                maxValue: '',
+                lastMovement: '',
+                supplier: '',
+                reorderStatus: '',
+                dateRange: ''
+            };
+            this.applyFilters();
+        },
+        
+        sortBy(field) {
+            if (this.sortField === field) {
+                this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortDirection = 'asc';
+            }
+            this.sortInventory();
+        },
+        
+        sortInventory() {
+            this.filteredInventory.sort((a, b) => {
+                let aVal = a[this.sortField];
+                let bVal = b[this.sortField];
+                
+                if (this.sortField === 'category') {
+                    aVal = a.category?.name || '';
+                    bVal = b.category?.name || '';
+                } else if (this.sortField === 'location') {
+                    aVal = a.location?.name || '';
+                    bVal = b.location?.name || '';
+                }
+                
+                if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedItems = this.paginatedInventory.map(item => item.id);
+            } else {
+                this.selectedItems = [];
+            }
+        },
+        
+        toggleSelectItem(itemId) {
+            const index = this.selectedItems.indexOf(itemId);
+            if (index > -1) {
+                this.selectedItems.splice(index, 1);
+            } else {
+                this.selectedItems.push(itemId);
+            }
+        },
+        
+        clearSelection() {
+            this.selectedItems = [];
+        },
+        
+        goToPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+                this.clearSelection();
+            }
+        },
+        
+        toggleColumns() {
+            const modal = new bootstrap.Modal(document.getElementById('columnSelectorModal'));
+            modal.show();
+        },
+        
+        saveColumnSettings() {
+            localStorage.setItem('inventoryListColumns', JSON.stringify(this.visibleColumns));
+            bootstrap.Modal.getInstance(document.getElementById('columnSelectorModal')).hide();
+            this.showSuccess('Column settings saved');
+        },
+        
+        viewProduct(productId) {
+            window.location.href = `/products/${productId}`;
+        },
+        
+        adjustStock(productId) {
+            window.location.href = `/inventory/adjust/${productId}`;
+        },
+        
+        viewHistory(productId) {
+            window.location.href = `/inventory/history/${productId}`;
+        },
+        
+        setReorderLevel(productId) {
+            window.location.href = `/inventory/reorder/${productId}`;
+        },
+        
+        bulkAdjustStock() {
+            const ids = this.selectedItems.join(',');
+            window.location.href = `/inventory/bulk-adjust?ids=${ids}`;
+        },
+        
+        bulkUpdateReorderLevel() {
+            const ids = this.selectedItems.join(',');
+            window.location.href = `/inventory/bulk-reorder?ids=${ids}`;
+        },
+        
+        bulkUpdateLocation() {
+            const ids = this.selectedItems.join(',');
+            window.location.href = `/inventory/bulk-location?ids=${ids}`;
+        },
+        
+        async exportSelected() {
+            try {
+                const response = await fetch('/api/inventory/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: this.selectedItems })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_selected_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Selected items exported successfully');
+                } else {
+                    throw new Error('Failed to export selected items');
+                }
+            } catch (error) {
+                console.error('Error exporting selected items:', error);
+                this.showError('Failed to export selected items');
+            }
+        },
+        
+        addStockAdjustment() {
+            window.location.href = '/inventory/adjust';
+        },
+        
+        async exportList() {
+            try {
+                const response = await fetch('/api/inventory/export');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Inventory exported successfully');
+                } else {
+                    throw new Error('Failed to export inventory');
+                }
+            } catch (error) {
+                console.error('Error exporting inventory:', error);
+                this.showError('Failed to export inventory');
+            }
+        },
+        
+        importInventory() {
+            window.location.href = '/inventory/import';
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + A: Select all
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    this.selectedItems = this.paginatedInventory.map(item => item.id);
+                }
+                
+                // Ctrl/Cmd + I: Import inventory
+                if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                    e.preventDefault();
+                    this.importInventory();
+                }
+                
+                // Ctrl/Cmd + E: Export inventory
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportList();
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        formatTime(dateString) {
+            return new Date(dateString).toLocaleTimeString();
+        },
+        
+        formatColumnName(column) {
+            const names = {
+                category: 'Category',
+                location: 'Location',
+                allocated: 'Allocated',
+                reorderLevel: 'Reorder Level',
+                cost: 'Cost',
+                value: 'Total Value',
+                lastMovement: 'Last Movement'
+            };
+            return names[column] || column;
+        },
+        
+        getStockClass(currentStock, reorderLevel) {
+            if (currentStock === 0) return 'out-of-stock';
+            if (currentStock <= reorderLevel) return 'low-stock';
+            return 'in-stock';
+        },
+        
+        getStockStatus(currentStock, reorderLevel) {
+            if (currentStock === 0) return 'out_of_stock';
+            if (currentStock <= reorderLevel) return 'low_stock';
+            return 'in_stock';
+        },
+        
+        getStockStatusText(currentStock, reorderLevel) {
+            const status = this.getStockStatus(currentStock, reorderLevel);
+            const statusTexts = {
+                in_stock: 'In Stock',
+                low_stock: 'Low Stock',
+                out_of_stock: 'Out of Stock'
+            };
+            return statusTexts[status] || status;
+        },
+        
+        getStockPercentage(currentStock, reorderLevel) {
+            // Calculate visual stock percentage based on reorder level
+            if (reorderLevel === 0) return 100;
+            return Math.min(100, Math.max(0, (currentStock / reorderLevel) * 100));
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,688 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/sales_processing_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Sales Processing Settings -->
+<div class="sales-settings-container" x-data="salesSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Sales Processing Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure sales processing behavior and preferences</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveSettings()" :disabled="!hasChanges">
+                        <i class="bi bi-check-circle"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tabs -->
+    <div class="settings-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#general-settings" 
+                        type="button">
+                    <i class="bi bi-gear me-2"></i> General
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#receipt-settings" 
+                        type="button">
+                    <i class="bi bi-printer me-2"></i> Receipt
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#payment-settings" 
+                        type="button">
+                    <i class="bi bi-credit-card me-2"></i> Payment
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#tax-settings" 
+                        type="button">
+                    <i class="bi bi-receipt-cutoff me-2"></i> Tax
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#inventory-settings" 
+                        type="button">
+                    <i class="bi bi-box-seam me-2"></i> Inventory
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- General Settings Tab -->
+        <div class="tab-pane fade show active" id="general-settings">
+            <div class="settings-section">
+                <h4 class="section-title">General Sales Settings</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Customer Type</label>
+                            <select class="form-select" x-model="settings.default_customer_type">
+                                <option value="walk_in">Walk-in Customer</option>
+                                <option value="required">Require Customer Selection</option>
+                                <option value="optional">Optional Customer Selection</option>
+                            </select>
+                            <small class="form-text">How customer selection should be handled by default</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Order Number Prefix</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="settings.order_prefix"
+                                   placeholder="ORD"
+                                   maxlength="10">
+                            <small class="form-text">Prefix for generated order numbers</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Auto-save Draft Interval</label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.draft_auto_save_interval"
+                                       min="30"
+                                       max="300"
+                                       step="30">
+                                <span class="input-group-text">seconds</span>
+                            </div>
+                            <small class="form-text">How often to auto-save draft sales (30-300 seconds)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Maximum Items per Sale</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.max_items_per_sale"
+                                   min="1"
+                                   max="999">
+                            <small class="form-text">Maximum number of items allowed in a single sale</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_quick_sale"
+                                       x-model="settings.enable_quick_sale">
+                                <label class="form-check-label" for="enable_quick_sale">
+                                    Enable Quick Sale Feature
+                                </label>
+                            </div>
+                            <small class="form-text">Allow quick cash sales without product selection</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="require_customer_for_sale"
+                                       x-model="settings.require_customer_for_sale">
+                                <label class="form-check-label" for="require_customer_for_sale">
+                                    Require Customer for All Sales
+                                </label>
+                            </div>
+                            <small class="form-text">Force customer selection for every sale</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_sale_notes"
+                                       x-model="settings.enable_sale_notes">
+                                <label class="form-check-label" for="enable_sale_notes">
+                                    Enable Sale Notes
+                                </label>
+                            </div>
+                            <small class="form-text">Allow adding notes to sales</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receipt Settings Tab -->
+        <div class="tab-pane fade" id="receipt-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Receipt Settings</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="auto_print_receipt"
+                                       x-model="settings.auto_print_receipt">
+                                <label class="form-check-label" for="auto_print_receipt">
+                                    Auto-print Receipt After Sale
+                                </label>
+                            </div>
+                            <small class="form-text">Automatically print receipt when sale is completed</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="include_customer_info"
+                                       x-model="settings.include_customer_info">
+                                <label class="form-check-label" for="include_customer_info">
+                                    Include Customer Information
+                                </label>
+                            </div>
+                            <small class="form-text">Show customer details on receipt</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="include_tax_breakdown"
+                                       x-model="settings.include_tax_breakdown">
+                                <label class="form-check-label" for="include_tax_breakdown">
+                                    Include Tax Breakdown
+                                </label>
+                            </div>
+                            <small class="form-text">Show detailed tax information on receipt</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="include_barcode"
+                                       x-model="settings.include_barcode">
+                                <label class="form-check-label" for="include_barcode">
+                                    Include Product Barcodes
+                                </label>
+                            </div>
+                            <small class="form-text">Print product barcodes on receipt</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Receipt Header Text</label>
+                            <textarea class="form-control" 
+                                      x-model="settings.receipt_header"
+                                      rows="3"
+                                      placeholder="Enter receipt header text..."></textarea>
+                            <small class="form-text">Custom text to appear at top of receipt</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Receipt Footer Text</label>
+                            <textarea class="form-control" 
+                                      x-model="settings.receipt_footer"
+                                      rows="3"
+                                      placeholder="Enter receipt footer text..."></textarea>
+                            <small class="form-text">Custom text to appear at bottom of receipt</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Settings Tab -->
+        <div class="tab-pane fade" id="payment-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Payment Settings</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Payment Method</label>
+                            <select class="form-select" x-model="settings.default_payment_method">
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="upi">UPI</option>
+                                <option value="wallet">Wallet</option>
+                            </select>
+                            <small class="form-text">Default payment method for new sales</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Cash Rounding Method</label>
+                            <select class="form-select" x-model="settings.cash_rounding_method">
+                                <option value="none">No Rounding</option>
+                                <option value="nearest">Round to Nearest</option>
+                                <option value="up">Round Up</option>
+                                <option value="down">Round Down</option>
+                            </select>
+                            <small class="form-text">How to round cash payments</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <h5 class="sub-section-title">Payment Method Restrictions</h5>
+                        
+                        <template x-for="method in paymentMethods" :key="method.id">
+                            <div class="payment-method-setting">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           :id="`enable_${method.id}`"
+                                           x-model="settings[`enable_${method.id}`]">
+                                    <label class="form-check-label" :for="`enable_${method.id}`">
+                                        Enable <span x-text="method.name"></span>
+                                    </label>
+                                </div>
+                                
+                                <div class="method-limits" x-show="settings[`enable_${method.id}`]">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Minimum Amount</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings[`${method.id}_min_amount`]"
+                                                       step="0.01"
+                                                       min="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Maximum Amount</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings[`${method.id}_max_amount`]"
+                                                       step="0.01"
+                                                       min="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Settings Tab -->
+        <div class="tab-pane fade" id="tax-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Tax Settings</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Tax Rate (%)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.default_tax_rate"
+                                   step="0.01"
+                                   min="0"
+                                   max="100">
+                            <small class="form-text">Default tax rate for sales</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Tax Calculation Method</label>
+                            <select class="form-select" x-model="settings.tax_calculation_method">
+                                <option value="inclusive">Tax Inclusive</option>
+                                <option value="exclusive">Tax Exclusive</option>
+                            </select>
+                            <small class="form-text">How tax should be calculated</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_tax_exemptions"
+                                       x-model="settings.enable_tax_exemptions">
+                                <label class="form-check-label" for="enable_tax_exemptions">
+                                    Enable Tax Exemptions
+                                </label>
+                            </div>
+                            <small class="form-text">Allow tax-exempt sales for certain items or customers</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="round_tax_individually"
+                                       x-model="settings.round_tax_individually">
+                                <label class="form-check-label" for="round_tax_individually">
+                                    Round Tax Individually
+                                </label>
+                            </div>
+                            <small class="form-text">Round tax for each item instead of total</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Settings Tab -->
+        <div class="tab-pane fade" id="inventory-settings">
+            <div class="settings-section">
+                <h4 class="section-title">Inventory Settings</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Low Stock Alert Level</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.low_stock_alert_level"
+                                   min="0"
+                                   max="999">
+                            <small class="form-text">Alert when stock falls below this level</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Out of Stock Behavior</label>
+                            <select class="form-select" x-model="settings.out_of_stock_behavior">
+                                <option value="prevent_sale">Prevent Sale</option>
+                                <option value="allow_sale">Allow Sale</option>
+                                <option value="warn_only">Show Warning Only</option>
+                            </select>
+                            <small class="form-text">How to handle sales of out-of-stock items</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="auto_reserve_stock"
+                                       x-model="settings.auto_reserve_stock">
+                                <label class="form-check-label" for="auto_reserve_stock">
+                                    Auto-reserve Stock on Sale
+                                </label>
+                            </div>
+                            <small class="form-text">Automatically reserve stock when items are added to cart</small>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enable_negative_stock"
+                                       x-model="settings.enable_negative_stock">
+                                <label class="form-check-label" for="enable_negative_stock">
+                                    Allow Negative Stock
+                                </label>
+                            </div>
+                            <small class="form-text">Allow selling items even when stock is zero or negative</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/sales_processing_settings.js') }}"></script>
+<script>
+// Sales Settings App
+function salesSettingsApp() {
+    return {
+        // Data
+        settings: {
+            // General settings
+            default_customer_type: 'walk_in',
+            order_prefix: 'ORD',
+            draft_auto_save_interval: 60,
+            max_items_per_sale: 50,
+            enable_quick_sale: true,
+            require_customer_for_sale: false,
+            enable_sale_notes: true,
+            
+            // Receipt settings
+            auto_print_receipt: false,
+            include_customer_info: true,
+            include_tax_breakdown: true,
+            include_barcode: false,
+            receipt_header: '',
+            receipt_footer: 'Thank you for your business!',
+            
+            // Payment settings
+            default_payment_method: 'cash',
+            cash_rounding_method: 'nearest',
+            enable_cash: true,
+            cash_min_amount: 0,
+            cash_max_amount: 999999,
+            enable_card: true,
+            card_min_amount: 0,
+            card_max_amount: 999999,
+            enable_upi: false,
+            upi_min_amount: 1,
+            upi_max_amount: 100000,
+            enable_wallet: false,
+            wallet_min_amount: 1,
+            wallet_max_amount: 50000,
+            
+            // Tax settings
+            default_tax_rate: 5.0,
+            tax_calculation_method: 'exclusive',
+            enable_tax_exemptions: true,
+            round_tax_individually: false,
+            
+            // Inventory settings
+            low_stock_alert_level: 10,
+            out_of_stock_behavior: 'prevent_sale',
+            auto_reserve_stock: true,
+            enable_negative_stock: false
+        },
+        
+        originalSettings: {},
+        hasChanges: false,
+        
+        paymentMethods: [
+            { id: 'cash', name: 'Cash Payments' },
+            { id: 'card', name: 'Card Payments' },
+            { id: 'upi', name: 'UPI Payments' },
+            { id: 'wallet', name: 'Wallet Payments' }
+        ],
+        
+        // Methods
+        init() {
+            this.loadSettings();
+            this.setupWatchers();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/settings/sales_processing');
+                const savedSettings = await response.json();
+                
+                // Merge with defaults
+                this.settings = { ...this.settings, ...savedSettings };
+                this.originalSettings = { ...this.settings };
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                this.showError('Failed to load settings');
+            }
+        },
+        
+        setupWatchers() {
+            // Watch for changes
+            Object.keys(this.settings).forEach(key => {
+                this.$watch(key, () => {
+                    this.checkForChanges();
+                });
+            });
+        },
+        
+        checkForChanges() {
+            this.hasChanges = JSON.stringify(this.settings) !== JSON.stringify(this.originalSettings);
+        },
+        
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/settings/sales_processing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.originalSettings = { ...this.settings };
+                    this.hasChanges = false;
+                    this.showSuccess('Settings saved successfully');
+                } else {
+                    throw new Error('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                // Reset to default values
+                this.settings = {
+                    default_customer_type: 'walk_in',
+                    order_prefix: 'ORD',
+                    draft_auto_save_interval: 60,
+                    max_items_per_sale: 50,
+                    enable_quick_sale: true,
+                    require_customer_for_sale: false,
+                    enable_sale_notes: true,
+                    auto_print_receipt: false,
+                    include_customer_info: true,
+                    include_tax_breakdown: true,
+                    include_barcode: false,
+                    receipt_header: '',
+                    receipt_footer: 'Thank you for your business!',
+                    default_payment_method: 'cash',
+                    cash_rounding_method: 'nearest',
+                    enable_cash: true,
+                    cash_min_amount: 0,
+                    cash_max_amount: 999999,
+                    enable_card: true,
+                    card_min_amount: 0,
+                    card_max_amount: 999999,
+                    enable_upi: false,
+                    upi_min_amount: 1,
+                    upi_max_amount: 100000,
+                    enable_wallet: false,
+                    wallet_min_amount: 1,
+                    wallet_max_amount: 50000,
+                    default_tax_rate: 5.0,
+                    tax_calculation_method: 'exclusive',
+                    enable_tax_exemptions: true,
+                    round_tax_individually: false,
+                    low_stock_alert_level: 10,
+                    out_of_stock_behavior: 'prevent_sale',
+                    auto_reserve_stock: true,
+                    enable_negative_stock: false
+                };
+                
+                this.showSuccess('Settings reset to defaults');
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    if (this.hasChanges) {
+                        this.saveSettings();
+                    }
+                }
+                
+                // Ctrl/Cmd + R: Reset to defaults
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetToDefaults();
+                }
+            });
+        },
+        
+        // Utility methods
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

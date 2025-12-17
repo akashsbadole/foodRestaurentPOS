@@ -1,0 +1,905 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/sales_processing_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Sales Processing Form -->
+<div class="sales-form-container" x-data="salesFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="sales-form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-receipt me-2"></i>
+                    <span x-text="isEditing ? 'Edit Sale' : 'New Sale'"></span>
+                </h2>
+                <p class="form-subtitle text-muted" x-text="isEditing ? 'Modify existing sale transaction' : 'Create a new sale transaction'"></p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="saveDraft()" x-show="isFeatureEnabled('FEATURE_DRAFT_SAVING')">
+                        <i class="bi bi-file-earmark"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-outline-danger me-2" @click="cancelForm()">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-success" @click="proceedToPayment()" :disabled="!isValidSale">
+                        <i class="bi bi-credit-card"></i> Proceed to Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Progress -->
+    <div class="form-progress mb-4" x-show="hasSteps">
+        <div class="progress">
+            <div class="progress-bar" :style="`width: ${progressPercentage}%`"></div>
+        </div>
+        <div class="progress-steps">
+            <template x-for="(step, index) in formSteps" :key="index">
+                <div class="step" :class="getStepClass(index)" @click="goToStep(index)">
+                    <div class="step-number" x-text="index + 1"></div>
+                    <div class="step-title" x-text="step.title"></div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Form Content -->
+    <form @submit.prevent="submitForm()" class="sales-form">
+        
+        <!-- Step 1: Customer Information -->
+        <div class="form-step" x-show="currentStep === 0" x-transition>
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="bi bi-person me-2"></i>
+                    Customer Information
+                </h4>
+                <p class="section-description text-muted">Select or add customer for this sale</p>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <label class="form-label">Customer Search</label>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="customerSearch"
+                                   @input="searchCustomers()"
+                                   placeholder="Search by name, phone, or email..."
+                                   x-ref="customerSearchInput">
+                            <button type="button" 
+                                    class="btn btn-outline-secondary"
+                                    @click="addNewCustomer()">
+                                <i class="bi bi-person-plus"></i> Add New
+                            </button>
+                        </div>
+                        
+                        <!-- Customer Selection Results -->
+                        <div class="customer-results" x-show="customerSearch && customerResults.length > 0">
+                            <template x-for="customer in customerResults" :key="customer.id">
+                                <div class="customer-card" @click="selectCustomer(customer)">
+                                    <div class="customer-info">
+                                        <strong x-text="customer.name"></strong>
+                                        <div class="customer-contact">
+                                            <span x-text="customer.phone || customer.email"></span>
+                                            <span class="text-muted ms-2" x-show="customer.total_purchases">
+                                                Total Purchases: <span x-text="formatCurrency(customer.total_purchases)"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="customer-loyalty" x-show="isFeatureEnabled('FEATURE_LOYALTY_PROGRAM') && customer.loyalty_points">
+                                        <i class="bi bi-award-fill text-warning"></i>
+                                        <span x-text="`${customer.loyalty_points} points`"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        <!-- Selected Customer Display -->
+                        <div class="selected-customer" x-show="selectedCustomer">
+                            <div class="alert alert-success">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <strong x-text="selectedCustomer.name"></strong>
+                                        <div class="text-muted">
+                                            <span x-text="selectedCustomer.phone || selectedCustomer.email"></span>
+                                            <span class="ms-2" x-show="selectedCustomer.loyalty_points">
+                                                Loyalty Points: <span x-text="selectedCustomer.loyalty_points"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearCustomer()">
+                                        <i class="bi bi-x"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Walk-in Option -->
+                        <div class="walk-in-option">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="radio" 
+                                       name="customer_type" 
+                                       id="walk_in"
+                                       x-model="customerType"
+                                       value="walk_in">
+                                <label class="form-check-label" for="walk_in">
+                                    <i class="bi bi-person-walking me-2"></i>
+                                    Walk-in Customer
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Product Selection -->
+        <div class="form-step" x-show="currentStep === 1" x-transition>
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="bi bi-box me-2"></i>
+                    Product Selection
+                </h4>
+                <p class="section-description text-muted">Add products to the sale</p>
+                
+                <!-- Product Search -->
+                <div class="product-search-section mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control" 
+                               x-model="productSearch"
+                               @input="searchProducts()"
+                               placeholder="Search products by name, SKU, or barcode..."
+                               x-ref="productSearchInput">
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                @click="openBarcodeScanner()"
+                                x-show="isFeatureEnabled('FEATURE_BARCODE_SCANNING')">
+                            <i class="bi bi-upc-scan"></i> Scan
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Product Results -->
+                <div class="product-results" x-show="productSearch && productResults.length > 0">
+                    <div class="product-grid">
+                        <template x-for="product in productResults" :key="product.id">
+                            <div class="product-card" @click="addProductToSale(product)">
+                                <div class="product-image">
+                                    <img :src="product.image || '/static/images/placeholder-product.png'" 
+                                         :alt="product.name"
+                                         class="img-fluid">
+                                </div>
+                                <div class="product-info">
+                                    <h6 class="product-name" x-text="product.name"></h6>
+                                    <p class="product-sku text-muted small" x-text="product.sku"></p>
+                                    <div class="product-price">
+                                        <span class="current-price" x-text="formatCurrency(product.price)"></span>
+                                        <span class="stock-info" 
+                                              x-show="product.stock !== undefined"
+                                              :class="{'low-stock': product.stock <= 10}">
+                                            Stock: <span x-text="product.stock"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Sale Items -->
+                <div class="sale-items-section">
+                    <h5 class="items-title">Sale Items</h5>
+                    
+                    <div x-show="saleItems.length === 0" class="empty-items">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-cart-x display-1"></i>
+                            <p class="mt-3">No items added to sale</p>
+                            <p class="small">Search and add products to continue</p>
+                        </div>
+                    </div>
+                    
+                    <div class="sale-items-table" x-show="saleItems.length > 0">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>SKU</th>
+                                        <th>Price</th>
+                                        <th>Quantity</th>
+                                        <th>Discount</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(item, index) in saleItems" :key="item.id">
+                                        <tr class="sale-item">
+                                            <td>
+                                                <div class="item-name">
+                                                    <strong x-text="item.name"></strong>
+                                                    <div class="item-variant" x-show="item.variant">
+                                                        <small class="text-muted">Variant: <span x-text="item.variant"></span></small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="item-sku" x-text="item.sku"></span>
+                                            </td>
+                                            <td>
+                                                <div class="item-price-input">
+                                                    <span class="input-group">
+                                                        <span class="input-group-text">$</span>
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm" 
+                                                               x-model="item.price"
+                                                               @input="updateItemTotal(index)"
+                                                               step="0.01"
+                                                               min="0">
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="quantity-controls">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            @click="updateQuantity(index, item.quantity - 1)"
+                                                            :disabled="item.quantity <= 1">
+                                                        <i class="bi bi-dash"></i>
+                                                    </button>
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm text-center" 
+                                                           x-model="item.quantity"
+                                                           @input="updateItemTotal(index)"
+                                                           min="1"
+                                                           :max="item.max_quantity || 999">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            @click="updateQuantity(index, item.quantity + 1)"
+                                                            :disabled="item.max_quantity && item.quantity >= item.max_quantity">
+                                                        <i class="bi bi-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="discount-controls">
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm" 
+                                                           x-model="item.discount"
+                                                           @input="updateItemTotal(index)"
+                                                           step="0.01"
+                                                           min="0"
+                                                           max="100"
+                                                           placeholder="0">
+                                                    <select class="form-select form-select-sm ms-1" 
+                                                            x-model="item.discount_type"
+                                                            @change="updateItemTotal(index)">
+                                                        <option value="percentage">%</option>
+                                                        <option value="fixed">$</option>
+                                                    </select>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="item-total" x-text="formatCurrency(item.total)"></span>
+                                            </td>
+                                            <td>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        @click="removeItem(index)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Additional Information -->
+        <div class="form-step" x-show="currentStep === 2" x-transition>
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Additional Information
+                </h4>
+                <p class="section-description text-muted">Add notes and additional details</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Order Type</label>
+                        <select class="form-select" x-model="saleData.order_type">
+                            <option value="dine_in">Dine In</option>
+                            <option value="takeaway">Takeaway</option>
+                            <option value="delivery">Delivery</option>
+                            <option value="online">Online Order</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" x-show="saleData.order_type === 'delivery'">
+                        <label class="form-label">Delivery Address</label>
+                        <textarea class="form-control" 
+                                  x-model="saleData.delivery_address"
+                                  rows="2"
+                                  placeholder="Enter delivery address..."></textarea>
+                    </div>
+                    <div class="col-md-6" x-show="isFeatureEnabled('FEATURE_TABLE_MANAGEMENT') && saleData.order_type === 'dine_in'">
+                        <label class="form-label">Table Number</label>
+                        <select class="form-select" x-model="saleData.table_number">
+                            <option value="">Select Table</option>
+                            <template x-for="table in availableTables" :key="table.id">
+                                <option :value="table.number" x-text="`Table ${table.number} (${table.capacity} seats)`"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Staff Member</label>
+                        <select class="form-select" x-model="saleData.staff_id">
+                            <option value="">Select Staff</option>
+                            <template x-for="staff in availableStaff" :key="staff.id">
+                                <option :value="staff.id" x-text="staff.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Order Notes</label>
+                        <textarea class="form-control" 
+                                  x-model="saleData.notes"
+                                  rows="3"
+                                  placeholder="Add any special instructions or notes..."></textarea>
+                    </div>
+                    <div class="col-md-12" x-show="isFeatureEnabled('FEATURE_PROMOTIONAL_PRICING')">
+                        <label class="form-label">Apply Promotion</label>
+                        <select class="form-select" x-model="saleData.promotion_id" @change="applyPromotion()">
+                            <option value="">No Promotion</option>
+                            <template x-for="promotion in availablePromotions" :key="promotion.id">
+                                <option :value="promotion.id" x-text="`${promotion.name} - ${promotion.description}`"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Navigation -->
+        <div class="form-navigation">
+            <div class="row">
+                <div class="col-md-6">
+                    <button type="button" 
+                            class="btn btn-secondary"
+                            @click="previousStep()"
+                            x-show="currentStep > 0">
+                        <i class="bi bi-arrow-left"></i> Previous
+                    </button>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button type="button" 
+                            class="btn btn-primary me-2"
+                            @click="nextStep()"
+                            x-show="currentStep < formSteps.length - 1"
+                            :disabled="!isStepValid()">
+                        Next <i class="bi bi-arrow-right"></i>
+                    </button>
+                    <button type="submit" 
+                            class="btn btn-success"
+                            x-show="currentStep === formSteps.length - 1"
+                            :disabled="!isValidSale">
+                        <i class="bi bi-check-circle"></i> Complete Sale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Order Summary Sidebar -->
+    <div class="order-summary-sidebar" x-show="saleItems.length > 0">
+        <div class="summary-card">
+            <h5 class="summary-title">Order Summary</h5>
+            
+            <div class="summary-items">
+                <template x-for="item in saleItems" :key="item.id">
+                    <div class="summary-item">
+                        <div class="item-info">
+                            <strong x-text="item.name"></strong>
+                            <span class="text-muted" x-show="item.variant">
+                                (<span x-text="item.variant"></span>)
+                            </span>
+                        </div>
+                        <div class="item-details">
+                            <span x-text="`${item.quantity}x ${formatCurrency(item.price)}`"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            
+            <div class="summary-totals">
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span x-text="formatCurrency(subtotal)"></span>
+                </div>
+                <div class="summary-row" x-show="totalDiscount > 0">
+                    <span>Discount:</span>
+                    <span class="text-success">-<span x-text="formatCurrency(totalDiscount)"></span></span>
+                </div>
+                <div class="summary-row" x-show="totalTax > 0">
+                    <span>Tax:</span>
+                    <span x-text="formatCurrency(totalTax)"></span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total:</span>
+                    <span x-text="formatCurrency(total)"></span>
+                </div>
+            </div>
+            
+            <div class="customer-summary" x-show="selectedCustomer">
+                <h6>Customer Details</h6>
+                <p><strong x-text="selectedCustomer.name"></strong></p>
+                <p class="text-muted" x-text="selectedCustomer.phone || selectedCustomer.email"></p>
+                <div class="loyalty-info" x-show="isFeatureEnabled('FEATURE_LOYALTY_PROGRAM') && selectedCustomer.loyalty_points">
+                    <i class="bi bi-award-fill text-warning"></i>
+                    <span x-text="`${selectedCustomer.loyalty_points} points available`"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/sales_processing_form.js') }}"></script>
+<script>
+// Sales Form App
+function salesFormApp() {
+    return {
+        // Data
+        isEditing: false,
+        currentStep: 0,
+        hasSteps: true,
+        formSteps: [
+            { title: 'Customer Information' },
+            { title: 'Product Selection' },
+            { title: 'Additional Information' }
+        ],
+        
+        // Customer data
+        customerSearch: '',
+        customerResults: [],
+        selectedCustomer: null,
+        customerType: 'walk_in',
+        
+        // Product data
+        productSearch: '',
+        productResults: [],
+        saleItems: [],
+        
+        // Sale data
+        saleData: {
+            order_type: 'dine_in',
+            delivery_address: '',
+            table_number: '',
+            staff_id: '',
+            notes: '',
+            promotion_id: ''
+        },
+        
+        // Reference data
+        availableTables: [],
+        availableStaff: [],
+        availablePromotions: [],
+        
+        // Computed properties
+        get progressPercentage() {
+            return ((this.currentStep + 1) / this.formSteps.length) * 100;
+        },
+        
+        get subtotal() {
+            return this.saleItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        },
+        
+        get totalDiscount() {
+            return this.saleItems.reduce((sum, item) => sum + item.discount_amount, 0);
+        },
+        
+        get totalTax() {
+            const taxableAmount = this.subtotal - this.totalDiscount;
+            return taxableAmount * 0.05; // 5% tax - make configurable
+        },
+        
+        get total() {
+            return this.subtotal - this.totalDiscount + this.totalTax;
+        },
+        
+        get isValidSale() {
+            return this.saleItems.length > 0 && this.saleItems.every(item => item.quantity > 0 && item.price >= 0);
+        },
+        
+        // Methods
+        init() {
+            this.loadReferenceData();
+            this.checkEditMode();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadReferenceData() {
+            try {
+                // Load tables, staff, and promotions
+                const [tablesResponse, staffResponse, promotionsResponse] = await Promise.all([
+                    fetch('/api/tables'),
+                    fetch('/api/staff'),
+                    fetch('/api/promotions')
+                ]);
+                
+                this.availableTables = await tablesResponse.json();
+                this.availableStaff = await staffResponse.json();
+                this.availablePromotions = await promotionsResponse.json();
+            } catch (error) {
+                console.error('Error loading reference data:', error);
+            }
+        },
+        
+        checkEditMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId) {
+                this.isEditing = true;
+                this.loadExistingSale(editId);
+            }
+        },
+        
+        async loadExistingSale(saleId) {
+            try {
+                const response = await fetch(`/api/sales/${saleId}`);
+                const sale = await response.json();
+                
+                this.selectedCustomer = sale.customer;
+                this.saleItems = sale.items;
+                this.saleData = {
+                    order_type: sale.order_type,
+                    delivery_address: sale.delivery_address || '',
+                    table_number: sale.table_number || '',
+                    staff_id: sale.staff_id || '',
+                    notes: sale.notes || '',
+                    promotion_id: sale.promotion_id || ''
+                };
+            } catch (error) {
+                console.error('Error loading existing sale:', error);
+                this.showError('Failed to load existing sale');
+            }
+        },
+        
+        async searchCustomers() {
+            if (!this.customerSearch) {
+                this.customerResults = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/customers/search?q=${this.customerSearch}`);
+                this.customerResults = await response.json();
+            } catch (error) {
+                console.error('Error searching customers:', error);
+            }
+        },
+        
+        selectCustomer(customer) {
+            this.selectedCustomer = customer;
+            this.customerSearch = '';
+            this.customerResults = [];
+            this.customerType = 'existing';
+        },
+        
+        clearCustomer() {
+            this.selectedCustomer = null;
+            this.customerType = 'walk_in';
+        },
+        
+        addNewCustomer() {
+            window.location.href = `/customers/new?return_to=${encodeURIComponent(window.location.href)}`;
+        },
+        
+        async searchProducts() {
+            if (!this.productSearch) {
+                this.productResults = [];
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/products/search?q=${this.productSearch}`);
+                this.productResults = await response.json();
+            } catch (error) {
+                console.error('Error searching products:', error);
+            }
+        },
+        
+        addProductToSale(product) {
+            const existingItem = this.saleItems.find(item => item.id === product.id);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+                this.updateItemTotal(this.saleItems.indexOf(existingItem));
+            } else {
+                this.saleItems.push({
+                    id: product.id,
+                    name: product.name,
+                    sku: product.sku,
+                    price: product.price,
+                    quantity: 1,
+                    discount: 0,
+                    discount_type: 'percentage',
+                    discount_amount: 0,
+                    total: product.price,
+                    max_quantity: product.stock,
+                    variant: null
+                });
+            }
+            
+            this.productSearch = '';
+            this.productResults = [];
+            this.showSuccess(`${product.name} added to sale`);
+        },
+        
+        updateQuantity(itemIndex, newQuantity) {
+            const item = this.saleItems[itemIndex];
+            if (item && newQuantity > 0) {
+                item.quantity = newQuantity;
+                this.updateItemTotal(itemIndex);
+            }
+        },
+        
+        updateItemTotal(itemIndex) {
+            const item = this.saleItems[itemIndex];
+            if (!item) return;
+            
+            const subtotal = item.price * item.quantity;
+            
+            if (item.discount_type === 'percentage') {
+                item.discount_amount = subtotal * (item.discount / 100);
+            } else {
+                item.discount_amount = Math.min(item.discount, subtotal);
+            }
+            
+            item.total = subtotal - item.discount_amount;
+        },
+        
+        removeItem(itemIndex) {
+            this.saleItems.splice(itemIndex, 1);
+        },
+        
+        applyPromotion() {
+            if (!this.saleData.promotion_id) {
+                return;
+            }
+            
+            const promotion = this.availablePromotions.find(p => p.id === this.saleData.promotion_id);
+            if (promotion) {
+                // Apply promotion logic based on promotion type
+                this.applyPromotionRules(promotion);
+            }
+        },
+        
+        applyPromotionRules(promotion) {
+            // Implement promotion application logic
+            this.showSuccess(`Promotion "${promotion.name}" applied`);
+        },
+        
+        getStepClass(index) {
+            if (index < this.currentStep) return 'completed';
+            if (index === this.currentStep) return 'active';
+            return 'pending';
+        },
+        
+        goToStep(index) {
+            if (index >= 0 && index < this.formSteps.length) {
+                this.currentStep = index;
+            }
+        },
+        
+        nextStep() {
+            if (this.currentStep < this.formSteps.length - 1 && this.isStepValid()) {
+                this.currentStep++;
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 0) {
+                this.currentStep--;
+            }
+        },
+        
+        isStepValid() {
+            switch (this.currentStep) {
+                case 0:
+                    return this.customerType === 'walk_in' || this.selectedCustomer !== null;
+                case 1:
+                    return this.saleItems.length > 0;
+                case 2:
+                    return true; // Additional info is optional
+                default:
+                    return false;
+            }
+        },
+        
+        proceedToPayment() {
+            if (!this.isValidSale) {
+                this.showError('Please add at least one item to the sale');
+                return;
+            }
+            
+            const saleData = {
+                customer: this.selectedCustomer,
+                items: this.saleItems,
+                ...this.saleData,
+                subtotal: this.subtotal,
+                discount: this.totalDiscount,
+                tax: this.totalTax,
+                total: this.total
+            };
+            
+            // Navigate to payment processing
+            window.location.href = `/sales/payment?data=${encodeURIComponent(JSON.stringify(saleData))}`;
+        },
+        
+        async submitForm() {
+            if (!this.isValidSale) {
+                this.showError('Please complete all required fields');
+                return;
+            }
+            
+            try {
+                const saleData = {
+                    customer: this.selectedCustomer,
+                    items: this.saleItems,
+                    ...this.saleData,
+                    subtotal: this.subtotal,
+                    discount: this.totalDiscount,
+                    tax: this.totalTax,
+                    total: this.total
+                };
+                
+                const url = this.isEditing ? `/api/sales/${this.getSaleId()}` : '/api/sales';
+                const method = this.isEditing ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(saleData)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Sale processed successfully');
+                    window.location.href = '/sales';
+                } else {
+                    throw new Error('Failed to process sale');
+                }
+            } catch (error) {
+                console.error('Error submitting sale:', error);
+                this.showError('Failed to process sale');
+            }
+        },
+        
+        cancelForm() {
+            if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
+                window.history.back();
+            }
+        },
+        
+        async saveDraft() {
+            try {
+                const draftData = {
+                    customer: this.selectedCustomer,
+                    items: this.saleItems,
+                    sale_data: this.saleData,
+                    current_step: this.currentStep
+                };
+                
+                const response = await fetch('/api/sales/drafts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(draftData)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Draft saved successfully');
+                } else {
+                    throw new Error('Failed to save draft');
+                }
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                this.showError('Failed to save draft');
+            }
+        },
+        
+        openBarcodeScanner() {
+            // Implement barcode scanner functionality
+            this.showInfo('Barcode scanner feature coming soon');
+        },
+        
+        getSaleId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('edit');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save draft
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveDraft();
+                }
+                
+                // Ctrl/Cmd + Enter: Submit form
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    this.submitForm();
+                }
+                
+                // F1: Focus customer search
+                if (e.key === 'F1') {
+                    e.preventDefault();
+                    this.$refs.customerSearchInput.focus();
+                }
+                
+                // F2: Focus product search
+                if (e.key === 'F2') {
+                    e.preventDefault();
+                    this.$refs.productSearchInput.focus();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        isFeatureEnabled(feature) {
+            return window.RETAIL_CONFIG.features[feature] || false;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showInfo(message) {
+            this.showNotification(message, 'info');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

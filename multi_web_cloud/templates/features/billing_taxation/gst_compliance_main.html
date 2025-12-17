@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Compliance Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .gst-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #28a745;
+        }
+        .gst-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .status-compliant { color: #28a745; }
+        .status-pending { color: #ffc107; }
+        .status-overdue { color: #dc3545; }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            stroke: #28a745;
+            stroke-dasharray: 339.292;
+            stroke-dashoffset: 0;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="gstComplianceDashboard()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">GST Compliance Dashboard</h1>
+                        <p class="text-muted mb-0">Monitor and manage your GST compliance status</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" @click="refreshData()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" @click="openFilingModal()">
+                            <i class="bi bi-file-earmark-plus"></i> File Return
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compliance Status Overview -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-md-3 mb-3">
+                <div class="card gst-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">GSTIN Status</h6>
+                                <h4 class="mb-0 status-compliant">Active</h4>
+                            </div>
+                            <div class="progress-ring" style="width: 50px; height: 50px;">
+                                <svg width="50" height="50">
+                                    <circle class="progress-ring-circle" 
+                                            stroke-width="4" 
+                                            fill="transparent" 
+                                            r="24" 
+                                            cx="25" 
+                                            cy="25"
+                                            :style="`stroke-dashoffset: ${339.292 - (339.292 * complianceScore) / 100}`"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <small class="text-muted">Compliance Score: <span x-text="complianceScore + '%'"></span></small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card gst-card h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Pending Filings</h6>
+                        <h4 class="mb-0 status-pending" x-text="pendingFilings"></h4>
+                        <small class="text-muted">This Month</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card gst-card h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Overdue Returns</h6>
+                        <h4 class="mb-0 status-overdue" x-text="overdueReturns"></h4>
+                        <small class="text-muted">Require Immediate Action</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card gst-card h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Total Tax Paid</h6>
+                        <h4 class="mb-0">₹<span x-text="totalTaxPaid.toLocaleString('en-IN')"></span></h4>
+                        <small class="text-muted">Current Financial Year</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-success w-100" @click="navigateTo('list')">
+                                    <i class="bi bi-file-text"></i> View Returns
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-info w-100" @click="navigateTo('form')">
+                                    <i class="bi bi-gear"></i> GST Settings
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-warning w-100" @click="navigateTo('settings')">
+                                    <i class="bi bi-sliders"></i> Tax Rules
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-primary w-100" @click="navigateTo('reports')">
+                                    <i class="bi bi-graph-up"></i> Reports
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Filings & Recent Activity -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-lg-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Upcoming GST Filings</h5>
+                        <button class="btn btn-sm btn-outline-secondary" @click="viewAllFilings()">
+                            View All
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Return Type</th>
+                                        <th>Period</th>
+                                        <th>Due Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="filing in upcomingFilings" :key="filing.id">
+                                        <tr>
+                                            <td x-text="filing.type"></td>
+                                            <td x-text="filing.period"></td>
+                                            <td x-text="filing.dueDate"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="{
+                                                          'bg-warning': filing.status === 'Pending',
+                                                          'bg-success': filing.status === 'Filed',
+                                                          'bg-danger': filing.status === 'Overdue'
+                                                      }" 
+                                                      x-text="filing.status"></span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary" @click="fileReturn(filing)">
+                                                    File Now
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">GST Compliance Chart</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="gstComplianceChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Notifications -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent GST Notifications</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <template x-for="notification in recentNotifications" :key="notification.id">
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-bell text-warning me-3"></i>
+                                        <div>
+                                            <h6 class="mb-1" x-text="notification.title"></h6>
+                                            <p class="mb-0 text-muted small" x-text="notification.message"></p>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted" x-text="notification.time"></small>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filing Modal -->
+    <div class="modal fade" id="filingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">File GST Return</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="submitFiling">
+                        <div class="mb-3">
+                            <label class="form-label">Return Type</label>
+                            <select class="form-select" x-model="filingForm.type" required>
+                                <option value="">Select Return Type</option>
+                                <option value="GSTR1">GSTR-1</option>
+                                <option value="GSTR3B">GSTR-3B</option>
+                                <option value="GSTR9">GSTR-9</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tax Period</label>
+                            <input type="month" class="form-control" x-model="filingForm.period" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Turnover (₹)</label>
+                            <input type="number" class="form-control" x-model="filingForm.turnover" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tax Liability (₹)</label>
+                            <input type="number" class="form-control" x-model="filingForm.taxLiability" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="submitFiling">File Return</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function gstComplianceDashboard() {
+            return {
+                complianceScore: 92,
+                pendingFilings: 3,
+                overdueReturns: 1,
+                totalTaxPaid: 285000,
+                upcomingFilings: [
+                    { id: 1, type: 'GSTR-1', period: 'Dec 2023', dueDate: 'Jan 11, 2024', status: 'Pending' },
+                    { id: 2, type: 'GSTR-3B', period: 'Dec 2023', dueDate: 'Jan 20, 2024', status: 'Pending' },
+                    { id: 3, type: 'GSTR-1', period: 'Nov 2023', dueDate: 'Dec 11, 2023', status: 'Overdue' }
+                ],
+                recentNotifications: [
+                    { id: 1, title: 'GSTR-1 Due Soon', message: 'File your GSTR-1 for December 2023 by January 11', time: '2 hours ago' },
+                    { id: 2, title: 'GSTIN Verification', message: 'Your GSTIN verification completed successfully', time: '1 day ago' },
+                    { id: 3, title: 'Tax Credit Update', message: 'ITC of ₹15,000 has been credited to your account', time: '3 days ago' }
+                ],
+                filingForm: {
+                    type: '',
+                    period: '',
+                    turnover: '',
+                    taxLiability: ''
+                },
+                
+                init() {
+                    this.initChart();
+                },
+                
+                isFeatureEnabled(feature) {
+                    // This would typically check against a feature flag system
+                    return true;
+                },
+                
+                initChart() {
+                    const ctx = document.getElementById('gstComplianceChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Compliant', 'Pending', 'Overdue'],
+                            datasets: [{
+                                data: [92, 6, 2],
+                                backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                refreshData() {
+                    // Simulate data refresh
+                    console.log('Refreshing GST compliance data...');
+                },
+                
+                openFilingModal() {
+                    const modal = new bootstrap.Modal(document.getElementById('filingModal'));
+                    modal.show();
+                },
+                
+                submitFiling() {
+                    // Handle filing submission
+                    console.log('Submitting GST return:', this.filingForm);
+                    bootstrap.Modal.getInstance(document.getElementById('filingModal')).hide();
+                },
+                
+                fileReturn(filing) {
+                    this.filingForm.type = filing.type;
+                    this.openFilingModal();
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/gst_compliance_${page}.html`;
+                },
+                
+                viewAllFilings() {
+                    window.location.href = '/features/billing_taxation/gst_compliance_list.html';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

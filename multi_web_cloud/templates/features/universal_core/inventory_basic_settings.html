@@ -1,0 +1,1092 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/inventory_basic_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Inventory Settings -->
+<div class="inventory-settings-container" x-data="inventorySettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Inventory Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure inventory management preferences and behaviors</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-primary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveAllSettings()" :disabled="isSaving">
+                        <i class="bi bi-check-circle"></i> 
+                        <span x-show="!isSaving">Save Settings</span>
+                        <span x-show="isSaving">Saving...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <div class="nav nav-pills" role="tablist">
+            <button class="nav-link active" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#general-settings"
+                    type="button">
+                <i class="bi bi-sliders me-2"></i>General
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#alert-settings"
+                    type="button">
+                <i class="bi bi-bell me-2"></i>Alerts
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#tracking-settings"
+                    type="button">
+                <i class="bi bi-activity me-2"></i>Tracking
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#reporting-settings"
+                    type="button">
+                <i class="bi bi-graph-up me-2"></i>Reporting
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#integration-settings"
+                    type="button">
+                <i class="bi bi-link-45deg me-2"></i>Integrations
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        <div class="tab-content">
+            
+            <!-- General Settings -->
+            <div class="tab-pane fade show active" id="general-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-sliders me-2"></i>
+                            General Inventory Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Default Settings -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Default Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Location</label>
+                                        <select class="form-select" x-model="settings.defaultLocation">
+                                            <option value="">Select default location</option>
+                                            <template x-for="location in locations" :key="location.id">
+                                                <option :value="location.id" x-text="location.name"></option>
+                                            </template>
+                                        </select>
+                                        <small class="form-text text-muted">Default location for new products</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Reorder Level</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.defaultReorderLevel"
+                                               min="0">
+                                        <small class="form-text text-muted">Default reorder level for new products</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Stock Method</label>
+                                        <select class="form-select" x-model="settings.defaultStockMethod">
+                                            <option value="fifo">FIFO (First In, First Out)</option>
+                                            <option value="lifo">LIFO (Last In, First Out)</option>
+                                            <option value="weighted">Weighted Average</option>
+                                            <option value="specific">Specific Identification</option>
+                                        </select>
+                                        <small class="form-text text-muted">Default stock valuation method</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Currency</label>
+                                        <select class="form-select" x-model="settings.currency">
+                                            <option value="USD">USD - US Dollar</option>
+                                            <option value="EUR">EUR - Euro</option>
+                                            <option value="GBP">GBP - British Pound</option>
+                                            <option value="JPY">JPY - Japanese Yen</option>
+                                            <option value="INR">INR - Indian Rupee</option>
+                                        </select>
+                                        <small class="form-text text-muted">Currency for inventory valuation</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stock Management -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Stock Management</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Low Stock Threshold (%)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.lowStockThreshold"
+                                               min="0"
+                                               max="100">
+                                        <small class="form-text text-muted">Percentage below reorder level to consider as low stock</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Critical Stock Threshold (%)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.criticalStockThreshold"
+                                               min="0"
+                                               max="100">
+                                        <small class="form-text text-muted">Percentage below reorder level to consider as critical</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Maximum Stock Level</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.maxStockLevel"
+                                               min="0">
+                                        <small class="form-text text-muted">Maximum recommended stock level</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Stock Adjustment Approval</label>
+                                        <select class="form-select" x-model="settings.adjustmentApproval">
+                                            <option value="none">No Approval Required</option>
+                                            <option value="manager">Manager Approval</option>
+                                            <option value="admin">Admin Approval</option>
+                                            <option value="value">Value-Based Approval</option>
+                                        </select>
+                                        <small class="form-text text-muted">Approval requirement for stock adjustments</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Display Settings -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Display Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Items Per Page</label>
+                                        <select class="form-select" x-model="settings.itemsPerPage">
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                            <option value="200">200</option>
+                                        </select>
+                                        <small class="form-text text-muted">Number of items to display per page</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default View</label>
+                                        <select class="form-select" x-model="settings.defaultView">
+                                            <option value="table">Table View</option>
+                                            <option value="grid">Grid View</option>
+                                            <option value="list">List View</option>
+                                        </select>
+                                        <small class="form-text text-muted">Default view for inventory listing</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="showImages"
+                                                   x-model="settings.showImages">
+                                            <label class="form-check-label" for="showImages">
+                                                Show product images in inventory list
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="showBarcodes"
+                                                   x-model="settings.showBarcodes">
+                                            <label class="form-check-label" for="showBarcodes">
+                                                Show barcodes in inventory list
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="showStockValue"
+                                                   x-model="settings.showStockValue">
+                                            <label class="form-check-label" for="showStockValue">
+                                                Show stock value in inventory list
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alert Settings -->
+            <div class="tab-pane fade" id="alert-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-bell me-2"></i>
+                            Alert and Notification Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Email Alerts -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Email Alerts</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableEmailAlerts"
+                                                   x-model="settings.enableEmailAlerts">
+                                            <label class="form-check-label" for="enableEmailAlerts">
+                                                Enable email alerts
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Alert Recipients</label>
+                                        <textarea class="form-control" 
+                                                  x-model="settings.alertRecipients"
+                                                  rows="3"
+                                                  placeholder="Enter email addresses separated by commas"></textarea>
+                                        <small class="form-text text-muted">Email addresses to receive inventory alerts</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Low Stock Alert Frequency</label>
+                                        <select class="form-select" x-model="settings.lowStockAlertFrequency">
+                                            <option value="immediate">Immediate</option>
+                                            <option value="hourly">Hourly</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Out of Stock Alert Frequency</label>
+                                        <select class="form-select" x-model="settings.outOfStockAlertFrequency">
+                                            <option value="immediate">Immediate</option>
+                                            <option value="hourly">Hourly</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Alert Types -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Alert Types</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="alertLowStock"
+                                                   x-model="settings.alertLowStock">
+                                            <label class="form-check-label" for="alertLowStock">
+                                                Low stock alerts
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="alertOutOfStock"
+                                                   x-model="settings.alertOutOfStock">
+                                            <label class="form-check-label" for="alertOutOfStock">
+                                                Out of stock alerts
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="alertOverstock"
+                                                   x-model="settings.alertOverstock">
+                                            <label class="form-check-label" for="alertOverstock">
+                                                Overstock alerts
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="alertExpiry"
+                                                   x-model="settings.alertExpiry">
+                                            <label class="form-check-label" for="alertExpiry">
+                                                Expiry alerts
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="alertLargeAdjustments"
+                                                   x-model="settings.alertLargeAdjustments">
+                                            <label class="form-check-label" for="alertLargeAdjustments">
+                                                Large stock adjustments
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="alertUnusualActivity"
+                                                   x-model="settings.alertUnusualActivity">
+                                            <label class="form-check-label" for="alertUnusualActivity">
+                                                Unusual activity alerts
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Alert Thresholds -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Alert Thresholds</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Expiry Alert Days</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.expiryAlertDays"
+                                               min="1">
+                                        <small class="form-text text-muted">Days before expiry to send alert</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Large Adjustment Threshold</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.largeAdjustmentThreshold"
+                                               min="1">
+                                        <small class="form-text text-muted">Minimum quantity for large adjustment alert</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tracking Settings -->
+            <div class="tab-pane fade" id="tracking-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-activity me-2"></i>
+                            Stock Tracking Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Movement Tracking -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Movement Tracking</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="trackAllMovements"
+                                                   x-model="settings.trackAllMovements">
+                                            <label class="form-check-label" for="trackAllMovements">
+                                                Track all stock movements
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="trackSales"
+                                                   x-model="settings.trackSales">
+                                            <label class="form-check-label" for="trackSales">
+                                                Track sales movements
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="trackPurchases"
+                                                   x-model="settings.trackPurchases">
+                                            <label class="form-check-label" for="trackPurchases">
+                                                Track purchase movements
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="trackTransfers"
+                                                   x-model="settings.trackTransfers">
+                                            <label class="form-check-label" for="trackTransfers">
+                                                Track transfer movements
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- History Settings -->
+                        <div class="settings-section">
+                            <h6 class="section-title">History Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">History Retention Period</label>
+                                        <select class="form-select" x-model="settings.historyRetentionPeriod">
+                                            <option value="30">30 days</option>
+                                            <option value="90">90 days</option>
+                                            <option value="180">180 days</option>
+                                            <option value="365">1 year</option>
+                                            <option value="1095">3 years</option>
+                                            <option value="0">Forever</option>
+                                        </select>
+                                        <small class="form-text text-muted">How long to keep movement history</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">History Cleanup Frequency</label>
+                                        <select class="form-select" x-model="settings.historyCleanupFrequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="quarterly">Quarterly</option>
+                                            <option value="never">Never</option>
+                                        </select>
+                                        <small class="form-text text-muted">How often to clean up old history</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Barcode Settings -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Barcode Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="autoGenerateBarcodes"
+                                                   x-model="settings.autoGenerateBarcodes">
+                                            <label class="form-check-label" for="autoGenerateBarcodes">
+                                                Auto-generate barcodes for new products
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Barcode Format</label>
+                                        <select class="form-select" x-model="settings.barcodeFormat">
+                                            <option value="code128">Code 128</option>
+                                            <option value="code39">Code 39</option>
+                                            <option value="ean13">EAN-13</option>
+                                            <option value="ean8">EAN-8</option>
+                                            <option value="upca">UPC-A</option>
+                                            <option value="qr">QR Code</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Barcode Prefix</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               x-model="settings.barcodePrefix"
+                                               placeholder="Optional prefix for generated barcodes">
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="validateBarcodes"
+                                                   x-model="settings.validateBarcodes">
+                                            <label class="form-check-label" for="validateBarcodes">
+                                                Validate barcode format on input
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reporting Settings -->
+            <div class="tab-pane fade" id="reporting-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Reporting Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Report Generation -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Report Generation</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Report Period</label>
+                                        <select class="form-select" x-model="settings.defaultReportPeriod">
+                                            <option value="today">Today</option>
+                                            <option value="yesterday">Yesterday</option>
+                                            <option value="this_week">This Week</option>
+                                            <option value="last_week">Last Week</option>
+                                            <option value="this_month">This Month</option>
+                                            <option value="last_month">Last Month</option>
+                                            <option value="this_quarter">This Quarter</option>
+                                            <option value="last_quarter">Last Quarter</option>
+                                            <option value="this_year">This Year</option>
+                                            <option value="last_year">Last Year</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Report Format</label>
+                                        <select class="form-select" x-model="settings.defaultReportFormat">
+                                            <option value="pdf">PDF</option>
+                                            <option value="excel">Excel</option>
+                                            <option value="csv">CSV</option>
+                                            <option value="html">HTML</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="includeCharts"
+                                                   x-model="settings.includeCharts">
+                                            <label class="form-check-label" for="includeCharts">
+                                                Include charts in reports
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="includeImages"
+                                                   x-model="settings.includeImages">
+                                            <label class="form-check-label" for="includeImages">
+                                                Include product images in reports
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scheduled Reports -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Scheduled Reports</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableScheduledReports"
+                                                   x-model="settings.enableScheduledReports">
+                                            <label class="form-check-label" for="enableScheduledReports">
+                                                Enable scheduled reports
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Report Recipients</label>
+                                        <textarea class="form-control" 
+                                                  x-model="settings.reportRecipients"
+                                                  rows="2"
+                                                  placeholder="Enter email addresses separated by commas"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Daily Inventory Report</label>
+                                        <select class="form-select" x-model="settings.dailyReportTime">
+                                            <option value="">Disabled</option>
+                                            <option value="06:00">6:00 AM</option>
+                                            <option value="08:00">8:00 AM</option>
+                                            <option value="09:00">9:00 AM</option>
+                                            <option value="17:00">5:00 PM</option>
+                                            <option value="18:00">6:00 PM</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Weekly Inventory Report</label>
+                                        <select class="form-select" x-model="settings.weeklyReportDay">
+                                            <option value="">Disabled</option>
+                                            <option value="monday">Monday</option>
+                                            <option value="tuesday">Tuesday</option>
+                                            <option value="wednesday">Wednesday</option>
+                                            <option value="thursday">Thursday</option>
+                                            <option value="friday">Friday</option>
+                                            <option value="saturday">Saturday</option>
+                                            <option value="sunday">Sunday</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Integration Settings -->
+            <div class="tab-pane fade" id="integration-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-link-45deg me-2"></i>
+                            Integration Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- POS Integration -->
+                        <div class="settings-section">
+                            <h6 class="section-title">POS Integration</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="syncWithPOS"
+                                                   x-model="settings.syncWithPOS">
+                                            <label class="form-check-label" for="syncWithPOS">
+                                                Sync inventory with POS system
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="autoUpdatePOS"
+                                                   x-model="settings.autoUpdatePOS">
+                                            <label class="form-check-label" for="autoUpdatePOS">
+                                                Auto-update POS on inventory changes
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Sync Frequency</label>
+                                        <select class="form-select" x-model="settings.syncFrequency">
+                                            <option value="realtime">Real-time</option>
+                                            <option value="5min">Every 5 minutes</option>
+                                            <option value="15min">Every 15 minutes</option>
+                                            <option value="30min">Every 30 minutes</option>
+                                            <option value="hourly">Hourly</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accounting Integration -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Accounting Integration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableAccountingSync"
+                                                   x-model="settings.enableAccountingSync">
+                                            <label class="form-check-label" for="enableAccountingSync">
+                                                Enable accounting integration
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Accounting System</label>
+                                        <select class="form-select" x-model="settings.accountingSystem">
+                                            <option value="">None</option>
+                                            <option value="quickbooks">QuickBooks</option>
+                                            <option value="xero">Xero</option>
+                                            <option value="sage">Sage</option>
+                                            <option value="wave">Wave</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Inventory Account</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               x-model="settings.inventoryAccount"
+                                               placeholder="Account code or name">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Cost of Goods Account</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               x-model="settings.cogsAccount"
+                                               placeholder="Account code or name">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Supplier Integration -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Supplier Integration</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableSupplierSync"
+                                                   x-model="settings.enableSupplierSync">
+                                            <label class="form-check-label" for="enableSupplierSync">
+                                                Enable supplier integration
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="autoReorder"
+                                                   x-model="settings.autoReorder">
+                                            <label class="form-check-label" for="autoReorder">
+                                                Auto-generate purchase orders for low stock
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Settings Saved</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="bi bi-check-circle text-success display-1"></i>
+                        <h4 class="mt-3">Settings Updated Successfully</h4>
+                        <p>Your inventory settings have been saved and will take effect immediately.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/inventory_basic_settings.js') }}"></script>
+<script>
+// Inventory Settings App
+function inventorySettingsApp() {
+    return {
+        // Data
+        isSaving: false,
+        locations: [],
+        
+        settings: {
+            // General Settings
+            defaultLocation: '',
+            defaultReorderLevel: 10,
+            defaultStockMethod: 'fifo',
+            currency: 'USD',
+            lowStockThreshold: 20,
+            criticalStockThreshold: 10,
+            maxStockLevel: 1000,
+            adjustmentApproval: 'none',
+            itemsPerPage: 25,
+            defaultView: 'table',
+            showImages: true,
+            showBarcodes: false,
+            showStockValue: true,
+            
+            // Alert Settings
+            enableEmailAlerts: true,
+            alertRecipients: '',
+            lowStockAlertFrequency: 'daily',
+            outOfStockAlertFrequency: 'immediate',
+            alertLowStock: true,
+            alertOutOfStock: true,
+            alertOverstock: false,
+            alertExpiry: true,
+            alertLargeAdjustments: true,
+            alertUnusualActivity: true,
+            expiryAlertDays: 30,
+            largeAdjustmentThreshold: 100,
+            
+            // Tracking Settings
+            trackAllMovements: true,
+            trackSales: true,
+            trackPurchases: true,
+            trackTransfers: true,
+            historyRetentionPeriod: 365,
+            historyCleanupFrequency: 'monthly',
+            autoGenerateBarcodes: true,
+            barcodeFormat: 'code128',
+            barcodePrefix: '',
+            validateBarcodes: true,
+            
+            // Reporting Settings
+            defaultReportPeriod: 'this_month',
+            defaultReportFormat: 'pdf',
+            includeCharts: true,
+            includeImages: false,
+            enableScheduledReports: false,
+            reportRecipients: '',
+            dailyReportTime: '09:00',
+            weeklyReportDay: 'monday',
+            
+            // Integration Settings
+            syncWithPOS: false,
+            autoUpdatePOS: false,
+            syncFrequency: 'realtime',
+            enableAccountingSync: false,
+            accountingSystem: '',
+            inventoryAccount: '',
+            cogsAccount: '',
+            enableSupplierSync: false,
+            autoReorder: false
+        },
+        
+        // Methods
+        init() {
+            this.loadLocations();
+            this.loadSettings();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                this.locations = await response.json();
+            } catch (error) {
+                console.error('Error loading locations:', error);
+            }
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/inventory/settings');
+                if (response.ok) {
+                    const settings = await response.json();
+                    this.settings = { ...this.settings, ...settings };
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        },
+        
+        async saveAllSettings() {
+            this.isSaving = true;
+            
+            try {
+                const response = await fetch('/api/inventory/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.showSuccessModal();
+                } else {
+                    throw new Error('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            } finally {
+                this.isSaving = false;
+            }
+        },
+        
+        async resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to default values? This action cannot be undone.')) {
+                try {
+                    const response = await fetch('/api/inventory/settings/reset', {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        await this.loadSettings();
+                        this.showSuccess('Settings reset to defaults');
+                    } else {
+                        throw new Error('Failed to reset settings');
+                    }
+                } catch (error) {
+                    console.error('Error resetting settings:', error);
+                    this.showError('Failed to reset settings');
+                }
+            }
+        },
+        
+        async exportSettings() {
+            try {
+                const response = await fetch('/api/inventory/settings/export');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory_settings_${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Settings exported successfully');
+                } else {
+                    throw new Error('Failed to export settings');
+                }
+            } catch (error) {
+                console.error('Error exporting settings:', error);
+                this.showError('Failed to export settings');
+            }
+        },
+        
+        showSuccessModal() {
+            const modal = new bootstrap.Modal(document.getElementById('successModal'));
+            modal.show();
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveAllSettings();
+                }
+                
+                // Ctrl/Cmd + R: Reset to defaults
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetToDefaults();
+                }
+                
+                // Ctrl/Cmd + E: Export settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSettings();
+                }
+            });
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

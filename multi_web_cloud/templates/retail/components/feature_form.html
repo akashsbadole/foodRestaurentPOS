@@ -1,0 +1,1007 @@
+<!-- Feature-Aware Form Component -->
+<div class="feature-form-container" x-data="featureForm()" x-init="init()">
+    <!-- Form Header -->
+    <div class="form-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="form-title" x-text="formTitle"></h2>
+                <p class="form-subtitle text-muted" x-text="formSubtitle"></p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="form-actions">
+                    <button type="button" 
+                            class="btn btn-outline-secondary"
+                            @click="resetForm()"
+                            x-show="!isReadOnly">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-primary"
+                            @click="saveDraft()"
+                            x-show="hasDraftFeature && !isReadOnly">
+                        <i class="bi bi-file-earmark"></i> Save Draft
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Progress Indicator -->
+    <div class="form-progress mb-4" x-show="hasSteps">
+        <div class="progress">
+            <div class="progress-bar" 
+                 :style="`width: ${progressPercentage}%`"
+                 role="progressbar"></div>
+        </div>
+        <div class="progress-steps">
+            <template x-for="(step, index) in formSteps" :key="index">
+                <div class="step" 
+                     :class="getStepClass(index)"
+                     @click="goToStep(index)">
+                    <div class="step-number" x-text="index + 1"></div>
+                    <div class="step-title" x-text="step.title"></div>
+                </div>
+            </template>
+        </div>
+    </div>
+    
+    <!-- Form Content -->
+    <form @submit.prevent="submitForm()" :class="{'form-readonly': isReadOnly}">
+        <!-- Current Step Content -->
+        <div class="form-content">
+            <template x-for="section in currentStepSections" :key="section.id">
+                <div class="form-section mb-4">
+                    <h4 class="section-title" x-text="section.title"></h4>
+                    <p class="section-description text-muted" x-text="section.description" x-show="section.description"></p>
+                    
+                    <div class="row">
+                        <template x-for="field in section.fields" :key="field.name">
+                            <!-- Dynamic field rendering based on field type -->
+                            <div class="col-md-6 mb-3" :class="{'col-md-12': field.width === 'full'}">
+                                <label :for="field.name" class="form-label">
+                                    <span x-text="field.label"></span>
+                                    <span class="text-danger" x-show="field.required">*</span>
+                                    <i class="bi bi-info-circle ms-1 text-muted" 
+                                       x-show="field.help"
+                                       :title="field.help"></i>
+                                </label>
+                                
+                                <!-- Text Input -->
+                                <template x-if="field.type === 'text' || field.type === 'email' || field.type === 'tel'">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           :id="field.name"
+                                           :name="field.name"
+                                           :type="field.type"
+                                           x-model="formData[field.name]"
+                                           :placeholder="field.placeholder"
+                                           :required="field.required"
+                                           :readonly="isReadOnly || field.readonly"
+                                           :disabled="!isFieldEnabled(field)"
+                                           @input="validateField(field)">
+                                </template>
+                                
+                                <!-- Number Input -->
+                                <template x-if="field.type === 'number'">
+                                    <input type="number" 
+                                           class="form-control" 
+                                           :id="field.name"
+                                           :name="field.name"
+                                           x-model="formData[field.name]"
+                                           :placeholder="field.placeholder"
+                                           :min="field.min"
+                                           :max="field.max"
+                                           :step="field.step"
+                                           :required="field.required"
+                                           :readonly="isReadOnly || field.readonly"
+                                           :disabled="!isFieldEnabled(field)"
+                                           @input="validateField(field)">
+                                </template>
+                                
+                                <!-- Textarea -->
+                                <template x-if="field.type === 'textarea'">
+                                    <textarea class="form-control" 
+                                              :id="field.name"
+                                              :name="field.name"
+                                              x-model="formData[field.name]"
+                                              :placeholder="field.placeholder"
+                                              :rows="field.rows || 3"
+                                              :required="field.required"
+                                              :readonly="isReadOnly || field.readonly"
+                                              :disabled="!isFieldEnabled(field)"
+                                              @input="validateField(field)"></textarea>
+                                </template>
+                                
+                                <!-- Select Dropdown -->
+                                <template x-if="field.type === 'select'">
+                                    <select class="form-select" 
+                                            :id="field.name"
+                                            :name="field.name"
+                                            x-model="formData[field.name]"
+                                            :required="field.required"
+                                            :disabled="isReadOnly || field.readonly || !isFieldEnabled(field)"
+                                            @change="validateField(field)">
+                                        <option value="">Select...</option>
+                                        <template x-for="option in field.options" :key="option.value">
+                                            <option :value="option.value" x-text="option.label"></option>
+                                        </template>
+                                    </select>
+                                </template>
+                                
+                                <!-- Multi-Select -->
+                                <template x-if="field.type === 'multiselect'">
+                                    <div class="multi-select-container">
+                                        <template x-for="option in field.options" :key="option.value">
+                                            <div class="form-check">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       :id="`${field.name}_${option.value}`"
+                                                       :name="field.name"
+                                                       :value="option.value"
+                                                       x-model="formData[field.name]"
+                                                       :disabled="isReadOnly || field.readonly || !isFieldEnabled(field)">
+                                                <label class="form-check-label" :for="`${field.name}_${option.value}`">
+                                                    <span x-text="option.label"></span>
+                                                </label>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                
+                                <!-- Radio Buttons -->
+                                <template x-if="field.type === 'radio'">
+                                    <div class="radio-container">
+                                        <template x-for="option in field.options" :key="option.value">
+                                            <div class="form-check">
+                                                <input class="form-check-input" 
+                                                       type="radio" 
+                                                       :id="`${field.name}_${option.value}`"
+                                                       :name="field.name"
+                                                       :value="option.value"
+                                                       x-model="formData[field.name]"
+                                                       :required="field.required"
+                                                       :disabled="isReadOnly || field.readonly || !isFieldEnabled(field)">
+                                                <label class="form-check-label" :for="`${field.name}_${option.value}`">
+                                                    <span x-text="option.label"></span>
+                                                </label>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                
+                                <!-- Checkbox -->
+                                <template x-if="field.type === 'checkbox'">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               :id="field.name"
+                                               :name="field.name"
+                                               x-model="formData[field.name]"
+                                               :disabled="isReadOnly || field.readonly || !isFieldEnabled(field)">
+                                        <label class="form-check-label" :for="field.name">
+                                            <span x-text="field.checkboxLabel || field.label"></span>
+                                        </label>
+                                    </div>
+                                </template>
+                                
+                                <!-- Date Input -->
+                                <template x-if="field.type === 'date'">
+                                    <input type="date" 
+                                           class="form-control" 
+                                           :id="field.name"
+                                           :name="field.name"
+                                           x-model="formData[field.name]"
+                                           :required="field.required"
+                                           :readonly="isReadOnly || field.readonly"
+                                           :disabled="!isFieldEnabled(field)"
+                                           @input="validateField(field)">
+                                </template>
+                                
+                                <!-- Time Input -->
+                                <template x-if="field.type === 'time'">
+                                    <input type="time" 
+                                           class="form-control" 
+                                           :id="field.name"
+                                           :name="field.name"
+                                           x-model="formData[field.name]"
+                                           :required="field.required"
+                                           :readonly="isReadOnly || field.readonly"
+                                           :disabled="!isFieldEnabled(field)"
+                                           @input="validateField(field)">
+                                </template>
+                                
+                                <!-- DateTime Input -->
+                                <template x-if="field.type === 'datetime'">
+                                    <input type="datetime-local" 
+                                           class="form-control" 
+                                           :id="field.name"
+                                           :name="field.name"
+                                           x-model="formData[field.name]"
+                                           :required="field.required"
+                                           :readonly="isReadOnly || field.readonly"
+                                           :disabled="!isFieldEnabled(field)"
+                                           @input="validateField(field)">
+                                </template>
+                                
+                                <!-- File Upload -->
+                                <template x-if="field.type === 'file'">
+                                    <input type="file" 
+                                           class="form-control" 
+                                           :id="field.name"
+                                           :name="field.name"
+                                           :accept="field.accept"
+                                           :multiple="field.multiple"
+                                           :required="field.required"
+                                           :disabled="isReadOnly || field.readonly || !isFieldEnabled(field)"
+                                           @change="handleFileUpload($event, field)">
+                                    <div class="file-preview mt-2" x-show="formData[field.name + '_preview']">
+                                        <img :src="formData[field.name + '_preview']" 
+                                             class="img-thumbnail" 
+                                             style="max-width: 100px; max-height: 100px;">
+                                    </div>
+                                </template>
+                                
+                                <!-- Rich Text Editor -->
+                                <template x-if="field.type === 'richtext'">
+                                    <div class="rich-text-editor" 
+                                         :id="`${field.name}_editor`"
+                                         x-data="richTextEditor(field)"
+                                         x-init="init()"></div>
+                                </template>
+                                
+                                <!-- Price Input -->
+                                <template x-if="field.type === 'price'">
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               :id="field.name"
+                                               :name="field.name"
+                                               x-model="formData[field.name]"
+                                               :placeholder="field.placeholder"
+                                               :min="0"
+                                               :step="0.01"
+                                               :required="field.required"
+                                               :readonly="isReadOnly || field.readonly"
+                                               :disabled="!isFieldEnabled(field)"
+                                               @input="validateField(field)">
+                                    </div>
+                                </template>
+                                
+                                <!-- Percentage Input -->
+                                <template x-if="field.type === 'percentage'">
+                                    <div class="input-group">
+                                        <input type="number" 
+                                               class="form-control" 
+                                               :id="field.name"
+                                               :name="field.name"
+                                               x-model="formData[field.name]"
+                                               :placeholder="field.placeholder"
+                                               :min="0"
+                                               :max="100"
+                                               :step="0.1"
+                                               :required="field.required"
+                                               :readonly="isReadOnly || field.readonly"
+                                               :disabled="!isFieldEnabled(field)"
+                                               @input="validateField(field)">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </template>
+                                
+                                <!-- Field Validation Error -->
+                                <div class="invalid-feedback" x-show="errors[field.name]" x-text="errors[field.name]"></div>
+                                
+                                <!-- Field Help Text -->
+                                <div class="form-text" x-show="field.help" x-text="field.help"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions-footer mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <button type="button" 
+                            class="btn btn-secondary"
+                            @click="previousStep()"
+                            x-show="currentStep > 0">
+                        <i class="bi bi-arrow-left"></i> Previous
+                    </button>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button type="button" 
+                            class="btn btn-outline-secondary me-2"
+                            @click="cancelForm()">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" 
+                            class="btn btn-primary me-2"
+                            @click="nextStep()"
+                            x-show="currentStep < formSteps.length - 1">
+                        Next <i class="bi bi-arrow-right"></i>
+                    </button>
+                    <button type="submit" 
+                            class="btn btn-success"
+                            :disabled="isSubmitting || !isFormValid"
+                            x-show="currentStep === formSteps.length - 1 || !hasSteps">
+                        <i class="bi bi-check-circle"></i> 
+                        <span x-show="!isSubmitting">Submit</span>
+                        <span x-show="isSubmitting">Submitting...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function featureForm() {
+    return {
+        // Form data
+        formData: {},
+        errors: {},
+        isSubmitting: false,
+        isReadOnly: false,
+        currentStep: 0,
+        
+        // Configuration
+        retailType: window.RETAIL_CONFIG.retailType,
+        features: window.RETAIL_CONFIG.features,
+        permissions: window.RETAIL_CONFIG.permissions,
+        
+        // Form configuration
+        formConfig: {},
+        formSteps: [],
+        hasSteps: false,
+        
+        init() {
+            this.loadFormConfig();
+            this.initializeFormData();
+            this.setupEventListeners();
+        },
+        
+        loadFormConfig() {
+            // Load form configuration based on retail type and form type
+            const configs = {
+                restaurant: {
+                    order: {
+                        title: 'Restaurant Order',
+                        subtitle: 'Create a new customer order',
+                        steps: [
+                            {
+                                title: 'Order Details',
+                                sections: [
+                                    {
+                                        id: 'basic_info',
+                                        title: 'Basic Information',
+                                        fields: [
+                                            { name: 'customer_name', label: 'Customer Name', type: 'text', required: true },
+                                            { name: 'customer_phone', label: 'Phone Number', type: 'tel', required: false },
+                                            { name: 'table_number', label: 'Table Number', type: 'select', required: true, feature: 'FEATURE_RESTAURANT_TABLES', options: [] },
+                                            { name: 'order_type', label: 'Order Type', type: 'radio', required: true, options: [
+                                                { value: 'dine_in', label: 'Dine In' },
+                                                { value: 'takeaway', label: 'Takeaway' },
+                                                { value: 'delivery', label: 'Delivery', feature: 'FEATURE_DELIVERY' }
+                                            ]}
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                title: 'Menu Items',
+                                sections: [
+                                    {
+                                        id: 'menu_items',
+                                        title: 'Select Menu Items',
+                                        fields: [
+                                            { name: 'items', label: 'Menu Items', type: 'dynamic_items', required: true }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    menu_item: {
+                        title: 'Menu Item',
+                        subtitle: 'Add or edit menu items',
+                        steps: [
+                            {
+                                title: 'Basic Information',
+                                sections: [
+                                    {
+                                        id: 'item_info',
+                                        title: 'Item Details',
+                                        fields: [
+                                            { name: 'name', label: 'Item Name', type: 'text', required: true },
+                                            { name: 'description', label: 'Description', type: 'textarea', rows: 3 },
+                                            { name: 'category', label: 'Category', type: 'select', required: true, options: [] },
+                                            { name: 'price', label: 'Price', type: 'price', required: true },
+                                            { name: 'image', label: 'Image', type: 'file', accept: 'image/*' }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                apparel: {
+                    product: {
+                        title: 'Apparel Product',
+                        subtitle: 'Add or edit apparel products',
+                        steps: [
+                            {
+                                title: 'Basic Information',
+                                sections: [
+                                    {
+                                        id: 'product_info',
+                                        title: 'Product Details',
+                                        fields: [
+                                            { name: 'name', label: 'Product Name', type: 'text', required: true },
+                                            { name: 'sku', label: 'SKU', type: 'text', required: true },
+                                            { name: 'description', label: 'Description', type: 'textarea', rows: 3 },
+                                            { name: 'category', label: 'Category', type: 'select', required: true, options: [] },
+                                            { name: 'brand', label: 'Brand', type: 'text' }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                title: 'Variants',
+                                sections: [
+                                    {
+                                        id: 'variants',
+                                        title: 'Product Variants',
+                                        fields: [
+                                            { name: 'has_variants', label: 'This product has variants', type: 'checkbox', feature: 'FEATURE_SIZE_VARIANTS' },
+                                            { name: 'size_options', label: 'Size Options', type: 'multiselect', feature: 'FEATURE_SIZE_VARIANTS', options: [
+                                                { value: 'xs', label: 'XS' },
+                                                { value: 's', label: 'S' },
+                                                { value: 'm', label: 'M' },
+                                                { value: 'l', label: 'L' },
+                                                { value: 'xl', label: 'XL' },
+                                                { value: 'xxl', label: 'XXL' }
+                                            ]},
+                                            { name: 'color_options', label: 'Color Options', type: 'multiselect', feature: 'FEATURE_COLOR_VARIANTS', options: [] }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                title: 'Pricing & Inventory',
+                                sections: [
+                                    {
+                                        id: 'pricing',
+                                        title: 'Pricing Information',
+                                        fields: [
+                                            { name: 'base_price', label: 'Base Price', type: 'price', required: true },
+                                            { name: 'sale_price', label: 'Sale Price', type: 'price' },
+                                            { name: 'cost_price', label: 'Cost Price', type: 'price' },
+                                            { name: 'tax_rate', label: 'Tax Rate (%)', type: 'percentage' }
+                                        ]
+                                    },
+                                    {
+                                        id: 'inventory',
+                                        title: 'Inventory',
+                                        fields: [
+                                            { name: 'stock_quantity', label: 'Stock Quantity', type: 'number', required: true, min: 0 },
+                                            { name: 'reorder_level', label: 'Reorder Level', type: 'number', min: 0 },
+                                            { name: 'track_inventory', label: 'Track Inventory', type: 'checkbox', checked: true }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            };
+            
+            // Get form type from URL or data attribute
+            const formType = document.currentScript.dataset.formType || 'default';
+            this.formConfig = configs[this.retailType]?.[formType] || configs.restaurant.order;
+            this.formSteps = this.formConfig.steps || [];
+            this.hasSteps = this.formSteps.length > 1;
+        },
+        
+        initializeFormData() {
+            // Initialize form data with default values
+            this.formSteps.forEach(step => {
+                step.sections.forEach(section => {
+                    section.fields.forEach(field => {
+                        if (field.type === 'checkbox') {
+                            this.formData[field.name] = field.checked || false;
+                        } else if (field.type === 'multiselect') {
+                            this.formData[field.name] = [];
+                        } else {
+                            this.formData[field.name] = field.default || '';
+                        }
+                    });
+                });
+            });
+            
+            // Load existing data if editing
+            this.loadExistingData();
+        },
+        
+        async loadExistingData() {
+            // Check if we're editing an existing record
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId) {
+                try {
+                    const response = await fetch(`/api/${this.retailType}/data/${editId}`);
+                    const data = await response.json();
+                    this.formData = { ...this.formData, ...data };
+                } catch (error) {
+                    console.error('Error loading existing data:', error);
+                }
+            }
+        },
+        
+        get currentStepSections() {
+            if (this.hasSteps) {
+                return this.formSteps[this.currentStep]?.sections || [];
+            }
+            return this.formConfig.sections || [];
+        },
+        
+        get formTitle() {
+            return this.formConfig.title;
+        },
+        
+        get formSubtitle() {
+            return this.formConfig.subtitle;
+        },
+        
+        get progressPercentage() {
+            if (!this.hasSteps) return 100;
+            return ((this.currentStep + 1) / this.formSteps.length) * 100;
+        },
+        
+        get hasDraftFeature() {
+            return this.isFeatureEnabled('FEATURE_DRAFT_SAVING');
+        },
+        
+        get isFormValid() {
+            return Object.keys(this.errors).length === 0;
+        },
+        
+        getStepClass(index) {
+            if (index < this.currentStep) return 'completed';
+            if (index === this.currentStep) return 'active';
+            return 'pending';
+        },
+        
+        goToStep(index) {
+            if (index >= 0 && index < this.formSteps.length) {
+                this.currentStep = index;
+            }
+        },
+        
+        nextStep() {
+            if (this.currentStep < this.formSteps.length - 1) {
+                if (this.validateCurrentStep()) {
+                    this.currentStep++;
+                }
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 0) {
+                this.currentStep--;
+            }
+        },
+        
+        validateCurrentStep() {
+            this.errors = {};
+            const currentSections = this.currentStepSections;
+            
+            currentSections.forEach(section => {
+                section.fields.forEach(field => {
+                    this.validateField(field);
+                });
+            });
+            
+            return Object.keys(this.errors).length === 0;
+        },
+        
+        validateField(field) {
+            const value = this.formData[field.name];
+            const fieldName = field.label || field.name;
+            
+            // Clear previous error
+            delete this.errors[field.name];
+            
+            // Required validation
+            if (field.required && (!value || (Array.isArray(value) && value.length === 0))) {
+                this.errors[field.name] = `${fieldName} is required`;
+                return;
+            }
+            
+            // Type-specific validation
+            switch (field.type) {
+                case 'email':
+                    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                        this.errors[field.name] = 'Please enter a valid email address';
+                    }
+                    break;
+                case 'tel':
+                    if (value && !/^\+?[\d\s\-\(\)]+$/.test(value)) {
+                        this.errors[field.name] = 'Please enter a valid phone number';
+                    }
+                    break;
+                case 'number':
+                case 'price':
+                    if (value && isNaN(value)) {
+                        this.errors[field.name] = 'Please enter a valid number';
+                    }
+                    if (field.min !== undefined && value < field.min) {
+                        this.errors[field.name] = `Minimum value is ${field.min}`;
+                    }
+                    if (field.max !== undefined && value > field.max) {
+                        this.errors[field.name] = `Maximum value is ${field.max}`;
+                    }
+                    break;
+                case 'percentage':
+                    if (value && (isNaN(value) || value < 0 || value > 100)) {
+                        this.errors[field.name] = 'Please enter a valid percentage (0-100)';
+                    }
+                    break;
+            }
+        },
+        
+        isFieldEnabled(field) {
+            if (field.feature) {
+                return this.isFeatureEnabled(field.feature);
+            }
+            if (field.permission) {
+                return this.hasPermission(field.permission);
+            }
+            return true;
+        },
+        
+        handleFileUpload(event, field) {
+            const file = event.target.files[0];
+            if (file) {
+                // Create preview for images
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.formData[field.name + '_preview'] = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+                
+                // Store file for upload
+                this.formData[field.name] = file;
+            }
+        },
+        
+        async submitForm() {
+            if (!this.validateCurrentStep()) {
+                return;
+            }
+            
+            this.isSubmitting = true;
+            
+            try {
+                const formData = new FormData();
+                
+                // Add form data
+                Object.keys(this.formData).forEach(key => {
+                    if (key.endsWith('_preview')) return;
+                    
+                    const value = this.formData[key];
+                    if (Array.isArray(value)) {
+                        value.forEach(item => formData.append(key, item));
+                    } else if (value instanceof File) {
+                        formData.append(key, value);
+                    } else {
+                        formData.append(key, value);
+                    }
+                });
+                
+                // Add metadata
+                formData.append('retail_type', this.retailType);
+                formData.append('features', JSON.stringify(this.features));
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const editId = urlParams.get('edit');
+                const url = editId ? `/api/${this.retailType}/data/${editId}` : `/api/${this.retailType}/data`;
+                const method = editId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    this.showSuccess('Form submitted successfully!');
+                    
+                    // Redirect or handle success
+                    setTimeout(() => {
+                        window.location.href = `/${this.retailType}/list`;
+                    }, 1500);
+                } else {
+                    throw new Error('Submission failed');
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                this.showError('Failed to submit form. Please try again.');
+            } finally {
+                this.isSubmitting = false;
+            }
+        },
+        
+        resetForm() {
+            if (confirm('Are you sure you want to reset the form? All changes will be lost.')) {
+                this.initializeFormData();
+                this.errors = {};
+                this.currentStep = 0;
+            }
+        },
+        
+        cancelForm() {
+            if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
+                window.history.back();
+            }
+        },
+        
+        async saveDraft() {
+            try {
+                const response = await fetch('/api/drafts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        retail_type: this.retailType,
+                        form_data: this.formData,
+                        current_step: this.currentStep
+                    })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Draft saved successfully!');
+                }
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                this.showError('Failed to save draft');
+            }
+        },
+        
+        // Utility methods
+        isFeatureEnabled(feature) {
+            return this.features[feature] || false;
+        },
+        
+        hasPermission(permission) {
+            return this.permissions.includes(permission) || false;
+        },
+        
+        showSuccess(message) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: 'success',
+                    title: 'Success',
+                    message: message
+                }
+            }));
+        },
+        
+        showError(message) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: 'error',
+                    title: 'Error',
+                    message: message
+                }
+            }));
+        },
+        
+        setupEventListeners() {
+            // Auto-save draft functionality
+            if (this.hasDraftFeature) {
+                setInterval(() => {
+                    this.saveDraft();
+                }, 30000); // Auto-save every 30 seconds
+            }
+        }
+    };
+}
+
+// Rich Text Editor Component
+function richTextEditor(field) {
+    return {
+        editor: null,
+        content: '',
+        
+        init() {
+            // Initialize rich text editor (simplified implementation)
+            // In production, you would integrate with a proper editor like TinyMCE or Quill
+            const textarea = document.createElement('textarea');
+            textarea.className = 'form-control';
+            textarea.rows = 5;
+            textarea.value = this.content;
+            
+            const container = document.getElementById(`${field.name}_editor`);
+            container.appendChild(textarea);
+            
+            this.editor = textarea;
+            
+            // Sync with parent form data
+            this.editor.addEventListener('input', (e) => {
+                this.content = e.target.value;
+                // Update parent form data
+                window.dispatchEvent(new CustomEvent('formDataUpdate', {
+                    detail: {
+                        field: field.name,
+                        value: this.content
+                    }
+                }));
+            });
+        }
+    };
+}
+</script>
+
+<style>
+.feature-form-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.form-header {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 1rem;
+}
+
+.form-progress {
+    margin-bottom: 2rem;
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    flex: 1;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.step.active .step-number {
+    background: #0d6efd;
+    color: white;
+}
+
+.step.completed .step-number {
+    background: #198754;
+    color: white;
+}
+
+.step-title {
+    font-size: 0.875rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+.step.active .step-title {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.step.completed .step-title {
+    color: #198754;
+}
+
+.form-section {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    background: #fafafa;
+}
+
+.section-title {
+    color: #495057;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.form-readonly .form-control,
+.form-readonly .form-select {
+    background-color: #f8f9fa;
+}
+
+.multi-select-container,
+.radio-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+}
+
+.file-preview img {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.rich-text-editor {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+
+.form-actions-footer {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1.5rem;
+}
+
+/* Retail type specific styles */
+.feature-form-container.restaurant {
+    border-left: 4px solid #ff6b6b;
+}
+
+.feature-form-container.apparel {
+    border-left: 4px solid #4ecdc4;
+}
+
+.feature-form-container.books {
+    border-left: 4px solid #45b7d1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .feature-form-container {
+        padding: 1rem;
+    }
+    
+    .progress-steps {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .step {
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+    
+    .step-number {
+        margin-right: 1rem;
+        margin-bottom: 0;
+    }
+    
+    .form-actions-footer .row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .form-actions-footer .col-md-6 {
+        text-align: center !important;
+    }
+}
+</style>

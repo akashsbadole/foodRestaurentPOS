@@ -1,0 +1,1197 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/payment_processing_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Payment Processing Settings Interface -->
+<div class="payment-settings-container" x-data="paymentSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Payment Method Configuration
+                </h2>
+                <p class="settings-subtitle text-muted">Configure payment methods and processing settings</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveSettings()">
+                        <i class="bi bi-check-circle"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <div class="nav-tabs">
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'general'}"
+                    @click="activeTab = 'general'">
+                <i class="bi bi-gear"></i>
+                General Settings
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'methods'}"
+                    @click="activeTab = 'methods'">
+                <i class="bi bi-credit-card"></i>
+                Payment Methods
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'gateways'}"
+                    @click="activeTab = 'gateways'">
+                <i class="bi bi-router"></i>
+                Payment Gateways
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'security'}"
+                    @click="activeTab = 'security'">
+                <i class="bi bi-shield-check"></i>
+                Security
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'notifications'}"
+                    @click="activeTab = 'notifications'">
+                <i class="bi bi-bell"></i>
+                Notifications
+            </button>
+        </div>
+    </div>
+
+    <!-- General Settings Tab -->
+    <div class="settings-content" x-show="activeTab === 'general'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-gear me-2"></i>
+                    General Payment Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Currency</label>
+                            <select class="form-select" x-model="settings.general.defaultCurrency">
+                                <option value="USD">USD - US Dollar</option>
+                                <option value="EUR">EUR - Euro</option>
+                                <option value="GBP">GBP - British Pound</option>
+                                <option value="CAD">CAD - Canadian Dollar</option>
+                                <option value="AUD">AUD - Australian Dollar</option>
+                                <option value="JPY">JPY - Japanese Yen</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Tax Rate (%)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.general.taxRate"
+                                   min="0"
+                                   max="100"
+                                   step="0.01">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Minimum Payment Amount</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.general.minimumAmount"
+                                   min="0"
+                                   step="0.01">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Maximum Payment Amount</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.general.maximumAmount"
+                                   min="0"
+                                   step="0.01">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Payment Timeout (seconds)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.general.paymentTimeout"
+                                   min="30"
+                                   max="600"
+                                   step="10">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Auto-refund Period (days)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.general.autoRefundPeriod"
+                                   min="0"
+                                   max="365"
+                                   step="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enableSplitPayments" 
+                                       x-model="settings.general.enableSplitPayments">
+                                <label class="form-check-label" for="enableSplitPayments">
+                                    Enable Split Payments
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enablePartialPayments" 
+                                       x-model="settings.general.enablePartialPayments">
+                                <label class="form-check-label" for="enablePartialPayments">
+                                    Enable Partial Payments
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enableTips" 
+                                       x-model="settings.general.enableTips">
+                                <label class="form-check-label" for="enableTips">
+                                    Enable Tips/Gratuities
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Methods Tab -->
+    <div class="settings-content" x-show="activeTab === 'methods'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-credit-card me-2"></i>
+                    Payment Methods Configuration
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="addPaymentMethod()">
+                        <i class="bi bi-plus"></i> Add Method
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="payment-methods-list">
+                    <template x-for="(method, index) in settings.paymentMethods" :key="index">
+                        <div class="payment-method-item">
+                            <div class="method-header">
+                                <div class="method-info">
+                                    <div class="method-icon">
+                                        <i :class="method.icon"></i>
+                                    </div>
+                                    <div class="method-details">
+                                        <h6 x-text="method.name"></h6>
+                                        <p class="method-description" x-text="method.description"></p>
+                                    </div>
+                                </div>
+                                <div class="method-actions">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               :id="`method-${index}`"
+                                               x-model="method.enabled">
+                                        <label class="form-check-label" :for="`method-${index}`">
+                                            Enabled
+                                        </label>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click="editPaymentMethod(index)">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            @click="removePaymentMethod(index)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="method-settings" x-show="method.enabled">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Display Name</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   x-model="method.displayName">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Transaction Fee (%)</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="method.transactionFee"
+                                                   min="0"
+                                                   max="100"
+                                                   step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Minimum Amount</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="method.minimumAmount"
+                                                   min="0"
+                                                   step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Maximum Amount</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="method.maximumAmount"
+                                                   min="0"
+                                                   step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Processing Time (seconds)</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="method.processingTime"
+                                                   min="1"
+                                                   step="1">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label">Priority</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="method.priority"
+                                                   min="1"
+                                                   step="1">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       :id="`refund-${index}`"
+                                                       x-model="method.allowRefunds">
+                                                <label class="form-check-label" :for="`refund-${index}`">
+                                                    Allow Refunds
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       :id="`partial-${index}`"
+                                                       x-model="method.allowPartial">
+                                                <label class="form-check-label" :for="`partial-${index}`">
+                                                    Allow Partial Payments
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Gateways Tab -->
+    <div class="settings-content" x-show="activeTab === 'gateways'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-router me-2"></i>
+                    Payment Gateway Configuration
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="testAllGateways()">
+                        <i class="bi bi-check2"></i> Test All
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="gateways-list">
+                    <template x-for="(gateway, index) in settings.gateways" :key="index">
+                        <div class="gateway-item">
+                            <div class="gateway-header">
+                                <div class="gateway-info">
+                                    <div class="gateway-logo">
+                                        <img :src="gateway.logo" :alt="gateway.name" x-show="gateway.logo">
+                                        <i :class="gateway.icon" x-show="!gateway.logo"></i>
+                                    </div>
+                                    <div class="gateway-details">
+                                        <h6 x-text="gateway.name"></h6>
+                                        <p class="gateway-description" x-text="gateway.description"></p>
+                                        <span class="gateway-status" 
+                                              :class="gateway.status === 'active' ? 'status-active' : 'status-inactive'"
+                                              x-text="gateway.status"></span>
+                                    </div>
+                                </div>
+                                <div class="gateway-actions">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               :id="`gateway-${index}`"
+                                               x-model="gateway.enabled">
+                                        <label class="form-check-label" :for="`gateway-${index}`">
+                                            Enabled
+                                        </label>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-info"
+                                            @click="testGateway(index)"
+                                            :disabled="!gateway.enabled">
+                                        <i class="bi bi-check2"></i> Test
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click="editGateway(index)">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="gateway-settings" x-show="gateway.enabled">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">API Key</label>
+                                            <div class="input-group">
+                                                <input type="password" 
+                                                       class="form-control" 
+                                                       x-model="gateway.apiKey"
+                                                       :type="gateway.showApiKey ? 'text' : 'password'">
+                                                <button type="button" 
+                                                        class="btn btn-outline-secondary"
+                                                        @click="gateway.showApiKey = !gateway.showApiKey">
+                                                    <i :class="gateway.showApiKey ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Secret Key</label>
+                                            <div class="input-group">
+                                                <input type="password" 
+                                                       class="form-control" 
+                                                       x-model="gateway.secretKey"
+                                                       :type="gateway.showSecretKey ? 'text' : 'password'">
+                                                <button type="button" 
+                                                        class="btn btn-outline-secondary"
+                                                        @click="gateway.showSecretKey = !gateway.showSecretKey">
+                                                    <i :class="gateway.showSecretKey ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Merchant ID</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   x-model="gateway.merchantId">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Environment</label>
+                                            <select class="form-select" x-model="gateway.environment">
+                                                <option value="sandbox">Sandbox</option>
+                                                <option value="production">Production</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Webhook URL</label>
+                                            <input type="url" 
+                                                   class="form-control" 
+                                                   x-model="gateway.webhookUrl">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Timeout (seconds)</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="gateway.timeout"
+                                                   min="5"
+                                                   max="120"
+                                                   step="5">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label class="form-label">Supported Methods</label>
+                                            <div class="supported-methods">
+                                                <template x-for="method in gateway.supportedMethods" :key="method">
+                                                    <span class="method-badge" x-text="method"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Tab -->
+    <div class="settings-content" x-show="activeTab === 'security'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-shield-check me-2"></i>
+                    Security Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">PCI Compliance Level</label>
+                            <select class="form-select" x-model="settings.security.pciLevel">
+                                <option value="saq_a">SAQ A - Card-not-present</option>
+                                <option value="saq_a_ep">SAQ A-EP - E-commerce</option>
+                                <option value="saq_b">SAQ B - Imprint</option>
+                                <option value="saq_c_vt">SAQ C-VT - Terminal</option>
+                                <option value="saq_d">SAQ D - All other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">3D Secure</label>
+                            <select class="form-select" x-model="settings.security.threeDSecure">
+                                <option value="disabled">Disabled</option>
+                                <option value="optional">Optional</option>
+                                <option value="required">Required</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Fraud Detection</label>
+                            <select class="form-select" x-model="settings.security.fraudDetection">
+                                <option value="none">None</option>
+                                <option value="basic">Basic</option>
+                                <option value="advanced">Advanced</option>
+                                <option value="custom">Custom Rules</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Encryption</label>
+                            <select class="form-select" x-model="settings.security.encryption">
+                                <option value="tls12">TLS 1.2</option>
+                                <option value="tls13">TLS 1.3</option>
+                                <option value="both">TLS 1.2 & 1.3</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Max Failed Attempts</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.security.maxFailedAttempts"
+                                   min="1"
+                                   max="10"
+                                   step="1">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Lockout Duration (minutes)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.security.lockoutDuration"
+                                   min="1"
+                                   max="1440"
+                                   step="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="requireCvv" 
+                                       x-model="settings.security.requireCvv">
+                                <label class="form-check-label" for="requireCvv">
+                                    Require CVV for all transactions
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="requireAvs" 
+                                       x-model="settings.security.requireAvs">
+                                <label class="form-check-label" for="requireAvs">
+                                    Require Address Verification (AVS)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enableTokenization" 
+                                       x-model="settings.security.enableTokenization">
+                                <label class="form-check-label" for="enableTokenization">
+                                    Enable Card Tokenization
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Tab -->
+    <div class="settings-content" x-show="activeTab === 'notifications'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-bell me-2"></i>
+                    Notification Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="notification-sections">
+                    <!-- Email Notifications -->
+                    <div class="notification-section">
+                        <h6>Email Notifications</h6>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="emailSuccess" 
+                                               x-model="settings.notifications.email.success">
+                                        <label class="form-check-label" for="emailSuccess">
+                                            Send email on successful payment
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="emailFailure" 
+                                               x-model="settings.notifications.email.failure">
+                                        <label class="form-check-label" for="emailFailure">
+                                            Send email on payment failure
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="emailRefund" 
+                                               x-model="settings.notifications.email.refund">
+                                        <label class="form-check-label" for="emailRefund">
+                                            Send email on refund
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="emailChargeback" 
+                                               x-model="settings.notifications.email.chargeback">
+                                        <label class="form-check-label" for="emailChargeback">
+                                            Send email on chargeback
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- SMS Notifications -->
+                    <div class="notification-section">
+                        <h6>SMS Notifications</h6>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="smsSuccess" 
+                                               x-model="settings.notifications.sms.success">
+                                        <label class="form-check-label" for="smsSuccess">
+                                            Send SMS on successful payment
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="smsFailure" 
+                                               x-model="settings.notifications.sms.failure">
+                                        <label class="form-check-label" for="smsFailure">
+                                            Send SMS on payment failure
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="smsRefund" 
+                                               x-model="settings.notifications.sms.refund">
+                                        <label class="form-check-label" for="smsRefund">
+                                            Send SMS on refund
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Webhook Notifications -->
+                    <div class="notification-section">
+                        <h6>Webhook Notifications</h6>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label class="form-label">Webhook URL</label>
+                                    <input type="url" 
+                                           class="form-control" 
+                                           x-model="settings.notifications.webhook.url"
+                                           placeholder="https://your-domain.com/webhook">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Secret Key</label>
+                                    <input type="password" 
+                                           class="form-control" 
+                                           x-model="settings.notifications.webhook.secret">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Retry Attempts</label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           x-model="settings.notifications.webhook.retryAttempts"
+                                           min="0"
+                                           max="10"
+                                           step="1">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label class="form-label">Events</label>
+                                    <div class="event-checkboxes">
+                                        <div class="form-check">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="webhookPayment" 
+                                                   x-model="settings.notifications.webhook.events.payment">
+                                            <label class="form-check-label" for="webhookPayment">
+                                                Payment completed
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="webhookRefund" 
+                                                   x-model="settings.notifications.webhook.events.refund">
+                                            <label class="form-check-label" for="webhookRefund">
+                                                Refund processed
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="webhookChargeback" 
+                                                   x-model="settings.notifications.webhook.events.chargeback">
+                                            <label class="form-check-label" for="webhookChargeback">
+                                                Chargeback initiated
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/payment_processing_settings.js') }}"></script>
+<script>
+// Payment Settings App
+function paymentSettingsApp() {
+    return {
+        // Data
+        activeTab: 'general',
+        
+        settings: {
+            general: {
+                defaultCurrency: 'USD',
+                taxRate: 8.0,
+                minimumAmount: 0.01,
+                maximumAmount: 10000.00,
+                paymentTimeout: 300,
+                autoRefundPeriod: 30,
+                enableSplitPayments: true,
+                enablePartialPayments: false,
+                enableTips: false
+            },
+            paymentMethods: [
+                {
+                    id: 'credit_card',
+                    name: 'Credit Card',
+                    description: 'Visa, Mastercard, American Express',
+                    icon: 'bi bi-credit-card',
+                    enabled: true,
+                    displayName: 'Credit Card',
+                    transactionFee: 2.9,
+                    minimumAmount: 0.01,
+                    maximumAmount: 10000.00,
+                    processingTime: 5,
+                    priority: 1,
+                    allowRefunds: true,
+                    allowPartial: false
+                },
+                {
+                    id: 'debit_card',
+                    name: 'Debit Card',
+                    description: 'Visa Debit, Mastercard Debit',
+                    icon: 'bi bi-credit-card',
+                    enabled: true,
+                    displayName: 'Debit Card',
+                    transactionFee: 1.5,
+                    minimumAmount: 0.01,
+                    maximumAmount: 5000.00,
+                    processingTime: 3,
+                    priority: 2,
+                    allowRefunds: true,
+                    allowPartial: false
+                },
+                {
+                    id: 'cash',
+                    name: 'Cash',
+                    description: 'Physical cash payments',
+                    icon: 'bi bi-cash',
+                    enabled: true,
+                    displayName: 'Cash',
+                    transactionFee: 0,
+                    minimumAmount: 0.01,
+                    maximumAmount: 10000.00,
+                    processingTime: 1,
+                    priority: 3,
+                    allowRefunds: true,
+                    allowPartial: true
+                },
+                {
+                    id: 'check',
+                    name: 'Check',
+                    description: 'Personal and business checks',
+                    icon: 'bi bi-card-text',
+                    enabled: false,
+                    displayName: 'Check',
+                    transactionFee: 0.5,
+                    minimumAmount: 10.00,
+                    maximumAmount: 5000.00,
+                    processingTime: 30,
+                    priority: 4,
+                    allowRefunds: true,
+                    allowPartial: false
+                }
+            ],
+            gateways: [
+                {
+                    id: 'stripe',
+                    name: 'Stripe',
+                    description: 'Modern payment processing',
+                    icon: 'bi bi-credit-card',
+                    logo: '/static/images/gateways/stripe.png',
+                    enabled: true,
+                    status: 'active',
+                    apiKey: '',
+                    secretKey: '',
+                    merchantId: '',
+                    environment: 'sandbox',
+                    webhookUrl: '',
+                    timeout: 30,
+                    showApiKey: false,
+                    showSecretKey: false,
+                    supportedMethods: ['credit_card', 'debit_card', 'mobile']
+                },
+                {
+                    id: 'paypal',
+                    name: 'PayPal',
+                    description: 'Digital wallet and payments',
+                    icon: 'bi bi-wallet2',
+                    logo: '/static/images/gateways/paypal.png',
+                    enabled: false,
+                    status: 'inactive',
+                    apiKey: '',
+                    secretKey: '',
+                    merchantId: '',
+                    environment: 'sandbox',
+                    webhookUrl: '',
+                    timeout: 30,
+                    showApiKey: false,
+                    showSecretKey: false,
+                    supportedMethods: ['paypal', 'credit_card', 'debit_card']
+                }
+            ],
+            security: {
+                pciLevel: 'saq_a',
+                threeDSecure: 'optional',
+                fraudDetection: 'basic',
+                encryption: 'tls12',
+                maxFailedAttempts: 3,
+                lockoutDuration: 15,
+                requireCvv: true,
+                requireAvs: false,
+                enableTokenization: true
+            },
+            notifications: {
+                email: {
+                    success: true,
+                    failure: true,
+                    refund: true,
+                    chargeback: true
+                },
+                sms: {
+                    success: false,
+                    failure: true,
+                    refund: true
+                },
+                webhook: {
+                    url: '',
+                    secret: '',
+                    retryAttempts: 3,
+                    events: {
+                        payment: true,
+                        refund: true,
+                        chargeback: true
+                    }
+                }
+            }
+        },
+        
+        // Methods
+        init() {
+            this.loadSettings();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/payments/settings');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.settings = { ...this.settings, ...data };
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        },
+        
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/payments/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Settings saved successfully');
+                } else {
+                    throw new Error('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
+                location.reload();
+            }
+        },
+        
+        exportSettings() {
+            const dataStr = JSON.stringify(this.settings, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `payment-settings-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        // Payment methods methods
+        addPaymentMethod() {
+            const newMethod = {
+                id: `custom_${Date.now()}`,
+                name: 'New Payment Method',
+                description: 'Custom payment method',
+                icon: 'bi bi-credit-card',
+                enabled: false,
+                displayName: 'New Method',
+                transactionFee: 0,
+                minimumAmount: 0.01,
+                maximumAmount: 10000.00,
+                processingTime: 5,
+                priority: 999,
+                allowRefunds: true,
+                allowPartial: false
+            };
+            
+            this.settings.paymentMethods.push(newMethod);
+        },
+        
+        editPaymentMethod(index) {
+            // Open edit modal or navigate to edit page
+            console.log('Edit payment method:', index);
+        },
+        
+        removePaymentMethod(index) {
+            if (confirm('Are you sure you want to remove this payment method?')) {
+                this.settings.paymentMethods.splice(index, 1);
+            }
+        },
+        
+        // Gateway methods
+        async testGateway(index) {
+            const gateway = this.settings.gateways[index];
+            
+            try {
+                const response = await fetch('/api/payments/gateways/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        gatewayId: gateway.id,
+                        apiKey: gateway.apiKey,
+                        secretKey: gateway.secretKey,
+                        environment: gateway.environment
+                    })
+                });
+                
+                if (response.ok) {
+                    gateway.status = 'active';
+                    this.showSuccess(`${gateway.name} connection test successful`);
+                } else {
+                    gateway.status = 'inactive';
+                    throw new Error('Connection test failed');
+                }
+            } catch (error) {
+                console.error('Gateway test error:', error);
+                gateway.status = 'inactive';
+                this.showError(`${gateway.name} connection test failed`);
+            }
+        },
+        
+        async testAllGateways() {
+            for (let i = 0; i < this.settings.gateways.length; i++) {
+                if (this.settings.gateways[i].enabled) {
+                    await this.testGateway(i);
+                }
+            }
+        },
+        
+        editGateway(index) {
+            // Open edit modal or navigate to edit page
+            console.log('Edit gateway:', index);
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveSettings();
+                }
+                
+                // Ctrl/Cmd + E: Export settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSettings();
+                }
+            });
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

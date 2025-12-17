@@ -1,0 +1,890 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/multi_currency_main.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Multi-Currency Main Dashboard -->
+<div class="multi-currency-main-container" x-data="multiCurrencyMainApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="dashboard-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="dashboard-title">
+                    <i class="bi bi-currency-exchange me-2"></i>
+                    Multi-Currency Management
+                </h2>
+                <p class="dashboard-subtitle text-muted">Manage currencies, exchange rates, and international transactions</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="dashboard-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="refreshRates()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Rates
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportData()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="addCurrency()">
+                        <i class="bi bi-plus-circle"></i> Add Currency
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="card-body">
+                        <div class="stat-icon bg-primary">
+                            <i class="bi bi-globe"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.totalCurrencies"></h3>
+                            <p>Active Currencies</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="card-body">
+                        <div class="stat-icon bg-success">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.baseCurrency"></h3>
+                            <p>Base Currency</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="card-body">
+                        <div class="stat-icon bg-warning">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.lastUpdate"></h3>
+                            <p>Last Update</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="card-body">
+                        <div class="stat-icon bg-info">
+                            <i class="bi bi-cash-stack"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.todayTransactions"></h3>
+                            <p>Today's Transactions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exchange Rate Overview -->
+    <div class="exchange-rates-overview">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up-arrow me-2"></i>
+                            Exchange Rates Overview
+                        </h5>
+                        <p class="text-muted mb-0">Real-time exchange rates against base currency</p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="view-controls">
+                            <select class="form-select form-select-sm" x-model="rateView" @change="updateRateView()">
+                                <option value="all">All Currencies</option>
+                                <option value="active">Active Only</option>
+                                <option value="favorites">Favorites</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="exchange-rates-grid">
+                    <template x-for="currency in filteredCurrencies" :key="currency.code">
+                        <div class="currency-card" :class="{'favorite': currency.isFavorite}">
+                            <div class="currency-header">
+                                <div class="currency-info">
+                                    <span class="currency-code" x-text="currency.code"></span>
+                                    <span class="currency-symbol" x-text="currency.symbol"></span>
+                                </div>
+                                <div class="currency-actions">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-warning"
+                                            @click="toggleFavorite(currency.code)"
+                                            :title="currency.isFavorite ? 'Remove from favorites' : 'Add to favorites'">
+                                        <i :class="currency.isFavorite ? 'bi bi-star-fill' : 'bi bi-star'"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            @click="editCurrency(currency.code)"
+                                            title="Edit Currency">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="currency-rate">
+                                <div class="rate-value" x-text="formatRate(currency.rate)"></div>
+                                <div class="rate-change" :class="getRateChangeClass(currency.change)">
+                                    <i :class="getRateChangeIcon(currency.change)"></i>
+                                    <span x-text="formatChange(currency.change)"></span>
+                                </div>
+                            </div>
+                            <div class="currency-details">
+                                <div class="detail-item">
+                                    <span class="label">Name:</span>
+                                    <span class="value" x-text="currency.name"></span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Country:</span>
+                                    <span class="value" x-text="currency.country"></span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Updated:</span>
+                                    <span class="value" x-text="formatTime(currency.lastUpdated)"></span>
+                                </div>
+                            </div>
+                            <div class="currency-footer">
+                                <div class="status-indicator" :class="currency.status"></div>
+                                <span class="status-text" x-text="currency.status"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Currency Trends Chart -->
+    <div class="currency-trends">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Currency Trends
+                        </h5>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="chart-controls">
+                            <select class="form-select form-select-sm" x-model="trendPeriod" @change="updateTrendChart()">
+                                <option value="24h">Last 24 Hours</option>
+                                <option value="7d">Last 7 Days</option>
+                                <option value="30d">Last 30 Days</option>
+                                <option value="90d">Last 90 Days</option>
+                            </select>
+                            <select class="form-select form-select-sm ms-2" x-model="trendCurrency" @change="updateTrendChart()">
+                                <template x-for="currency in currencies" :key="currency.code">
+                                    <option :value="currency.code" x-text="`${currency.code} - ${currency.name}`"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="currencyTrendChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="recent-transactions">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="card-title">
+                            <i class="bi bi-clock-history me-2"></i>
+                            Recent Multi-Currency Transactions
+                        </h5>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-primary" @click="viewAllTransactions()">
+                            View All <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Transaction ID</th>
+                                <th>Date & Time</th>
+                                <th>Customer</th>
+                                <th>Original Currency</th>
+                                <th>Original Amount</th>
+                                <th>Base Currency</th>
+                                <th>Base Amount</th>
+                                <th>Exchange Rate</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="transaction in recentTransactions" :key="transaction.id">
+                                <tr>
+                                    <td x-text="transaction.id"></td>
+                                    <td x-text="formatDateTime(transaction.timestamp)"></td>
+                                    <td x-text="transaction.customer"></td>
+                                    <td>
+                                        <span class="currency-badge" x-text="transaction.originalCurrency"></span>
+                                    </td>
+                                    <td x-text="formatCurrency(transaction.originalAmount, transaction.originalCurrency)"></td>
+                                    <td>
+                                        <span class="currency-badge" x-text="transaction.baseCurrency"></span>
+                                    </td>
+                                    <td x-text="formatCurrency(transaction.baseAmount, transaction.baseCurrency)"></td>
+                                    <td x-text="formatRate(transaction.exchangeRate)"></td>
+                                    <td>
+                                        <span class="badge" :class="getTransactionStatusClass(transaction.status)" x-text="transaction.status"></span>
+                                    </td>
+                                    <td>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-primary"
+                                                @click="viewTransaction(transaction.id)"
+                                                title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Currency Settings Quick Access -->
+    <div class="currency-settings">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-gear me-2"></i>
+                            Quick Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-item">
+                            <label class="form-label">Auto Update Rates</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="autoUpdate"
+                                       x-model="settings.autoUpdate"
+                                       @change="updateSetting('autoUpdate')">
+                                <label class="form-check-label" for="autoUpdate">
+                                    Automatically update exchange rates
+                                </label>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label class="form-label">Update Frequency</label>
+                            <select class="form-select" 
+                                    x-model="settings.updateFrequency"
+                                    @change="updateSetting('updateFrequency')"
+                                    :disabled="!settings.autoUpdate">
+                                <option value="hourly">Hourly</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label class="form-label">Rate Provider</label>
+                            <select class="form-select" 
+                                    x-model="settings.rateProvider"
+                                    @change="updateSetting('rateProvider')">
+                                <option value="fixer">Fixer.io</option>
+                                <option value="openexchangerates">Open Exchange Rates</option>
+                                <option value="xe">XE.com</option>
+                                <option value="manual">Manual Entry</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-calculator me-2"></i>
+                            Currency Calculator
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="calculator-form">
+                            <div class="form-group mb-3">
+                                <label class="form-label">From</label>
+                                <div class="input-group">
+                                    <select class="form-select" x-model="calculator.fromCurrency">
+                                        <template x-for="currency in currencies" :key="currency.code">
+                                            <option :value="currency.code" x-text="`${currency.code} - ${currency.name}`"></option>
+                                        </template>
+                                    </select>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           x-model="calculator.fromAmount"
+                                           @input="calculateConversion()"
+                                           placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="text-center mb-3">
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-secondary"
+                                        @click="swapCurrencies()">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                </button>
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label">To</label>
+                                <div class="input-group">
+                                    <select class="form-select" x-model="calculator.toCurrency">
+                                        <template x-for="currency in currencies" :key="currency.code">
+                                            <option :value="currency.code" x-text="`${currency.code} - ${currency.name}`"></option>
+                                        </template>
+                                    </select>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           x-model="calculator.toAmount"
+                                           readonly
+                                           placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="conversion-result" x-show="calculator.result">
+                                <div class="result-rate">
+                                    <span x-text="`1 ${calculator.fromCurrency} = ${formatRate(calculator.rate)} ${calculator.toCurrency}`"></span>
+                                </div>
+                                <div class="result-time">
+                                    <small class="text-muted" x-text="`Rate updated: ${formatTime(calculator.rateTime)}`"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Rate Alerts
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alerts-list">
+                            <template x-for="alert in rateAlerts" :key="alert.id">
+                                <div class="alert-item" :class="alert.type">
+                                    <div class="alert-icon">
+                                        <i :class="getAlertIcon(alert.type)"></i>
+                                    </div>
+                                    <div class="alert-content">
+                                        <div class="alert-title" x-text="alert.title"></div>
+                                        <div class="alert-message" x-text="alert.message"></div>
+                                        <div class="alert-time" x-text="formatTime(alert.timestamp)"></div>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click="dismissAlert(alert.id)">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </template>
+                            <div class="no-alerts" x-show="rateAlerts.length === 0">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <p>No active rate alerts</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Details Modal -->
+    <div class="modal fade" id="transactionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Transaction Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="transaction-details" x-show="selectedTransaction">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Transaction Information</h6>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td>Transaction ID:</td>
+                                        <td x-text="selectedTransaction?.id"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Date & Time:</td>
+                                        <td x-text="formatDateTime(selectedTransaction?.timestamp)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Customer:</td>
+                                        <td x-text="selectedTransaction?.customer"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Status:</td>
+                                        <td>
+                                            <span class="badge" 
+                                                  :class="getTransactionStatusClass(selectedTransaction?.status)"
+                                                  x-text="selectedTransaction?.status"></span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Currency Conversion</h6>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td>Original Amount:</td>
+                                        <td x-text="formatCurrency(selectedTransaction?.originalAmount, selectedTransaction?.originalCurrency)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Base Amount:</td>
+                                        <td x-text="formatCurrency(selectedTransaction?.baseAmount, selectedTransaction?.baseCurrency)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Exchange Rate:</td>
+                                        <td x-text="formatRate(selectedTransaction?.exchangeRate)"></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Rate Source:</td>
+                                        <td x-text="selectedTransaction?.rateSource"></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" @click="printTransaction()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/multi_currency_main.js') }}"></script>
+<script>
+// Multi-Currency Main App
+function multiCurrencyMainApp() {
+    return {
+        // Data
+        currencies: [],
+        filteredCurrencies: [],
+        rateView: 'active',
+        trendPeriod: '24h',
+        trendCurrency: 'USD',
+        
+        stats: {
+            totalCurrencies: 0,
+            baseCurrency: 'USD',
+            lastUpdate: 'Never',
+            todayTransactions: 0
+        },
+        
+        settings: {
+            autoUpdate: true,
+            updateFrequency: 'daily',
+            rateProvider: 'fixer'
+        },
+        
+        calculator: {
+            fromCurrency: 'USD',
+            toCurrency: 'EUR',
+            fromAmount: '',
+            toAmount: '',
+            rate: 0,
+            result: false,
+            rateTime: null
+        },
+        
+        recentTransactions: [],
+        rateAlerts: [],
+        selectedTransaction: null,
+        
+        charts: {},
+        
+        // Methods
+        async init() {
+            await this.loadCurrencies();
+            await this.loadTransactions();
+            await this.loadRateAlerts();
+            await this.loadSettings();
+            this.initializeCharts();
+            this.updateFilteredCurrencies();
+        },
+        
+        async loadCurrencies() {
+            try {
+                const response = await fetch('/api/multi-currency/currencies');
+                this.currencies = await response.json();
+                
+                // Update stats
+                this.stats.totalCurrencies = this.currencies.filter(c => c.status === 'active').length;
+                
+                // Find base currency
+                const baseCurrency = this.currencies.find(c => c.isBase);
+                if (baseCurrency) {
+                    this.stats.baseCurrency = baseCurrency.code;
+                }
+                
+                // Update last update time
+                if (this.currencies.length > 0) {
+                    const latestUpdate = new Date(Math.max(...this.currencies.map(c => new Date(c.lastUpdated))));
+                    this.stats.lastUpdate = this.formatTime(latestUpdate);
+                }
+                
+            } catch (error) {
+                console.error('Error loading currencies:', error);
+                this.showError('Failed to load currencies');
+            }
+        },
+        
+        async loadTransactions() {
+            try {
+                const response = await fetch('/api/multi-currency/transactions?limit=10');
+                this.recentTransactions = await response.json();
+                
+                // Update today's transactions count
+                this.stats.todayTransactions = this.recentTransactions.length;
+                
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+                this.showError('Failed to load transactions');
+            }
+        },
+        
+        async loadRateAlerts() {
+            try {
+                const response = await fetch('/api/multi-currency/alerts');
+                this.rateAlerts = await response.json();
+            } catch (error) {
+                console.error('Error loading rate alerts:', error);
+            }
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/multi-currency/settings');
+                this.settings = await response.json();
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        },
+        
+        updateFilteredCurrencies() {
+            switch (this.rateView) {
+                case 'active':
+                    this.filteredCurrencies = this.currencies.filter(c => c.status === 'active');
+                    break;
+                case 'favorites':
+                    this.filteredCurrencies = this.currencies.filter(c => c.isFavorite);
+                    break;
+                default:
+                    this.filteredCurrencies = this.currencies;
+            }
+        },
+        
+        updateRateView() {
+            this.updateFilteredCurrencies();
+        },
+        
+        initializeCharts() {
+            this.initTrendChart();
+        },
+        
+        initTrendChart() {
+            const ctx = document.getElementById('currencyTrendChart');
+            if (ctx) {
+                this.charts.trend = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Exchange Rate',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+                
+                this.updateTrendChart();
+            }
+        },
+        
+        async updateTrendChart() {
+            if (!this.charts.trend) return;
+            
+            try {
+                const response = await fetch(`/api/multi-currency/trends?currency=${this.trendCurrency}&period=${this.trendPeriod}`);
+                const data = await response.json();
+                
+                this.charts.trend.data.labels = data.labels;
+                this.charts.trend.data.datasets[0].data = data.rates;
+                this.charts.trend.update();
+                
+            } catch (error) {
+                console.error('Error updating trend chart:', error);
+            }
+        },
+        
+        // Currency actions
+        addCurrency() {
+            window.location.href = '/multi-currency/form';
+        },
+        
+        editCurrency(currencyCode) {
+            window.location.href = `/multi-currency/form?code=${currencyCode}`;
+        },
+        
+        toggleFavorite(currencyCode) {
+            const currency = this.currencies.find(c => c.code === currencyCode);
+            if (currency) {
+                currency.isFavorite = !currency.isFavorite;
+                this.updateFilteredCurrencies();
+                
+                // Save preference
+                this.saveCurrencyPreference(currencyCode, 'favorite', currency.isFavorite);
+            }
+        },
+        
+        async saveCurrencyPreference(currencyCode, preference, value) {
+            try {
+                await fetch(`/api/multi-currency/currencies/${currencyCode}/preferences`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        [preference]: value
+                    })
+                });
+            } catch (error) {
+                console.error('Error saving currency preference:', error);
+            }
+        },
+        
+        // Exchange rate actions
+        async refreshRates() {
+            try {
+                const response = await fetch('/api/multi-currency/refresh-rates', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Exchange rates updated successfully');
+                    await this.loadCurrencies();
+                    await this.updateTrendChart();
+                } else {
+                    throw new Error('Failed to refresh rates');
+                }
+            } catch (error) {
+                console.error('Error refreshing rates:', error);
+                this.showError('Failed to refresh exchange rates');
+            }
+        },
+        
+        // Calculator methods
+        async calculateConversion() {
+            if (!this.calculator.fromAmount || !this.calculator.fromCurrency || !this.calculator.toCurrency) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/multi-currency/convert?from=${this.calculator.fromCurrency}&to=${this.calculator.toCurrency}&amount=${this.calculator.fromAmount}`);
+                const data = await response.json();
+                
+                this.calculator.toAmount = data.result;
+                this.calculator.rate = data.rate;
+                this.calculator.result = true;
+                this.calculator.rateTime = new Date();
+                
+            } catch (error) {
+                console.error('Error calculating conversion:', error);
+                this.showError('Failed to calculate conversion');
+            }
+        },
+        
+        swapCurrencies() {
+            const temp = this.calculator.fromCurrency;
+            this.calculator.fromCurrency = this.calculator.toCurrency;
+            this.calculator.toCurrency = temp;
+            this.calculateConversion();
+        },
+        
+        // Transaction methods
+        viewAllTransactions() {
+            window.location.href = '/multi-currency/list';
+        },
+        
+        async viewTransaction(transactionId) {
+            try {
+                const response = await fetch(`/api/multi-currency/transactions/${transactionId}`);
+                this.selectedTransaction = await response.json();
+                
+                const modal = new bootstrap.Modal(document.getElementById('transactionModal'));
+                modal.show();
+            } catch (error) {
+                console.error('Error loading transaction:', error);
+                this.showError('Failed to load transaction details');
+            }
+        },
+        
+        printTransaction() {
+            window.print();
+        },
+        
+        // Settings methods
+        async updateSetting(setting) {
+            try {
+                await fetch('/api/multi-currency/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        [setting]: this.settings[setting]
+                    })
+                });
+                
+                this.showSuccess('Setting updated successfully');
+            } catch (error) {
+                console.error('Error updating setting:', error);
+                this.showError('Failed to update setting');
+            }
+        },
+        
+        // Alert methods
+        async dismissAlert(alertId) {
+            try {
+                await fetch(`/api/multi-currency/alerts/${alertId}/dismiss`, {
+                    method: 'POST'
+                });
+                
+                this.rateAlerts = this.rateAlerts.filter(a => a.id !== alertId);
+            } catch (error) {
+                console.error('Error dismissing alert:', error);
+            }
+        },
+        
+        // Data export
+        exportData() {
+            window.open('/api/multi-currency/export');
+        },
+        
+        // Utility methods
+        formatRate(rate) {
+            return parseFloat(rate).toFixed(6);
+        },
+        
+        formatChange(change) {
+            const sign = change >= 0 ? '+' : '';
+            return `${sign}${change.toFixed(4)}%`;
+        },
+        
+        formatTime(time) {
+            return new Date(time).toLocaleString();
+        },
+        
+        formatDateTime(time) {
+            return new Date(time).toLocaleString();
+        },
+        
+        formatCurrency(amount, currency) {
+            const currencyInfo = this.currencies.find(c => c.code === currency);
+            const symbol = currencyInfo ? currencyInfo.symbol : currency;
+            return `${symbol}${parseFloat(amount).toFixed(2)}`;
+        },
+        
+        getRateChangeClass(change) {
+            return change >= 0 ? 'positive' : 'negative';
+        },
+        
+        getRateChangeIcon(change) {
+            return change >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+        },
+        
+        getTransactionStatusClass(status) {
+            const classes = {
+                'completed': 'bg-success',
+                'pending': 'bg-warning',
+                'failed': 'bg-danger',
+                'refunded': 'bg-info'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        getAlertIcon(type) {
+            const icons = {
+                'warning': 'bi bi-exclamation-triangle',
+                'error': 'bi bi-x-circle',
+                'info': 'bi bi-info-circle',
+                'success': 'bi bi-check-circle'
+            };
+            return icons[type] || 'bi bi-info-circle';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

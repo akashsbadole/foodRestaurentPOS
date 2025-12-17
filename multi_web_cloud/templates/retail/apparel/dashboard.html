@@ -1,0 +1,932 @@
+{% extends "retail/base/retail_base.html" %}
+
+{% block title %}Apparel & Footwear Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.apparel-dashboard {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.apparel-metric-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.apparel-metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.product-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.product-image {
+    height: 200px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.product-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-new {
+    background: #28a745;
+    color: white;
+}
+
+.badge-sale {
+    background: #dc3545;
+    color: white;
+}
+
+.badge-low-stock {
+    background: #ffc107;
+    color: #212529;
+}
+
+.product-details {
+    padding: 1rem;
+}
+
+.product-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.product-variants {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.variant-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #dee2e6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.variant-dot:hover {
+    transform: scale(1.2);
+}
+
+.variant-dot.selected {
+    border-color: #495057;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.product-price {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.price-current {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.price-original {
+    font-size: 1rem;
+    color: #6c757d;
+    text-decoration: line-through;
+}
+
+.price-discount {
+    font-size: 0.875rem;
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.product-stock {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.stock-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.stock-high {
+    background: #28a745;
+}
+
+.stock-medium {
+    background: #ffc107;
+}
+
+.stock-low {
+    background: #dc3545;
+}
+
+.size-chart {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.size-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.size-cell {
+    text-align: center;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.size-available {
+    background: #e8f5e8;
+    color: #155724;
+}
+
+.size-limited {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.size-out-of-stock {
+    background: #f8d7da;
+    color: #721c24;
+    cursor: not-allowed;
+}
+
+.size-cell:hover:not(.size-out-of-stock) {
+    transform: scale(1.05);
+}
+
+.sales-chart-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.category-performance {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.category-item:last-child {
+    border-bottom: none;
+}
+
+.category-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.category-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.category-stats {
+    text-align: right;
+}
+
+.category-sales {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.category-growth {
+    font-size: 0.875rem;
+}
+
+.growth-positive {
+    color: #28a745;
+}
+
+.growth-negative {
+    color: #dc3545;
+}
+
+.inventory-alert {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #ffc107;
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.alert-item:last-child {
+    border-bottom: none;
+}
+
+.alert-info {
+    flex: 1;
+}
+
+.alert-product {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.alert-details {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.alert-action {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.alert-action:hover {
+    background: #0056b3;
+}
+
+.quick-action-btn {
+    background: white;
+    border: 2px solid #667eea;
+    color: #667eea;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+@media (max-width: 768px) {
+    .product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    
+    .size-grid {
+        grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    }
+    
+    .category-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .category-stats {
+        text-align: left;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="apparel-dashboard">
+    <!-- Apparel Header -->
+    <div class="apparel-header mb-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="display-4 fw-bold mb-2">Apparel & Footwear Dashboard</h1>
+                    <p class="lead mb-0">Manage your fashion retail operations</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="d-flex justify-content-end align-items-center gap-3">
+                        <div class="text-end">
+                            <div class="small">Current Season</div>
+                            <div class="h4 mb-0">Spring/Summer 2024</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small">Active Products</div>
+                            <div class="h4 mb-0" id="active-products-count">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid mt-4">
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="apparel-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Today's Sales</h6>
+                        <h2 class="mb-0" id="today-sales">$0.00</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-arrow-up me-1"></i>
+                    <span class="small">+18.5% from yesterday</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="apparel-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Products Sold</h6>
+                        <h2 class="mb-0" id="products-sold">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-bag"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-arrow-up me-1"></i>
+                    <span class="small">+12.3% from yesterday</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="apparel-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Low Stock Items</h6>
+                        <h2 class="mb-0" id="low-stock-items">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="small">Requires immediate attention</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="apparel-metric-card rounded-lg p-4 text-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Returns</h6>
+                        <h2 class="mb-0" id="returns-count">0</h2>
+                    </div>
+                    <div class="fs-2 opacity-75">
+                        <i class="bi bi-arrow-return-left"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-arrow-down me-1"></i>
+                    <span class="small">-5.2% from last week</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Featured Products -->
+        <div class="col-lg-8 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Featured Products</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary active" data-filter="all">All</button>
+                            <button class="btn btn-outline-secondary" data-filter="new">New</button>
+                            <button class="btn btn-outline-secondary" data-filter="sale">Sale</button>
+                            <button class="btn btn-outline-secondary" data-filter="trending">Trending</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="product-grid" id="featured-products">
+                        <!-- Products will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Inventory Alerts -->
+        <div class="col-lg-4 mb-4">
+            <div class="inventory-alert">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Inventory Alerts</h5>
+                    <span class="badge bg-warning" id="alert-count">0</span>
+                </div>
+                <div id="inventory-alerts">
+                    <!-- Alerts will be dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Sales Chart -->
+        <div class="col-lg-8 mb-4">
+            <div class="sales-chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Sales Performance</h5>
+                    <select class="form-select form-select-sm" style="width: auto;" id="sales-period">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="quarter">This Quarter</option>
+                    </select>
+                </div>
+                <canvas id="sales-chart" height="100"></canvas>
+            </div>
+        </div>
+        
+        <!-- Category Performance -->
+        <div class="col-lg-4 mb-4">
+            <div class="category-performance">
+                <h5 class="mb-3">Category Performance</h5>
+                <div id="category-performance">
+                    <!-- Category performance will be dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Size Availability -->
+        <div class="col-lg-6 mb-4">
+            <div class="size-chart">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Size Availability</h5>
+                    <select class="form-select form-select-sm" style="width: auto;" id="size-product">
+                        <option value="all">All Products</option>
+                        <!-- Product options will be dynamically loaded -->
+                    </select>
+                </div>
+                <div class="size-grid" id="size-grid">
+                    <!-- Size availability will be dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/apparel/products/new'">
+                                <i class="bi bi-plus-circle fs-3 mb-2"></i>
+                                <div>Add Product</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/apparel/inventory'">
+                                <i class="bi bi-box fs-3 mb-2"></i>
+                                <div>Manage Inventory</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/apparel/exchanges'">
+                                <i class="bi bi-arrow-left-right fs-3 mb-2"></i>
+                                <div>Process Returns</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="quick-action-btn" onclick="window.location.href='/apparel/reports'">
+                                <i class="bi bi-graph-up fs-3 mb-2"></i>
+                                <div>View Reports</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature-aware dashboard component -->
+{% include "retail/components/feature_dashboard.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set retail type for feature-aware components
+    if (window.RETAIL_CONFIG) {
+        window.RETAIL_CONFIG.retailType = 'apparel';
+    }
+    
+    // Initialize apparel dashboard
+    initApparelDashboard();
+    
+    // Load real-time data
+    loadDashboardData();
+    
+    // Setup real-time updates
+    setupRealtimeUpdates();
+});
+
+function initApparelDashboard() {
+    // Load featured products
+    loadFeaturedProducts();
+    
+    // Load inventory alerts
+    loadInventoryAlerts();
+    
+    // Load category performance
+    loadCategoryPerformance();
+    
+    // Load size availability
+    loadSizeAvailability();
+    
+    // Initialize sales chart
+    initSalesChart();
+}
+
+function loadFeaturedProducts() {
+    const productsGrid = document.getElementById('featured-products');
+    
+    // Simulate product data - in production, load from API
+    const products = [
+        {
+            id: 'PRD001',
+            name: 'Classic White T-Shirt',
+            price: 29.99,
+            originalPrice: 39.99,
+            image: '/static/images/products/tshirt.jpg',
+            category: 'Tops',
+            stock: 45,
+            badge: 'sale',
+            variants: {
+                colors: ['white', 'black', 'gray', 'navy'],
+                sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+            }
+        },
+        {
+            id: 'PRD002',
+            name: 'Slim Fit Jeans',
+            price: 79.99,
+            image: '/static/images/products/jeans.jpg',
+            category: 'Bottoms',
+            stock: 12,
+            badge: 'low_stock',
+            variants: {
+                colors: ['blue', 'black', 'gray'],
+                sizes: ['28', '30', '32', '34', '36']
+            }
+        },
+        {
+            id: 'PRD003',
+            name: 'Running Sneakers',
+            price: 89.99,
+            image: '/static/images/products/sneakers.jpg',
+            category: 'Footwear',
+            stock: 8,
+            badge: 'new',
+            variants: {
+                colors: ['black', 'white', 'red'],
+                sizes: ['7', '8', '9', '10', '11', '12']
+            }
+        },
+        {
+            id: 'PRD004',
+            name: 'Leather Jacket',
+            price: 199.99,
+            image: '/static/images/products/jacket.jpg',
+            category: 'Outerwear',
+            stock: 5,
+            badge: 'low_stock',
+            variants: {
+                colors: ['black', 'brown'],
+                sizes: ['S', 'M', 'L', 'XL']
+            }
+        }
+    ];
+    
+    productsGrid.innerHTML = products.map(product => `
+        <div class="product-card" onclick="viewProduct('${product.id}')">
+            <div class="product-image">
+                <img src="${product.image}" alt="${product.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div style="display:none; width:100%; height:100%; background:#f8f9fa; align-items:center; justify-content:center;">
+                    <i class="bi bi-image" style="font-size:2rem; color:#dee2e6;"></i>
+                </div>
+                ${product.badge ? `
+                    <span class="product-badge badge-${product.badge}">
+                        ${product.badge === 'sale' ? 'SALE' : product.badge === 'new' ? 'NEW' : 'LOW STOCK'}
+                    </span>
+                ` : ''}
+            </div>
+            <div class="product-details">
+                <div class="product-name">${product.name}</div>
+                <div class="product-variants">
+                    ${product.variants.colors.slice(0, 4).map(color => `
+                        <div class="variant-dot" style="background-color: ${getColorHex(color)};" title="${color}"></div>
+                    `).join('')}
+                </div>
+                <div class="product-price">
+                    <span class="price-current">$${product.price}</span>
+                    ${product.originalPrice ? `
+                        <span class="price-original">$${product.originalPrice}</span>
+                        <span class="price-discount">-${Math.round((1 - product.price/product.originalPrice) * 100)}%</span>
+                    ` : ''}
+                </div>
+                <div class="product-stock">
+                    <div class="stock-indicator ${getStockClass(product.stock)}"></div>
+                    <span>${product.stock} in stock</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    // Update metrics
+    document.getElementById('active-products-count').textContent = products.length;
+}
+
+function loadInventoryAlerts() {
+    const alertsContainer = document.getElementById('inventory-alerts');
+    
+    // Simulate alert data - in production, load from API
+    const alerts = [
+        {
+            id: 1,
+            product: 'Slim Fit Jeans',
+            sku: 'JEAN001',
+            currentStock: 5,
+            reorderLevel: 10,
+            type: 'low_stock'
+        },
+        {
+            id: 2,
+            product: 'Leather Jacket',
+            sku: 'JACK001',
+            currentStock: 2,
+            reorderLevel: 5,
+            type: 'critical'
+        },
+        {
+            id: 3,
+            product: 'Running Sneakers',
+            sku: 'SHOE001',
+            currentStock: 8,
+            reorderLevel: 15,
+            type: 'low_stock'
+        }
+    ];
+    
+    alertsContainer.innerHTML = alerts.map(alert => `
+        <div class="alert-item">
+            <div class="alert-info">
+                <div class="alert-product">${alert.product}</div>
+                <div class="alert-details">
+                    SKU: ${alert.sku} • Stock: ${alert.currentStock}/${alert.reorderLevel}
+                </div>
+            </div>
+            <button class="alert-action" onclick="reorderProduct('${alert.sku}')">
+                Reorder
+            </button>
+        </div>
+    `).join('');
+    
+    document.getElementById('alert-count').textContent = alerts.length;
+}
+
+function loadCategoryPerformance() {
+    const container = document.getElementById('category-performance');
+    
+    // Simulate category data - in production, load from API
+    const categories = [
+        { name: 'Tops', icon: 'bi-tshirt', color: '#ff6b6b', sales: 15420, growth: 12.5 },
+        { name: 'Bottoms', icon: 'bi-people', color: '#4ecdc4', sales: 12350, growth: -5.2 },
+        { name: 'Footwear', icon: 'bi-boot', color: '#45b7d1', sales: 18900, growth: 18.7 },
+        { name: 'Outerwear', icon: 'bi-jacket', color: '#f9ca24', sales: 8750, growth: 8.3 },
+        { name: 'Accessories', icon: 'bi-bag', color: '#6c5ce7', sales: 6200, growth: -2.1 }
+    ];
+    
+    container.innerHTML = categories.map(category => `
+        <div class="category-item">
+            <div class="category-info">
+                <div class="category-icon" style="background: ${category.color}20; color: ${category.color};">
+                    <i class="bi ${category.icon}"></i>
+                </div>
+                <div>
+                    <div class="fw-bold">${category.name}</div>
+                    <div class="small text-muted">This month</div>
+                </div>
+            </div>
+            <div class="category-stats">
+                <div class="category-sales">$${category.sales.toLocaleString()}</div>
+                <div class="category-growth ${category.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                    <i class="bi bi-arrow-${category.growth >= 0 ? 'up' : 'down'}"></i>
+                    ${Math.abs(category.growth)}%
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadSizeAvailability() {
+    const sizeGrid = document.getElementById('size-grid');
+    
+    // Simulate size data - in production, load from API
+    const sizes = [
+        { size: 'XS', stock: 15, status: 'available' },
+        { size: 'S', stock: 8, status: 'limited' },
+        { size: 'M', stock: 25, status: 'available' },
+        { size: 'L', stock: 3, status: 'limited' },
+        { size: 'XL', stock: 18, status: 'available' },
+        { size: 'XXL', stock: 0, status: 'out_of_stock' }
+    ];
+    
+    sizeGrid.innerHTML = sizes.map(size => `
+        <div class="size-cell size-${size.status}" onclick="selectSize('${size.size}')">
+            <div>${size.size}</div>
+            <div class="small">${size.stock > 0 ? size.stock : 'Out'}</div>
+        </div>
+    `).join('');
+}
+
+function initSalesChart() {
+    const ctx = document.getElementById('sales-chart').getContext('2d');
+    
+    // Simulate sales data - in production, use Chart.js or similar
+    ctx.fillStyle = '#667eea';
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sales Performance Chart', ctx.canvas.width / 2, ctx.canvas.height / 2);
+}
+
+function loadDashboardData() {
+    // Simulate loading dashboard metrics - in production, load from API
+    const metrics = {
+        todaySales: 3456.78,
+        productsSold: 67,
+        lowStockItems: 8,
+        returnsCount: 3
+    };
+    
+    document.getElementById('today-sales').textContent = `$${metrics.todaySales.toFixed(2)}`;
+    document.getElementById('products-sold').textContent = metrics.productsSold;
+    document.getElementById('low-stock-items').textContent = metrics.lowStockItems;
+    document.getElementById('returns-count').textContent = metrics.returnsCount;
+}
+
+function setupRealtimeUpdates() {
+    // Setup WebSocket or polling for real-time updates
+    setInterval(() => {
+        loadDashboardData();
+        loadInventoryAlerts();
+    }, 30000); // Update every 30 seconds
+}
+
+// Utility functions
+function getColorHex(colorName) {
+    const colors = {
+        white: '#ffffff',
+        black: '#000000',
+        gray: '#808080',
+        navy: '#000080',
+        blue: '#0000ff',
+        red: '#ff0000',
+        brown: '#964b00'
+    };
+    return colors[colorName] || '#cccccc';
+}
+
+function getStockClass(stock) {
+    if (stock > 20) return 'stock-high';
+    if (stock > 5) return 'stock-medium';
+    return 'stock-low';
+}
+
+function viewProduct(productId) {
+    window.location.href = `/apparel/products/${productId}`;
+}
+
+function reorderProduct(sku) {
+    // Handle product reordering
+    console.log('Reordering product:', sku);
+    window.location.href = `/apparel/inventory/reorder?sku=${sku}`;
+}
+
+function selectSize(size) {
+    // Handle size selection
+    console.log('Selected size:', size);
+}
+
+// Handle product filter buttons
+document.addEventListener('click', function(e) {
+    if (e.target.matches('[data-filter]')) {
+        // Update active state
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        e.target.classList.add('active');
+        
+        // Filter products
+        const filter = e.target.dataset.filter;
+        console.log('Filtering products by:', filter);
+        loadFeaturedProducts(); // Reload with filter
+    }
+});
+
+// Handle sales period change
+document.getElementById('sales-period')?.addEventListener('change', function() {
+    // Reload sales chart with selected period
+    initSalesChart();
+});
+
+// Handle size product selection
+document.getElementById('size-product')?.addEventListener('change', function() {
+    // Reload size availability for selected product
+    loadSizeAvailability();
+});
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js for sales chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}

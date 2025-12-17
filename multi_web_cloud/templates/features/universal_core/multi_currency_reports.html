@@ -1,0 +1,1206 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/multi_currency_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Multi-Currency Reports Interface -->
+<div class="multi-currency-reports-container" x-data="multiCurrencyReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Currency Analytics & Reports
+                </h2>
+                <p class="reports-subtitle text-muted">Analyze currency performance and multi-currency transactions</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="printReport()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateCustomReport()">
+                        <i class="bi bi-plus-circle"></i> Custom Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Filters -->
+    <div class="report-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-funnel me-2"></i>
+                    Report Filters
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetFilters()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="filters.dateRange" @change="updateDateRange()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="last7days">Last 7 Days</option>
+                                <option value="last30days">Last 30 Days</option>
+                                <option value="thisMonth">This Month</option>
+                                <option value="lastMonth">Last Month</option>
+                                <option value="thisQuarter">This Quarter</option>
+                                <option value="thisYear">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.startDate"
+                                   :disabled="filters.dateRange !== 'custom'">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.endDate"
+                                   :disabled="filters.dateRange !== 'custom'">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Report Type</label>
+                            <select class="form-select" x-model="filters.reportType" @change="applyFilters()">
+                                <option value="overview">Overview</option>
+                                <option value="transactions">Transaction Analysis</option>
+                                <option value="exchange_rates">Exchange Rate Trends</option>
+                                <option value="currency_performance">Currency Performance</option>
+                                <option value="conversion_gains">Conversion Gains/Losses</option>
+                                <option value="compliance">Compliance Report</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Currency</label>
+                            <select class="form-select" x-model="filters.currency" @change="applyFilters()">
+                                <option value="">All Currencies</option>
+                                <template x-for="currency in currencies" :key="currency.code">
+                                    <option :value="currency.code" x-text="`${currency.code} - ${currency.name}`"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Store</label>
+                            <select class="form-select" x-model="filters.store" @change="applyFilters()">
+                                <option value="">All Stores</option>
+                                <template x-for="store in stores" :key="store.id">
+                                    <option :value="store.id" x-text="store.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Group By</label>
+                            <select class="form-select" x-model="filters.groupBy" @change="applyFilters()">
+                                <option value="day">Day</option>
+                                <option value="week">Week</option>
+                                <option value="month">Month</option>
+                                <option value="quarter">Quarter</option>
+                                <option value="currency">Currency</option>
+                                <option value="store">Store</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Comparison</label>
+                            <select class="form-select" x-model="filters.comparison" @change="applyFilters()">
+                                <option value="none">No Comparison</option>
+                                <option value="previous_period">Previous Period</option>
+                                <option value="previous_year">Previous Year</option>
+                                <option value="same_last_year">Same Period Last Year</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-primary" @click="applyFilters()">
+                            <i class="bi bi-funnel"></i> Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Summary Cards -->
+    <div class="report-summary">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-primary">
+                            <i class="bi bi-currency-exchange"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.totalTransactions"></h3>
+                            <p>Total Transactions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-success">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.totalVolume"></h3>
+                            <p>Total Volume</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-warning">
+                            <i class="bi bi-cash-stack"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.conversionGains"></h3>
+                            <p>Conversion Gains</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="card-body">
+                        <div class="summary-icon bg-info">
+                            <i class="bi bi-globe"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h3 x-text="summary.activeCurrencies"></h3>
+                            <p>Active Currencies</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div class="report-content">
+        <!-- Overview Report -->
+        <div class="report-section" x-show="filters.reportType === 'overview'">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Transaction Volume Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="volumeTrendChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Currency Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="currencyDistributionChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Key Metrics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="metrics-grid">
+                                <template x-for="metric in keyMetrics" :key="metric.name">
+                                    <div class="metric-item">
+                                        <div class="metric-label" x-text="metric.label"></div>
+                                        <div class="metric-value" x-text="metric.value"></div>
+                                        <div class="metric-change" :class="metric.changeClass">
+                                            <i :class="metric.changeIcon"></i>
+                                            <span x-text="metric.change"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transaction Analysis Report -->
+        <div class="report-section" x-show="filters.reportType === 'transactions'">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Transaction Volume by Currency</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="transactionVolumeChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Average Transaction Value</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="avgTransactionChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Transaction Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Currency</th>
+                                            <th>Transaction Count</th>
+                                            <th>Total Volume</th>
+                                            <th>Average Value</th>
+                                            <th>Conversion Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="transaction in transactionDetails" :key="transaction.id">
+                                            <tr>
+                                                <td x-text="formatDate(transaction.date)"></td>
+                                                <td>
+                                                    <span class="currency-badge" x-text="transaction.currency"></span>
+                                                </td>
+                                                <td x-text="transaction.count"></td>
+                                                <td x-text="formatCurrency(transaction.volume, transaction.currency)"></td>
+                                                <td x-text="formatCurrency(transaction.avgValue, transaction.currency)"></td>
+                                                <td x-text="formatRate(transaction.conversionRate)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Exchange Rate Trends Report -->
+        <div class="report-section" x-show="filters.reportType === 'exchange_rates'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Exchange Rate Trends</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="exchangeRateTrendChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Rate Volatility Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="volatilityChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Rate Change Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="rateChangeChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Currency Performance Report -->
+        <div class="report-section" x-show="filters.reportType === 'currency_performance'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Currency Performance Metrics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Currency</th>
+                                            <th>Transaction Count</th>
+                                            <th>Total Volume</th>
+                                            <th>Market Share</th>
+                                            <th>Avg. Rate Change</th>
+                                            <th>Performance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="currency in currencyPerformance" :key="currency.code">
+                                            <tr>
+                                                <td>
+                                                    <span class="currency-badge" x-text="currency.code"></span>
+                                                </td>
+                                                <td x-text="currency.transactionCount"></td>
+                                                <td x-text="formatCurrency(currency.totalVolume, currency.code)"></td>
+                                                <td x-text="`${currency.marketShare}%`"></td>
+                                                <td x-text="`${currency.avgRateChange}%`"></td>
+                                                <td>
+                                                    <span class="badge" 
+                                                          :class="getPerformanceBadgeClass(currency.performance)"
+                                                          x-text="currency.performance"></span>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Performance Comparison</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="performanceComparisonChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Conversion Gains/Losses Report -->
+        <div class="report-section" x-show="filters.reportType === 'conversion_gains'">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Conversion Gains/Losses Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="gains-losses-summary">
+                                <div class="summary-item">
+                                    <span class="label">Total Gains:</span>
+                                    <span class="value gains" x-text="formatCurrency(conversionGains.totalGains, 'USD')"></span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Total Losses:</span>
+                                    <span class="value losses" x-text="formatCurrency(conversionGains.totalLosses, 'USD')"></span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Net Result:</span>
+                                    <span class="value" 
+                                          :class="conversionGains.netResult >= 0 ? 'gains' : 'losses'"
+                                          x-text="formatCurrency(conversionGains.netResult, 'USD')"></span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="label">Conversion Rate:</span>
+                                    <span class="value" x-text="`${conversionGains.conversionRate}%`"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Gains/Losses by Currency</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="gainsLossesChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Conversion Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>From Currency</th>
+                                            <th>To Currency</th>
+                                            <th>Amount</th>
+                                            <th>Exchange Rate</th>
+                                            <th>Gain/Loss</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="conversion in conversionDetails" :key="conversion.id">
+                                            <tr>
+                                                <td x-text="formatDate(conversion.date)"></td>
+                                                <td>
+                                                    <span class="currency-badge" x-text="conversion.fromCurrency"></span>
+                                                </td>
+                                                <td>
+                                                    <span class="currency-badge" x-text="conversion.toCurrency"></span>
+                                                </td>
+                                                <td x-text="formatCurrency(conversion.amount, conversion.fromCurrency)"></td>
+                                                <td x-text="formatRate(conversion.exchangeRate)"></td>
+                                                <td>
+                                                    <span class="gain-loss" 
+                                                          :class="conversion.gainLoss >= 0 ? 'gain' : 'loss'"
+                                                          x-text="formatCurrency(conversion.gainLoss, 'USD')"></span>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Compliance Report -->
+        <div class="report-section" x-show="filters.reportType === 'compliance'">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Compliance Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="compliance-status">
+                                <template x-for="item in complianceStatus" :key="item.category">
+                                    <div class="compliance-item">
+                                        <div class="compliance-header">
+                                            <h6 x-text="item.category"></h6>
+                                            <span class="badge" 
+                                                  :class="getComplianceBadgeClass(item.status)"
+                                                  x-text="item.status"></span>
+                                        </div>
+                                        <div class="compliance-details">
+                                            <p x-text="item.description"></p>
+                                            <div class="progress">
+                                                <div class="progress-bar" 
+                                                     :class="getComplianceProgressBarClass(item.status)"
+                                                     :style="`width: ${item.percentage}%`"></div>
+                                            </div>
+                                            <small class="text-muted" x-text="`${item.percentage}% compliant`"></small>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Audit Trail Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="audit-summary">
+                                <div class="audit-item">
+                                    <span class="label">Total Events:</span>
+                                    <span class="value" x-text="auditSummary.totalEvents"></span>
+                                </div>
+                                <div class="audit-item">
+                                    <span class="label">Rate Changes:</span>
+                                    <span class="value" x-text="auditSummary.rateChanges"></span>
+                                </div>
+                                <div class="audit-item">
+                                    <span class="label">Transaction Anomalies:</span>
+                                    <span class="value" x-text="auditSummary.anomalies"></span>
+                                </div>
+                                <div class="audit-item">
+                                    <span class="label">Compliance Score:</span>
+                                    <span class="value" x-text="`${auditSummary.complianceScore}%`"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Security Events</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="securityEventsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/multi_currency_reports.js') }}"></script>
+<script>
+// Multi-Currency Reports App
+function multiCurrencyReportsApp() {
+    return {
+        // Data
+        currencies: [],
+        stores: [],
+        charts: {},
+        
+        filters: {
+            dateRange: 'last30days',
+            startDate: '',
+            endDate: '',
+            reportType: 'overview',
+            currency: '',
+            store: '',
+            groupBy: 'month',
+            comparison: 'none'
+        },
+        
+        summary: {
+            totalTransactions: 0,
+            totalVolume: '$0',
+            conversionGains: '$0',
+            activeCurrencies: 0
+        },
+        
+        keyMetrics: [],
+        transactionDetails: [],
+        currencyPerformance: [],
+        conversionGains: {
+            totalGains: 0,
+            totalLosses: 0,
+            netResult: 0,
+            conversionRate: 0
+        },
+        conversionDetails: [],
+        complianceStatus: [],
+        auditSummary: {
+            totalEvents: 0,
+            rateChanges: 0,
+            anomalies: 0,
+            complianceScore: 0
+        },
+        
+        // Methods
+        async init() {
+            await this.loadCurrencies();
+            await this.loadStores();
+            this.updateDateRange();
+            await this.loadReportData();
+            this.initializeCharts();
+        },
+        
+        async loadCurrencies() {
+            try {
+                const response = await fetch('/api/multi-currency/currencies');
+                this.currencies = await response.json();
+            } catch (error) {
+                console.error('Error loading currencies:', error);
+                this.showError('Failed to load currencies');
+            }
+        },
+        
+        async loadStores() {
+            try {
+                const response = await fetch('/api/stores');
+                this.stores = await response.json();
+            } catch (error) {
+                console.error('Error loading stores:', error);
+            }
+        },
+        
+        updateDateRange() {
+            const today = new Date();
+            let startDate = new Date();
+            let endDate = new Date();
+            
+            switch (this.filters.dateRange) {
+                case 'today':
+                    startDate = today;
+                    endDate = today;
+                    break;
+                case 'yesterday':
+                    startDate.setDate(today.getDate() - 1);
+                    endDate.setDate(today.getDate() - 1);
+                    break;
+                case 'last7days':
+                    startDate.setDate(today.getDate() - 7);
+                    endDate = today;
+                    break;
+                case 'last30days':
+                    startDate.setDate(today.getDate() - 30);
+                    endDate = today;
+                    break;
+                case 'thisMonth':
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    endDate = today;
+                    break;
+                case 'lastMonth':
+                    startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'thisQuarter':
+                    const quarter = Math.floor(today.getMonth() / 3);
+                    startDate = new Date(today.getFullYear(), quarter * 3, 1);
+                    endDate = today;
+                    break;
+                case 'thisYear':
+                    startDate = new Date(today.getFullYear(), 0, 1);
+                    endDate = today;
+                    break;
+                case 'custom':
+                    // Keep existing dates
+                    return;
+            }
+            
+            this.filters.startDate = this.formatDateForInput(startDate);
+            this.filters.endDate = this.formatDateForInput(endDate);
+        },
+        
+        async loadReportData() {
+            try {
+                const params = new URLSearchParams({
+                    ...this.filters,
+                    startDate: this.filters.startDate,
+                    endDate: this.filters.endDate
+                });
+                
+                const response = await fetch(`/api/multi-currency/reports?${params}`);
+                const data = await response.json();
+                
+                this.summary = data.summary;
+                this.keyMetrics = data.keyMetrics;
+                this.transactionDetails = data.transactionDetails;
+                this.currencyPerformance = data.currencyPerformance;
+                this.conversionGains = data.conversionGains;
+                this.conversionDetails = data.conversionDetails;
+                this.complianceStatus = data.complianceStatus;
+                this.auditSummary = data.auditSummary;
+                
+                // Update charts
+                this.updateCharts(data.chartData);
+                
+            } catch (error) {
+                console.error('Error loading report data:', error);
+                this.showError('Failed to load report data');
+            }
+        },
+        
+        async applyFilters() {
+            await this.loadReportData();
+        },
+        
+        resetFilters() {
+            this.filters = {
+                dateRange: 'last30days',
+                startDate: '',
+                endDate: '',
+                reportType: 'overview',
+                currency: '',
+                store: '',
+                groupBy: 'month',
+                comparison: 'none'
+            };
+            this.updateDateRange();
+            this.loadReportData();
+        },
+        
+        initializeCharts() {
+            // Initialize all charts with empty data
+            this.initVolumeTrendChart();
+            this.initCurrencyDistributionChart();
+            this.initTransactionVolumeChart();
+            this.initAvgTransactionChart();
+            this.initExchangeRateTrendChart();
+            this.initVolatilityChart();
+            this.initRateChangeChart();
+            this.initPerformanceComparisonChart();
+            this.initGainsLossesChart();
+            this.initSecurityEventsChart();
+        },
+        
+        initVolumeTrendChart() {
+            const ctx = document.getElementById('volumeTrendChart');
+            if (ctx) {
+                this.charts.volumeTrend = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Transaction Volume',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initCurrencyDistributionChart() {
+            const ctx = document.getElementById('currencyDistributionChart');
+            if (ctx) {
+                this.charts.currencyDistribution = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(54, 162, 235, 0.8)',
+                                'rgba(255, 205, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(153, 102, 255, 0.8)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        },
+        
+        initTransactionVolumeChart() {
+            const ctx = document.getElementById('transactionVolumeChart');
+            if (ctx) {
+                this.charts.transactionVolume = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Transaction Count',
+                            data: [],
+                            backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initAvgTransactionChart() {
+            const ctx = document.getElementById('avgTransactionChart');
+            if (ctx) {
+                this.charts.avgTransaction = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Average Transaction Value',
+                            data: [],
+                            backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initExchangeRateTrendChart() {
+            const ctx = document.getElementById('exchangeRateTrendChart');
+            if (ctx) {
+                this.charts.exchangeRateTrend = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initVolatilityChart() {
+            const ctx = document.getElementById('volatilityChart');
+            if (ctx) {
+                this.charts.volatility = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Volatility Index',
+                            data: [],
+                            backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initRateChangeChart() {
+            const ctx = document.getElementById('rateChangeChart');
+            if (ctx) {
+                this.charts.rateChange = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Positive', 'Negative', 'No Change'],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(201, 203, 207, 0.8)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        },
+        
+        initPerformanceComparisonChart() {
+            const ctx = document.getElementById('performanceComparisonChart');
+            if (ctx) {
+                this.charts.performanceComparison = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: [],
+                        datasets: []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initGainsLossesChart() {
+            const ctx = document.getElementById('gainsLossesChart');
+            if (ctx) {
+                this.charts.gainsLosses = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Gains',
+                                data: [],
+                                backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                            },
+                            {
+                                label: 'Losses',
+                                data: [],
+                                backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        initSecurityEventsChart() {
+            const ctx = document.getElementById('securityEventsChart');
+            if (ctx) {
+                this.charts.securityEvents = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Security Events',
+                            data: [],
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        updateCharts(chartData) {
+            if (!chartData) return;
+            
+            // Update each chart with new data
+            if (this.charts.volumeTrend && chartData.volumeTrend) {
+                this.charts.volumeTrend.data.labels = chartData.volumeTrend.labels;
+                this.charts.volumeTrend.data.datasets[0].data = chartData.volumeTrend.data;
+                this.charts.volumeTrend.update();
+            }
+            
+            if (this.charts.currencyDistribution && chartData.currencyDistribution) {
+                this.charts.currencyDistribution.data.labels = chartData.currencyDistribution.labels;
+                this.charts.currencyDistribution.data.datasets[0].data = chartData.currencyDistribution.data;
+                this.charts.currencyDistribution.update();
+            }
+            
+            if (this.charts.transactionVolume && chartData.transactionVolume) {
+                this.charts.transactionVolume.data.labels = chartData.transactionVolume.labels;
+                this.charts.transactionVolume.data.datasets[0].data = chartData.transactionVolume.data;
+                this.charts.transactionVolume.update();
+            }
+            
+            if (this.charts.avgTransaction && chartData.avgTransaction) {
+                this.charts.avgTransaction.data.labels = chartData.avgTransaction.labels;
+                this.charts.avgTransaction.data.datasets[0].data = chartData.avgTransaction.data;
+                this.charts.avgTransaction.update();
+            }
+            
+            if (this.charts.exchangeRateTrend && chartData.exchangeRateTrend) {
+                this.charts.exchangeRateTrend.data.labels = chartData.exchangeRateTrend.labels;
+                this.charts.exchangeRateTrend.data.datasets = chartData.exchangeRateTrend.datasets;
+                this.charts.exchangeRateTrend.update();
+            }
+            
+            if (this.charts.volatility && chartData.volatility) {
+                this.charts.volatility.data.labels = chartData.volatility.labels;
+                this.charts.volatility.data.datasets[0].data = chartData.volatility.data;
+                this.charts.volatility.update();
+            }
+            
+            if (this.charts.rateChange && chartData.rateChange) {
+                this.charts.rateChange.data.datasets[0].data = chartData.rateChange;
+                this.charts.rateChange.update();
+            }
+            
+            if (this.charts.performanceComparison && chartData.performanceComparison) {
+                this.charts.performanceComparison.data.labels = chartData.performanceComparison.labels;
+                this.charts.performanceComparison.data.datasets = chartData.performanceComparison.datasets;
+                this.charts.performanceComparison.update();
+            }
+            
+            if (this.charts.gainsLosses && chartData.gainsLosses) {
+                this.charts.gainsLosses.data.labels = chartData.gainsLosses.labels;
+                this.charts.gainsLosses.data.datasets[0].data = chartData.gainsLosses.gains;
+                this.charts.gainsLosses.data.datasets[1].data = chartData.gainsLosses.losses;
+                this.charts.gainsLosses.update();
+            }
+            
+            if (this.charts.securityEvents && chartData.securityEvents) {
+                this.charts.securityEvents.data.labels = chartData.securityEvents.labels;
+                this.charts.securityEvents.data.datasets[0].data = chartData.securityEvents.data;
+                this.charts.securityEvents.update();
+            }
+        },
+        
+        // Report actions
+        exportReport() {
+            const params = new URLSearchParams({
+                ...this.filters,
+                export: 'true',
+                format: 'csv'
+            });
+            window.open(`/api/multi-currency/reports?${params}`);
+        },
+        
+        printReport() {
+            window.print();
+        },
+        
+        generateCustomReport() {
+            window.location.href = '/multi-currency/reports/custom';
+        },
+        
+        // Utility methods
+        formatDateForInput(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        formatCurrency(amount, currency) {
+            const currencyInfo = this.currencies.find(c => c.code === currency);
+            const symbol = currencyInfo ? currencyInfo.symbol : currency;
+            return `${symbol}${parseFloat(amount).toFixed(2)}`;
+        },
+        
+        formatRate(rate) {
+            return parseFloat(rate).toFixed(6);
+        },
+        
+        getPerformanceBadgeClass(performance) {
+            const classes = {
+                'excellent': 'bg-success',
+                'good': 'bg-info',
+                'average': 'bg-warning',
+                'poor': 'bg-danger'
+            };
+            return classes[performance] || 'bg-secondary';
+        },
+        
+        getComplianceBadgeClass(status) {
+            const classes = {
+                'compliant': 'bg-success',
+                'partial': 'bg-warning',
+                'non-compliant': 'bg-danger'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        getComplianceProgressBarClass(status) {
+            const classes = {
+                'compliant': 'bg-success',
+                'partial': 'bg-warning',
+                'non-compliant': 'bg-danger'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

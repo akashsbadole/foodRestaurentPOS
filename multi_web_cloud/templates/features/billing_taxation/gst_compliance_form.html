@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Configuration and Setup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .wizard-step {
+            display: none;
+        }
+        .wizard-step.active {
+            display: block;
+        }
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+        .step-indicator.completed {
+            background-color: #28a745;
+            color: white;
+        }
+        .step-indicator.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .form-section {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .gst-card {
+            border-left: 4px solid #28a745;
+            transition: all 0.3s ease;
+        }
+        .gst-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="gstComplianceForm()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">GST Configuration and Setup</h1>
+                        <p class="text-muted mb-0">Configure your GST settings and compliance parameters</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="navigateTo('main')">
+                            <i class="bi bi-house"></i> Dashboard
+                        </button>
+                        <button class="btn btn-outline-secondary" @click="navigateTo('list')">
+                            <i class="bi bi-list"></i> Returns
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Progress -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <template x-for="(step, index) in wizardSteps" :key="index">
+                                <div class="d-flex align-items-center">
+                                    <div class="step-indicator rounded-circle d-flex align-items-center justify-content-center me-2"
+                                         style="width: 40px; height: 40px;"
+                                         :class="{
+                                             'completed': currentStep > index,
+                                             'active': currentStep === index + 1
+                                         }">
+                                        <span x-show="currentStep > index">
+                                            <i class="bi bi-check"></i>
+                                        </span>
+                                        <span x-show="currentStep <= index" x-text="index + 1"></span>
+                                    </div>
+                                    <div class="me-3">
+                                        <h6 class="mb-0" x-text="step.title"></h6>
+                                        <small class="text-muted" x-text="step.description"></small>
+                                    </div>
+                                    <div class="flex-grow-1" x-show="index < wizardSteps.length - 1">
+                                        <hr class="border-2">
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Content -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_GST_COMPLIANCE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <form @submit.prevent="submitForm">
+                            <!-- Step 1: Business Details -->
+                            <div class="wizard-step" :class="{'active': currentStep === 1}">
+                                <h4 class="mb-4">Business Details</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Basic Information</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Legal Business Name *</label>
+                                                <input type="text" class="form-control" x-model="formData.businessName" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Trade Name</label>
+                                                <input type="text" class="form-control" x-model="formData.tradeName">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">PAN Number *</label>
+                                                <input type="text" class="form-control" x-model="formData.panNumber" 
+                                                       pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}" maxlength="10" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">GST Registration</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">GSTIN *</label>
+                                                <input type="text" class="form-control" x-model="formData.gstin" 
+                                                       pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9]{1}Z[0-9]{1}" maxlength="15" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Registration Date *</label>
+                                                <input type="date" class="form-control" x-model="formData.registrationDate" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Constitution of Business</label>
+                                                <select class="form-select" x-model="formData.constitution">
+                                                    <option value="">Select Constitution</option>
+                                                    <option value="proprietorship">Proprietorship</option>
+                                                    <option value="partnership">Partnership</option>
+                                                    <option value="llp">LLP</option>
+                                                    <option value="pvt_ltd">Private Limited</option>
+                                                    <option value="public_ltd">Public Limited</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: Tax Configuration -->
+                            <div class="wizard-step" :class="{'active': currentStep === 2}">
+                                <h4 class="mb-4">Tax Configuration</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Tax Rates</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Default CGST Rate (%)</label>
+                                                <input type="number" class="form-control" x-model="formData.cgstRate" 
+                                                       min="0" max="28" step="0.5">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Default SGST Rate (%)</label>
+                                                <input type="number" class="form-control" x-model="formData.sgstRate" 
+                                                       min="0" max="28" step="0.5">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Default IGST Rate (%)</label>
+                                                <input type="number" class="form-control" x-model="formData.igstRate" 
+                                                       min="0" max="28" step="0.5">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Tax Preferences</h5>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           x-model="formData.enableReverseCharge">
+                                                    <label class="form-check-label">
+                                                        Enable Reverse Charge Mechanism
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           x-model="formData.enableComposition">
+                                                    <label class="form-check-label">
+                                                        Composition Scheme
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           x-model="formData.enableTcs">
+                                                    <label class="form-check-label">
+                                                        Enable TCS Collection
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: Filing Preferences -->
+                            <div class="wizard-step" :class="{'active': currentStep === 3}">
+                                <h4 class="mb-4">Filing Preferences</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Return Filing Schedule</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">GSTR-1 Frequency</label>
+                                                <select class="form-select" x-model="formData.gstr1Frequency">
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="quarterly">Quarterly</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">GSTR-3B Frequency</label>
+                                                <select class="form-select" x-model="formData.gstr3bFrequency">
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="quarterly">Quarterly</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Auto-Generate Returns</label>
+                                                <select class="form-select" x-model="formData.autoGenerate">
+                                                    <option value="yes">Yes</option>
+                                                    <option value="no">No</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Notifications</h5>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           x-model="formData.emailNotifications">
+                                                    <label class="form-check-label">
+                                                        Email Notifications
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           x-model="formData.smsNotifications">
+                                                    <label class="form-check-label">
+                                                        SMS Notifications
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Reminder Days Before Due</label>
+                                                <input type="number" class="form-control" x-model="formData.reminderDays" 
+                                                       min="1" max="30">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Bank Details -->
+                            <div class="wizard-step" :class="{'active': currentStep === 4}">
+                                <h4 class="mb-4">Bank Details</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Primary Bank Account</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Bank Name *</label>
+                                                <input type="text" class="form-control" x-model="formData.bankName" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Account Number *</label>
+                                                <input type="text" class="form-control" x-model="formData.accountNumber" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">IFSC Code *</label>
+                                                <input type="text" class="form-control" x-model="formData.ifscCode" 
+                                                       pattern="^[A-Z]{4}0[A-Z0-9]{6}$" maxlength="11" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Account Type</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Account Type</label>
+                                                <select class="form-select" x-model="formData.accountType">
+                                                    <option value="current">Current Account</option>
+                                                    <option value="savings">Savings Account</option>
+                                                    <option value="od">Overdraft Account</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Branch Name</label>
+                                                <input type="text" class="form-control" x-model="formData.branchName">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">MICR Code</label>
+                                                <input type="text" class="form-control" x-model="formData.micrCode" 
+                                                       pattern="[0-9]{9}" maxlength="9">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 5: Review & Confirm -->
+                            <div class="wizard-step" :class="{'active': currentStep === 5}">
+                                <h4 class="mb-4">Review & Confirm</h4>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="gst-card">
+                                            <div class="card-body">
+                                                <h5 class="card-title">Business Information Summary</h5>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <p><strong>Business Name:</strong> <span x-text="formData.businessName"></span></p>
+                                                        <p><strong>Trade Name:</strong> <span x-text="formData.tradeName"></span></p>
+                                                        <p><strong>PAN:</strong> <span x-text="formData.panNumber"></span></p>
+                                                        <p><strong>GSTIN:</strong> <span x-text="formData.gstin"></span></p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p><strong>Constitution:</strong> <span x-text="formData.constitution"></span></p>
+                                                        <p><strong>Registration Date:</strong> <span x-text="formData.registrationDate"></span></p>
+                                                        <p><strong>GSTR-1 Frequency:</strong> <span x-text="formData.gstr1Frequency"></span></p>
+                                                        <p><strong>GSTR-3B Frequency:</strong> <span x-text="formData.gstr3bFrequency"></span></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            Please review all the information carefully before submitting. Once submitted, you can edit these settings from the GST Settings page.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Navigation Buttons -->
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-secondary" 
+                                        @click="previousStep()" 
+                                        :disabled="currentStep === 1">
+                                    <i class="bi bi-arrow-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-primary" 
+                                        @click="nextStep()" 
+                                        x-show="currentStep < wizardSteps.length">
+                                    Next <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <button type="submit" class="btn btn-success" 
+                                        x-show="currentStep === wizardSteps.length">
+                                    <i class="bi bi-check-circle"></i> Submit Configuration
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function gstComplianceForm() {
+            return {
+                currentStep: 1,
+                wizardSteps: [
+                    { title: 'Business Details', description: 'Basic business information' },
+                    { title: 'Tax Configuration', description: 'Set up tax rates and preferences' },
+                    { title: 'Filing Preferences', description: 'Configure return filing schedule' },
+                    { title: 'Bank Details', description: 'Add bank account information' },
+                    { title: 'Review', description: 'Review and confirm settings' }
+                ],
+                formData: {
+                    businessName: '',
+                    tradeName: '',
+                    panNumber: '',
+                    gstin: '',
+                    registrationDate: '',
+                    constitution: '',
+                    cgstRate: 9,
+                    sgstRate: 9,
+                    igstRate: 18,
+                    enableReverseCharge: false,
+                    enableComposition: false,
+                    enableTcs: false,
+                    gstr1Frequency: 'monthly',
+                    gstr3bFrequency: 'monthly',
+                    autoGenerate: 'yes',
+                    emailNotifications: true,
+                    smsNotifications: false,
+                    reminderDays: 7,
+                    bankName: '',
+                    accountNumber: '',
+                    ifscCode: '',
+                    accountType: 'current',
+                    branchName: '',
+                    micrCode: ''
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                nextStep() {
+                    if (this.validateCurrentStep()) {
+                        if (this.currentStep < this.wizardSteps.length) {
+                            this.currentStep++;
+                        }
+                    }
+                },
+                
+                previousStep() {
+                    if (this.currentStep > 1) {
+                        this.currentStep--;
+                    }
+                },
+                
+                validateCurrentStep() {
+                    // Add validation logic for each step
+                    switch(this.currentStep) {
+                        case 1:
+                            return this.formData.businessName && 
+                                   this.formData.panNumber && 
+                                   this.formData.gstin && 
+                                   this.formData.registrationDate;
+                        case 2:
+                            return true; // Tax rates have default values
+                        case 3:
+                            return true;
+                        case 4:
+                            return this.formData.bankName && 
+                                   this.formData.accountNumber && 
+                                   this.formData.ifscCode;
+                        case 5:
+                            return true;
+                        default:
+                            return false;
+                    }
+                },
+                
+                submitForm() {
+                    console.log('Submitting GST configuration:', this.formData);
+                    alert('GST configuration submitted successfully!');
+                    this.navigateTo('main');
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/gst_compliance_${page}.html`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

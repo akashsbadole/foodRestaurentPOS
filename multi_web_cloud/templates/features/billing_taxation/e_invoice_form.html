@@ -1,0 +1,188 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Invoice Generation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .wizard-step {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .wizard-step.active {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .wizard-step.completed {
+            background-color: #28a745;
+            color: white;
+        }
+        .form-section {
+            display: none;
+        }
+        .form-section.active {
+            display: block;
+        }
+        .item-row {
+            transition: all 0.3s ease;
+        }
+        .item-row:hover {
+            background-color: #f8f9fa;
+        }
+        .tax-summary {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        .preview-section {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="eInvoiceForm()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">E-Invoice Generation</h1>
+                        <p class="text-muted mb-0">Generate electronic invoices for GST compliance</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="saveDraft()">
+                            <i class="bi bi-save"></i> Save Draft
+                        </button>
+                        <button class="btn btn-outline-primary" @click="loadTemplate()">
+                            <i class="bi bi-file-earmark-text"></i> Load Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Progress -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="wizard-step rounded p-3 text-center flex-fill" 
+                                 :class="{ 'active': currentStep === 1, 'completed': currentStep > 1 }"
+                                 @click="currentStep > 1 ? goToStep(1) : null">
+                                <i class="bi bi-building d-block mb-2"></i>
+                                <span>Basic Details</span>
+                            </div>
+                            <div class="wizard-step rounded p-3 text-center flex-fill" 
+                                 :class="{ 'active': currentStep === 2, 'completed': currentStep > 2 }"
+                                 @click="currentStep > 2 ? goToStep(2) : null">
+                                <i class="bi bi-person d-block mb-2"></i>
+                                <span>Customer Info</span>
+                            </div>
+                            <div class="wizard-step rounded p-3 text-center flex-fill" 
+                                 :class="{ 'active': currentStep === 3, 'completed': currentStep > 3 }"
+                                 @click="currentStep > 3 ? goToStep(3) : null">
+                                <i class="bi bi-box-seam d-block mb-2"></i>
+                                <span>Item Details</span>
+                            </div>
+                            <div class="wizard-step rounded p-3 text-center flex-fill" 
+                                 :class="{ 'active': currentStep === 4, 'completed': currentStep > 4 }"
+                                 @click="currentStep > 4 ? goToStep(4) : null">
+                                <i class="bi bi-calculator d-block mb-2"></i>
+                                <span>Tax Calculation</span>
+                            </div>
+                            <div class="wizard-step rounded p-3 text-center flex-fill" 
+                                 :class="{ 'active': currentStep === 5, 'completed': currentStep > 5 }"
+                                 @click="currentStep > 5 ? goToStep(5) : null">
+                                <i class="bi bi-check-circle d-block mb-2"></i>
+                                <span>Review & Generate</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Sections -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_E_INVOICE')">
+            <div class="col-lg-8">
+                <!-- Step 1: Basic Details -->
+                <div class="form-section card mb-4" :class="{ 'active': currentStep === 1 }">
+                    <div class="card-header">
+                        <h5 class="mb-0">Basic Invoice Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Invoice Number *</label>
+                                <input type="text" class="form-control" x-model="invoice.invoiceNumber" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Invoice Date *</label>
+                                <input type="date" class="form-control" x-model="invoice.invoiceDate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Purchase Order No.</label>
+                                <input type="text" class="form-control" x-model="invoice.poNumber">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Purchase Order Date</label>
+                                <input type="date" class="form-control" x-model="invoice.poDate">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Supply Type *</label>
+                                <select class="form-select" x-model="invoice.supplyType" required>
+                                    <option value="">Select Supply Type</option>
+                                    <option value="B2B">B2B</option>
+                                    <option value="SEZWP">SEZ With Payment</option>
+                                    <option value="SEZWOP">SEZ Without Payment</option>
+                                    <option value="EXPWP">Export With Payment</option>
+                                    <option value="EXPWOP">Export Without Payment</option>
+                                    <option value="DE">Deemed Export</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Reverse Charge *</label>
+                                <select class="form-select" x-model="invoice.reverseCharge" required>
+                                    <option value="N">No</option>
+                                    <option value="Y">Yes</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Remarks</label>
+                                <textarea class="form-control" x-model="invoice.remarks" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Customer Information -->
+                <div class="form-section card mb-4" :class="{ 'active': currentStep === 2 }">
+                    <div class="card-header">
+                        <h5 class="mb-0">Customer Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Customer Name *</label>
+                                <input type="text" class="form-control" x-model="customer.name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">GSTIN/UIN *</label>
+                                <input type="text" class="form-control" x-model="customer.gstin" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">State *</label>
+                                <select class="form-select" x-model="customer.state" required>
+                                    <option value="">Select State</option>
+                                    <option value="37">Andhra Pradesh</option>
+                                    <option value="12">Arunachal Pradesh</option>
+                                    <option value

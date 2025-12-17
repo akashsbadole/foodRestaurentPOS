@@ -1,0 +1,1121 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_search_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Search Reports -->
+<div class="product-search-reports-container" x-data="productSearchReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Search Analytics
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive search performance and usage analytics</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="scheduleReport()">
+                        <i class="bi bi-calendar-check"></i> Schedule
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Selector -->
+    <div class="date-range-selector">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-calendar-range me-2"></i>
+                    Report Period
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Predefined Range</label>
+                            <select class="form-select" x-model="dateRange.preset" @change="applyPresetRange()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="week">This Week</option>
+                                <option value="lastWeek">Last Week</option>
+                                <option value="month">This Month</option>
+                                <option value="lastMonth">Last Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="year">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="dateRange.start"
+                                   @change="applyCustomRange()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="dateRange.end"
+                                   @change="applyCustomRange()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Comparison</label>
+                            <select class="form-select" x-model="dateRange.comparison" @change="refreshData()">
+                                <option value="none">No Comparison</option>
+                                <option value="previousPeriod">Previous Period</option>
+                                <option value="lastYear">Last Year</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="key-metrics">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-primary">
+                            <i class="bi bi-search"></i>
+                        </div>
+                        <div class="metric-title">Total Searches</div>
+                    </div>
+                    <div class="metric-value" x-text="metrics.totalSearches.toLocaleString()"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.searchesChange)">
+                        <i :class="getChangeIcon(metrics.searchesChange)"></i>
+                        <span x-text="`${Math.abs(metrics.searchesChange)}% from ${metrics.searchesComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-success">
+                            <i class="bi bi-mouse"></i>
+                        </div>
+                        <div class="metric-title">Click Rate</div>
+                    </div>
+                    <div class="metric-value" x-text="`${metrics.clickRate}%`"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.clickRateChange)">
+                        <i :class="getChangeIcon(metrics.clickRateChange)"></i>
+                        <span x-text="`${Math.abs(metrics.clickRateChange)}% from ${metrics.clickRateComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-info">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div class="metric-title">Avg. Query Time</div>
+                    </div>
+                    <div class="metric-value" x-text="`${metrics.avgQueryTime}ms`"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.queryTimeChange, true)">
+                        <i :class="getChangeIcon(metrics.queryTimeChange, true)"></i>
+                        <span x-text="`${Math.abs(metrics.queryTimeChange)}% from ${metrics.queryTimeComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-icon bg-warning">
+                            <i class="bi bi-cart-check"></i>
+                        </div>
+                        <div class="metric-title">Conversion Rate</div>
+                    </div>
+                    <div class="metric-value" x-text="`${metrics.conversionRate}%`"></div>
+                    <div class="metric-change" :class="getChangeClass(metrics.conversionRateChange)">
+                        <i :class="getChangeIcon(metrics.conversionRateChange)"></i>
+                        <span x-text="`${Math.abs(metrics.conversionRateChange)}% from ${metrics.conversionRateComparison}`"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="row">
+            <!-- Search Trends Chart -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Search Trends
+                        </h5>
+                        <div class="card-actions">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartPeriod === 'hourly'}"
+                                        @click="chartPeriod = 'hourly'; updateSearchTrendsChart()">
+                                    Hourly
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartPeriod === 'daily'}"
+                                        @click="chartPeriod = 'daily'; updateSearchTrendsChart()">
+                                    Daily
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartPeriod === 'weekly'}"
+                                        @click="chartPeriod = 'weekly'; updateSearchTrendsChart()">
+                                    Weekly
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="searchTrendsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Types Distribution -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-pie-chart me-2"></i>
+                            Search Types
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="searchTypesChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <!-- Top Search Queries -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-bar-chart me-2"></i>
+                            Top Search Queries
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="topQueriesChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Performance -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Search Performance
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="searchPerformanceChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Analytics -->
+    <div class="detailed-analytics">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-table me-2"></i>
+                    Detailed Analytics
+                </h5>
+                <div class="card-actions">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView === 'queries'}"
+                                @click="analyticsView = 'queries'; loadAnalyticsData()">
+                            Queries
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView === 'products'}"
+                                @click="analyticsView = 'products'; loadAnalyticsData()">
+                            Products
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView === 'users'}"
+                                @click="analyticsView = 'users'; loadAnalyticsData()">
+                            Users
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary"
+                                :class="{'active': analyticsView === 'errors'}"
+                                @click="analyticsView = 'errors'; loadAnalyticsData()">
+                            Errors
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Queries Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'queries'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Query</th>
+                                    <th>Searches</th>
+                                    <th>Clicks</th>
+                                    <th>Click Rate</th>
+                                    <th>Conversions</th>
+                                    <th>Conversion Rate</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="query in analyticsData.queries" :key="query.id">
+                                    <tr>
+                                        <td>
+                                            <div class="query-info">
+                                                <div class="query-text" x-text="query.text"></div>
+                                                <small class="text-muted" x-text="query.type"></small>
+                                            </div>
+                                        </td>
+                                        <td x-text="query.searches.toLocaleString()"></td>
+                                        <td x-text="query.clicks.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" 
+                                                     :class="getClickRateClass(query.clickRate)"
+                                                     :style="`width: ${query.clickRate}%`"
+                                                     x-text="`${query.clickRate}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="query.conversions.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-success" 
+                                                     :style="`width: ${query.conversionRate}%`"
+                                                     x-text="`${query.conversionRate}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <canvas :id="`query-sparkline-${query.id}`" 
+                                                    width="100" 
+                                                    height="30"
+                                                    x-init="drawSparkline($el, query.sparklineData)">
+                                            </canvas>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Products Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'products'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Searches</th>
+                                    <th>Clicks</th>
+                                    <th>Click Rate</th>
+                                    <th>Conversions</th>
+                                    <th>Revenue</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="product in analyticsData.products" :key="product.id">
+                                    <tr>
+                                        <td>
+                                            <div class="product-info">
+                                                <div class="product-image">
+                                                    <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                                         :alt="product.name"
+                                                         class="img-thumbnail">
+                                                </div>
+                                                <div class="product-details">
+                                                    <div class="product-name" x-text="product.name"></div>
+                                                    <small class="text-muted" x-text="product.sku"></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="product.searches.toLocaleString()"></td>
+                                        <td x-text="product.clicks.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" 
+                                                     :class="getClickRateClass(product.clickRate)"
+                                                     :style="`width: ${product.clickRate}%`"
+                                                     x-text="`${product.clickRate}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="product.conversions.toLocaleString()"></td>
+                                        <td x-text="formatCurrency(product.revenue)"></td>
+                                        <td>
+                                            <canvas :id="`product-sparkline-${product.id}`" 
+                                                    width="100" 
+                                                    height="30"
+                                                    x-init="drawSparkline($el, product.sparklineData)">
+                                            </canvas>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Users Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'users'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Searches</th>
+                                    <th>Clicks</th>
+                                    <th>Click Rate</th>
+                                    <th>Conversions</th>
+                                    <th>Revenue</th>
+                                    <th>Last Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="user in analyticsData.users" :key="user.id">
+                                    <tr>
+                                        <td>
+                                            <div class="user-info">
+                                                <div class="user-avatar">
+                                                    <img :src="user.avatar || '/static/images/user-placeholder.png'" 
+                                                         :alt="user.name"
+                                                         class="rounded-circle">
+                                                </div>
+                                                <div class="user-details">
+                                                    <div class="user-name" x-text="user.name"></div>
+                                                    <small class="text-muted" x-text="user.email"></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="user.searches.toLocaleString()"></td>
+                                        <td x-text="user.clicks.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" 
+                                                     :class="getClickRateClass(user.clickRate)"
+                                                     :style="`width: ${user.clickRate}%`"
+                                                     x-text="`${user.clickRate}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="user.conversions.toLocaleString()"></td>
+                                        <td x-text="formatCurrency(user.revenue)"></td>
+                                        <td x-text="formatDate(user.lastActivity)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Errors Analytics -->
+                <div class="analytics-table" x-show="analyticsView === 'errors'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Error Type</th>
+                                    <th>Count</th>
+                                    <th>Percentage</th>
+                                    <th>First Occurred</th>
+                                    <th>Last Occurred</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="error in analyticsData.errors" :key="error.type">
+                                    <tr>
+                                        <td>
+                                            <div class="error-info">
+                                                <div class="error-type" x-text="error.type"></div>
+                                                <small class="text-muted" x-text="error.description"></small>
+                                            </div>
+                                        </td>
+                                        <td x-text="error.count.toLocaleString()"></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-danger" 
+                                                     :style="`width: ${error.percentage}%`"
+                                                     x-text="`${error.percentage}%`">
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="formatDate(error.firstOccurred)"></td>
+                                        <td x-text="formatDate(error.lastOccurred)"></td>
+                                        <td>
+                                            <canvas :id="`error-sparkline-${error.type}`" 
+                                                    width="100" 
+                                                    height="30"
+                                                    x-init="drawSparkline($el, error.sparklineData, 'error')">
+                                            </canvas>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights and Recommendations -->
+    <div class="insights-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Insights & Recommendations
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <template x-for="insight in insights" :key="insight.id">
+                        <div class="col-md-6 mb-3">
+                            <div class="insight-card" :class="`insight-${insight.type}`">
+                                <div class="insight-header">
+                                    <div class="insight-icon">
+                                        <i :class="insight.icon"></i>
+                                    </div>
+                                    <div class="insight-title" x-text="insight.title"></div>
+                                </div>
+                                <div class="insight-content">
+                                    <p x-text="insight.description"></p>
+                                    <div class="insight-metrics">
+                                        <span class="metric" x-show="insight.metric">
+                                            <strong x-text="insight.metric.label"></strong>: 
+                                            <span x-text="insight.metric.value"></span>
+                                        </span>
+                                        <span class="impact" x-show="insight.impact">
+                                            <strong>Impact:</strong> 
+                                            <span :class="`text-${insight.impact.level}`" x-text="insight.impact.text"></span>
+                                        </span>
+                                    </div>
+                                    <div class="insight-action" x-show="insight.action">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-primary"
+                                                @click="handleInsightAction(insight.action)">
+                                            <span x-text="insight.actionText"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/product_search_reports.js') }}"></script>
+<script>
+// Product Search Reports App
+function productSearchReportsApp() {
+    return {
+        // Data
+        dateRange: {
+            preset: 'week',
+            start: '',
+            end: '',
+            comparison: 'previousPeriod'
+        },
+        
+        chartPeriod: 'hourly',
+        analyticsView: 'queries',
+        
+        metrics: {
+            totalSearches: 0,
+            searchesChange: 0,
+            searchesComparison: 'previous period',
+            clickRate: 0,
+            clickRateChange: 0,
+            clickRateComparison: 'previous period',
+            avgQueryTime: 0,
+            queryTimeChange: 0,
+            queryTimeComparison: 'previous period',
+            conversionRate: 0,
+            conversionRateChange: 0,
+            conversionRateComparison: 'previous period'
+        },
+        
+        analyticsData: {
+            queries: [],
+            products: [],
+            users: [],
+            errors: []
+        },
+        
+        insights: [],
+        
+        charts: {
+            searchTrends: null,
+            searchTypes: null,
+            topQueries: null,
+            searchPerformance: null
+        },
+        
+        // Methods
+        init() {
+            this.setDefaultDateRange();
+            this.loadMetrics();
+            this.loadAnalyticsData();
+            this.loadInsights();
+            this.initCharts();
+            this.setupKeyboardShortcuts();
+        },
+        
+        setDefaultDateRange() {
+            const today = new Date();
+            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            this.dateRange.start = lastWeek.toISOString().split('T')[0];
+            this.dateRange.end = today.toISOString().split('T')[0];
+        },
+        
+        applyPresetRange() {
+            const today = new Date();
+            let start = new Date();
+            let end = new Date();
+            
+            switch (this.dateRange.preset) {
+                case 'today':
+                    start = today;
+                    end = today;
+                    break;
+                case 'yesterday':
+                    start = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                    end = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                    break;
+                case 'week':
+                    start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    end = today;
+                    break;
+                case 'lastWeek':
+                    start = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+                    end = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    break;
+                case 'month':
+                    start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    end = today;
+                    break;
+                case 'lastMonth':
+                    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    end = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'quarter':
+                    const quarterStart = Math.floor(today.getMonth() / 3) * 3;
+                    start = new Date(today.getFullYear(), quarterStart, 1);
+                    end = today;
+                    break;
+                case 'year':
+                    start = new Date(today.getFullYear(), 0, 1);
+                    end = today;
+                    break;
+            }
+            
+            this.dateRange.start = start.toISOString().split('T')[0];
+            this.dateRange.end = end.toISOString().split('T')[0];
+            
+            this.refreshData();
+        },
+        
+        applyCustomRange() {
+            this.dateRange.preset = 'custom';
+            this.refreshData();
+        },
+        
+        async loadMetrics() {
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end,
+                    comparison: this.dateRange.comparison
+                });
+                
+                const response = await fetch(`/api/search/reports/metrics?${params}`);
+                this.metrics = await response.json();
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        },
+        
+        async loadAnalyticsData() {
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end,
+                    view: this.analyticsView
+                });
+                
+                const response = await fetch(`/api/search/reports/analytics?${params}`);
+                const data = await response.json();
+                
+                this.analyticsData[this.analyticsView] = data;
+                
+                // Update sparklines after data is loaded
+                this.$nextTick(() => {
+                    this.updateSparklines();
+                });
+            } catch (error) {
+                console.error('Error loading analytics data:', error);
+            }
+        },
+        
+        async loadInsights() {
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/search/reports/insights?${params}`);
+                this.insights = await response.json();
+            } catch (error) {
+                console.error('Error loading insights:', error);
+            }
+        },
+        
+        initCharts() {
+            this.$nextTick(() => {
+                this.initSearchTrendsChart();
+                this.initSearchTypesChart();
+                this.initTopQueriesChart();
+                this.initSearchPerformanceChart();
+            });
+        },
+        
+        initSearchTrendsChart() {
+            const ctx = document.getElementById('searchTrendsChart');
+            if (!ctx) return;
+            
+            this.charts.searchTrends = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Searches',
+                        data: [],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.updateSearchTrendsChart();
+        },
+        
+        initSearchTypesChart() {
+            const ctx = document.getElementById('searchTypesChart');
+            if (!ctx) return;
+            
+            this.charts.searchTypes = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#007bff',
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#6f42c1',
+                            '#fd7e14'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            this.updateSearchTypesChart();
+        },
+        
+        initTopQueriesChart() {
+            const ctx = document.getElementById('topQueriesChart');
+            if (!ctx) return;
+            
+            this.charts.topQueries = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Search Count',
+                        data: [],
+                        backgroundColor: '#28a745'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.updateTopQueriesChart();
+        },
+        
+        initSearchPerformanceChart() {
+            const ctx = document.getElementById('searchPerformanceChart');
+            if (!ctx) return;
+            
+            this.charts.searchPerformance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Query Time (ms)',
+                        data: [],
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.updateSearchPerformanceChart();
+        },
+        
+        async updateSearchTrendsChart() {
+            if (!this.charts.searchTrends) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end,
+                    period: this.chartPeriod
+                });
+                
+                const response = await fetch(`/api/search/reports/search-trends?${params}`);
+                const data = await response.json();
+                
+                this.charts.searchTrends.data.labels = data.labels;
+                this.charts.searchTrends.data.datasets[0].data = data.values;
+                this.charts.searchTrends.update();
+            } catch (error) {
+                console.error('Error updating search trends chart:', error);
+            }
+        },
+        
+        async updateSearchTypesChart() {
+            if (!this.charts.searchTypes) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/search/reports/search-types?${params}`);
+                const data = await response.json();
+                
+                this.charts.searchTypes.data.labels = data.labels;
+                this.charts.searchTypes.data.datasets[0].data = data.values;
+                this.charts.searchTypes.update();
+            } catch (error) {
+                console.error('Error updating search types chart:', error);
+            }
+        },
+        
+        async updateTopQueriesChart() {
+            if (!this.charts.topQueries) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/search/reports/top-queries?${params}`);
+                const data = await response.json();
+                
+                this.charts.topQueries.data.labels = data.labels;
+                this.charts.topQueries.data.datasets[0].data = data.values;
+                this.charts.topQueries.update();
+            } catch (error) {
+                console.error('Error updating top queries chart:', error);
+            }
+        },
+        
+        async updateSearchPerformanceChart() {
+            if (!this.charts.searchPerformance) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    start: this.dateRange.start,
+                    end: this.dateRange.end
+                });
+                
+                const response = await fetch(`/api/search/reports/search-performance?${params}`);
+                const data = await response.json();
+                
+                this.charts.searchPerformance.data.labels = data.labels;
+                this.charts.searchPerformance.data.datasets[0].data = data.values;
+                this.charts.searchPerformance.update();
+            } catch (error) {
+                console.error('Error updating search performance chart:', error);
+            }
+        },
+        
+        updateSparklines() {
+            // Update sparklines for queries
+            this.analyticsData.queries.forEach(query => {
+                const canvas = document.getElementById(`query-sparkline-${query.id}`);
+                if (canvas) {
+                    this.drawSparkline(canvas, query.sparklineData);
+                }
+            });
+            
+            // Update sparklines for products
+            this.analyticsData.products.forEach(product => {
+                const canvas = document.getElementById(`product-sparkline-${product.id}`);
+                if (canvas) {
+                    this.drawSparkline(canvas, product.sparklineData);
+                }
+            });
+            
+            // Update sparklines for errors
+            this.analyticsData.errors.forEach(error => {
+                const canvas = document.getElementById(`error-sparkline-${error.type}`);
+                if (canvas) {
+                    this.drawSparkline(canvas, error.sparklineData, 'error');
+                }
+            });
+        },
+        
+        drawSparkline(canvas, data, type = 'default') {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (!data || data.length === 0) return;
+            
+            const max = Math.max(...data);
+            const min = Math.min(...data);
+            const range = max - min || 1;
+            
+            ctx.strokeStyle = type === 'error' ? '#dc3545' : '#28a745';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            data.forEach((value, index) => {
+                const x = (index / (data.length - 1)) * width;
+                const y = height - ((value - min) / range) * height;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+        },
+        
+        async refreshData() {
+            await Promise.all([
+                this.loadMetrics(),
+                this.loadAnalyticsData(),
+                this.loadInsights(),
+                this.updateSearchTrendsChart(),
+                this.updateSearchTypesChart(),
+                this.updateTopQueriesChart(),
+                this.updateSearchPerformanceChart()
+            ]);
+        },
+        
+        // Action methods
+        exportReport() {
+            const params = new URLSearchParams({
+                start: this.dateRange.start,
+                end: this.dateRange.end,
+                comparison: this.dateRange.comparison,
+                view: this.analyticsView
+            });
+            
+            window.open(`/api/search/reports/export?${params}`);
+        },
+        
+        scheduleReport() {
+            window.location.href = '/search/reports/schedule';
+        },
+        
+        handleInsightAction(action) {
+            switch (action) {
+                case 'optimize_search':
+                    window.location.href = '/search/settings';
+                    break;
+                case 'improve_content':
+                    window.location.href = '/products/optimize';
+                    break;
+                case 'fix_errors':
+                    window.location.href = '/search/errors';
+                    break;
+                case 'update_index':
+                    window.location.href = '/search/indexing';
+                    break;
+            }
+        },
+        
+        // Utility methods
+        getChangeClass(change, inverse = false) {
+            if (change === 0) return 'text-muted';
+            if (inverse) {
+                return change > 0 ? 'text-danger' : 'text-success';
+            }
+            return change > 0 ? 'text-success' : 'text-danger';
+        },
+        
+        getChangeIcon(change, inverse = false) {
+            if (change === 0) return 'bi bi-dash';
+            if (inverse) {
+                return change > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+            }
+            return change > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+        },
+        
+        getClickRateClass(rate) {
+            if (rate >= 10) return 'bg-success';
+            if (rate >= 5) return 'bg-warning';
+            return 'bg-danger';
+        },
+        
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + R: Refresh data
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.refreshData();
+                }
+                
+                // Ctrl/Cmd + E: Export report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportReport();
+                }
+                
+                // Ctrl/Cmd + S: Schedule report
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.scheduleReport();
+                }
+                
+                // 1-4: Switch analytics view
+                if (e.key >= '1' && e.key <= '4') {
+                    const viewNumber = parseInt(e.key);
+                    const views = ['queries', 'products', 'users', 'errors'];
+                    if (viewNumber <= views.length) {
+                        this.analyticsView = views[viewNumber - 1];
+                        this.loadAnalyticsData();
+                    }
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

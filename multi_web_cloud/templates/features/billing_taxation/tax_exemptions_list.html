@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemption Certificates and Records</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .exemption-table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .view-toggle .btn {
+            border-radius: 0;
+        }
+        .view-toggle .btn:first-child {
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+        }
+        .view-toggle .btn:last-child {
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .exemption-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #198754;
+        }
+        .exemption-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .metric-box {
+            background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+        }
+        .days-remaining {
+            font-weight: bold;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .days-critical { background-color: #dc3545; color: white; }
+        .days-warning { background-color: #ffc107; color: black; }
+        .days-safe { background-color: #198754; color: white; }
+    </style>
+</head>
+<body class="bg-light" x-data="taxExemptionsList()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="mb-3 mb-md-0">
+                        <h1 class="h3 mb-1">Exemption Certificates and Records</h1>
+                        <p class="text-muted mb-0">Manage all tax exemption certificates and records</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="exportData()">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                        <button class="btn btn-primary" @click="navigateTo('main')">
+                            <i class="bi bi-house"></i> Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Metrics -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS')">
+            <div class="col-md-3 mb-3">
+                <div class="metric-box">
+                    <h4>₹<span x-text="totalTaxSaved.toLocaleString('en-IN')"></span></h4>
+                    <p class="mb-0">Total Tax Saved (YTD)</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-box">
+                    <h4 x-text="activeCertificates"></h4>
+                    <p class="mb-0">Active Certificates</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-box">
+                    <h4 x-text="pendingApprovals"></h4>
+                    <p class="mb-0">Pending Approvals</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-box">
+                    <h4><span x-text="avgSavings"></span>%</h4>
+                    <p class="mb-0">Average Savings Rate</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Search</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" placeholder="Search certificates..." x-model="searchQuery">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Exemption Type</label>
+                                <select class="form-select" x-model="filters.exemptionType">
+                                    <option value="">All Types</option>
+                                    <option value="gst">GST Exemption</option>
+                                    <option value="vat">VAT Exemption</option>
+                                    <option value="customs">Custom Duty Exemption</option>
+                                    <option value="service_tax">Service Tax Exemption</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" x-model="filters.status">
+                                    <option value="">All Status</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Expired">Expired</option>
+                                    <option value="Revoked">Revoked</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Entity Type</label>
+                                <select class="form-select" x-model="filters.entityType">
+                                    <option value="">All Entities</option>
+                                    <option value="customer">Customer</option>
+                                    <option value="supplier">Supplier</option>
+                                    <option value="product">Product</option>
+                                    <option value="service">Service</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary" @click="applyFilters()">
+                                        <i class="bi bi-funnel"></i> Apply
+                                    </button>
+                                    <button class="btn btn-outline-secondary" @click="resetFilters()">
+                                        <i class="bi bi-arrow-clockwise"></i> Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Toggle and Bulk Actions -->
+        <div class="row mb-3" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS')">
+            <div class="col-md-6">
+                <div class="btn-group view-toggle" role="group">
+                    <button type="button" class="btn btn-outline-primary" 
+                            :class="{'active': viewMode === 'table'}" 
+                            @click="viewMode = 'table'">
+                        <i class="bi bi-table"></i> Table View
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" 
+                            :class="{'active': viewMode === 'grid'}" 
+                            @click="viewMode = 'grid'">
+                        <i class="bi bi-grid"></i> Grid View
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="dropdown d-inline-block me-2" x-show="selectedItems.length > 0">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        Bulk Actions (<span x-text="selectedItems.length"></span>)
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" @click="bulkApprove()">Approve Selected</a></li>
+                        <li><a class="dropdown-item" href="#" @click="bulkRenew()">Renew Selected</a></li>
+                        <li><a class="dropdown-item" href="#" @click="bulkRevoke()">Revoke Selected</a></li>
+                        <li><a class="dropdown-item" href="#" @click="bulkExport()">Export Selected</a></li>
+                    </ul>
+                </div>
+                <div class="d-inline-block">
+                    <span class="text-muted">Showing <span x-text="filteredExemptions.length"></span> of <span x-text="exemptions.length"></span> certificates</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS') && viewMode === 'table'">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 exemption-table">
+                                <thead>
+                                    <tr>
+                                        <th width="40">
+                                            <input type="checkbox" class="form-check-input" 
+                                                   @change="toggleSelectAll($event.target.checked)">
+                                        </th>
+                                        <th>Certificate ID</th>
+                                        <th>Type</th>
+                                        <th>Entity</th>
+                                        <th>Issue Date</th>
+                                        <th>Valid Until</th>
+                                        <th>Tax Saved</th>
+                                        <th>Status</th>
+                                        <th>Days Remaining</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="exemption in paginatedExemptions" :key="exemption.id">
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" class="form-check-input" 
+                                                       :checked="selectedItems.includes(exemption.id)"
+                                                       @change="toggleSelection(exemption.id)">
+                                            </td>
+                                            <td x-text="exemption.certificateId"></td>
+                                            <td>
+                                                <span class="badge status-badge" 
+                                                      :style="`background-color: ${exemption.typeColor}`"
+                                                      x-text="exemption.type"></span>
+                                            </td>
+                                            <td x-text="exemption.entity"></td>
+                                            <td x-text="exemption.issueDate"></td>
+                                            <td x-text="exemption.validUntil"></td>
+                                            <td>₹<span x-text="exemption.taxSaved.toLocaleString('en-IN')"></span></td>
+                                            <td>
+                                                <span class="badge status-badge" 
+                                                      :class="{
+                                                          'bg-success': exemption.status === 'Active',
+                                                          'bg-warning': exemption.status === 'Pending',
+                                                          'bg-danger': exemption.status === 'Expired',
+                                                          'bg-secondary': exemption.status === 'Revoked'
+                                                      }" 
+                                                      x-text="exemption.status"></span>
+                                            </td>
+                                            <td>
+                                                <span class="days-remaining" 
+                                                      :class="{
+                                                          'days-critical': exemption.daysRemaining <= 30,
+                                                          'days-warning': exemption.daysRemaining <= 60 && exemption.daysRemaining > 30,
+                                                          'days-safe': exemption.daysRemaining > 60
+                                                      }" 
+                                                      x-text="exemption.daysRemaining + ' days'"></span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @click="viewDetails(exemption)">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" 
+                                                            x-show="exemption.status === 'Pending'"
+                                                            @click="approveExemption(exemption)">
+                                                        <i class="bi bi-check"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-warning" 
+                                                            x-show="exemption.daysRemaining <= 60"
+                                                            @click="renewExemption(exemption)">
+                                                        <i class="bi bi-arrow-clockwise"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary" @click="downloadCertificate(exemption)">
+                                                        <i class="bi bi-download"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid View -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS') && viewMode === 'grid'">
+            <div class="col-12">
+                <div class="card-grid">
+                    <template x-for="exemption in paginatedExemptions" :key="exemption.id">
+                        <div class="card exemption-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <span class="badge status-badge" 
+                                          :style="`background-color: ${exemption.typeColor}`"
+                                          x-text="exemption.type"></span>
+                                    <input type="checkbox" class="form-check-input" 
+                                           :checked="selectedItems.includes(exemption.id)"
+                                           @change="toggleSelection(exemption.id)">
+                                </div>
+                                <h6 class="card-title" x-text="exemption.certificateId"></h6>
+                                <div class="mb-2">
+                                    <small class="text-muted">Entity:</small>
+                                    <span x-text="exemption.entity"></span>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted">Valid Until:</small>
+                                    <span x-text="exemption.validUntil"></span>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted">Status:</small>
+                                    <span class="badge status-badge" 
+                                          :class="{
+                                              'bg-success': exemption.status === 'Active',
+                                              'bg-warning': exemption.status === 'Pending',
+                                              'bg-danger': exemption.status === 'Expired',
+                                              'bg-secondary': exemption.status === 'Revoked'
+                                          }" 
+                                          x-text="exemption.status"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted">Tax Saved:</small><br>
+                                            <strong>₹<span x-text="exemption.taxSaved.toLocaleString('en-IN')"></span></strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Days Left:</small><br>
+                                            <span class="days-remaining" 
+                                                  :class="{
+                                                      'days-critical': exemption.daysRemaining <= 30,
+                                                      'days-warning': exemption.daysRemaining <= 60 && exemption.daysRemaining > 30,
+                                                      'days-safe': exemption.daysRemaining > 60
+                                                  }" 
+                                                  x-text="exemption.daysRemaining"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-primary flex-fill" @click="viewDetails(exemption)">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success flex-fill" 
+                                            x-show="exemption.status === 'Pending'"
+                                            @click="approveExemption(exemption)">
+                                        <i class="bi bi-check"></i> Approve
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning flex-fill" 
+                                            x-show="exemption.daysRemaining <= 60"
+                                            @click="renewExemption(exemption)">
+                                        <i class="bi bi-arrow-clockwise"></i> Renew
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="row mt-4" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS')">
+            <div class="col-12">
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" :class="{'disabled': currentPage === 1}">
+                            <a class="page-link" href="#" @click.prevent="currentPage > 1 && currentPage--">Previous</a>
+                        </li>
+                        <template x-for="page in totalPages" :key="page">
+                            <li class="page-item" :class="{'active': page === currentPage}">
+                                <a class="page-link" href="#" @click.prevent="currentPage = page" x-text="page"></a>
+                            </li>
+                        </template>
+                        <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                            <a class="page-link" href="#" @click.prevent="currentPage < totalPages && currentPage++">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certificate Details Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Exemption Certificate Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" x-show="selectedExemption">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Basic Information</h6>
+                            <table class="table table-sm">
+                                <tr><td>Certificate ID:</td><td x-text="selectedExemption?.certificateId"></td></tr>
+                                <tr><td>Type:</td><td x-text="selectedExemption?.type"></td></tr>
+                                <tr><td>Entity:</td><td x-text="selectedExemption?.entity"></td></tr>
+                                <tr><td>Entity Type:</td><td x-text="selectedExemption?.entityType"></td></tr>
+                                <tr><td>Status:</td><td x-text="selectedExemption?.status"></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Validity Information</h6>
+                            <table class="table table-sm">
+                                <tr><td>Issue Date:</td><td x-text="selectedExemption?.issueDate"></td></tr>
+                                <tr><td>Valid Until:</td><td x-text="selectedExemption?.validUntil"></td></tr>
+                                <tr><td>Days Remaining:</td><td x-text="selectedExemption?.daysRemaining + ' days'"></td></tr>
+                                <tr><td>Auto-Renew:</td><td x-text="selectedExemption?.autoRenew ? 'Yes' : 'No'"></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Financial Impact</h6>
+                            <table class="table table-sm">
+                                <tr><td>Total Tax Saved:</td><td>₹<span x-text="selectedExemption?.taxSaved.toLocaleString('en-IN')"></span></td></tr>
+                                <tr><td>GST Saved:</td><td>₹<span x-text="selectedExemption?.gstSaved.toLocaleString('en-IN')"></span></td></tr>
+                                <tr><td>VAT Saved:</td><td>₹<span x-text="selectedExemption?.vatSaved.toLocaleString('en-IN')"></span></td></tr>
+                                <tr><td>Custom Duty Saved:</td><td>₹<span x-text="selectedExemption?.customDutySaved.toLocaleString('en-IN')"></span></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Supporting Documents</h6>
+                            <div class="list-group">
+                                <template x-for="doc in selectedExemption?.documents" :key="doc.id">
+                                    <a href="#" class="list-group-item list-group-item-action">
+                                        <i class="bi bi-file-earmark me-2"></i>
+                                        <span x-text="doc.name"></span>
+                                        <small class="text-muted" x-text="' (' + doc.size + ')'"></small>
+                                    </a>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" @click="downloadCertificate(selectedExemption)">Download Certificate</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function taxExemptionsList() {
+            return {
+                viewMode: 'table',
+                searchQuery: '',
+                currentPage: 1,
+                itemsPerPage: 10,
+                selectedItems: [],
+                selectedExemption: null,
+                filters: {
+                    exemptionType: '',
+                    status: '',
+                    entityType: ''
+                },
+                totalTaxSaved: 285000,
+                activeCertificates: 24,
+                pendingApprovals: 5,
+                avgSavings: 12.5,
+                exemptions: [
+                    {
+                        id: 1,
+                        certificateId: 'TEX2023001',
+                        type: 'GST Exemption',
+                        entity: 'ABC Healthcare Ltd',
+                        entityType: 'customer',
+                        issueDate: 'Jan 15, 2023',
+                        validUntil: 'Dec 31, 2024',
+                        taxSaved: 45000,
+                        gstSaved: 35000,
+                        vatSaved: 8000,
+                        customDutySaved: 2000,
+                        status: 'Active',
+                        daysRemaining: 45,
+                        autoRenew: true,
+                        typeColor: '#198754',
+                        documents: [
+                            { id: 1, name: 'GST Registration Certificate.pdf', size: '2.3 MB' },
+                            { id: 2, name: 'Exemption Application.pdf', size: '1.8 MB' }
+                        ]
+                    },
+                    {
+                        id: 2,
+                        certificateId: 'TEX2023002',
+                        type: 'VAT Exemption',
+                        entity: 'Educational Services Inc',
+                        entityType: 'customer',
+                        issueDate: 'Feb 20, 2023',
+                        validUntil: 'Jun 30, 2024',
+                        taxSaved: 28000,
+                        gstSaved: 0,
+                        vatSaved: 22000,
+                        customDutySaved: 6000,
+                        status: 'Active',
+                        daysRemaining: 25,
+                        autoRenew: false,
+                        typeColor: '#6f42c1',
+                        documents: [
+                            { id: 1, name: 'VAT Exemption Certificate.pdf', size: '1.5 MB' }
+                        ]
+                    },
+                    {
+                        id: 3,
+                        certificateId: 'TEX2023003',
+                        type: 'Custom Duty',
+                        entity: 'Charitable Foundation',
+                        entityType: 'supplier',
+                        issueDate: 'Mar 10, 2023',
+                        validUntil: 'Mar 15, 2024',
+                        taxSaved: 15000,
+                        gstSaved: 5000,
+                        vatSaved: 3000,
+                        customDutySaved: 7000,
+                        status: 'Pending',
+                        daysRemaining: 15,
+                        autoRenew: false,
+                        typeColor: '#ffc107',
+                        documents: [
+                            { id: 1, name: 'Customs Clearance Document.pdf', size: '3.2 MB' },
+                            { id: 2, name: 'Charity Registration.pdf', size: '1.1 MB' }
+                        ]
+                    }
+                ],
+                
+                get filteredExemptions() {
+                    let filtered = this.exemptions;
+                    
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        filtered = filtered.filter(item => 
+                            item.certificateId.toLowerCase().includes(query) ||
+                            item.type.toLowerCase().includes(query) ||
+                            item.entity.toLowerCase().includes(query) ||
+                            item.status.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    if (this.filters.exemptionType) {
+                        filtered = filtered.filter(item => item.type.toLowerCase().includes(this.filters.exemptionType.toLowerCase()));
+                    }
+                    
+                    if (this.filters.status) {
+                        filtered = filtered.filter(item => item.status === this.filters.status);
+                    }
+                    
+                    if (this.filters.entityType) {
+                        filtered = filtered.filter(item => item.entityType === this.filters.entityType);
+                    }
+                    
+                    return filtered;
+                },
+                
+                get paginatedExemptions() {
+                    const start = (this.currentPage - 1) * this.itemsPerPage;
+                    const end = start + this.itemsPerPage;
+                    return this.filteredExemptions.slice(start, end);
+                },
+                
+                get totalPages() {
+                    return Math.ceil(this.filteredExemptions.length / this.itemsPerPage);
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                toggleSelectAll(checked) {
+                    if (checked) {
+                        this.selectedItems = this.paginatedExemptions.map(item => item.id);
+                    } else {
+                        this.selectedItems = [];
+                    }
+                },
+                
+                toggleSelection(id) {
+                    const index = this.selectedItems.indexOf(id);
+                    if (index > -1) {
+                        this.selectedItems.splice(index, 1);
+                    } else {
+                        this.selectedItems.push(id);
+                    }
+                },
+                
+                applyFilters() {
+                    this.currentPage = 1;
+                },
+                
+                resetFilters() {
+                    this.searchQuery = '';
+                    this.filters = {
+                        exemptionType: '',
+                        status: '',
+                        entityType: ''
+                    };
+                    this.currentPage = 1;
+                },
+                
+                viewDetails(exemption) {
+                    this.selectedExemption = exemption;
+                    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+                    modal.show();
+                },
+                
+                approveExemption(exemption) {
+                    console.log('Approving exemption:', exemption);
+                },
+                
+                renewExemption(exemption) {
+                    console.log('Renewing exemption:', exemption);
+                },
+                
+                downloadCertificate(exemption) {
+                    console.log('Downloading certificate:', exemption);
+                },
+                
+                exportData() {
+                    console.log('Exporting exemption data');
+                },
+                
+                bulkApprove() {
+                    console.log('Bulk approving exemptions:', this.selectedItems);
+                },
+                
+                bulkRenew() {
+                    console.log('Bulk renewing exemptions:', this.selectedItems);
+                },
+                
+                bulkRevoke() {
+                    if (confirm('Are you sure you want to revoke the selected exemptions?')) {
+                        console.log('Bulk revoking exemptions:', this.selectedItems);
+                    }
+                },
+                
+                bulkExport() {
+                    console.log('Bulk exporting exemptions:', this.selectedItems);
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/tax_exemptions_${page}.html`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

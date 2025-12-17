@@ -1,0 +1,800 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_catalog_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Catalog Reports -->
+<div class="catalog-reports-container" x-data="catalogReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Product Catalog Reports
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive product performance and inventory analysis</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Selector -->
+    <div class="date-range-selector mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Date Range</label>
+                <select class="form-select" x-model="dateRange" @change="applyDateRange()">
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="this_week">This Week</option>
+                    <option value="last_week">Last Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="this_quarter">This Quarter</option>
+                    <option value="last_quarter">Last Quarter</option>
+                    <option value="this_year">This Year</option>
+                    <option value="last_year">Last Year</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">From Date</label>
+                <input type="date" 
+                       class="form-control" 
+                       x-model="customDateFrom"
+                       @change="applyCustomDateRange()"
+                       x-show="dateRange === 'custom'">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To Date</label>
+                <input type="date" 
+                       class="form-control" 
+                       x-model="customDateTo"
+                       @change="applyCustomDateRange()"
+                       x-show="dateRange === 'custom'">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Compare With</label>
+                <select class="form-select" x-model="compareWith" @change="updateComparison()">
+                    <option value="">No Comparison</option>
+                    <option value="previous_period">Previous Period</option>
+                    <option value="last_year">Last Year</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="metrics-cards mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-primary">
+                        <i class="bi bi-box"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Total Products</h6>
+                        <p class="metric-value" x-text="metrics.totalProducts"></p>
+                        <div class="metric-change" x-show="metrics.productsChange !== 0">
+                            <i class="bi" :class="metrics.productsChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="metrics.productsChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(metrics.productsChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-success">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Inventory Value</h6>
+                        <p class="metric-value" x-text="formatCurrency(metrics.inventoryValue)"></p>
+                        <div class="metric-change" x-show="metrics.inventoryChange !== 0">
+                            <i class="bi" :class="metrics.inventoryChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="metrics.inventoryChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(metrics.inventoryChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Low Stock Items</h6>
+                        <p class="metric-value" x-text="metrics.lowStockItems"></p>
+                        <div class="metric-change" x-show="metrics.lowStockChange !== 0">
+                            <i class="bi" :class="metrics.lowStockChange > 0 ? 'bi-arrow-up text-danger' : 'bi-arrow-down text-success'"></i>
+                            <span :class="metrics.lowStockChange > 0 ? 'text-danger' : 'text-success'" 
+                                  x-text="`${Math.abs(metrics.lowStockChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-danger">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Out of Stock</h6>
+                        <p class="metric-value" x-text="metrics.outOfStockItems"></p>
+                        <div class="metric-change" x-show="metrics.outOfStockChange !== 0">
+                            <i class="bi" :class="metrics.outOfStockChange > 0 ? 'bi-arrow-up text-danger' : 'bi-arrow-down text-success'"></i>
+                            <span :class="metrics.outOfStockChange > 0 ? 'text-danger' : 'text-success'" 
+                                  x-text="`${Math.abs(metrics.outOfStockChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Tabs -->
+    <div class="reports-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#overview-tab" 
+                        type="button">
+                    <i class="bi bi-speedometer2 me-2"></i> Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#performance-tab" 
+                        type="button">
+                    <i class="bi bi-graph-up me-2"></i> Performance
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#inventory-tab" 
+                        type="button">
+                    <i class="bi bi-box-seam me-2"></i> Inventory
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#categories-tab" 
+                        type="button">
+                    <i class="bi bi-tags me-2"></i> Categories
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#suppliers-tab" 
+                        type="button">
+                    <i class="bi bi-truck me-2"></i> Suppliers
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview-tab">
+            <div class="overview-content">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Product Performance Trend</h5>
+                            <canvas id="performanceChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="summary-stats">
+                            <h5 class="stats-title">Quick Stats</h5>
+                            
+                            <div class="stat-item">
+                                <span class="stat-label">Top Category:</span>
+                                <span class="stat-value" x-text="overviewStats.topCategory"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Best Seller:</span>
+                                <span class="stat-value" x-text="overviewStats.bestSeller"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Avg. Product Price:</span>
+                                <span class="stat-value" x-text="formatCurrency(overviewStats.avgPrice)"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Profit Margin:</span>
+                                <span class="stat-value" x-text="`${overviewStats.profitMargin.toFixed(1)}%`"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div class="tab-pane fade" id="performance-tab">
+            <div class="performance-content">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="performance-filters mb-3">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label">Sort By</label>
+                                    <select class="form-select" x-model="performanceSortBy" @change="updatePerformanceData()">
+                                        <option value="revenue">Revenue</option>
+                                        <option value="quantity">Quantity Sold</option>
+                                        <option value="profit">Profit</option>
+                                        <option value="margin">Profit Margin</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Category Filter</label>
+                                    <select class="form-select" x-model="performanceCategory" @change="updatePerformanceData()">
+                                        <option value="">All Categories</option>
+                                        <template x-for="category in categories" :key="category.id">
+                                            <option :value="category.id" x-text="category.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Show Top</label>
+                                    <select class="form-select" x-model="performanceLimit" @change="updatePerformanceData()">
+                                        <option value="10">Top 10</option>
+                                        <option value="25">Top 25</option>
+                                        <option value="50">Top 50</option>
+                                        <option value="100">Top 100</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="table-responsive">
+                            <table class="table table-hover performance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>SKU</th>
+                                        <th>Category</th>
+                                        <th>Revenue</th>
+                                        <th>Quantity Sold</th>
+                                        <th>Profit</th>
+                                        <th>Margin</th>
+                                        <th>Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="product in performanceData" :key="product.id">
+                                        <tr class="performance-row">
+                                            <td>
+                                                <div class="product-info">
+                                                    <strong x-text="product.name"></strong>
+                                                    <br>
+                                                    <small class="text-muted" x-text="product.sku"></small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span x-text="product.sku"></span>
+                                            </td>
+                                            <td>
+                                                <span class="category-badge" x-text="product.category"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="formatCurrency(product.revenue)"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="product.quantity"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="formatCurrency(product.profit)"></span>
+                                            </td>
+                                            <td>
+                                                <span :class="getMarginClass(product.margin)" x-text="`${product.margin.toFixed(1)}%`"></span>
+                                            </td>
+                                            <td>
+                                                <div class="trend-indicator">
+                                                    <i class="bi" 
+                                                       :class="getTrendIcon(product.trend)"
+                                                       :title="getTrendText(product.trend)"></i>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Tab -->
+        <div class="tab-pane fade" id="inventory-tab">
+            <div class="inventory-content">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Stock Status Distribution</h5>
+                            <canvas id="stockChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Inventory Value by Category</h5>
+                            <canvas id="inventoryValueChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="inventory-alerts mt-4">
+                            <h5 class="alerts-title">Inventory Alerts</h5>
+                            <div class="alert-list">
+                                <template x-for="alert in inventoryAlerts" :key="alert.id">
+                                    <div class="alert-item" :class="`alert-${alert.type}`">
+                                        <div class="alert-icon">
+                                            <i class="bi" :class="getAlertIcon(alert.type)"></i>
+                                        </div>
+                                        <div class="alert-content">
+                                            <h6 class="alert-title" x-text="alert.title"></h6>
+                                            <p class="alert-message" x-text="alert.message"></p>
+                                            <small class="alert-time" x-text="formatDateTime(alert.timestamp)"></small>
+                                        </div>
+                                        <div class="alert-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" @click="handleAlert(alert)">
+                                                <i class="bi bi-arrow-right"></i> Action
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories Tab -->
+        <div class="tab-pane fade" id="categories-tab">
+            <div class="categories-content">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Category Performance</h5>
+                            <canvas id="categoryChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="category-summary">
+                            <h5 class="summary-title">Category Summary</h5>
+                            
+                            <template x-for="category in categorySummary" :key="category.id">
+                                <div class="category-stat-item">
+                                    <div class="category-info">
+                                        <span class="category-name" x-text="category.name"></span>
+                                        <span class="product-count" x-text="`${category.productCount} products`"></span>
+                                    </div>
+                                    <div class="category-metrics">
+                                        <span class="revenue" x-text="formatCurrency(category.revenue)"></span>
+                                        <span class="percentage" x-text="`${category.percentage.toFixed(1)}%`"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suppliers Tab -->
+        <div class="tab-pane fade" id="suppliers-tab">
+            <div class="suppliers-content">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="table-responsive">
+                            <table class="table table-hover suppliers-table">
+                                <thead>
+                                    <tr>
+                                        <th>Supplier</th>
+                                        <th>Products</th>
+                                        <th>Total Value</th>
+                                        <th>Avg. Lead Time</th>
+                                        <th>Quality Rating</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="supplier in supplierData" :key="supplier.id">
+                                        <tr class="supplier-row">
+                                            <td>
+                                                <div class="supplier-info">
+                                                    <strong x-text="supplier.name"></strong>
+                                                    <br>
+                                                    <small class="text-muted" x-text="supplier.contact"></small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span x-text="supplier.productCount"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="formatCurrency(supplier.totalValue)"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="`${supplier.avgLeadTime} days`"></span>
+                                            </td>
+                                            <td>
+                                                <div class="rating">
+                                                    <template x-for="i in 5" :key="i">
+                                                        <i class="bi" 
+                                                           :class="i <= supplier.rating ? 'bi-star-fill text-warning' : 'bi-star text-muted'"></i>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="status-badge" 
+                                                      :class="`status-${supplier.status}`"
+                                                      x-text="formatSupplierStatus(supplier.status)"></span>
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            @click="viewSupplier(supplier.id)"
+                                                            title="View">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/product_catalog_reports.js') }}"></script>
+<script>
+// Catalog Reports App
+function catalogReportsApp() {
+    return {
+        // Data
+        dateRange: 'this_month',
+        customDateFrom: '',
+        customDateTo: '',
+        compareWith: '',
+        
+        metrics: {
+            totalProducts: 0,
+            inventoryValue: 0,
+            lowStockItems: 0,
+            outOfStockItems: 0,
+            productsChange: 0,
+            inventoryChange: 0,
+            lowStockChange: 0,
+            outOfStockChange: 0
+        },
+        
+        overviewStats: {
+            topCategory: '',
+            bestSeller: '',
+            avgPrice: 0,
+            profitMargin: 0
+        },
+        
+        performanceData: [],
+        performanceSortBy: 'revenue',
+        performanceCategory: '',
+        performanceLimit: 10,
+        
+        inventoryAlerts: [],
+        categories: [],
+        categorySummary: [],
+        supplierData: [],
+        
+        // Charts
+        performanceChart: null,
+        stockChart: null,
+        inventoryValueChart: null,
+        categoryChart: null,
+        
+        // Methods
+        init() {
+            this.loadData();
+            this.initializeCharts();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadData() {
+            try {
+                const response = await fetch('/api/reports/product_catalog');
+                const data = await response.json();
+                
+                this.metrics = data.metrics;
+                this.overviewStats = data.overviewStats;
+                this.performanceData = data.performanceData;
+                this.inventoryAlerts = data.inventoryAlerts;
+                this.categories = data.categories;
+                this.categorySummary = data.categorySummary;
+                this.supplierData = data.supplierData;
+                
+                this.updateCharts();
+            } catch (error) {
+                console.error('Error loading report data:', error);
+                this.showError('Failed to load report data');
+            }
+        },
+        
+        initializeCharts() {
+            // Initialize Performance Chart
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            this.performanceChart = new Chart(performanceCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Revenue',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // Initialize other charts similarly...
+        },
+        
+        updateCharts() {
+            // Update all charts with loaded data
+            this.updatePerformanceChart();
+            this.updateStockChart();
+            this.updateInventoryValueChart();
+            this.updateCategoryChart();
+        },
+        
+        updatePerformanceChart() {
+            // Update performance chart with comparison data if available
+        },
+        
+        updateStockChart() {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            this.stockChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+                    datasets: [{
+                        data: [
+                            this.metrics.totalProducts - this.metrics.lowStockItems - this.metrics.outOfStockItems,
+                            this.metrics.lowStockItems,
+                            this.metrics.outOfStockItems
+                        ],
+                        backgroundColor: [
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        },
+        
+        updateInventoryValueChart() {
+            // Update inventory value by category chart
+        },
+        
+        updateCategoryChart() {
+            // Update category performance chart
+        },
+        
+        applyDateRange() {
+            if (this.dateRange !== 'custom') {
+                this.customDateFrom = '';
+                this.customDateTo = '';
+                this.loadData();
+            }
+        },
+        
+        applyCustomDateRange() {
+            if (this.customDateFrom && this.customDateTo) {
+                this.loadData();
+            }
+        },
+        
+        updateComparison() {
+            this.loadData();
+        },
+        
+        updatePerformanceData() {
+            // Re-sort and filter performance data
+        },
+        
+        getMarginClass(margin) {
+            if (margin >= 30) return 'text-success';
+            if (margin >= 15) return 'text-warning';
+            return 'text-danger';
+        },
+        
+        getTrendIcon(trend) {
+            const icons = {
+                up: 'bi-arrow-up text-success',
+                down: 'bi-arrow-down text-danger',
+                stable: 'bi-dash text-warning'
+            };
+            return icons[trend] || 'bi-dash text-muted';
+        },
+        
+        getTrendText(trend) {
+            const texts = {
+                up: 'Increasing performance',
+                down: 'Decreasing performance',
+                stable: 'Stable performance'
+            };
+            return texts[trend] || 'No trend data';
+        },
+        
+        getAlertIcon(type) {
+            const icons = {
+                low_stock: 'bi-exclamation-triangle-fill text-warning',
+                out_of_stock: 'bi-x-circle-fill text-danger',
+                overstock: 'bi-info-circle-fill text-info',
+                expiry: 'bi-clock-fill text-secondary'
+            };
+            return icons[type] || 'bi-info-circle-fill';
+        },
+        
+        handleAlert(alert) {
+            // Handle alert action based on type
+            switch (alert.type) {
+                case 'low_stock':
+                    window.location.href = `/products?filter=low_stock`;
+                    break;
+                case 'out_of_stock':
+                    window.location.href = `/products?filter=out_of_stock`;
+                    break;
+                default:
+                    this.showInfo('Alert action feature coming soon');
+            }
+        },
+        
+        viewSupplier(supplierId) {
+            window.location.href = `/suppliers/${supplierId}`;
+        },
+        
+        formatSupplierStatus(status) {
+            const statuses = {
+                active: 'Active',
+                inactive: 'Inactive',
+                pending: 'Pending'
+            };
+            return statuses[status] || status;
+        },
+        
+        async exportReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customDateFrom: this.customDateFrom,
+                    customDateTo: this.customDateTo,
+                    compareWith: this.compareWith
+                });
+                
+                const response = await fetch(`/api/reports/product_catalog/export?${params}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `product_catalog_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Report exported successfully');
+                } else {
+                    throw new Error('Failed to export report');
+                }
+            } catch (error) {
+                console.error('Error exporting report:', error);
+                this.showError('Failed to export report');
+            }
+        },
+        
+        refreshData() {
+            this.loadData();
+            this.showSuccess('Data refreshed successfully');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + E: Export report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportReport();
+                }
+                
+                // Ctrl/Cmd + R: Refresh data
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.refreshData();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDateTime(dateTime) {
+            return new Intl.DateTimeFormat('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            }).format(new Date(dateTime));
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showInfo(message) {
+            this.showNotification(message, 'info');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

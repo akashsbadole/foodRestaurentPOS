@@ -1,0 +1,975 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/daily_reports_main.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Daily Reports Main Interface -->
+<div class="daily-reports-main-container" x-data="dailyReportsMainApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-calendar-day me-2"></i>
+                    Daily Sales Reports
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive daily sales and performance analytics</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="refreshReports()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateCustomReport()">
+                        <i class="bi bi-plus-circle"></i> Custom Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Selector -->
+    <div class="date-selector">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <label class="form-label">Report Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               x-model="selectedDate"
+                               @change="loadDailyReport()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Quick Select</label>
+                        <div class="btn-group w-100">
+                            <button type="button" 
+                                    class="btn btn-outline-secondary"
+                                    :class="{'active': isToday}"
+                                    @click="selectToday()">
+                                Today
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-secondary"
+                                    :class="{'active': isYesterday}"
+                                    @click="selectYesterday()">
+                                Yesterday
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-secondary"
+                                    @click="selectThisWeek()">
+                                This Week
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Store/Location</label>
+                        <select class="form-select" x-model="selectedStore" @change="loadDailyReport()">
+                            <option value="all">All Stores</option>
+                            <template x-for="store in stores" :key="store.id">
+                                <option :value="store.id" x-text="store.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Report Type</label>
+                        <select class="form-select" x-model="reportType" @change="updateReportView()">
+                            <option value="summary">Summary</option>
+                            <option value="detailed">Detailed</option>
+                            <option value="comparison">Comparison</option>
+                            <option value="forecast">Forecast</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="executive-summary">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-speedometer2 me-2"></i>
+                    Executive Summary
+                </h5>
+                <div class="summary-date">
+                    <span x-text="formatDate(selectedDate)"></span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="summary-metric">
+                            <div class="metric-header">
+                                <h6 class="metric-title">Total Revenue</h6>
+                                <i class="bi bi-cash-stack metric-icon text-success"></i>
+                            </div>
+                            <div class="metric-value" x-text="formatCurrency(summary.totalRevenue)"></div>
+                            <div class="metric-change" :class="summary.revenueChange >= 0 ? 'text-success' : 'text-danger'">
+                                <i :class="summary.revenueChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="`${Math.abs(summary.revenueChange)}%`"></span>
+                                <small class="text-muted">vs yesterday</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-metric">
+                            <div class="metric-header">
+                                <h6 class="metric-title">Transactions</h6>
+                                <i class="bi bi-receipt metric-icon text-primary"></i>
+                            </div>
+                            <div class="metric-value" x-text="summary.totalTransactions.toLocaleString()"></div>
+                            <div class="metric-change" :class="summary.transactionsChange >= 0 ? 'text-success' : 'text-danger'">
+                                <i :class="summary.transactionsChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="`${Math.abs(summary.transactionsChange)}%`"></span>
+                                <small class="text-muted">vs yesterday</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-metric">
+                            <div class="metric-header">
+                                <h6 class="metric-title">Average Sale</h6>
+                                <i class="bi bi-graph-up metric-icon text-info"></i>
+                            </div>
+                            <div class="metric-value" x-text="formatCurrency(summary.averageSale)"></div>
+                            <div class="metric-change" :class="summary.averageChange >= 0 ? 'text-success' : 'text-danger'">
+                                <i :class="summary.averageChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="`${Math.abs(summary.averageChange)}%`"></span>
+                                <small class="text-muted">vs yesterday</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-metric">
+                            <div class="metric-header">
+                                <h6 class="metric-title">Profit Margin</h6>
+                                <i class="bi bi-piggy-bank metric-icon text-warning"></i>
+                            </div>
+                            <div class="metric-value" x-text="`${summary.profitMargin}%`"></div>
+                            <div class="metric-change" :class="summary.marginChange >= 0 ? 'text-success' : 'text-danger'">
+                                <i :class="summary.marginChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="`${Math.abs(summary.marginChange)}%`"></span>
+                                <small class="text-muted">vs yesterday</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Key Insights -->
+                <div class="key-insights mt-4">
+                    <h6>Key Insights</h6>
+                    <div class="insights-grid">
+                        <template x-for="insight in keyInsights" :key="insight.id">
+                            <div class="insight-item" :class="insight.type">
+                                <i :class="insight.icon"></i>
+                                <span x-text="insight.text"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales Performance Charts -->
+    <div class="sales-performance">
+        <div class="row">
+            <!-- Hourly Sales Trend -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Hourly Sales Trend
+                        </h5>
+                        <div class="chart-controls">
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': hourlyChartView === 'revenue'}"
+                                        @click="updateHourlyChart('revenue')">
+                                    Revenue
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': hourlyChartView === 'transactions'}"
+                                        @click="updateHourlyChart('transactions')">
+                                    Transactions
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': hourlyChartView === 'customers'}"
+                                        @click="updateHourlyChart('customers')">
+                                    Customers
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="hourlySalesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Category Performance -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-pie-chart me-2"></i>
+                            Category Performance
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <div class="category-legend">
+                            <template x-for="category in categoryPerformance" :key="category.name">
+                                <div class="legend-item">
+                                    <span class="legend-color" :style="`background-color: ${category.color}`"></span>
+                                    <span class="legend-label" x-text="category.name"></span>
+                                    <span class="legend-value" x-text="formatCurrency(category.revenue)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Breakdown -->
+    <div class="detailed-breakdown">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-table me-2"></i>
+                    Detailed Breakdown
+                </h5>
+                <div class="breakdown-tabs">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <template x-for="(tab, index) in breakdownTabs" :key="index">
+                            <li class="nav-item">
+                                <button class="nav-link" 
+                                        :class="{'active': activeBreakdownTab === index}"
+                                        @click="activeBreakdownTab = index"
+                                        type="button">
+                                    <i :class="tab.icon"></i>
+                                    <span x-text="tab.label"></span>
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Products Tab -->
+                <div class="tab-content">
+                    <div class="tab-pane" :class="{'show active': activeBreakdownTab === 0}" x-show="activeBreakdownTab === 0">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Category</th>
+                                        <th>Units Sold</th>
+                                        <th>Revenue</th>
+                                        <th>Cost</th>
+                                        <th>Profit</th>
+                                        <th>Margin</th>
+                                        <th>Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="product in productBreakdown" :key="product.id">
+                                        <tr>
+                                            <td>
+                                                <div class="product-info">
+                                                    <span x-text="product.name"></span>
+                                                    <small class="text-muted" x-text="product.sku"></small>
+                                                </div>
+                                            </td>
+                                            <td x-text="product.category"></td>
+                                            <td x-text="product.unitsSold.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(product.revenue)"></td>
+                                            <td x-text="formatCurrency(product.cost)"></td>
+                                            <td x-text="formatCurrency(product.profit)"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="product.margin >= 30 ? 'bg-success' : product.margin >= 20 ? 'bg-warning' : 'bg-danger'"
+                                                      x-text="`${product.margin}%`">
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <i :class="product.trend >= 0 ? 'bi bi-arrow-up text-success' : 'bi bi-arrow-down text-danger'"></i>
+                                                <span x-text="`${Math.abs(product.trend)}%`"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Categories Tab -->
+                    <div class="tab-pane" :class="{'show active': activeBreakdownTab === 1}" x-show="activeBreakdownTab === 1">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Items Sold</th>
+                                        <th>Revenue</th>
+                                        <th>Cost</th>
+                                        <th>Profit</th>
+                                        <th>Margin</th>
+                                        <th>Growth</th>
+                                        <th>Top Product</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="category in categoryBreakdown" :key="category.name">
+                                        <tr>
+                                            <td x-text="category.name"></td>
+                                            <td x-text="category.itemsSold.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(category.revenue)"></td>
+                                            <td x-text="formatCurrency(category.cost)"></td>
+                                            <td x-text="formatCurrency(category.profit)"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="category.margin >= 30 ? 'bg-success' : category.margin >= 20 ? 'bg-warning' : 'bg-danger'"
+                                                      x-text="`${category.margin}%`">
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <i :class="category.growth >= 0 ? 'bi bi-arrow-up text-success' : 'bi bi-arrow-down text-danger'"></i>
+                                                <span x-text="`${Math.abs(category.growth)}%`"></span>
+                                            </td>
+                                            <td x-text="category.topProduct"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Methods Tab -->
+                    <div class="tab-pane" :class="{'show active': activeBreakdownTab === 2}" x-show="activeBreakdownTab === 2">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <th>Transactions</th>
+                                        <th>Amount</th>
+                                        <th>Average</th>
+                                        <th>Fees</th>
+                                        <th>Net Amount</th>
+                                        <th>% of Total</th>
+                                        <th>Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="payment in paymentBreakdown" :key="payment.method">
+                                        <tr>
+                                            <td>
+                                                <div class="payment-method">
+                                                    <i :class="payment.icon"></i>
+                                                    <span x-text="payment.name"></span>
+                                                </div>
+                                            </td>
+                                            <td x-text="payment.transactions.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(payment.amount)"></td>
+                                            <td x-text="formatCurrency(payment.average)"></td>
+                                            <td x-text="formatCurrency(payment.fees)"></td>
+                                            <td x-text="formatCurrency(payment.netAmount)"></td>
+                                            <td>
+                                                <div class="progress">
+                                                    <div class="progress-bar" 
+                                                         :style="`width: ${payment.percentage}%; background-color: ${payment.color}`">
+                                                    </div>
+                                                </div>
+                                                <small x-text="`${payment.percentage}%`"></small>
+                                            </td>
+                                            <td>
+                                                <i :class="payment.trend >= 0 ? 'bi bi-arrow-up text-success' : 'bi bi-arrow-down text-danger'"></i>
+                                                <span x-text="`${Math.abs(payment.trend)}%`"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Hourly Performance Tab -->
+                    <div class="tab-pane" :class="{'show active': activeBreakdownTab === 3}" x-show="activeBreakdownTab === 3">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Time Period</th>
+                                        <th>Transactions</th>
+                                        <th>Revenue</th>
+                                        <th>Average Sale</th>
+                                        <th>Customers</th>
+                                        <th>Items/Transaction</th>
+                                        <th>Busyness</th>
+                                        <th>Peak Products</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="hour in hourlyBreakdown" :key="hour.period">
+                                        <tr>
+                                            <td x-text="hour.period"></td>
+                                            <td x-text="hour.transactions.toLocaleString()"></td>
+                                            <td x-text="formatCurrency(hour.revenue)"></td>
+                                            <td x-text="formatCurrency(hour.averageSale)"></td>
+                                            <td x-text="hour.customers.toLocaleString()"></td>
+                                            <td x-text="hour.itemsPerTransaction.toFixed(1)"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="hour.busyness >= 80 ? 'bg-danger' : hour.busyness >= 60 ? 'bg-warning' : 'bg-success'"
+                                                      x-text="getBusynessLabel(hour.busyness)">
+                                                </span>
+                                            </td>
+                                            <td x-text="hour.peakProducts"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Section -->
+    <div class="comparison-section" x-show="reportType === 'comparison'">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-bar-chart me-2"></i>
+                    Period Comparison
+                </h5>
+                <div class="comparison-controls">
+                    <select class="form-select" x-model="comparisonPeriod" @change="updateComparison()">
+                        <option value="yesterday">Yesterday</option>
+                        <option value="lastWeek">Last Week</option>
+                        <option value="lastMonth">Last Month</option>
+                        <option value="lastYear">Last Year</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="comparison-metrics">
+                    <div class="row">
+                        <template x-for="metric in comparisonMetrics" :key="metric.name">
+                            <div class="col-md-3">
+                                <div class="comparison-metric">
+                                    <h6 x-text="metric.name"></h6>
+                                    <div class="metric-comparison">
+                                        <div class="current-period">
+                                            <span class="period-label">Current</span>
+                                            <span class="period-value" x-text="formatCurrency(metric.current)"></span>
+                                        </div>
+                                        <div class="vs-separator">vs</div>
+                                        <div class="previous-period">
+                                            <span class="period-label">Previous</span>
+                                            <span class="period-value" x-text="formatCurrency(metric.previous)"></span>
+                                        </div>
+                                    </div>
+                                    <div class="metric-change" :class="metric.change >= 0 ? 'text-success' : 'text-danger'">
+                                        <i :class="metric.change >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                        <span x-text="`${Math.abs(metric.change)}%`"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div class="comparison-chart">
+                    <div class="chart-container">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Items -->
+    <div class="action-items">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-clipboard-check me-2"></i>
+                    Action Items & Recommendations
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Immediate Actions</h6>
+                        <ul class="action-list">
+                            <template x-for="action in immediateActions" :key="action.id">
+                                <li class="action-item" :class="action.priority">
+                                    <div class="action-content">
+                                        <i :class="action.icon"></i>
+                                        <span x-text="action.text"></span>
+                                    </div>
+                                    <div class="action-deadline" x-text="action.deadline"></div>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Strategic Recommendations</h6>
+                        <ul class="recommendation-list">
+                            <template x-for="recommendation in strategicRecommendations" :key="recommendation.id">
+                                <li class="recommendation-item">
+                                    <div class="recommendation-content">
+                                        <i :class="recommendation.icon"></i>
+                                        <span x-text="recommendation.text"></span>
+                                    </div>
+                                    <div class="recommendation-impact" :class="recommendation.impact">
+                                        <span x-text="recommendation.impact"></span>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/daily_reports_main.js') }}"></script>
+<script>
+// Daily Reports Main App
+function dailyReportsMainApp() {
+    return {
+        // Data
+        selectedDate: new Date().toISOString().split('T')[0],
+        selectedStore: 'all',
+        reportType: 'summary',
+        activeBreakdownTab: 0,
+        hourlyChartView: 'revenue',
+        comparisonPeriod: 'yesterday',
+        
+        breakdownTabs: [
+            { label: 'Products', icon: 'bi-box', key: 'products' },
+            { label: 'Categories', icon: 'bi-tags', key: 'categories' },
+            { label: 'Payments', icon: 'bi-credit-card', key: 'payments' },
+            { label: 'Hourly', icon: 'bi-clock', key: 'hourly' }
+        ],
+        
+        stores: [
+            { id: 1, name: 'Main Store' },
+            { id: 2, name: 'Downtown Branch' },
+            { id: 3, name: 'Airport Location' }
+        ],
+        
+        summary: {
+            totalRevenue: 15678.90,
+            revenueChange: 12.5,
+            totalTransactions: 234,
+            transactionsChange: 8.3,
+            averageSale: 67.01,
+            averageChange: 3.8,
+            profitMargin: 28.5,
+            marginChange: 1.2
+        },
+        
+        keyInsights: [
+            { id: 1, type: 'positive', icon: 'bi bi-arrow-up-circle', text: 'Revenue increased by 12.5% compared to yesterday' },
+            { id: 2, type: 'positive', icon: 'bi bi-clock', text: 'Peak hours between 12-3 PM generated 45% of daily revenue' },
+            { id: 3, type: 'warning', icon: 'bi bi-exclamation-triangle', text: 'Beverages category showing declining trend' },
+            { id: 4, type: 'info', icon: 'bi bi-info-circle', text: 'Mobile payments increased by 23% this week' }
+        ],
+        
+        categoryPerformance: [
+            { name: 'Food', revenue: 6789.45, color: '#28a745' },
+            { name: 'Beverages', revenue: 4567.89, color: '#007bff' },
+            { name: 'Snacks', revenue: 2345.67, color: '#ffc107' },
+            { name: 'Merchandise', revenue: 1234.56, color: '#dc3545' },
+            { name: 'Other', revenue: 741.33, color: '#6c757d' }
+        ],
+        
+        productBreakdown: [
+            { id: 1, name: 'Premium Coffee', sku: 'COF001', category: 'Beverages', unitsSold: 89, revenue: 1246.00, cost: 623.00, profit: 623.00, margin: 50, trend: 12.5 },
+            { id: 2, name: 'Sandwich Combo', sku: 'SND001', category: 'Food', unitsSold: 67, revenue: 1340.00, cost: 804.00, profit: 536.00, margin: 40, trend: 8.3 },
+            { id: 3, name: 'Fresh Juice', sku: 'JUI001', category: 'Beverages', unitsSold: 45, revenue: 675.00, cost: 405.00, profit: 270.00, margin: 40, trend: -3.2 },
+            { id: 4, name: 'Pastries', sku: 'PAS001', category: 'Food', unitsSold: 78, revenue: 936.00, cost: 561.60, profit: 374.40, margin: 40, trend: 15.7 },
+            { id: 5, name: 'T-Shirt', sku: 'MER001', category: 'Merchandise', unitsSold: 23, revenue: 690.00, profit: 345.00, margin: 50, trend: 5.2 }
+        ],
+        
+        categoryBreakdown: [
+            { name: 'Food', itemsSold: 145, revenue: 6789.45, cost: 4073.67, profit: 2715.78, margin: 40, growth: 12.5, topProduct: 'Sandwich Combo' },
+            { name: 'Beverages', itemsSold: 134, revenue: 4567.89, cost: 2283.95, profit: 2283.94, margin: 50, growth: -3.2, topProduct: 'Premium Coffee' },
+            { name: 'Snacks', itemsSold: 89, revenue: 2345.67, cost: 1407.40, profit: 938.27, margin: 40, growth: 8.7, topProduct: 'Chips' },
+            { name: 'Merchandise', itemsSold: 23, revenue: 1234.56, cost: 740.74, profit: 493.82, margin: 40, growth: 15.3, topProduct: 'T-Shirt' },
+            { name: 'Other', itemsSold: 34, revenue: 741.33, cost: 444.80, profit: 296.53, margin: 40, growth: -1.8, topProduct: 'Misc' }
+        ],
+        
+        paymentBreakdown: [
+            { method: 'cash', name: 'Cash', icon: 'bi-cash', transactions: 89, amount: 6789.45, average: 76.29, fees: 0, netAmount: 6789.45, percentage: 45, color: '#28a745', trend: 5.2 },
+            { method: 'card', name: 'Credit Card', icon: 'bi-credit-card', transactions: 98, amount: 5678.90, average: 57.95, fees: 170.37, netAmount: 5508.53, percentage: 35, color: '#007bff', trend: 12.5 },
+            { method: 'mobile', name: 'Mobile', icon: 'bi-phone', transactions: 34, amount: 2345.67, average: 69.02, fees: 70.37, netAmount: 2275.30, percentage: 15, color: '#ffc107', trend: 23.8 },
+            { method: 'gift', name: 'Gift Card', icon: 'bi-gift', transactions: 13, amount: 864.88, average: 66.53, fees: 0, netAmount: 864.88, percentage: 5, color: '#dc3545', trend: -2.1 }
+        ],
+        
+        hourlyBreakdown: [
+            { period: '6:00 - 9:00', transactions: 23, revenue: 1234.56, averageSale: 53.68, customers: 20, itemsPerTransaction: 2.1, busyness: 45, peakProducts: 'Coffee, Pastries' },
+            { period: '9:00 - 12:00', transactions: 56, revenue: 3456.78, averageSale: 61.73, customers: 48, itemsPerTransaction: 2.3, busyness: 75, peakProducts: 'Coffee, Sandwiches' },
+            { period: '12:00 - 15:00', transactions: 89, revenue: 6789.45, averageSale: 76.29, customers: 78, itemsPerTransaction: 2.8, busyness: 95, peakProducts: 'Lunch Combos, Beverages' },
+            { period: '15:00 - 18:00', transactions: 45, revenue: 2345.67, averageSale: 52.12, customers: 40, itemsPerTransaction: 2.2, busyness: 65, peakProducts: 'Snacks, Coffee' },
+            { period: '18:00 - 21:00', transactions: 21, revenue: 1852.44, averageSale: 88.21, customers: 18, itemsPerTransaction: 3.1, busyness: 40, peakProducts: 'Dinner Items, Merchandise' }
+        ],
+        
+        comparisonMetrics: [
+            { name: 'Revenue', current: 15678.90, previous: 13945.32, change: 12.5 },
+            { name: 'Transactions', current: 234, previous: 216, change: 8.3 },
+            { name: 'Average Sale', current: 67.01, previous: 64.52, change: 3.8 },
+            { name: 'Profit', current: 4478.45, previous: 3987.23, change: 12.3 }
+        ],
+        
+        immediateActions: [
+            { id: 1, priority: 'high', icon: 'bi bi-exclamation-triangle', text: 'Restock premium coffee - inventory running low', deadline: 'Today' },
+            { id: 2, priority: 'medium', icon: 'bi bi-arrow-up', text: 'Increase staffing during 12-3 PM peak hours', deadline: 'Tomorrow' },
+            { id: 3, priority: 'low', icon: 'bi bi-gear', text: 'Review beverage pricing strategy', deadline: 'This Week' }
+        ],
+        
+        strategicRecommendations: [
+            { id: 1, icon: 'bi bi-graph-up', text: 'Launch mobile payment promotion to increase adoption', impact: 'High' },
+            { id: 2, icon: 'bi bi-box', text: 'Expand merchandise section with trending items', impact: 'Medium' },
+            { id: 3, icon: 'bi bi-people', text: 'Implement loyalty program for repeat customers', impact: 'High' }
+        ],
+        
+        charts: {
+            hourlySales: null,
+            category: null,
+            comparison: null
+        },
+        
+        // Computed properties
+        get isToday() {
+            return this.selectedDate === new Date().toISOString().split('T')[0];
+        },
+        
+        get isYesterday() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            return this.selectedDate === yesterday.toISOString().split('T')[0];
+        },
+        
+        // Methods
+        init() {
+            this.loadDailyReport();
+            this.initCharts();
+        },
+        
+        async loadDailyReport() {
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Update data with random variations
+                this.summary.totalRevenue = 12000 + Math.random() * 8000;
+                this.summary.revenueChange = -20 + Math.random() * 40;
+                this.summary.totalTransactions = 180 + Math.floor(Math.random() * 100);
+                this.summary.transactionsChange = -10 + Math.random() * 20;
+                this.summary.averageSale = 50 + Math.random() * 50;
+                this.summary.averageChange = -5 + Math.random() * 10;
+                
+                // Update charts
+                this.updateCharts();
+                
+            } catch (error) {
+                console.error('Error loading daily report:', error);
+                this.showError('Failed to load daily report');
+            }
+        },
+        
+        initCharts() {
+            this.initHourlySalesChart();
+            this.initCategoryChart();
+            this.initComparisonChart();
+        },
+        
+        initHourlySalesChart() {
+            const ctx = document.getElementById('hourlySalesChart');
+            if (!ctx) return;
+            
+            this.charts.hourlySales = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['6AM', '7AM', '8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM'],
+                    datasets: [{
+                        label: 'Revenue',
+                        data: [234, 345, 567, 789, 890, 1234, 1567, 1890, 2345, 1789, 1234, 890, 567, 345, 234, 123],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        },
+        
+        initCategoryChart() {
+            const ctx = document.getElementById('categoryChart');
+            if (!ctx) return;
+            
+            this.charts.category = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Food', 'Beverages', 'Snacks', 'Merchandise', 'Other'],
+                    datasets: [{
+                        data: [6789.45, 4567.89, 2345.67, 1234.56, 741.33],
+                        backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6c757d']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        },
+        
+        initComparisonChart() {
+            const ctx = document.getElementById('comparisonChart');
+            if (!ctx) return;
+            
+            this.charts.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Revenue', 'Transactions', 'Average Sale', 'Profit'],
+                    datasets: [{
+                        label: 'Current Period',
+                        data: [15678.90, 234, 67.01, 4478.45],
+                        backgroundColor: '#007bff'
+                    }, {
+                        label: 'Previous Period',
+                        data: [13945.32, 216, 64.52, 3987.23],
+                        backgroundColor: '#6c757d'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        updateCharts() {
+            if (this.charts.hourlySales) {
+                const newData = Array.from({length: 16}, () => 100 + Math.random() * 2000);
+                this.charts.hourlySales.data.datasets[0].data = newData;
+                this.charts.hourlySales.update();
+            }
+            
+            if (this.charts.category) {
+                const total = 15678.90;
+                const newData = [
+                    total * 0.45,
+                    total * 0.30,
+                    total * 0.15,
+                    total * 0.07,
+                    total * 0.03
+                ];
+                this.charts.category.data.datasets[0].data = newData;
+                this.charts.category.update();
+            }
+        },
+        
+        updateHourlyChart(view) {
+            this.hourlyChartView = view;
+            
+            if (this.charts.hourlySales) {
+                let data, label;
+                
+                switch (view) {
+                    case 'revenue':
+                        data = Array.from({length: 16}, () => 100 + Math.random() * 2000);
+                        label = 'Revenue';
+                        break;
+                    case 'transactions':
+                        data = Array.from({length: 16}, () => 5 + Math.random() * 50);
+                        label = 'Transactions';
+                        break;
+                    case 'customers':
+                        data = Array.from({length: 16}, () => 3 + Math.random() * 40);
+                        label = 'Customers';
+                        break;
+                }
+                
+                this.charts.hourlySales.data.datasets[0].data = data;
+                this.charts.hourlySales.data.datasets[0].label = label;
+                this.charts.hourlySales.update();
+            }
+        },
+        
+        updateComparison() {
+            if (this.charts.comparison) {
+                // Update comparison data based on selected period
+                const variation = 0.8 + Math.random() * 0.4;
+                const previousData = [
+                    15678.90 * variation,
+                    234 * variation,
+                    67.01 * variation,
+                    4478.45 * variation
+                ];
+                
+                this.charts.comparison.data.datasets[1].data = previousData;
+                this.charts.comparison.update();
+            }
+        },
+        
+        updateReportView() {
+            // Handle different report types
+            if (this.reportType === 'comparison') {
+                this.updateComparison();
+            }
+        },
+        
+        // Date selection methods
+        selectToday() {
+            this.selectedDate = new Date().toISOString().split('T')[0];
+            this.loadDailyReport();
+        },
+        
+        selectYesterday() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            this.selectedDate = yesterday.toISOString().split('T')[0];
+            this.loadDailyReport();
+        },
+        
+        selectThisWeek() {
+            // Set to Monday of current week
+            const today = new Date();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - today.getDay() + 1);
+            this.selectedDate = monday.toISOString().split('T')[0];
+            this.loadDailyReport();
+        },
+        
+        // Report actions
+        refreshReports() {
+            this.loadDailyReport();
+        },
+        
+        exportReport() {
+            const data = {
+                date: this.selectedDate,
+                summary: this.summary,
+                productBreakdown: this.productBreakdown,
+                categoryBreakdown: this.categoryBreakdown,
+                paymentBreakdown: this.paymentBreakdown,
+                hourlyBreakdown: this.hourlyBreakdown
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `daily-report-${this.selectedDate}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        generateCustomReport() {
+            // Navigate to custom report creation
+            window.location.href = '/daily-reports/form';
+        },
+        
+        // Utility methods
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        },
+        
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        getBusynessLabel(busyness) {
+            if (busyness >= 80) return 'High';
+            if (busyness >= 60) return 'Medium';
+            return 'Low';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

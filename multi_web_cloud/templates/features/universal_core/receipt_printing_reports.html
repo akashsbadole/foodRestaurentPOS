@@ -1,0 +1,1130 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/receipt_printing_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Receipt Printing Reports Interface -->
+<div class="receipt-reports-container" x-data="receiptReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Receipt Analytics & Usage
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive receipt printing insights and analytics</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="scheduleReport()">
+                        <i class="bi bi-calendar-check"></i> Schedule
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateCustomReport()">
+                        <i class="bi bi-plus-circle"></i> Custom Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Period Selector -->
+    <div class="period-selector">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="period-tabs">
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'today'}"
+                                    @click="changePeriod('today')">
+                                Today
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'yesterday'}"
+                                    @click="changePeriod('yesterday')">
+                                Yesterday
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'this_week'}"
+                                    @click="changePeriod('this_week')">
+                                This Week
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'last_week'}"
+                                    @click="changePeriod('last_week')">
+                                Last Week
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'this_month'}"
+                                    @click="changePeriod('this_month')">
+                                This Month
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'last_month'}"
+                                    @click="changePeriod('last_month')">
+                                Last Month
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'this_quarter'}"
+                                    @click="changePeriod('this_quarter')">
+                                This Quarter
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'this_year'}"
+                                    @click="changePeriod('this_year')">
+                                This Year
+                            </button>
+                            <button type="button" 
+                                    class="period-tab"
+                                    :class="{'active': reportPeriod === 'custom'}"
+                                    @click="changePeriod('custom')">
+                                Custom
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4" x-show="reportPeriod === 'custom'">
+                        <div class="custom-period">
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="date" 
+                                           class="form-control" 
+                                           x-model="customPeriod.start"
+                                           @change="updateCustomPeriod()">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" 
+                                           class="form-control" 
+                                           x-model="customPeriod.end"
+                                           @change="updateCustomPeriod()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Overview -->
+    <div class="metrics-overview">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-primary">
+                        <i class="bi bi-printer"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Total Receipts Printed</h6>
+                        <p class="metric-value" x-text="metrics.totalPrints.toLocaleString()"></p>
+                        <div class="metric-change" x-show="metrics.printsChange !== 0">
+                            <span :class="metrics.printsChange > 0 ? 'text-success' : 'text-danger'">
+                                <i :class="metrics.printsChange > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="Math.abs(metrics.printsChange)"></span>%
+                            </span>
+                            <small class="text-muted">vs previous period</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-success">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Templates Used</h6>
+                        <p class="metric-value" x-text="metrics.templatesUsed"></p>
+                        <div class="metric-change" x-show="metrics.templatesChange !== 0">
+                            <span :class="metrics.templatesChange > 0 ? 'text-success' : 'text-danger'">
+                                <i :class="metrics.templatesChange > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="Math.abs(metrics.templatesChange)"></span>%
+                            </span>
+                            <small class="text-muted">vs previous period</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-warning">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Reprint Rate</h6>
+                        <p class="metric-value" x-text="metrics.reprintRate + '%'"></p>
+                        <div class="metric-change" x-show="metrics.reprintChange !== 0">
+                            <span :class="metrics.reprintChange > 0 ? 'text-danger' : 'text-success'">
+                                <i :class="metrics.reprintChange > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="Math.abs(metrics.reprintChange)"></span>%
+                            </span>
+                            <small class="text-muted">vs previous period</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-info">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Failed Prints</h6>
+                        <p class="metric-value" x-text="metrics.failedPrints"></p>
+                        <div class="metric-change" x-show="metrics.failuresChange !== 0">
+                            <span :class="metrics.failuresChange > 0 ? 'text-danger' : 'text-success'">
+                                <i :class="metrics.failuresChange > 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                <span x-text="Math.abs(metrics.failuresChange)"></span>%
+                            </span>
+                            <small class="text-muted">vs previous period</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="row">
+            <!-- Print Volume Trend -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Print Volume Trend
+                        </h5>
+                        <div class="card-actions">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartType === 'line'}"
+                                        @click="chartType = 'line'">
+                                    Line
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartType === 'bar'}"
+                                        @click="chartType = 'bar'">
+                                    Bar
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': chartType === 'area'}"
+                                        @click="chartType = 'area'">
+                                    Area
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="printVolumeChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Template Usage Distribution -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-pie-chart me-2"></i>
+                            Template Usage
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="templateUsageChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="template-legend">
+                            <template x-for="template in templateUsageData" :key="template.name">
+                                <div class="legend-item">
+                                    <span class="legend-color" :style="`background-color: ${template.color}`"></span>
+                                    <span class="legend-label" x-text="template.name"></span>
+                                    <span class="legend-value" x-text="template.count.toLocaleString()"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Analytics -->
+    <div class="analytics-section">
+        <div class="row">
+            <!-- Printer Performance -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-printer me-2"></i>
+                            Printer Performance
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Printer</th>
+                                        <th>Prints</th>
+                                        <th>Success Rate</th>
+                                        <th>Avg Time</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="printer in printerPerformance" :key="printer.name">
+                                        <tr>
+                                            <td>
+                                                <div class="printer-info">
+                                                    <i :class="getPrinterIcon(printer.type)"></i>
+                                                    <span x-text="printer.name"></span>
+                                                </div>
+                                            </td>
+                                            <td x-text="printer.prints.toLocaleString()"></td>
+                                            <td>
+                                                <span class="success-rate" 
+                                                      :class="getSuccessRateClass(printer.successRate)"
+                                                      x-text="printer.successRate + '%'"></span>
+                                            </td>
+                                            <td x-text="printer.averageTime + 'ms'"></td>
+                                            <td>
+                                                <span class="status-badge" 
+                                                      :class="`status-${printer.status}`"
+                                                      x-text="printer.status"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Template Performance -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                            Template Performance
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Template</th>
+                                        <th>Usage</th>
+                                        <th>Success Rate</th>
+                                        <th>Avg Size</th>
+                                        <th>Reprints</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="template in templatePerformance" :key="template.name">
+                                        <tr>
+                                            <td>
+                                                <div class="template-info">
+                                                    <span x-text="template.name"></span>
+                                                    <small class="text-muted" x-text="template.type"></small>
+                                                </div>
+                                            </td>
+                                            <td x-text="template.usage.toLocaleString()"></td>
+                                            <td>
+                                                <span class="success-rate" 
+                                                      :class="getSuccessRateClass(template.successRate)"
+                                                      x-text="template.successRate + '%'"></span>
+                                            </td>
+                                            <td x-text="template.averageSize + 'KB'"></td>
+                                            <td x-text="template.reprints"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Trends Analysis -->
+    <div class="trends-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-graph-up-arrow me-2"></i>
+                    Print Trends Analysis
+                </h5>
+                <div class="card-actions">
+                    <select class="form-select form-select-sm" x-model="trendMetric" @change="updateTrendsChart()">
+                        <option value="volume">Print Volume</option>
+                        <option value="success_rate">Success Rate</option>
+                        <option value="reprint_rate">Reprint Rate</option>
+                        <option value="template_usage">Template Usage</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="trendsChart" width="400" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hourly Distribution -->
+    <div class="hourly-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-clock me-2"></i>
+                    Hourly Print Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="hourlyChart" width="400" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paper Usage Analysis -->
+    <div class="paper-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-file-earmark me-2"></i>
+                    Paper Usage Analysis
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <canvas id="paperUsageChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="paper-stats">
+                            <h6>Paper Consumption</h6>
+                            <template x-for="paper in paperUsageStats" :key="paper.type">
+                                <div class="paper-item">
+                                    <div class="paper-info">
+                                        <span class="paper-type" x-text="paper.type"></span>
+                                        <span class="paper-amount" x-text="paper.amount.toLocaleString()"></span>
+                                    </div>
+                                    <div class="paper-percentage">
+                                        <div class="progress">
+                                            <div class="progress-bar" 
+                                                 :style="`width: ${paper.percentage}%`"></div>
+                                        </div>
+                                        <span x-text="paper.percentage + '%'"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Analysis -->
+    <div class="cost-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-currency-dollar me-2"></i>
+                    Cost Analysis
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <canvas id="costAnalysisChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="cost-stats">
+                            <h6>Cost Breakdown</h6>
+                            <template x-for="cost in costBreakdown" :key="cost.category">
+                                <div class="cost-item">
+                                    <div class="cost-info">
+                                        <span class="cost-category" x-text="cost.category"></span>
+                                        <span class="cost-amount" x-text="formatCurrency(cost.amount)"></span>
+                                    </div>
+                                    <div class="cost-percentage">
+                                        <div class="progress">
+                                            <div class="progress-bar" 
+                                                 :style="`width: ${cost.percentage}%`"></div>
+                                        </div>
+                                        <span x-text="cost.percentage + '%'"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="reports-table-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    Saved Reports
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="generateCustomReport()">
+                        <i class="bi bi-plus"></i> New Report
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Report Name</th>
+                                <th>Type</th>
+                                <th>Period</th>
+                                <th>Generated</th>
+                                <th>Size</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="report in savedReports" :key="report.id">
+                                <tr>
+                                    <td>
+                                        <div class="report-info">
+                                            <i :class="getReportIcon(report.type)"></i>
+                                            <span x-text="report.name"></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="report-type" x-text="report.type"></span>
+                                    </td>
+                                    <td x-text="report.period"></td>
+                                    <td x-text="formatDate(report.generatedAt)"></td>
+                                    <td x-text="report.size"></td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    @click="viewReport(report.id)"
+                                                    title="View">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @click="downloadReport(report.id)"
+                                                    title="Download">
+                                                <i class="bi bi-download"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-info"
+                                                    @click="shareReport(report.id)"
+                                                    title="Share">
+                                                <i class="bi bi-share"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    @click="deleteReport(report.id)"
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/receipt_printing_reports.js') }}"></script>
+<script>
+// Receipt Reports App
+function receiptReportsApp() {
+    return {
+        // Data
+        reportPeriod: 'this_month',
+        customPeriod: {
+            start: '',
+            end: ''
+        },
+        chartType: 'line',
+        trendMetric: 'volume',
+        
+        metrics: {
+            totalPrints: 0,
+            printsChange: 0,
+            templatesUsed: 0,
+            templatesChange: 0,
+            reprintRate: 0,
+            reprintChange: 0,
+            failedPrints: 0,
+            failuresChange: 0
+        },
+        
+        templateUsageData: [],
+        printerPerformance: [],
+        templatePerformance: [],
+        paperUsageStats: [],
+        costBreakdown: [],
+        savedReports: [],
+        
+        charts: {
+            printVolume: null,
+            templateUsage: null,
+            trends: null,
+            hourly: null,
+            paperUsage: null,
+            costAnalysis: null
+        },
+        
+        // Methods
+        init() {
+            this.loadMetrics();
+            this.loadTemplateUsageData();
+            this.loadPrinterPerformance();
+            this.loadTemplatePerformance();
+            this.loadPaperUsageStats();
+            this.loadCostBreakdown();
+            this.loadSavedReports();
+            this.initializeCharts();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadMetrics() {
+            try {
+                const response = await fetch(`/api/receipts/reports/metrics?period=${this.reportPeriod}`);
+                this.metrics = await response.json();
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        },
+        
+        async loadTemplateUsageData() {
+            try {
+                const response = await fetch(`/api/receipts/reports/template-usage?period=${this.reportPeriod}`);
+                this.templateUsageData = await response.json();
+            } catch (error) {
+                console.error('Error loading template usage data:', error);
+            }
+        },
+        
+        async loadPrinterPerformance() {
+            try {
+                const response = await fetch(`/api/receipts/reports/printer-performance?period=${this.reportPeriod}`);
+                this.printerPerformance = await response.json();
+            } catch (error) {
+                console.error('Error loading printer performance:', error);
+            }
+        },
+        
+        async loadTemplatePerformance() {
+            try {
+                const response = await fetch(`/api/receipts/reports/template-performance?period=${this.reportPeriod}`);
+                this.templatePerformance = await response.json();
+            } catch (error) {
+                console.error('Error loading template performance:', error);
+            }
+        },
+        
+        async loadPaperUsageStats() {
+            try {
+                const response = await fetch(`/api/receipts/reports/paper-usage?period=${this.reportPeriod}`);
+                this.paperUsageStats = await response.json();
+            } catch (error) {
+                console.error('Error loading paper usage stats:', error);
+            }
+        },
+        
+        async loadCostBreakdown() {
+            try {
+                const response = await fetch(`/api/receipts/reports/cost-breakdown?period=${this.reportPeriod}`);
+                this.costBreakdown = await response.json();
+            } catch (error) {
+                console.error('Error loading cost breakdown:', error);
+            }
+        },
+        
+        async loadSavedReports() {
+            try {
+                const response = await fetch('/api/receipts/reports/saved');
+                this.savedReports = await response.json();
+            } catch (error) {
+                console.error('Error loading saved reports:', error);
+            }
+        },
+        
+        changePeriod(period) {
+            this.reportPeriod = period;
+            this.refreshAllData();
+        },
+        
+        updateCustomPeriod() {
+            if (this.customPeriod.start && this.customPeriod.end) {
+                this.refreshAllData();
+            }
+        },
+        
+        async refreshAllData() {
+            await Promise.all([
+                this.loadMetrics(),
+                this.loadTemplateUsageData(),
+                this.loadPrinterPerformance(),
+                this.loadTemplatePerformance(),
+                this.loadPaperUsageStats(),
+                this.loadCostBreakdown()
+            ]);
+            
+            this.updateAllCharts();
+        },
+        
+        initializeCharts() {
+            this.initializePrintVolumeChart();
+            this.initializeTemplateUsageChart();
+            this.initializeTrendsChart();
+            this.initializeHourlyChart();
+            this.initializePaperUsageChart();
+            this.initializeCostAnalysisChart();
+        },
+        
+        initializePrintVolumeChart() {
+            const ctx = document.getElementById('printVolumeChart').getContext('2d');
+            this.charts.printVolume = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Print Volume',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            this.loadPrintVolumeChartData();
+        },
+        
+        async loadPrintVolumeChartData() {
+            try {
+                const response = await fetch(`/api/receipts/reports/print-volume-chart?period=${this.reportPeriod}`);
+                const data = await response.json();
+                
+                this.charts.printVolume.data.labels = data.labels;
+                this.charts.printVolume.data.datasets[0].data = data.values;
+                this.charts.printVolume.update();
+            } catch (error) {
+                console.error('Error loading print volume chart data:', error);
+            }
+        },
+        
+        initializeTemplateUsageChart() {
+            const ctx = document.getElementById('templateUsageChart').getContext('2d');
+            this.charts.templateUsage = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: []
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            this.loadTemplateUsageChartData();
+        },
+        
+        async loadTemplateUsageChartData() {
+            try {
+                const response = await fetch(`/api/receipts/reports/template-usage-chart?period=${this.reportPeriod}`);
+                const data = await response.json();
+                
+                this.charts.templateUsage.data.labels = data.labels;
+                this.charts.templateUsage.data.datasets[0].data = data.values;
+                this.charts.templateUsage.data.datasets[0].backgroundColor = data.colors;
+                this.charts.templateUsage.update();
+            } catch (error) {
+                console.error('Error loading template usage chart data:', error);
+            }
+        },
+        
+        initializeTrendsChart() {
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            this.charts.trends = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Trend',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            this.loadTrendsChartData();
+        },
+        
+        async loadTrendsChartData() {
+            try {
+                const response = await fetch(`/api/receipts/reports/trends-chart?period=${this.reportPeriod}&metric=${this.trendMetric}`);
+                const data = await response.json();
+                
+                this.charts.trends.data.labels = data.labels;
+                this.charts.trends.data.datasets[0].data = data.values;
+                this.charts.trends.data.datasets[0].label = data.label;
+                this.charts.trends.update();
+            } catch (error) {
+                console.error('Error loading trends chart data:', error);
+            }
+        },
+        
+        initializeHourlyChart() {
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+            this.charts.hourly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Hourly Prints',
+                        data: [],
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.loadHourlyChartData();
+        },
+        
+        async loadHourlyChartData() {
+            try {
+                const response = await fetch(`/api/receipts/reports/hourly-chart?period=${this.reportPeriod}`);
+                const data = await response.json();
+                
+                this.charts.hourly.data.labels = data.labels;
+                this.charts.hourly.data.datasets[0].data = data.values;
+                this.charts.hourly.update();
+            } catch (error) {
+                console.error('Error loading hourly chart data:', error);
+            }
+        },
+        
+        initializePaperUsageChart() {
+            const ctx = document.getElementById('paperUsageChart').getContext('2d');
+            this.charts.paperUsage = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Paper Usage',
+                        data: [],
+                        backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            this.loadPaperUsageChartData();
+        },
+        
+        async loadPaperUsageChartData() {
+            try {
+                const response = await fetch(`/api/receipts/reports/paper-usage-chart?period=${this.reportPeriod}`);
+                const data = await response.json();
+                
+                this.charts.paperUsage.data.labels = data.labels;
+                this.charts.paperUsage.data.datasets[0].data = data.values;
+                this.charts.paperUsage.update();
+            } catch (error) {
+                console.error('Error loading paper usage chart data:', error);
+            }
+        },
+        
+        initializeCostAnalysisChart() {
+            const ctx = document.getElementById('costAnalysisChart').getContext('2d');
+            this.charts.costAnalysis = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: []
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+            
+            this.loadCostAnalysisChartData();
+        },
+        
+        async loadCostAnalysisChartData() {
+            try {
+                const response = await fetch(`/api/receipts/reports/cost-analysis-chart?period=${this.reportPeriod}`);
+                const data = await response.json();
+                
+                this.charts.costAnalysis.data.labels = data.labels;
+                this.charts.costAnalysis.data.datasets[0].data = data.values;
+                this.charts.costAnalysis.data.datasets[0].backgroundColor = data.colors;
+                this.charts.costAnalysis.update();
+            } catch (error) {
+                console.error('Error loading cost analysis chart data:', error);
+            }
+        },
+        
+        updateAllCharts() {
+            this.loadPrintVolumeChartData();
+            this.loadTemplateUsageChartData();
+            this.loadTrendsChartData();
+            this.loadHourlyChartData();
+            this.loadPaperUsageChartData();
+            this.loadCostAnalysisChartData();
+        },
+        
+        updateTrendsChart() {
+            this.loadTrendsChartData();
+        },
+        
+        // Action methods
+        exportReport() {
+            const url = `/api/receipts/reports/export?period=${this.reportPeriod}`;
+            window.open(url, '_blank');
+        },
+        
+        scheduleReport() {
+            window.location.href = '/receipts/reports/schedule';
+        },
+        
+        generateCustomReport() {
+            window.location.href = '/receipts/reports/custom';
+        },
+        
+        viewReport(reportId) {
+            window.location.href = `/receipts/reports/view/${reportId}`;
+        },
+        
+        downloadReport(reportId) {
+            window.open(`/api/receipts/reports/download/${reportId}`, '_blank');
+        },
+        
+        shareReport(reportId) {
+            window.location.href = `/receipts/reports/share/${reportId}`;
+        },
+        
+        async deleteReport(reportId) {
+            if (confirm('Are you sure you want to delete this report?')) {
+                try {
+                    const response = await fetch(`/api/receipts/reports/${reportId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        this.savedReports = this.savedReports.filter(r => r.id !== reportId);
+                        this.showSuccess('Report deleted successfully');
+                    } else {
+                        throw new Error('Failed to delete report');
+                    }
+                } catch (error) {
+                    console.error('Error deleting report:', error);
+                    this.showError('Failed to delete report');
+                }
+            }
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        getSuccessRateClass(rate) {
+            if (rate >= 95) return 'text-success';
+            if (rate >= 90) return 'text-warning';
+            return 'text-danger';
+        },
+        
+        getPrinterIcon(type) {
+            const icons = {
+                'thermal': 'bi bi-printer',
+                'laser': 'bi bi-printer-fill',
+                'inkjet': 'bi bi-printer',
+                'dot_matrix': 'bi bi-printer'
+            };
+            return icons[type] || 'bi bi-printer';
+        },
+        
+        getReportIcon(type) {
+            const icons = {
+                'usage': 'bi bi-graph-up',
+                'performance': 'bi bi-speedometer2',
+                'cost': 'bi bi-currency-dollar',
+                'templates': 'bi bi-file-earmark-text',
+                'printers': 'bi bi-printer',
+                'custom': 'bi bi-gear'
+            };
+            return icons[type] || 'bi bi-file-earmark-text';
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + E: Export report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportReport();
+                }
+                
+                // Ctrl/Cmd + S: Schedule report
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.scheduleReport();
+                }
+                
+                // Ctrl/Cmd + N: New custom report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.generateCustomReport();
+                }
+            });
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

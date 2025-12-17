@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCS/TDS Rules</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .settings-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #6f42c1;
+        }
+        .settings-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #6f42c1;
+            border-color: #6f42c1;
+            color: white;
+        }
+        .nav-tabs .nav-link {
+            color: #6f42c1;
+            border-color: #6f42c1;
+        }
+        .nav-tabs .nav-link:hover {
+            border-color: #6f42c1;
+            color: #9b59b6;
+        }
+        .setting-item {
+            border-bottom: 1px solid #e9ecef;
+            padding: 1rem 0;
+        }
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #6f42c1;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        .deduction-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="tdsTcsSettings()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">TCS/TDS Rules</h1>
+                        <p class="text-muted mb-0">Configure Tax Collected/Deducted at Source rules and parameters</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="resetToDefaults()">
+                            <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                        </button>
+                        <button class="btn btn-primary" @click="saveAllSettings()">
+                            <i class="bi bi-save"></i> Save All Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Navigation -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+                                    <i class="bi bi-gear"></i> General Settings
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#sections" type="button" role="tab">
+                                    <i class="bi bi-list-check"></i> Sections & Rates
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#thresholds" type="button" role="tab">
+                                    <i class="bi bi-sliders"></i> Thresholds & Exemptions
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#compliance" type="button" role="tab">
+                                    <i class="bi bi-shield-check"></i> Compliance Rules
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab">
+                                    <i class="bi bi-bell"></i> Notifications
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-12">
+                <div class="tab-content">
+                    <!-- General Settings Tab -->
+                    <div class="tab-pane fade show active" id="general" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">General Settings</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Enable TCS/TDS</h6>
+                                            <p class="text-muted mb-0">Enable Tax Collected/Deducted at Source functionality</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.general.enableTcsTds" id="enableTcsTds">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Auto-detect Applicable Sections</h6>
+                                            <p class="text-muted mb-0">Automatically identify TCS/TDS applicable transactions</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.general.autoDetect" id="autoDetect">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Default Deposit Schedule</h6>
+                                        <p class="text-muted mb-0">Default schedule for TCS/TDS deposits</p>
+                                        <select class="form-select mt-2" x-model="settings.general.defaultDepositSchedule">
+                                            <option value="monthly">Monthly (7th of following month)</option>
+                                            <option value="quarterly">Quarterly</option>
+                                            <option value="annually">Annually</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Applicable Financial Years</h6>
+                                        <p class="text-muted mb-0">Financial years for TCS/TDS applicability</p>
+                                        <div class="row mt-2">
+                                            <template x-for="year in settings.general.financialYears" :key="year.id">
+                                                <div class="col-md-3 mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               :value="year.id" 
+                                                               x-model="year.enabled"
+                                                               :id="'year_' + year.id">
+                                                        <label class="form-check-label" :for="'year_' + year.id">
+                                                            x-text="year.name"
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sections & Rates Tab -->
+                    <div class="tab-pane fade" id="sections" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">TCS/TDS Sections & Rates</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Section</th>
+                                                <th>Description</th>
+                                                <th>Type</th>
+                                                <th>Rate (%)</th>
+                                                <th>Threshold (₹)</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="section in settings.sections.rates" :key="section.id">
+                                                <tr>
+                                                    <td x-text="section.code"></td>
+                                                    <td x-text="section.description"></td>
+                                                    <td>
+                                                        <span class="badge deduction-badge" 
+                                                              :style="`background-color: ${section.typeColor}`"
+                                                              x-text="section.type"></span>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="form-control form-control-sm" 
+                                                               x-model="section.rate" min="0" max="100" step="0.1">
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="form-control form-control-sm" 
+                                                               x-model="section.threshold" min="0">
+                                                    </td>
+                                                    <td>
+                                                        <select class="form-select form-select-sm" x-model="section.status">
+                                                            <option value="active">Active</option>
+                                                            <option value="inactive">Inactive</option>
+                                                            <option value="pending">Pending</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-outline-primary" @click="editSection(section)">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-outline-primary" @click="addSection()">
+                                        <i class="bi bi-plus-circle"></i> Add New Section
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thresholds & Exemptions Tab -->
+                    <div class="tab-pane fade" id="thresholds" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Thresholds & Exemptions</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Auto-threshold Check</h6>
+                                            <p class="text-muted mb-0">Automatically check threshold limits before deduction</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.thresholds.autoCheck" id="autoCheck">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Exemption Categories</h6>
+                                        <p class="text-muted mb-0">Manage exemption categories and certificates</p>
+                                        <div class="row mt-2">
+                                            <template x-for="exemption in settings.thresholds.exemptions" :key="exemption.id">
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               :value="exemption.id" 
+                                                               x-model="exemption.enabled"
+                                                               :id="'exemption_' + exemption.id">
+                                                        <label class="form-check-label" :for="'exemption_' + exemption.id">
+                                                            x-text="exemption.name"
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Threshold Rules</h6>
+                                        <p class="text-muted mb-0">Configure threshold calculation rules</p>
+                                        <div class="row mt-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Threshold Calculation Basis</label>
+                                                <select class="form-select" x-model="settings.thresholds.calculationBasis">
+                                                    <option value="annual">Annual</option>
+                                                    <option value="quarterly">Quarterly</option>
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="transaction">Per Transaction</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Threshold Reset Frequency</label>
+                                                <select class="form-select" x-model="settings.thresholds.resetFrequency">
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="quarterly">Quarterly</option>
+                                                    <option value="annually">Annually</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Compliance Rules Tab -->
+                    <div class="tab-pane fade" id="compliance" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Compliance Rules</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Auto-compliance Check</h6>
+                                            <p class="text-muted mb-0">Automatically check compliance requirements</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.compliance.autoCheck" id="autoCheckCompliance">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Deposit Reminders</h6>
+                                        <p class="text-muted mb-0">When to send deposit reminders</p>
+                                        <div class="row mt-2">
+                                            <template x-for="day in settings.compliance.reminderDays" :key="day.id">
+                                                <div class="col-md-3 mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               :value="day.id" 
+                                                               x-model="day.enabled"
+                                                               :id="'reminder_' + day.id">
+                                                        <label class="form-check-label" :for="'reminder_' + day.id">
+                                                            x-text="day.label"
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Penalty Calculation</h6>
+                                        <p class="text-muted mb-0">Late deposit penalty calculation method</p>
+                                        <div class="row mt-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Daily Penalty Rate (%)</label>
+                                                <input type="number" class="form-control" x-model="settings.compliance.penaltyRate" min="0" max="100" step="0.1">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Maximum Penalty (₹)</label>
+                                                <input type="number" class="form-control" x-model="settings.compliance.maxPenalty" min="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Auto-generate Certificates</h6>
+                                            <p class="text-muted mb-0">Automatically generate Form 16/16A certificates</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.compliance.autoGenerateCertificates" id="autoGenerateCertificates">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications Tab -->
+                    <div class="tab-pane fade" id="notifications" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Notification Settings</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Deposit Due Alerts</h6>
+                                            <p class="text-muted mb-0">Send alerts for upcoming TCS/TDS deposits</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.notifications.depositDueAlerts" id="depositDueAlerts">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Compliance Violations</h6>
+                                            <p class="text-muted mb-0">Alert on compliance violations</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.notifications.complianceViolations" id="complianceViolations">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">Rate Change Alerts</h6>
+                                            <p class="text-muted mb-0">Notify about TCS/TDS rate changes</p>
+                                        </div>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" x-model="settings.notifications.rateChangeAlerts" id="rateChangeAlerts">
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Notification Channels</h6>
+                                        <p class="text-muted mb-0">Preferred notification channels</p>
+                                        <div class="row mt-2">
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" x-model="settings.notifications.emailChannel" id="emailChannel">
+                                                    <label class="form-check-label" for="emailChannel">
+                                                        <i class="bi bi-envelope"></i> Email
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" x-model="settings.notifications.smsChannel" id="smsChannel">
+                                                    <label class="form-check-label" for="smsChannel">
+                                                        <i class="bi bi-phone"></i> SMS
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" x-model="settings.notifications.pushChannel" id="pushChannel">
+                                                    <label class="form-check-label" for="pushChannel">
+                                                        <i class="bi bi-bell"></i> Push Notification
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <div>
+                                        <h6 class="mb-1">Escalation Rules</h6>
+                                        <p class="text-muted mb-0">When to escalate notifications</p>
+                                        <div class="row mt-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Escalation After (Days)</label>
+                                                <input type="number" class="form-control" x-model="settings.notifications.escalationDays" min="1" max="30">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Escalation To</label>
+                                                <select class="form-select" x-model="settings.notifications.escalationTo">
+                                                    <option value="manager">Manager</option>
+                                                    <option value="finance">Finance Team</option>
+                                                    <option value="compliance">Compliance Team</option>
+                                                    <option value="all">All Above</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Confirmation -->
+        <div class="row mt-4" x-show="isFeatureEnabled('FEATURE_TCS_TDS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">Settings Status</h6>
+                                <p class="text-muted mb-0">Last updated: <span x-text="lastUpdated"></span></p>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-secondary" @click="exportSettings()">
+                                    <i class="bi bi-download"></i> Export Settings
+                                </button>
+                                <button class="btn btn-outline-primary" @click="importSettings()">
+                                    <i class="bi bi-upload"></i> Import Settings
+                                </button>
+                                <button class="btn btn-primary" @click="saveAllSettings()">
+                                    <i class="bi bi-save"></i> Save All Settings
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function tdsTcsSettings() {
+            return {
+                lastUpdated: new Date().toLocaleString(),
+                settings: {
+                    general: {
+                        enableTcsTds: true,
+                        autoDetect: true,
+                        defaultDepositSchedule: 'monthly',
+                        financialYears: [
+                            { id: 1, name: '2023-24', enabled: true },
+                            { id: 2, name: '2024-25', enabled: true },
+                            { id: 3, name: '2025-26', enabled: false }
+                        ]
+                    },
+                    sections: {
+                        rates: [
+                            { id: 1, code: '194C', description: 'Commission/Brokerage', type: 'TDS', rate: 5, threshold: 15000, status: 'active', typeColor: '#6f42c1' },
+                            { id: 2, code: '194I', description: 'Professional Fees', type: 'TDS', rate: 10, threshold: 30000, status: 'active', typeColor: '#6f42c1' },
+                            { id: 3, code: '194J', description: 'Technical Fees', type: 'TDS', rate: 10, threshold: 30000, status: 'active', typeColor: '#6f42c1' },
+                            { id: 4, code: '194LA', description: 'Director Fees', type: 'TDS', rate: 10, threshold: 0, status: 'active', typeColor: '#6f42c1' },
+                            { id: 5, code: '192A', description: 'Interest Income', type: 'TDS', rate: 10, threshold: 40000, status: 'active', typeColor: '#6f42c1' },
+                            { id: 6, code: '193', description: 'Dividend Income', type: 'TDS', rate: 10, threshold: 5000, status: 'active', typeColor: '#6f42c1' },
+                            { id: 7, code: '194B', description: 'Rent Income', type: 'TDS', rate: 10, threshold: 180000, status: 'active', typeColor: '#6f42c1' },
+                            { id: 8, code: '206C', description: 'TCS on Sale of Goods', type: 'TCS', rate: 1, threshold: 0, status: 'active', typeColor: '#0d6efd' },
+                            { id: 9, code: '206CA', description: 'TCS on Motor Vehicle', type: 'TCS', rate: 1, threshold: 0, status: 'active', typeColor: '#0d6efd' }
+                        ]
+                    },
+                    thresholds: {
+                        autoCheck: true,
+                        exemptions: [
+                            { id: 1, name: 'Agricultural Income', enabled: true },
+                            { id: 2, name: 'Senior Citizen Exemption', enabled: true },
+                            { id: 3, name: 'Medical Insurance Exemption', enabled: true },
+                            { id: 4, name: 'Education Loan Interest', enabled: false }
+                        ],
+                        calculationBasis: 'annual',
+                        resetFrequency: 'annually'
+                    },
+                    compliance: {
+                        autoCheck: true,
+                        reminderDays: [
+                            { id: 1, label: '7 days before', enabled: true },
+                            { id: 2, label: '3 days before', enabled: true },
+                            { id: 3, label: '1 day before', enabled: true },
+                            { id: 4, label: 'On due date', enabled: true }
+                        ],
+                        penaltyRate: 0.1,
+                        maxPenalty: 10000,
+                        autoGenerateCertificates: true
+                    },
+                    notifications: {
+                        depositDueAlerts: true,
+                        complianceViolations: true,
+                        rateChangeAlerts: true,
+                        emailChannel: true,
+                        smsChannel: false,
+                        pushChannel: true,
+                        escalationDays: 3,
+                        escalationTo: 'manager'
+                    }
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                saveAllSettings() {
+                    console.log('Saving all settings:', this.settings);
+                    this.lastUpdated = new Date().toLocaleString();
+                    alert('Settings saved successfully!');
+                },
+                
+                resetToDefaults() {
+                    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                        console.log('Resetting to defaults');
+                        alert('Settings reset to defaults!');
+                    }
+                },
+                
+                exportSettings() {
+                    console.log('Exporting settings:', this.settings);
+                    alert('Settings exported successfully!');
+                },
+                
+                importSettings() {
+                    console.log('Importing settings');
+                    alert('Settings imported successfully!');
+                },
+                
+                editSection(section) {
+                    console.log('Editing section:', section);
+                },
+                
+                addSection() {
+                    const newSection = {
+                        id: this.settings.sections.rates.length + 1,
+                        code: 'NEW',
+                        description: 'New Section',
+                        type: 'TDS',
+                        rate: 10,
+                        threshold: 0,
+                        status: 'pending',
+                        typeColor: '#6c757d'
+                    };
+                    this.settings.sections.rates.push(newSection);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1076 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/receipt_printing_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Receipt Printing Settings Interface -->
+<div class="receipt-settings-container" x-data="receiptSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Receipt Configuration Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure receipt printing and management settings</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveSettings()">
+                        <i class="bi bi-check-circle"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <div class="nav-tabs">
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'general'}"
+                    @click="activeTab = 'general'">
+                <i class="bi bi-gear"></i>
+                General Settings
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'printers'}"
+                    @click="activeTab = 'printers'">
+                <i class="bi bi-printer"></i>
+                Printer Configuration
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'templates'}"
+                    @click="activeTab = 'templates'">
+                <i class="bi bi-file-earmark-text"></i>
+                Template Settings
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'automation'}"
+                    @click="activeTab = 'automation'">
+                <i class="bi bi-robot"></i>
+                Automation Rules
+            </button>
+            <button type="button" 
+                    class="nav-tab"
+                    :class="{'active': activeTab === 'advanced'}"
+                    @click="activeTab = 'advanced'">
+                <i class="bi bi-sliders"></i>
+                Advanced Options
+            </button>
+        </div>
+    </div>
+
+    <!-- General Settings Tab -->
+    <div class="settings-content" x-show="activeTab === 'general'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-gear me-2"></i>
+                    General Receipt Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Receipt Template</label>
+                            <select class="form-select" x-model="settings.general.defaultTemplate">
+                                <option value="">Select template</option>
+                                <template x-for="template in templates" :key="template.id">
+                                    <option :value="template.id" x-text="template.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Default Paper Size</label>
+                            <select class="form-select" x-model="settings.general.defaultPaperSize">
+                                <option value="80mm">80mm (Thermal)</option>
+                                <option value="58mm">58mm (Thermal)</option>
+                                <option value="a4">A4</option>
+                                <option value="letter">Letter (8.5" x 11")</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Receipt Number Prefix</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="settings.general.receiptPrefix"
+                                   placeholder="Enter prefix (e.g., RCP)">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Receipt Number Length</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.general.receiptNumberLength"
+                                   min="4"
+                                   max="12"
+                                   step="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Copy Count</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.general.copyCount"
+                                   min="1"
+                                   max="5"
+                                   step="1">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Auto-print on Sale</label>
+                            <select class="form-select" x-model="settings.general.autoPrint">
+                                <option value="never">Never</option>
+                                <option value="always">Always</option>
+                                <option value="cash_only">Cash Payments Only</option>
+                                <option value="card_only">Card Payments Only</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="includeBarcode" 
+                                       x-model="settings.general.includeBarcode">
+                                <label class="form-check-label" for="includeBarcode">
+                                    Include Barcode on Receipt
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="includeQRCode" 
+                                       x-model="settings.general.includeQRCode">
+                                <label class="form-check-label" for="includeQRCode">
+                                    Include QR Code on Receipt
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="digitalReceipt" 
+                                       x-model="settings.general.digitalReceipt">
+                                <label class="form-check-label" for="digitalReceipt">
+                                    Enable Digital Receipt Options
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printer Configuration Tab -->
+    <div class="settings-content" x-show="activeTab === 'printers'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-printer me-2"></i>
+                    Printer Configuration
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="addPrinter()">
+                        <i class="bi bi-plus"></i> Add Printer
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="printers-list">
+                    <template x-for="(printer, index) in settings.printers" :key="index">
+                        <div class="printer-item">
+                            <div class="printer-header">
+                                <div class="printer-info">
+                                    <div class="printer-icon">
+                                        <i :class="getPrinterIcon(printer.type)"></i>
+                                    </div>
+                                    <div class="printer-details">
+                                        <h6 x-text="printer.name"></h6>
+                                        <p class="printer-description" x-text="printer.description"></p>
+                                        <span class="printer-status" 
+                                              :class="printer.status === 'online' ? 'status-online' : 'status-offline'"
+                                              x-text="printer.status"></span>
+                                    </div>
+                                </div>
+                                <div class="printer-actions">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               :id="`printer-${index}`"
+                                               x-model="printer.enabled">
+                                        <label class="form-check-label" :for="`printer-${index}`">
+                                            Enabled
+                                        </label>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click="testPrinter(index)"
+                                            :disabled="!printer.enabled">
+                                        <i class="bi bi-check2"></i> Test
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            @click="removePrinter(index)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="printer-settings" x-show="printer.enabled">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Connection Type</label>
+                                            <select class="form-select" x-model="printer.connectionType">
+                                                <option value="usb">USB</option>
+                                                <option value="network">Network</option>
+                                                <option value="bluetooth">Bluetooth</option>
+                                                <option value="cloud">Cloud Print</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Printer Model</label>
+                                            <select class="form-select" x-model="printer.model">
+                                                <option value="">Select model</option>
+                                                <template x-for="model in printerModels" :key="model.id">
+                                                    <option :value="model.id" x-text="model.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">IP Address/Port</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   x-model="printer.address"
+                                                   :placeholder="printer.connectionType === 'network' ? '192.168.1.100' : 'USB001'">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Paper Width</label>
+                                            <select class="form-select" x-model="printer.paperWidth">
+                                                <option value="58mm">58mm</option>
+                                                <option value="80mm">80mm</option>
+                                                <option value="a4">A4</option>
+                                                <option value="letter">Letter</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Print Density</label>
+                                            <select class="form-select" x-model="printer.density">
+                                                <option value="low">Low</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="high">High</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Print Speed</label>
+                                            <select class="form-select" x-model="printer.speed">
+                                                <option value="slow">Slow</option>
+                                                <option value="normal">Normal</option>
+                                                <option value="fast">Fast</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       :id="`autoCut-${index}`"
+                                                       x-model="printer.autoCut">
+                                                <label class="form-check-label" :for="`autoCut-${index}`">
+                                                    Auto-cut Paper
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       :id="`drawerControl-${index}`"
+                                                       x-model="printer.drawerControl">
+                                                <label class="form-check-label" :for="`drawerControl-${index}`">
+                                                    Cash Drawer Control
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Settings Tab -->
+    <div class="settings-content" x-show="activeTab === 'templates'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    Template Management Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Template Storage Location</label>
+                            <select class="form-select" x-model="settings.templates.storageLocation">
+                                <option value="local">Local Storage</option>
+                                <option value="cloud">Cloud Storage</option>
+                                <option value="hybrid">Hybrid (Local + Cloud)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Auto-backup Templates</label>
+                            <select class="form-select" x-model="settings.templates.autoBackup">
+                                <option value="never">Never</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Template Validation</label>
+                            <select class="form-select" x-model="settings.templates.validation">
+                                <option value="strict">Strict Validation</option>
+                                <option value="normal">Normal Validation</option>
+                                <option value="lenient">Lenient Validation</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Template Version Control</label>
+                            <select class="form-select" x-model="settings.templates.versionControl">
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                                <option value="auto">Auto-managed</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="templateCache" 
+                                       x-model="settings.templates.enableCache">
+                                <label class="form-check-label" for="templateCache">
+                                    Enable Template Caching
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="templateSharing" 
+                                       x-model="settings.templates.enableSharing">
+                                <label class="form-check-label" for="templateSharing">
+                                    Enable Template Sharing
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Shared Template Access</label>
+                            <select class="form-select" x-model="settings.templates.sharingAccess">
+                                <option value="read_only">Read Only</option>
+                                <option value="read_write">Read & Write</option>
+                                <option value="full">Full Access</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Automation Rules Tab -->
+    <div class="settings-content" x-show="activeTab === 'automation'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-robot me-2"></i>
+                    Automation Rules
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="addAutomationRule()">
+                        <i class="bi bi-plus"></i> Add Rule
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="automation-rules">
+                    <template x-for="(rule, index) in settings.automation.rules" :key="index">
+                        <div class="rule-item">
+                            <div class="rule-header">
+                                <div class="rule-info">
+                                    <h6 x-text="rule.name"></h6>
+                                    <p class="rule-description" x-text="rule.description"></p>
+                                    <span class="rule-status" 
+                                          :class="rule.enabled ? 'status-enabled' : 'status-disabled'"
+                                          x-text="rule.enabled ? 'Enabled' : 'Disabled'"></span>
+                                </div>
+                                <div class="rule-actions">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               :id="`rule-${index}`"
+                                               x-model="rule.enabled">
+                                        <label class="form-check-label" :for="`rule-${index}`">
+                                            Enabled
+                                        </label>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click="editRule(index)">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            @click="removeRule(index)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="rule-conditions" x-show="rule.enabled">
+                                <div class="condition-group">
+                                    <label class="condition-label">Trigger Conditions</label>
+                                    <div class="condition-list">
+                                        <template x-for="(condition, condIndex) in rule.conditions" :key="condIndex">
+                                            <div class="condition-item">
+                                                <select class="form-select form-select-sm" x-model="condition.field">
+                                                    <option value="transaction_type">Transaction Type</option>
+                                                    <option value="amount">Amount</option>
+                                                    <option value="payment_method">Payment Method</option>
+                                                    <option value="customer_type">Customer Type</option>
+                                                    <option value="time_of_day">Time of Day</option>
+                                                </select>
+                                                <select class="form-select form-select-sm" x-model="condition.operator">
+                                                    <option value="equals">Equals</option>
+                                                    <option value="not_equals">Not Equals</option>
+                                                    <option value="greater_than">Greater Than</option>
+                                                    <option value="less_than">Less Than</option>
+                                                    <option value="contains">Contains</option>
+                                                </select>
+                                                <input type="text" 
+                                                       class="form-control form-control-sm" 
+                                                       x-model="condition.value"
+                                                       placeholder="Value">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        @click="removeCondition(index, condIndex)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-secondary"
+                                                @click="addCondition(index)">
+                                            <i class="bi bi-plus"></i> Add Condition
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="action-group">
+                                    <label class="action-label">Actions</label>
+                                    <div class="action-list">
+                                        <template x-for="(action, actionIndex) in rule.actions" :key="actionIndex">
+                                            <div class="action-item">
+                                                <select class="form-select form-select-sm" x-model="action.type">
+                                                    <option value="print_template">Print Template</option>
+                                                    <option value="send_email">Send Email</option>
+                                                    <option value="send_sms">Send SMS</option>
+                                                    <option value="log_event">Log Event</option>
+                                                    <option value="run_script">Run Script</option>
+                                                </select>
+                                                <input type="text" 
+                                                       class="form-control form-control-sm" 
+                                                       x-model="action.value"
+                                                       placeholder="Action value">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        @click="removeAction(index, actionIndex)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-secondary"
+                                                @click="addAction(index)">
+                                            <i class="bi bi-plus"></i> Add Action
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Options Tab -->
+    <div class="settings-content" x-show="activeTab === 'advanced'" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-sliders me-2"></i>
+                    Advanced Options
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Print Timeout (seconds)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.advanced.printTimeout"
+                                   min="5"
+                                   max="120"
+                                   step="5">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Retry Attempts</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.advanced.retryAttempts"
+                                   min="0"
+                                   max="10"
+                                   step="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Log Level</label>
+                            <select class="form-select" x-model="settings.advanced.logLevel">
+                                <option value="error">Error Only</option>
+                                <option value="warning">Warning & Above</option>
+                                <option value="info">Info & Above</option>
+                                <option value="debug">Debug</option>
+                                <option value="trace">Trace</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Log Retention (days)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.advanced.logRetention"
+                                   min="1"
+                                   max="365"
+                                   step="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Print Queue Size</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.advanced.queueSize"
+                                   min="1"
+                                   max="100"
+                                   step="1">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Concurrent Prints</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="settings.advanced.concurrentPrints"
+                                   min="1"
+                                   max="10"
+                                   step="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enableDebug" 
+                                       x-model="settings.advanced.enableDebug">
+                                <label class="form-check-label" for="enableDebug">
+                                    Enable Debug Mode
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enableMetrics" 
+                                       x-model="settings.advanced.enableMetrics">
+                                <label class="form-check-label" for="enableMetrics">
+                                    Enable Performance Metrics
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="enableAPI" 
+                                       x-model="settings.advanced.enableAPI">
+                                <label class="form-check-label" for="enableAPI">
+                                    Enable API Access
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">API Key</label>
+                            <div class="input-group">
+                                <input type="password" 
+                                       class="form-control" 
+                                       x-model="settings.advanced.apiKey"
+                                       :type="showApiKey ? 'text' : 'password'">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        @click="showApiKey = !showApiKey">
+                                    <i :class="showApiKey ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        @click="generateApiKey()">
+                                    <i class="bi bi-arrow-clockwise"></i> Generate
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/receipt_printing_settings.js') }}"></script>
+<script>
+// Receipt Settings App
+function receiptSettingsApp() {
+    return {
+        // Data
+        activeTab: 'general',
+        showApiKey: false,
+        templates: [],
+        printerModels: [],
+        
+        settings: {
+            general: {
+                defaultTemplate: '',
+                defaultPaperSize: '80mm',
+                receiptPrefix: 'RCP',
+                receiptNumberLength: 6,
+                copyCount: 1,
+                autoPrint: 'always',
+                includeBarcode: true,
+                includeQRCode: false,
+                digitalReceipt: false
+            },
+            printers: [
+                {
+                    name: 'Main Receipt Printer',
+                    description: 'Primary thermal printer at counter',
+                    type: 'thermal',
+                    status: 'online',
+                    enabled: true,
+                    connectionType: 'usb',
+                    model: '',
+                    address: 'USB001',
+                    paperWidth: '80mm',
+                    density: 'medium',
+                    speed: 'normal',
+                    autoCut: true,
+                    drawerControl: true
+                }
+            ],
+            templates: {
+                storageLocation: 'local',
+                autoBackup: 'weekly',
+                validation: 'normal',
+                versionControl: 'auto',
+                enableCache: true,
+                enableSharing: false,
+                sharingAccess: 'read_only'
+            },
+            automation: {
+                rules: [
+                    {
+                        name: 'Auto-print for Cash Sales',
+                        description: 'Automatically print receipt for cash transactions',
+                        enabled: true,
+                        conditions: [
+                            { field: 'payment_method', operator: 'equals', value: 'cash' }
+                        ],
+                        actions: [
+                            { type: 'print_template', value: 'cash_receipt' }
+                        ]
+                    }
+                ]
+            },
+            advanced: {
+                printTimeout: 30,
+                retryAttempts: 3,
+                logLevel: 'info',
+                logRetention: 30,
+                queueSize: 10,
+                concurrentPrints: 2,
+                enableDebug: false,
+                enableMetrics: true,
+                enableAPI: false,
+                apiKey: ''
+            }
+        },
+        
+        // Methods
+        init() {
+            this.loadTemplates();
+            this.loadPrinterModels();
+            this.loadSettings();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadTemplates() {
+            try {
+                const response = await fetch('/api/receipts/templates');
+                this.templates = await response.json();
+            } catch (error) {
+                console.error('Error loading templates:', error);
+            }
+        },
+        
+        async loadPrinterModels() {
+            try {
+                const response = await fetch('/api/receipts/printer-models');
+                this.printerModels = await response.json();
+            } catch (error) {
+                console.error('Error loading printer models:', error);
+            }
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/receipts/settings');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.settings = { ...this.settings, ...data };
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        },
+        
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/receipts/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Settings saved successfully');
+                } else {
+                    throw new Error('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
+                location.reload();
+            }
+        },
+        
+        exportSettings() {
+            const dataStr = JSON.stringify(this.settings, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `receipt-settings-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        // Printer methods
+        addPrinter() {
+            const newPrinter = {
+                name: 'New Printer',
+                description: 'Configure new printer',
+                type: 'thermal',
+                status: 'offline',
+                enabled: false,
+                connectionType: 'usb',
+                model: '',
+                address: '',
+                paperWidth: '80mm',
+                density: 'medium',
+                speed: 'normal',
+                autoCut: false,
+                drawerControl: false
+            };
+            
+            this.settings.printers.push(newPrinter);
+        },
+        
+        removePrinter(index) {
+            if (confirm('Are you sure you want to remove this printer?')) {
+                this.settings.printers.splice(index, 1);
+            }
+        },
+        
+        async testPrinter(index) {
+            const printer = this.settings.printers[index];
+            
+            try {
+                const response = await fetch('/api/receipts/test-printer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(printer)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess(`${printer.name} test successful`);
+                } else {
+                    throw new Error('Printer test failed');
+                }
+            } catch (error) {
+                console.error('Printer test error:', error);
+                this.showError(`${printer.name} test failed`);
+            }
+        },
+        
+        getPrinterIcon(type) {
+            const icons = {
+                'thermal': 'bi bi-printer',
+                'laser': 'bi bi-printer-fill',
+                'inkjet': 'bi bi-printer',
+                'dot_matrix': 'bi bi-printer'
+            };
+            return icons[type] || 'bi bi-printer';
+        },
+        
+        // Automation methods
+        addAutomationRule() {
+            const newRule = {
+                name: 'New Automation Rule',
+                description: 'Configure new automation rule',
+                enabled: false,
+                conditions: [
+                    { field: 'transaction_type', operator: 'equals', value: '' }
+                ],
+                actions: [
+                    { type: 'print_template', value: '' }
+                ]
+            };
+            
+            this.settings.automation.rules.push(newRule);
+        },
+        
+        removeRule(index) {
+            if (confirm('Are you sure you want to remove this automation rule?')) {
+                this.settings.automation.rules.splice(index, 1);
+            }
+        },
+        
+        editRule(index) {
+            // Open rule editor modal or navigate to edit page
+            console.log('Edit automation rule:', index);
+        },
+        
+        addCondition(ruleIndex) {
+            const newCondition = { field: 'amount', operator: 'equals', value: '' };
+            this.settings.automation.rules[ruleIndex].conditions.push(newCondition);
+        },
+        
+        removeCondition(ruleIndex, conditionIndex) {
+            this.settings.automation.rules[ruleIndex].conditions.splice(conditionIndex, 1);
+        },
+        
+        addAction(ruleIndex) {
+            const newAction = { type: 'print_template', value: '' };
+            this.settings.automation.rules[ruleIndex].actions.push(newAction);
+        },
+        
+        removeAction(ruleIndex, actionIndex) {
+            this.settings.automation.rules[ruleIndex].actions.splice(actionIndex, 1);
+        },
+        
+        // Advanced methods
+        generateApiKey() {
+            const apiKey = 'rcp_' + Math.random().toString(36).substr(2, 9) + Math.random().toString(36).substr(2, 9);
+            this.settings.advanced.apiKey = apiKey;
+            this.showSuccess('New API key generated');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveSettings();
+                }
+                
+                // Ctrl/Cmd + E: Export settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSettings();
+                }
+            });
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

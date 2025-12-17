@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemption Application and Approval</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .wizard-step {
+            display: none;
+        }
+        .wizard-step.active {
+            display: block;
+        }
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+        .step-indicator.completed {
+            background-color: #198754;
+            color: white;
+        }
+        .step-indicator.active {
+            background-color: #198754;
+            color: white;
+        }
+        .form-section {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .exemption-card {
+            border-left: 4px solid #198754;
+            transition: all 0.3s ease;
+        }
+        .exemption-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .file-upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .file-upload-area:hover {
+            border-color: #198754;
+            background-color: #f8f9fa;
+        }
+        .file-upload-area.dragover {
+            border-color: #198754;
+            background-color: #e8f5e8;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="taxExemptionsForm()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">Exemption Application and Approval</h1>
+                        <p class="text-muted mb-0">Apply for tax exemptions and manage approval workflow</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="navigateTo('main')">
+                            <i class="bi bi-house"></i> Dashboard
+                        </button>
+                        <button class="btn btn-outline-secondary" @click="navigateTo('list')">
+                            <i class="bi bi-list"></i> Certificates
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Progress -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <template x-for="(step, index) in wizardSteps" :key="index">
+                                <div class="d-flex align-items-center">
+                                    <div class="step-indicator rounded-circle d-flex align-items-center justify-content-center me-2"
+                                         style="width: 40px; height: 40px;"
+                                         :class="{
+                                             'completed': currentStep > index,
+                                             'active': currentStep === index + 1
+                                         }">
+                                        <span x-show="currentStep > index">
+                                            <i class="bi bi-check"></i>
+                                        </span>
+                                        <span x-show="currentStep <= index" x-text="index + 1"></span>
+                                    </div>
+                                    <div class="me-3">
+                                        <h6 class="mb-0" x-text="step.title"></h6>
+                                        <small class="text-muted" x-text="step.description"></small>
+                                    </div>
+                                    <div class="flex-grow-1" x-show="index < wizardSteps.length - 1">
+                                        <hr class="border-2">
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Content -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <form @submit.prevent="submitForm">
+                            <!-- Step 1: Entity Information -->
+                            <div class="wizard-step" :class="{'active': currentStep === 1}">
+                                <h4 class="mb-4">Entity Information</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Basic Details</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Entity Type *</label>
+                                                <select class="form-select" x-model="formData.entityType" required>
+                                                    <option value="">Select Entity Type</option>
+                                                    <option value="customer">Customer</option>
+                                                    <option value="supplier">Supplier</option>
+                                                    <option value="product">Product</option>
+                                                    <option value="service">Service</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Entity Name *</label>
+                                                <input type="text" class="form-control" x-model="formData.entityName" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Registration Number</label>
+                                                <input type="text" class="form-control" x-model="formData.registrationNumber">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Contact Information</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Contact Person</label>
+                                                <input type="text" class="form-control" x-model="formData.contactPerson">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Email</label>
+                                                <input type="email" class="form-control" x-model="formData.email">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Phone</label>
+                                                <input type="tel" class="form-control" x-model="formData.phone">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: Exemption Details -->
+                            <div class="wizard-step" :class="{'active': currentStep === 2}">
+                                <h4 class="mb-4">Exemption Details</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Exemption Type</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Tax Type *</label>
+                                                <select class="form-select" x-model="formData.taxType" required>
+                                                    <option value="">Select Tax Type</option>
+                                                    <option value="gst">GST</option>
+                                                    <option value="vat">VAT</option>
+                                                    <option value="customs">Customs Duty</option>
+                                                    <option value="service_tax">Service Tax</option>
+                                                    <option value="excise">Excise Duty</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Exemption Category *</label>
+                                                <select class="form-select" x-model="formData.exemptionCategory" required>
+                                                    <option value="">Select Category</option>
+                                                    <option value="healthcare">Healthcare</option>
+                                                    <option value="education">Education</option>
+                                                    <option value="charity">Charitable Organization</option>
+                                                    <option value="agriculture">Agriculture</option>
+                                                    <option value="exports">Exports</option>
+                                                    <option value="special_economic">Special Economic Zone</option>
+                                                    <option value="government">Government Entity</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Certificate Number</label>
+                                                <input type="text" class="form-control" x-model="formData.certificateNumber">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Validity Period</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Issue Date *</label>
+                                                <input type="date" class="form-control" x-model="formData.issueDate" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Valid Until *</label>
+                                                <input type="date" class="form-control" x-model="formData.validUntil" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" x-model="formData.autoRenew">
+                                                    <label class="form-check-label">Auto-renew certificate</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: Justification -->
+                            <div class="wizard-step" :class="{'active': currentStep === 3}">
+                                <h4 class="mb-4">Exemption Justification</h4>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Reason for Exemption</h5>
+                                            <div class="mb-3">
+                                                <label class="form-label">Primary Reason *</label>
+                                                <select class="form-select" x-model="formData.primaryReason" required>
+                                                    <option value="">Select Reason</option>
+                                                    <option value="statutory">Statutory Provision</option>
+                                                    <option value="public_interest">Public Interest</option>
+                                                    <option value="essential_service">Essential Service</option>
+                                                    <option value="development">Development Purpose</option>
+                                                    <option value="international_agreement">International Agreement</option>
+                                                    <option value="special_circumstance">Special Circumstance</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Detailed Description *</label>
+                                                <textarea class="form-control" rows="4" x-model="formData.description" required
+                                                          placeholder="Provide detailed justification for the exemption request..."></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Expected Tax Impact</label>
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <input type="number" class="form-control" x-model="formData.estimatedGstSaving" 
+                                                               placeholder="GST Savings (₹)">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <input type="number" class="form-control" x-model="formData.estimatedVatSaving" 
+                                                               placeholder="VAT Savings (₹)">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <input type="number" class="form-control" x-model="formData.estimatedCustomSaving" 
+                                                               placeholder="Customs Savings (₹)">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Supporting Documents -->
+                            <div class="wizard-step" :class="{'active': currentStep === 4}">
+                                <h4 class="mb-4">Supporting Documents</h4>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="form-section">
+                                            <h5 class="mb-3">Required Documents</h5>
+                                            <div class="file-upload-area" 
+                                                 @dragover.prevent="dragover = true"
+                                                 @dragleave.prevent="dragover = false"
+                                                 @drop.prevent="handleFileDrop($event)">
+                                                <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #198754;"></i>
+                                                <h6 class="mt-3">Drag and drop files here</h6>
+                                                <p class="text-muted">or click to browse</p>
+                                                <input type="file" class="d-none" id="fileInput" multiple 
+                                                       @change="handleFileSelect($event)">
+                                                <button type="button" class="btn btn-outline-primary mt-3" 
+                                                        @click="document.getElementById('fileInput').click()">
+                                                    <i class="bi bi-folder2-open"></i> Browse Files
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="mt-3" x-show="uploadedFiles.length > 0">
+                                                <h6>Uploaded Files</h6>
+                                                <div class="list-group">
+                                                    <template x-for="file in uploadedFiles" :key="file.id">
+                                                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-file-earmark me-2"></i>
+                                                                <div>
+                                                                    <div x-text="file.name"></div>
+                                                                    <small class="text-muted" x-text="file.size + ' bytes'"></small>
+                                                                </div>
+                                                            </div>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                                    @click="removeFile(file.id)">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 5: Review & Submit -->
+                            <div class="wizard-step" :class="{'active': currentStep === 5}">
+                                <h4 class="mb-4">Review & Submit</h4>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="exemption-card">
+                                            <div class="card-body">
+                                                <h5 class="card-title">Application Summary</h5>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <p><strong>Entity Type:</strong> <span x-text="formData.entityType"></span></p>
+                                                        <p><strong>Entity Name:</strong> <span x-text="formData.entityName"></span></p>
+                                                        <p><strong>Tax Type:</strong> <span x-text="formData.taxType"></span></p>
+                                                        <p><strong>Exemption Category:</strong> <span x-text="formData.exemptionCategory"></span></p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p><strong>Issue Date:</strong> <span x-text="formData.issueDate"></span></p>
+                                                        <p><strong>Valid Until:</strong> <span x-text="formData.validUntil"></span></p>
+                                                        <p><strong>Primary Reason:</strong> <span x-text="formData.primaryReason"></span></p>
+                                                        <p><strong>Auto-renew:</strong> <span x-text="formData.autoRenew ? 'Yes' : 'No'"></span></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            Please review all information carefully before submitting. Once submitted, the application will be processed according to the standard approval workflow.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Navigation Buttons -->
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-secondary" 
+                                        @click="previousStep()" 
+                                        :disabled="currentStep === 1">
+                                    <i class="bi bi-arrow-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-primary" 
+                                        @click="nextStep()" 
+                                        x-show="currentStep < wizardSteps.length">
+                                    Next <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <button type="submit" class="btn btn-success" 
+                                        x-show="currentStep === wizardSteps.length">
+                                    <i class="bi bi-check-circle"></i> Submit Application
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function taxExemptionsForm() {
+            return {
+                currentStep: 1,
+                dragover: false,
+                wizardSteps: [
+                    { title: 'Entity Info', description: 'Basic entity information' },
+                    { title: 'Exemption', description: 'Exemption details' },
+                    { title: 'Justification', description: 'Reason for exemption' },
+                    { title: 'Documents', description: 'Supporting documents' },
+                    { title: 'Review', description: 'Review and submit' }
+                ],
+                formData: {
+                    entityType: '',
+                    entityName: '',
+                    registrationNumber: '',
+                    contactPerson: '',
+                    email: '',
+                    phone: '',
+                    taxType: '',
+                    exemptionCategory: '',
+                    certificateNumber: '',
+                    issueDate: '',
+                    validUntil: '',
+                    autoRenew: false,
+                    primaryReason: '',
+                    description: '',
+                    estimatedGstSaving: '',
+                    estimatedVatSaving: '',
+                    estimatedCustomSaving: ''
+                },
+                uploadedFiles: [],
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                nextStep() {
+                    if (this.validateCurrentStep()) {
+                        if (this.currentStep < this.wizardSteps.length) {
+                            this.currentStep++;
+                        }
+                    }
+                },
+                
+                previousStep() {
+                    if (this.currentStep > 1) {
+                        this.currentStep--;
+                    }
+                },
+                
+                validateCurrentStep() {
+                    // Add validation logic for each step
+                    switch(this.currentStep) {
+                        case 1:
+                            return this.formData.entityType && 
+                                   this.formData.entityName;
+                        case 2:
+                            return this.formData.taxType && 
+                                   this.formData.exemptionCategory && 
+                                   this.formData.issueDate && 
+                                   this.formData.validUntil;
+                        case 3:
+                            return this.formData.primaryReason && 
+                                   this.formData.description;
+                        case 4:
+                            return this.uploadedFiles.length > 0;
+                        case 5:
+                            return true;
+                        default:
+                            return false;
+                    }
+                },
+                
+                handleFileDrop(event) {
+                    this.dragover = false;
+                    const files = Array.from(event.dataTransfer.files);
+                    this.addFiles(files);
+                },
+                
+                handleFileSelect(event) {
+                    const files = Array.from(event.target.files);
+                    this.addFiles(files);
+                },
+                
+                addFiles(files) {
+                    files.forEach(file => {
+                        const fileObj = {
+                            id: Date.now() + Math.random(),
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            file: file
+                        };
+                        this.uploadedFiles.push(fileObj);
+                    });
+                },
+                
+                removeFile(fileId) {
+                    this.uploadedFiles = this.uploadedFiles.filter(file => file.id !== fileId);
+                },
+                
+                submitForm() {
+                    console.log('Submitting exemption application:', this.formData);
+                    console.log('Uploaded files:', this.uploadedFiles);
+                    alert('Exemption application submitted successfully!');
+                    this.navigateTo('list');
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/tax_exemptions_${page}.html`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

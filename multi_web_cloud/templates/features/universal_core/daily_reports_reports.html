@@ -1,0 +1,1086 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/daily_reports_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Daily Reports Analytics Interface -->
+<div class="daily-reports-reports-container" x-data="dailyReportsReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up-arrow me-2"></i>
+                    Report Analytics
+                </h2>
+                <p class="reports-subtitle text-muted">Analyze daily reports performance and usage</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="refreshAnalytics()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportAnalytics()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="generateInsights()">
+                        <i class="bi bi-lightbulb"></i> Generate Insights
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Selector -->
+    <div class="date-range-selector">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <label class="form-label">Analytics Period</label>
+                        <select class="form-select" x-model="dateRange" @change="updateDateRange()">
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="week">This Week</option>
+                            <option value="lastWeek">Last Week</option>
+                            <option value="month">This Month</option>
+                            <option value="lastMonth">Last Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="lastQuarter">Last Quarter</option>
+                            <option value="year">This Year</option>
+                            <option value="lastYear">Last Year</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               x-model="startDate"
+                               @change="loadAnalyticsData()"
+                               :disabled="dateRange !== 'custom'">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" 
+                               class="form-control" 
+                               x-model="endDate"
+                               @change="loadAnalyticsData()"
+                               :disabled="dateRange !== 'custom'">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Compare With</label>
+                        <select class="form-select" x-model="compareWith" @change="loadAnalyticsData()">
+                            <option value="">No Comparison</option>
+                            <option value="previousPeriod">Previous Period</option>
+                            <option value="samePeriodLastYear">Same Period Last Year</option>
+                            <option value="lastMonth">Last Month</option>
+                            <option value="lastYear">Last Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-primary w-100" @click="loadAnalyticsData()">
+                            <i class="bi bi-search"></i> Analyze
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="key-metrics">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Reports Generated</h6>
+                        <i class="bi bi-file-earmark-text metric-icon text-primary"></i>
+                    </div>
+                    <div class="metric-value" x-text="metrics.totalReports.toLocaleString()"></div>
+                    <div class="metric-change" :class="metrics.reportsChange >= 0 ? 'text-success' : 'text-danger'">
+                        <i :class="metrics.reportsChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                        <span x-text="`${Math.abs(metrics.reportsChange)}%`"></span>
+                        <small class="text-muted">vs last period</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Total Views</h6>
+                        <i class="bi bi-eye metric-icon text-success"></i>
+                    </div>
+                    <div class="metric-value" x-text="metrics.totalViews.toLocaleString()"></div>
+                    <div class="metric-change" :class="metrics.viewsChange >= 0 ? 'text-success' : 'text-danger'">
+                        <i :class="metrics.viewsChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                        <span x-text="`${Math.abs(metrics.viewsChange)}%`"></span>
+                        <small class="text-muted">vs last period</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Downloads</h6>
+                        <i class="bi bi-download metric-icon text-info"></i>
+                    </div>
+                    <div class="metric-value" x-text="metrics.totalDownloads.toLocaleString()"></div>
+                    <div class="metric-change" :class="metrics.downloadsChange >= 0 ? 'text-success' : 'text-danger'">
+                        <i :class="metrics.downloadsChange >= 0 ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                        <span x-text="`${Math.abs(metrics.downloadsChange)}%`"></span>
+                        <small class="text-muted">vs last period</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h6 class="metric-title">Avg. Generation Time</h6>
+                        <i class="bi bi-clock metric-icon text-warning"></i>
+                    </div>
+                    <div class="metric-value" x-text="`${metrics.avgGenerationTime}s`"></div>
+                    <div class="metric-change" :class="metrics.generationTimeChange <= 0 ? 'text-success' : 'text-danger'">
+                        <i :class="metrics.generationTimeChange <= 0 ? 'bi bi-arrow-down' : 'bi bi-arrow-up'"></i>
+                        <span x-text="`${Math.abs(metrics.generationTimeChange)}%`"></span>
+                        <small class="text-muted">vs last period</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="row">
+            <!-- Report Generation Trend -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Report Generation Trend
+                        </h5>
+                        <div class="chart-controls">
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': generationChartPeriod === 'daily'}"
+                                        @click="updateGenerationChart('daily')">
+                                    Daily
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': generationChartPeriod === 'weekly'}"
+                                        @click="updateGenerationChart('weekly')">
+                                    Weekly
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': generationChartPeriod === 'monthly'}"
+                                        @click="updateGenerationChart('monthly')">
+                                    Monthly
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="generationTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Report Types Distribution -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-pie-chart me-2"></i>
+                            Report Types
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="reportTypesChart"></canvas>
+                        </div>
+                        <div class="report-types-legend">
+                            <template x-for="type in reportTypesData" :key="type.name">
+                                <div class="legend-item">
+                                    <span class="legend-color" :style="`background-color: ${type.color}`"></span>
+                                    <span class="legend-label" x-text="type.name"></span>
+                                    <span class="legend-value" x-text="type.percentage"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <!-- Delivery Methods Chart -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-truck me-2"></i>
+                            Delivery Methods
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="deliveryMethodsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance Metrics Chart -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Performance Metrics
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Analytics -->
+    <div class="detailed-analytics">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-table me-2"></i>
+                    Detailed Analytics
+                </h5>
+                <div class="analytics-tabs">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <template x-for="(tab, index) in analyticsTabs" :key="index">
+                            <li class="nav-item">
+                                <button class="nav-link" 
+                                        :class="{'active': activeAnalyticsTab === index}"
+                                        @click="activeAnalyticsTab = index"
+                                        type="button">
+                                    <span x-text="tab.label"></span>
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Popular Reports Tab -->
+                <div class="tab-content">
+                    <div class="tab-pane" :class="{'show active': activeAnalyticsTab === 0}" x-show="activeAnalyticsTab === 0">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Report Name</th>
+                                        <th>Type</th>
+                                        <th>Generated</th>
+                                        <th>Views</th>
+                                        <th>Downloads</th>
+                                        <th>Avg. Time</th>
+                                        <th>Popularity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="report in popularReports" :key="report.id">
+                                        <tr>
+                                            <td>
+                                                <div class="report-info">
+                                                    <i :class="getReportIcon(report.type)"></i>
+                                                    <span x-text="report.name"></span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info" x-text="report.type"></span>
+                                            </td>
+                                            <td x-text="report.generated.toLocaleString()"></td>
+                                            <td x-text="report.views.toLocaleString()"></td>
+                                            <td x-text="report.downloads.toLocaleString()"></td>
+                                            <td x-text="`${report.avgTime}s`"></td>
+                                            <td>
+                                                <div class="popularity-bar">
+                                                    <div class="progress">
+                                                        <div class="progress-bar" 
+                                                             :class="getPopularityClass(report.popularity)"
+                                                             :style="`width: ${report.popularity}%`">
+                                                        </div>
+                                                    </div>
+                                                    <small x-text="`${report.popularity}%`"></small>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- User Activity Tab -->
+                    <div class="tab-pane" :class="{'show active': activeAnalyticsTab === 1}" x-show="activeAnalyticsTab === 1">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Reports Generated</th>
+                                        <th>Reports Viewed</th>
+                                        <th>Reports Downloaded</th>
+                                        <th>Last Activity</th>
+                                        <th>Activity Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="user in userActivity" :key="user.id">
+                                        <tr>
+                                            <td>
+                                                <div class="user-info">
+                                                    <div class="user-avatar">
+                                                        <i class="bi bi-person-circle"></i>
+                                                    </div>
+                                                    <div class="user-details">
+                                                        <div class="user-name" x-text="user.name"></div>
+                                                        <small class="text-muted" x-text="user.role"></small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td x-text="user.generated.toLocaleString()"></td>
+                                            <td x-text="user.viewed.toLocaleString()"></td>
+                                            <td x-text="user.downloaded.toLocaleString()"></td>
+                                            <td x-text="formatDateTime(user.lastActivity)"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="getActivityScoreClass(user.activityScore)"
+                                                      x-text="user.activityScore">
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Issues Tab -->
+                    <div class="tab-pane" :class="{'show active': activeAnalyticsTab === 2}" x-show="activeAnalyticsTab === 2">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Issue Type</th>
+                                        <th>Report Name</th>
+                                        <th>Frequency</th>
+                                        <th>Avg. Impact</th>
+                                        <th>Last Occurred</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="issue in performanceIssues" :key="issue.id">
+                                        <tr>
+                                            <td>
+                                                <span class="badge" :class="getIssueTypeClass(issue.type)" x-text="issue.type"></span>
+                                            </td>
+                                            <td x-text="issue.reportName"></td>
+                                            <td x-text="issue.frequency.toLocaleString()"></td>
+                                            <td x-text="issue.impact"></td>
+                                            <td x-text="formatDateTime(issue.lastOccurred)"></td>
+                                            <td>
+                                                <span class="badge" :class="getIssueStatusClass(issue.status)" x-text="issue.status"></span>
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            @click="investigateIssue(issue.id)"
+                                                            title="Investigate">
+                                                        <i class="bi bi-search"></i>
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-warning"
+                                                            @click="resolveIssue(issue.id)"
+                                                            title="Resolve">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- System Health Tab -->
+                    <div class="tab-pane" :class="{'show active': activeAnalyticsTab === 3}" x-show="activeAnalyticsTab === 3">
+                        <div class="system-health">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="health-metric">
+                                        <h6>System Status</h6>
+                                        <div class="status-indicator">
+                                            <div class="status-dot" :class="systemHealth.status"></div>
+                                            <span x-text="systemHealth.statusText"></span>
+                                        </div>
+                                        <div class="status-details">
+                                            <small x-text="systemHealth.uptime"></small>
+                                            <small x-text="systemHealth.lastCheck"></small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="health-metric">
+                                        <h6>Resource Usage</h6>
+                                        <div class="resource-bars">
+                                            <div class="resource-item">
+                                                <label>CPU</label>
+                                                <div class="progress">
+                                                    <div class="progress-bar" 
+                                                         :class="getResourceClass(systemHealth.resources.cpu)"
+                                                         :style="`width: ${systemHealth.resources.cpu}%`">
+                                                    </div>
+                                                </div>
+                                                <small x-text="`${systemHealth.resources.cpu}%`"></small>
+                                            </div>
+                                            <div class="resource-item">
+                                                <label>Memory</label>
+                                                <div class="progress">
+                                                    <div class="progress-bar" 
+                                                         :class="getResourceClass(systemHealth.resources.memory)"
+                                                         :style="`width: ${systemHealth.resources.memory}%`">
+                                                    </div>
+                                                </div>
+                                                <small x-text="`${systemHealth.resources.memory}%`"></small>
+                                            </div>
+                                            <div class="resource-item">
+                                                <label>Storage</label>
+                                                <div class="progress">
+                                                    <div class="progress-bar" 
+                                                         :class="getResourceClass(systemHealth.resources.storage)"
+                                                         :style="`width: ${systemHealth.resources.storage}%`">
+                                                    </div>
+                                                </div>
+                                                <small x-text="`${systemHealth.resources.storage}%`"></small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <div class="health-alerts">
+                                        <h6>Recent Alerts</h6>
+                                        <template x-for="alert in systemHealth.alerts" :key="alert.id">
+                                            <div class="alert-item" :class="alert.severity">
+                                                <i :class="getAlertIcon(alert.severity)"></i>
+                                                <div class="alert-content">
+                                                    <span x-text="alert.message"></span>
+                                                    <small x-text="formatDateTime(alert.timestamp)"></small>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights Section -->
+    <div class="insights-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    AI-Powered Insights
+                </h5>
+                <div class="insights-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="refreshInsights()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="exportInsights()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Key Findings</h6>
+                        <div class="insights-list">
+                            <template x-for="insight in insights.keyFindings" :key="insight.id">
+                                <div class="insight-item" :class="insight.type">
+                                    <i :class="insight.icon"></i>
+                                    <div class="insight-content">
+                                        <span x-text="insight.text"></span>
+                                        <small x-text="insight.confidence"></small>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Recommendations</h6>
+                        <div class="recommendations-list">
+                            <template x-for="recommendation in insights.recommendations" :key="recommendation.id">
+                                <div class="recommendation-item" :class="recommendation.priority">
+                                    <i :class="recommendation.icon"></i>
+                                    <div class="recommendation-content">
+                                        <span x-text="recommendation.text"></span>
+                                        <small x-text="recommendation.impact"></small>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/daily_reports_reports.js') }}"></script>
+<script>
+// Daily Reports Analytics App
+function dailyReportsReportsApp() {
+    return {
+        // Data
+        dateRange: 'month',
+        startDate: '',
+        endDate: '',
+        compareWith: 'previousPeriod',
+        activeAnalyticsTab: 0,
+        generationChartPeriod: 'daily',
+        
+        analyticsTabs: [
+            { label: 'Popular Reports', key: 'popular' },
+            { label: 'User Activity', key: 'users' },
+            { label: 'Performance Issues', key: 'issues' },
+            { label: 'System Health', key: 'health' }
+        ],
+        
+        metrics: {
+            totalReports: 1250,
+            reportsChange: 12.5,
+            totalViews: 8750,
+            viewsChange: 18.3,
+            totalDownloads: 2340,
+            downloadsChange: 8.7,
+            avgGenerationTime: 3.2,
+            generationTimeChange: -5.2
+        },
+        
+        reportTypesData: [
+            { name: 'Summary', percentage: '45%', color: '#007bff' },
+            { name: 'Detailed', percentage: '30%', color: '#28a745' },
+            { name: 'Comparison', percentage: '15%', color: '#ffc107' },
+            { name: 'Custom', percentage: '10%', color: '#dc3545' }
+        ],
+        
+        popularReports: [
+            { id: 1, name: 'Daily Sales Summary', type: 'Summary', generated: 234, views: 1250, downloads: 456, avgTime: 2.1, popularity: 95 },
+            { id: 2, name: 'Product Performance', type: 'Detailed', generated: 189, views: 890, downloads: 234, avgTime: 3.5, popularity: 78 },
+            { id: 3, name: 'Customer Analytics', type: 'Custom', generated: 156, views: 670, downloads: 189, avgTime: 4.2, popularity: 65 },
+            { id: 4, name: 'Revenue Comparison', type: 'Comparison', generated: 123, views: 540, downloads: 167, avgTime: 2.8, popularity: 58 },
+            { id: 5, name: 'Inventory Report', type: 'Detailed', generated: 98, views: 430, downloads: 123, avgTime: 3.1, popularity: 45 }
+        ],
+        
+        userActivity: [
+            { id: 1, name: 'John Smith', role: 'Manager', generated: 89, viewed: 234, downloaded: 67, lastActivity: new Date(), activityScore: 'High' },
+            { id: 2, name: 'Sarah Johnson', role: 'Analyst', generated: 156, viewed: 567, downloaded: 234, lastActivity: new Date(Date.now() - 3600000), activityScore: 'High' },
+            { id: 3, name: 'Mike Wilson', role: 'Supervisor', generated: 45, viewed: 189, downloaded: 89, lastActivity: new Date(Date.now() - 7200000), activityScore: 'Medium' },
+            { id: 4, name: 'Emily Davis', role: 'Staff', generated: 23, viewed: 98, downloaded: 34, lastActivity: new Date(Date.now() - 86400000), activityScore: 'Low' }
+        ],
+        
+        performanceIssues: [
+            { id: 1, type: 'Slow Generation', reportName: 'Customer Analytics', frequency: 23, impact: 'High', lastOccurred: new Date(Date.now() - 3600000), status: 'Open' },
+            { id: 2, type: 'Memory Leak', reportName: 'Inventory Report', frequency: 15, impact: 'Medium', lastOccurred: new Date(Date.now() - 7200000), status: 'Investigating' },
+            { id: 3, type: 'Timeout', reportName: 'Revenue Comparison', frequency: 8, impact: 'High', lastOccurred: new Date(Date.now() - 10800000), status: 'Resolved' },
+            { id: 4, type: 'Data Error', reportName: 'Sales Summary', frequency: 5, impact: 'Low', lastOccurred: new Date(Date.now() - 14400000), status: 'Open' }
+        ],
+        
+        systemHealth: {
+            status: 'healthy',
+            statusText: 'All Systems Operational',
+            uptime: '99.9%',
+            lastCheck: '2 minutes ago',
+            resources: {
+                cpu: 45,
+                memory: 67,
+                storage: 78
+            },
+            alerts: [
+                { id: 1, severity: 'warning', message: 'High memory usage detected on report server', timestamp: new Date(Date.now() - 1800000) },
+                { id: 2, severity: 'info', message: 'Scheduled maintenance completed successfully', timestamp: new Date(Date.now() - 3600000) },
+                { id: 3, severity: 'error', message: 'Database connection timeout occurred', timestamp: new Date(Date.now() - 5400000) }
+            ]
+        },
+        
+        insights: {
+            keyFindings: [
+                { id: 1, type: 'positive', icon: 'bi bi-arrow-up-circle', text: 'Report generation increased by 12.5% this month', confidence: '95% confidence' },
+                { id: 2, type: 'warning', icon: 'bi bi-exclamation-triangle', text: 'Customer Analytics reports showing 23% slower generation times', confidence: '88% confidence' },
+                { id: 3, type: 'info', icon: 'bi bi-info-circle', text: 'Peak report generation occurs between 9-11 AM', confidence: '92% confidence' },
+                { id: 4, type: 'positive', icon: 'bi bi-check-circle', text: 'System uptime maintained at 99.9%', confidence: '99% confidence' }
+            ],
+            recommendations: [
+                { id: 1, priority: 'high', icon: 'bi bi-lightbulb', text: 'Optimize Customer Analytics report queries', impact: 'High impact' },
+                { id: 2, priority: 'medium', icon: 'bi bi-gear', text: 'Consider increasing server memory during peak hours', impact: 'Medium impact' },
+                { id: 3, priority: 'low', icon: 'bi bi-info', text: 'Schedule resource-intensive reports during off-peak hours', impact: 'Low impact' }
+            ]
+        },
+        
+        charts: {
+            generationTrend: null,
+            reportTypes: null,
+            deliveryMethods: null,
+            performance: null
+        },
+        
+        // Methods
+        init() {
+            this.setDefaultDateRange();
+            this.loadAnalyticsData();
+            this.initCharts();
+        },
+        
+        setDefaultDateRange() {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            this.startDate = firstDay.toISOString().split('T')[0];
+            this.endDate = today.toISOString().split('T')[0];
+        },
+        
+        updateDateRange() {
+            if (this.dateRange !== 'custom') {
+                const today = new Date();
+                let startDate, endDate;
+                
+                switch (this.dateRange) {
+                    case 'today':
+                        startDate = endDate = today;
+                        break;
+                    case 'yesterday':
+                        startDate = endDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                        break;
+                    case 'week':
+                        startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        endDate = today;
+                        break;
+                    case 'lastWeek':
+                        startDate = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+                        endDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        break;
+                    case 'month':
+                        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                        endDate = today;
+                        break;
+                    case 'lastMonth':
+                        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                        break;
+                    case 'quarter':
+                        const quarterStart = Math.floor(today.getMonth() / 3) * 3;
+                        startDate = new Date(today.getFullYear(), quarterStart, 1);
+                        endDate = today;
+                        break;
+                    case 'lastQuarter':
+                        const lastQuarterStart = Math.floor((today.getMonth() - 3) / 3) * 3;
+                        startDate = new Date(today.getFullYear(), lastQuarterStart, 1);
+                        endDate = new Date(today.getFullYear(), lastQuarterStart + 3, 0);
+                        break;
+                    case 'year':
+                        startDate = new Date(today.getFullYear(), 0, 1);
+                        endDate = today;
+                        break;
+                    case 'lastYear':
+                        startDate = new Date(today.getFullYear() - 1, 0, 1);
+                        endDate = new Date(today.getFullYear() - 1, 11, 31);
+                        break;
+                }
+                
+                this.startDate = startDate.toISOString().split('T')[0];
+                this.endDate = endDate.toISOString().split('T')[0];
+            }
+            
+            this.loadAnalyticsData();
+        },
+        
+        async loadAnalyticsData() {
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Update metrics with random variations
+                this.metrics.totalReports = 1000 + Math.floor(Math.random() * 500);
+                this.metrics.reportsChange = -20 + Math.random() * 40;
+                this.metrics.totalViews = 5000 + Math.floor(Math.random() * 5000);
+                this.metrics.viewsChange = -10 + Math.random() * 30;
+                this.metrics.totalDownloads = 1500 + Math.floor(Math.random() * 1500);
+                this.metrics.downloadsChange = -5 + Math.random() * 20;
+                this.metrics.avgGenerationTime = 2 + Math.random() * 3;
+                this.metrics.generationTimeChange = -10 + Math.random() * 15;
+                
+                // Update charts
+                this.updateCharts();
+                
+            } catch (error) {
+                console.error('Error loading analytics data:', error);
+                this.showError('Failed to load analytics data');
+            }
+        },
+        
+        initCharts() {
+            this.initGenerationTrendChart();
+            this.initReportTypesChart();
+            this.initDeliveryMethodsChart();
+            this.initPerformanceChart();
+        },
+        
+        initGenerationTrendChart() {
+            const ctx = document.getElementById('generationTrendChart');
+            if (!ctx) return;
+            
+            this.charts.generationTrend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Reports Generated',
+                        data: [45, 52, 48, 65, 72, 58, 41],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        initReportTypesChart() {
+            const ctx = document.getElementById('reportTypesChart');
+            if (!ctx) return;
+            
+            this.charts.reportTypes = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Summary', 'Detailed', 'Comparison', 'Custom'],
+                    datasets: [{
+                        data: [45, 30, 15, 10],
+                        backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        },
+        
+        initDeliveryMethodsChart() {
+            const ctx = document.getElementById('deliveryMethodsChart');
+            if (!ctx) return;
+            
+            this.charts.deliveryMethods = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Email', 'Download', 'FTP', 'Webhook'],
+                    datasets: [{
+                        label: 'Deliveries',
+                        data: [450, 320, 180, 120],
+                        backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+        
+        initPerformanceChart() {
+            const ctx = document.getElementById('performanceChart');
+            if (!ctx) return;
+            
+            this.charts.performance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Speed', 'Reliability', 'Accuracy', 'Efficiency', 'Scalability'],
+                    datasets: [{
+                        label: 'Current Period',
+                        data: [85, 92, 88, 78, 90],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)'
+                    }, {
+                        label: 'Previous Period',
+                        data: [75, 88, 85, 72, 85],
+                        borderColor: '#6c757d',
+                        backgroundColor: 'rgba(108, 117, 125, 0.2)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        },
+        
+        updateCharts() {
+            if (this.charts.generationTrend) {
+                const newData = Array.from({length: 7}, () => 30 + Math.floor(Math.random() * 50));
+                this.charts.generationTrend.data.datasets[0].data = newData;
+                this.charts.generationTrend.update();
+            }
+            
+            if (this.charts.deliveryMethods) {
+                const newData = [
+                    300 + Math.floor(Math.random() * 300),
+                    200 + Math.floor(Math.random() * 200),
+                    100 + Math.floor(Math.random() * 150),
+                    50 + Math.floor(Math.random() * 100)
+                ];
+                this.charts.deliveryMethods.data.datasets[0].data = newData;
+                this.charts.deliveryMethods.update();
+            }
+        },
+        
+        updateGenerationChart(period) {
+            this.generationChartPeriod = period;
+            
+            if (this.charts.generationTrend) {
+                let labels, data;
+                
+                switch (period) {
+                    case 'daily':
+                        labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        data = Array.from({length: 7}, () => 30 + Math.floor(Math.random() * 50));
+                        break;
+                    case 'weekly':
+                        labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+                        data = Array.from({length: 4}, () => 200 + Math.floor(Math.random() * 100));
+                        break;
+                    case 'monthly':
+                        labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                        data = Array.from({length: 6}, () => 800 + Math.floor(Math.random() * 400));
+                        break;
+                }
+                
+                this.charts.generationTrend.data.labels = labels;
+                this.charts.generationTrend.data.datasets[0].data = data;
+                this.charts.generationTrend.update();
+            }
+        },
+        
+        // Analytics actions
+        refreshAnalytics() {
+            this.loadAnalyticsData();
+        },
+        
+        exportAnalytics() {
+            const data = {
+                metrics: this.metrics,
+                popularReports: this.popularReports,
+                userActivity: this.userActivity,
+                performanceIssues: this.performanceIssues,
+                systemHealth: this.systemHealth,
+                insights: this.insights,
+                dateRange: {
+                    start: this.startDate,
+                    end: this.endDate
+                }
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `daily-reports-analytics-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        generateInsights() {
+            this.loadAnalyticsData();
+            this.showSuccess('New insights generated successfully');
+        },
+        
+        refreshInsights() {
+            this.loadAnalyticsData();
+        },
+        
+        exportInsights() {
+            const data = {
+                insights: this.insights,
+                generatedAt: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `daily-reports-insights-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        investigateIssue(issueId) {
+            alert(`Investigating issue ${issueId}`);
+        },
+        
+        resolveIssue(issueId) {
+            const issue = this.performanceIssues.find(i => i.id === issueId);
+            if (issue) {
+                issue.status = 'Resolved';
+                this.showSuccess('Issue marked as resolved');
+            }
+        },
+        
+        // Utility methods
+        formatDateTime(dateString) {
+            return new Date(dateString).toLocaleString();
+        },
+        
+        getReportIcon(type) {
+            const icons = {
+                'Summary': 'bi-file-text',
+                'Detailed': 'bi-file-bar-graph',
+                'Comparison': 'bi-file-diff',
+                'Custom': 'bi-file-code'
+            };
+            return icons[type] || 'bi-file';
+        },
+        
+        getPopularityClass(popularity) {
+            if (popularity >= 80) return 'bg-success';
+            if (popularity >= 60) return 'bg-warning';
+            return 'bg-danger';
+        },
+        
+        getActivityScoreClass(score) {
+            const classes = {
+                'High': 'bg-success',
+                'Medium': 'bg-warning',
+                'Low': 'bg-danger'
+            };
+            return classes[score] || 'bg-secondary';
+        },
+        
+        getIssueTypeClass(type) {
+            const classes = {
+                'Slow Generation': 'bg-warning',
+                'Memory Leak': 'bg-danger',
+                'Timeout': 'bg-danger',
+                'Data Error': 'bg-info'
+            };
+            return classes[type] || 'bg-secondary';
+        },
+        
+        getIssueStatusClass(status) {
+            const classes = {
+                'Open': 'bg-danger',
+                'Investigating': 'bg-warning',
+                'Resolved': 'bg-success'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        getResourceClass(usage) {
+            if (usage >= 80) return 'bg-danger';
+            if (usage >= 60) return 'bg-warning';
+            return 'bg-success';
+        },
+        
+        getAlertIcon(severity) {
+            const icons = {
+                'error': 'bi bi-exclamation-circle',
+                'warning': 'bi bi-exclamation-triangle',
+                'info': 'bi bi-info-circle'
+            };
+            return icons[severity] || 'bi bi-info-circle';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

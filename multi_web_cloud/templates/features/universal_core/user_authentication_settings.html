@@ -1,0 +1,1207 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/user_authentication_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- User Authentication Settings Interface -->
+<div class="user-authentication-settings-container" x-data="userAuthenticationSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Authentication Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure security policies and authentication options</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveAllSettings()" :disabled="isSaving">
+                        <i class="bi bi-check-circle"></i>
+                        <span x-text="isSaving ? 'Saving...' : 'Save All Settings'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <div class="nav-tabs" role="tablist">
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'general'}"
+                    @click="activeTab = 'general'">
+                <i class="bi bi-gear"></i>
+                General
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'password'}"
+                    @click="activeTab = 'password'">
+                <i class="bi bi-key"></i>
+                Password Policy
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'security'}"
+                    @click="activeTab = 'security'">
+                <i class="bi bi-shield-lock"></i>
+                Security
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'sessions'}"
+                    @click="activeTab = 'sessions'">
+                <i class="bi bi-clock-history"></i>
+                Sessions
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'notifications'}"
+                    @click="activeTab = 'notifications'">
+                <i class="bi bi-bell"></i>
+                Notifications
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'compliance'}"
+                    @click="activeTab = 'compliance'">
+                <i class="bi bi-shield-check"></i>
+                Compliance
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        
+        <!-- General Settings -->
+        <div class="settings-panel" x-show="activeTab === 'general'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        General Authentication Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Authentication Method</label>
+                                <div class="auth-method-options">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="radio" 
+                                               id="authLocal"
+                                               value="local"
+                                               x-model="settings.general.authMethod">
+                                        <label class="form-check-label" for="authLocal">
+                                            Local Authentication
+                                            <small class="d-block text-muted">Users authenticate against local database</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="radio" 
+                                               id="authLdap"
+                                               value="ldap"
+                                               x-model="settings.general.authMethod">
+                                        <label class="form-check-label" for="authLdap">
+                                            LDAP/Active Directory
+                                            <small class="d-block text-muted">Integrate with corporate directory</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="radio" 
+                                               id="authSso"
+                                               value="sso"
+                                               x-model="settings.general.authMethod">
+                                        <label class="form-check-label" for="authSso">
+                                            Single Sign-On (SSO)
+                                            <small class="d-block text-muted">Use external SSO provider</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Default User Role</label>
+                                <select class="form-select" x-model="settings.general.defaultRole">
+                                    <option value="staff">Staff</option>
+                                    <option value="cashier">Cashier</option>
+                                    <option value="supervisor">Supervisor</option>
+                                    <option value="manager">Manager</option>
+                                </select>
+                                <small class="form-text text-muted">Role assigned to new users by default</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Account Lockout Policy</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enableLockout"
+                                           x-model="settings.general.enableLockout">
+                                    <label class="form-check-label" for="enableLockout">
+                                        Enable account lockout after failed attempts
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Failed Attempts Before Lockout</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.general.maxFailedAttempts"
+                                       :disabled="!settings.general.enableLockout"
+                                       min="1"
+                                       max="10">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Lockout Duration (minutes)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.general.lockoutDuration"
+                                       :disabled="!settings.general.enableLockout"
+                                       min="1"
+                                       max="1440">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Session Timeout (minutes)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.general.sessionTimeout"
+                                       min="5"
+                                       max="480">
+                                <small class="form-text text-muted">Auto-logout after inactivity</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Login Page Customization</label>
+                                <div class="login-customization">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="showCompanyLogo"
+                                               x-model="settings.general.showCompanyLogo">
+                                        <label class="form-check-label" for="showCompanyLogo">
+                                            Show company logo on login page
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="showWelcomeMessage"
+                                               x-model="settings.general.showWelcomeMessage">
+                                        <label class="form-check-label" for="showWelcomeMessage">
+                                            Show welcome message
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="showSystemInfo"
+                                               x-model="settings.general.showSystemInfo">
+                                        <label class="form-check-label" for="showSystemInfo">
+                                            Show system information
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Password Policy Settings -->
+        <div class="settings-panel" x-show="activeTab === 'password'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-key me-2"></i>
+                        Password Policy Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Minimum Password Length</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.password.minLength"
+                                       min="6"
+                                       max="32">
+                                <small class="form-text text-muted">Minimum number of characters required</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Password Complexity</label>
+                                <select class="form-select" x-model="settings.password.complexity">
+                                    <option value="low">Low (letters only)</option>
+                                    <option value="medium">Medium (letters + numbers)</option>
+                                    <option value="high">High (letters + numbers + symbols)</option>
+                                    <option value="very_high">Very High (mixed case + numbers + symbols)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Password Requirements</label>
+                                <div class="password-requirements">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="requireUppercase"
+                                               x-model="settings.password.requireUppercase">
+                                        <label class="form-check-label" for="requireUppercase">
+                                            Require uppercase letters
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="requireLowercase"
+                                               x-model="settings.password.requireLowercase">
+                                        <label class="form-check-label" for="requireLowercase">
+                                            Require lowercase letters
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="requireNumbers"
+                                               x-model="settings.password.requireNumbers">
+                                        <label class="form-check-label" for="requireNumbers">
+                                            Require numbers
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="requireSymbols"
+                                               x-model="settings.password.requireSymbols">
+                                        <label class="form-check-label" for="requireSymbols">
+                                            Require special characters
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Password Expiry (days)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.password.expiryDays"
+                                       min="0"
+                                       max="365">
+                                <small class="form-text text-muted">0 = never expires</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Password History</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.password.historyCount"
+                                       min="0"
+                                       max="24">
+                                <small class="form-text text-muted">Number of previous passwords to remember</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Temporary Password Expiry (hours)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.password.tempPasswordExpiry"
+                                       min="1"
+                                       max="168">
+                                <small class="form-text text-muted">For password reset and new accounts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Force Password Change on First Login</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="forcePasswordChange"
+                                           x-model="settings.password.forcePasswordChange">
+                                    <label class="form-check-label" for="forcePasswordChange">
+                                        Require users to change password on first login
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Security Settings -->
+        <div class="settings-panel" x-show="activeTab === 'security'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        Security Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Two-Factor Authentication</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enableTwoFactor"
+                                           x-model="settings.security.enableTwoFactor">
+                                    <label class="form-check-label" for="enableTwoFactor">
+                                        Enable two-factor authentication
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">2FA Method</label>
+                                <select class="form-select" 
+                                        x-model="settings.security.twoFactorMethod"
+                                        :disabled="!settings.security.enableTwoFactor">
+                                    <option value="email">Email</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="app">Authenticator App</option>
+                                    <option value="all">Allow All Methods</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">IP Whitelist</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enableIpWhitelist"
+                                           x-model="settings.security.enableIpWhitelist">
+                                    <label class="form-check-label" for="enableIpWhitelist">
+                                        Restrict access to specific IP addresses
+                                    </label>
+                                </div>
+                            </div>
+                            <div x-show="settings.security.enableIpWhitelist">
+                                <textarea class="form-control" 
+                                          x-model="settings.security.ipWhitelist"
+                                          rows="3"
+                                          placeholder="Enter IP addresses, one per line"></textarea>
+                                <small class="form-text text-muted">One IP address or range per line</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Rate Limiting</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enableRateLimit"
+                                           x-model="settings.security.enableRateLimit">
+                                    <label class="form-check-label" for="enableRateLimit">
+                                        Enable login attempt rate limiting
+                                    </label>
+                                </div>
+                            </div>
+                            <div x-show="settings.security.enableRateLimit">
+                                <label class="form-label">Max Attempts per Minute</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.security.maxAttemptsPerMinute"
+                                       min="1"
+                                       max="100">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Security Headers</label>
+                                <div class="security-headers">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableHsts"
+                                               x-model="settings.security.enableHsts">
+                                        <label class="form-check-label" for="enableHsts">
+                                            HTTP Strict Transport Security (HSTS)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableCsp"
+                                               x-model="settings.security.enableCsp">
+                                        <label class="form-check-label" for="enableCsp">
+                                            Content Security Policy (CSP)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableXssProtection"
+                                               x-model="settings.security.enableXssProtection">
+                                        <label class="form-check-label" for="enableXssProtection">
+                                            XSS Protection
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Brute Force Protection</label>
+                                <div class="brute-force-protection">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableBruteForce"
+                                               x-model="settings.security.enableBruteForce">
+                                        <label class="form-check-label" for="enableBruteForce">
+                                            Enable brute force protection
+                                        </label>
+                                    </div>
+                                    <div x-show="settings.security.enableBruteForce">
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Detection Window (minutes)</label>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings.security.bruteForceWindow"
+                                                       min="1"
+                                                       max="60">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Block Duration (minutes)</label>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       x-model="settings.security.bruteForceBlockDuration"
+                                                       min="1"
+                                                       max="1440">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Session Settings -->
+        <div class="settings-panel" x-show="activeTab === 'sessions'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Session Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Session Timeout (minutes)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.sessions.timeout"
+                                       min="5"
+                                       max="480">
+                                <small class="form-text text-muted">Auto-logout after inactivity</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Maximum Session Duration (hours)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.sessions.maxDuration"
+                                       min="1"
+                                       max="24">
+                                <small class="form-text text-muted">Force logout after maximum duration</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Concurrent Sessions</label>
+                                <select class="form-select" x-model="settings.sessions.concurrentSessions">
+                                    <option value="1">Single session only</option>
+                                    <option value="3">Maximum 3 sessions</option>
+                                    <option value="5">Maximum 5 sessions</option>
+                                    <option value="unlimited">Unlimited</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Session Behavior on New Login</label>
+                                <select class="form-select" x-model="settings.sessions.newLoginBehavior">
+                                    <option value="keep_existing">Keep existing sessions</option>
+                                    <option value="terminate_existing">Terminate existing sessions</option>
+                                    <option value="ask_user">Ask user what to do</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Session Security</label>
+                                <div class="session-security">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="secureCookies"
+                                               x-model="settings.sessions.secureCookies">
+                                        <label class="form-check-label" for="secureCookies">
+                                            Use secure cookies (HTTPS only)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="httpOnlyCookies"
+                                               x-model="settings.sessions.httpOnlyCookies">
+                                        <label class="form-check-label" for="httpOnlyCookies">
+                                            Use HTTP-only cookies
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="sameSiteCookies"
+                                               x-model="settings.sessions.sameSiteCookies">
+                                        <label class="form-check-label" for="sameSiteCookies">
+                                            Enable SameSite cookie attribute
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Remember Me Functionality</label>
+                                <div class="remember-me-settings">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableRememberMe"
+                                               x-model="settings.sessions.enableRememberMe">
+                                        <label class="form-check-label" for="enableRememberMe">
+                                            Enable "Remember Me" option
+                                        </label>
+                                    </div>
+                                    <div x-show="settings.sessions.enableRememberMe">
+                                        <label class="form-label">Remember Me Duration (days)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.sessions.rememberMeDuration"
+                                               min="1"
+                                               max="365">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notification Settings -->
+        <div class="settings-panel" x-show="activeTab === 'notifications'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-bell me-2"></i>
+                        Authentication Notifications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Login Notifications</label>
+                                <div class="login-notifications">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifyNewLogin"
+                                               x-model="settings.notifications.notifyNewLogin">
+                                        <label class="form-check-label" for="notifyNewLogin">
+                                            Notify users of new login attempts
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifyFailedLogin"
+                                               x-model="settings.notifications.notifyFailedLogin">
+                                        <label class="form-check-label" for="notifyFailedLogin">
+                                            Notify users of failed login attempts
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifySuspiciousActivity"
+                                               x-model="settings.notifications.notifySuspiciousActivity">
+                                        <label class="form-check-label" for="notifySuspiciousActivity">
+                                            Notify of suspicious activity
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Password Notifications</label>
+                                <div class="password-notifications">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifyPasswordChange"
+                                               x-model="settings.notifications.notifyPasswordChange">
+                                        <label class="form-check-label" for="notifyPasswordChange">
+                                            Notify users of password changes
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifyPasswordExpiry"
+                                               x-model="settings.notifications.notifyPasswordExpiry">
+                                        <label class="form-check-label" for="notifyPasswordExpiry">
+                                            Notify users before password expiry
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifyPasswordReset"
+                                               x-model="settings.notifications.notifyPasswordReset">
+                                        <label class="form-check-label" for="notifyPasswordReset">
+                                            Notify users of password reset requests
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Password Expiry Notification (days)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.notifications.passwordExpiryWarning"
+                                       :disabled="!settings.notifications.notifyPasswordExpiry"
+                                       min="1"
+                                       max="30">
+                                <small class="form-text text-muted">Days before expiry to send warning</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Admin Notification Email</label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       x-model="settings.notifications.adminEmail"
+                                       placeholder="admin@company.com">
+                                <small class="form-text text-muted">Email for security alerts</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Notification Channels</label>
+                                <div class="notification-channels">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifyEmail"
+                                               x-model="settings.notifications.channels.email">
+                                        <label class="form-check-label" for="notifyEmail">
+                                            Email notifications
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifySms"
+                                               x-model="settings.notifications.channels.sms">
+                                        <label class="form-check-label" for="notifySms">
+                                            SMS notifications
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="notifyPush"
+                                               x-model="settings.notifications.channels.push">
+                                        <label class="form-check-label" for="notifyPush">
+                                            Push notifications
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Compliance Settings -->
+        <div class="settings-panel" x-show="activeTab === 'compliance'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-shield-check me-2"></i>
+                        Compliance & Auditing
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Audit Logging</label>
+                                <div class="audit-logging">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableAuditLog"
+                                               x-model="settings.compliance.enableAuditLog">
+                                        <label class="form-check-label" for="enableAuditLog">
+                                            Enable comprehensive audit logging
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="logSuccessfulLogins"
+                                               x-model="settings.compliance.logSuccessfulLogins"
+                                               :disabled="!settings.compliance.enableAuditLog">
+                                        <label class="form-check-label" for="logSuccessfulLogins">
+                                            Log successful login attempts
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="logFailedLogins"
+                                               x-model="settings.compliance.logFailedLogins"
+                                               :disabled="!settings.compliance.enableAuditLog">
+                                        <label class="form-check-label" for="logFailedLogins">
+                                            Log failed login attempts
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="logPasswordChanges"
+                                               x-model="settings.compliance.logPasswordChanges"
+                                               :disabled="!settings.compliance.enableAuditLog">
+                                        <label class="form-check-label" for="logPasswordChanges">
+                                            Log password changes
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Audit Log Retention (days)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.compliance.auditLogRetention"
+                                       :disabled="!settings.compliance.enableAuditLog"
+                                       min="30"
+                                       max="3650">
+                                <small class="form-text text-muted">How long to keep audit logs</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Data Privacy Compliance</label>
+                                <select class="form-select" x-model="settings.compliance.privacyStandard">
+                                    <option value="none">None</option>
+                                    <option value="gdpr">GDPR</option>
+                                    <option value="ccpa">CCPA</option>
+                                    <option value="hipaa">HIPAA</option>
+                                    <option value="sox">SOX</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">User Data Anonymization</label>
+                                <div class="data-anonymization">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="anonymizeDeletedUsers"
+                                               x-model="settings.compliance.anonymizeDeletedUsers">
+                                        <label class="form-check-label" for="anonymizeDeletedUsers">
+                                            Anonymize data when users are deleted
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="rightToBeForgotten"
+                                               x-model="settings.compliance.rightToBeForgotten">
+                                        <label class="form-check-label" for="rightToBeForgotten">
+                                            Support "right to be forgotten" requests
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Security Reporting</label>
+                                <div class="security-reporting">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="generateSecurityReports"
+                                               x-model="settings.compliance.generateSecurityReports">
+                                        <label class="form-check-label" for="generateSecurityReports">
+                                            Generate periodic security reports
+                                        </label>
+                                    </div>
+                                    <div x-show="settings.compliance.generateSecurityReports">
+                                        <label class="form-label">Report Frequency</label>
+                                        <select class="form-select" 
+                                                x-model="settings.compliance.reportFrequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="quarterly">Quarterly</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Footer -->
+    <div class="settings-footer">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="last-saved">
+                    <span x-show="lastSaved">
+                        <i class="bi bi-check-circle text-success"></i>
+                        Last saved: <span x-text="formatDate(lastSaved)"></span>
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button type="button" class="btn btn-outline-secondary me-2" @click="testSettings()">
+                    <i class="bi bi-play-circle"></i> Test Settings
+                </button>
+                <button type="button" class="btn btn-primary" @click="saveAllSettings()" :disabled="isSaving">
+                    <i class="bi bi-check-circle"></i>
+                    <span x-text="isSaving ? 'Saving...' : 'Save All Settings'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/user_authentication_settings.js') }}"></script>
+<script>
+// User Authentication Settings App
+function userAuthenticationSettingsApp() {
+    return {
+        // Data
+        activeTab: 'general',
+        isSaving: false,
+        lastSaved: null,
+        
+        settings: {
+            general: {
+                authMethod: 'local',
+                defaultRole: 'staff',
+                enableLockout: true,
+                maxFailedAttempts: 5,
+                lockoutDuration: 30,
+                sessionTimeout: 60,
+                showCompanyLogo: true,
+                showWelcomeMessage: true,
+                showSystemInfo: false
+            },
+            password: {
+                minLength: 8,
+                complexity: 'high',
+                requireUppercase: true,
+                requireLowercase: true,
+                requireNumbers: true,
+                requireSymbols: false,
+                expiryDays: 90,
+                historyCount: 5,
+                tempPasswordExpiry: 24,
+                forcePasswordChange: true
+            },
+            security: {
+                enableTwoFactor: false,
+                twoFactorMethod: 'email',
+                enableIpWhitelist: false,
+                ipWhitelist: '',
+                enableRateLimit: true,
+                maxAttemptsPerMinute: 10,
+                enableHsts: true,
+                enableCsp: true,
+                enableXssProtection: true,
+                enableBruteForce: true,
+                bruteForceWindow: 15,
+                bruteForceBlockDuration: 60
+            },
+            sessions: {
+                timeout: 60,
+                maxDuration: 8,
+                concurrentSessions: '3',
+                newLoginBehavior: 'keep_existing',
+                secureCookies: true,
+                httpOnlyCookies: true,
+                sameSiteCookies: true,
+                enableRememberMe: true,
+                rememberMeDuration: 30
+            },
+            notifications: {
+                notifyNewLogin: true,
+                notifyFailedLogin: true,
+                notifySuspiciousActivity: true,
+                notifyPasswordChange: true,
+                notifyPasswordExpiry: true,
+                notifyPasswordReset: true,
+                passwordExpiryWarning: 7,
+                adminEmail: '',
+                channels: {
+                    email: true,
+                    sms: false,
+                    push: false
+                }
+            },
+            compliance: {
+                enableAuditLog: true,
+                logSuccessfulLogins: true,
+                logFailedLogins: true,
+                logPasswordChanges: true,
+                auditLogRetention: 365,
+                privacyStandard: 'none',
+                anonymizeDeletedUsers: true,
+                rightToBeForgotten: true,
+                generateSecurityReports: false,
+                reportFrequency: 'monthly'
+            }
+        },
+        
+        defaultSettings: {},
+        
+        // Methods
+        async init() {
+            await this.loadSettings();
+            this.storeDefaultSettings();
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/user-authentication/settings');
+                const data = await response.json();
+                
+                if (data.settings) {
+                    this.settings = { ...this.settings, ...data.settings };
+                }
+                
+                if (data.lastSaved) {
+                    this.lastSaved = new Date(data.lastSaved);
+                }
+                
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                this.showError('Failed to load authentication settings');
+            }
+        },
+        
+        storeDefaultSettings() {
+            this.defaultSettings = JSON.parse(JSON.stringify(this.settings));
+        },
+        
+        async saveAllSettings() {
+            this.isSaving = true;
+            
+            try {
+                const response = await fetch('/api/user-authentication/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        settings: this.settings
+                    })
+                });
+                
+                if (response.ok) {
+                    this.lastSaved = new Date();
+                    this.showSuccess('Authentication settings saved successfully');
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError(error.message || 'Failed to save authentication settings');
+            } finally {
+                this.isSaving = false;
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to their default values? This action cannot be undone.')) {
+                this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
+                this.showSuccess('Settings reset to defaults');
+            }
+        },
+        
+        exportSettings() {
+            const dataStr = JSON.stringify(this.settings, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `authentication-settings-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        async testSettings() {
+            try {
+                const response = await fetch('/api/user-authentication/settings/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        settings: this.settings
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Settings test completed successfully');
+                } else {
+                    this.showError(`Settings test failed: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error testing settings:', error);
+                this.showError('Failed to test authentication settings');
+            }
+        },
+        
+        // Utility methods
+        formatDate(date) {
+            return new Date(date).toLocaleString();
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

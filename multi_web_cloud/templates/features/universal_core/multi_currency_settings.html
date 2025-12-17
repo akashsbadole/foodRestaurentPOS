@@ -1,0 +1,1060 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/multi_currency_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Multi-Currency Settings Interface -->
+<div class="multi-currency-settings-container" x-data="multiCurrencySettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Multi-Currency Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure global multi-currency preferences and policies</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveAllSettings()" :disabled="isSaving">
+                        <i class="bi bi-check-circle"></i>
+                        <span x-text="isSaving ? 'Saving...' : 'Save All Settings'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <div class="nav-tabs" role="tablist">
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'general'}"
+                    @click="activeTab = 'general'">
+                <i class="bi bi-gear"></i>
+                General
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'rates'}"
+                    @click="activeTab = 'rates'">
+                <i class="bi bi-graph-up"></i>
+                Exchange Rates
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'display'}"
+                    @click="activeTab = 'display'">
+                <i class="bi bi-display"></i>
+                Display
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'transactions'}"
+                    @click="activeTab = 'transactions'">
+                <i class="bi bi-cash-stack"></i>
+                Transactions
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'reporting'}"
+                    @click="activeTab = 'reporting'">
+                <i class="bi bi-file-text"></i>
+                Reporting
+            </button>
+            <button class="nav-tab" 
+                    :class="{'active': activeTab === 'compliance'}"
+                    @click="activeTab = 'compliance'">
+                <i class="bi bi-shield-check"></i>
+                Compliance
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        
+        <!-- General Settings -->
+        <div class="settings-panel" x-show="activeTab === 'general'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        General Multi-Currency Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Enable Multi-Currency</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enableMultiCurrency"
+                                           x-model="settings.general.enableMultiCurrency">
+                                    <label class="form-check-label" for="enableMultiCurrency">
+                                        Enable multi-currency functionality
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Default Currency</label>
+                                <select class="form-select" x-model="settings.general.defaultCurrency">
+                                    <template x-for="currency in currencies" :key="currency.code">
+                                        <option :value="currency.code" x-text="`${currency.code} - ${currency.name}`"></option>
+                                    </template>
+                                </select>
+                                <small class="form-text text-muted">Default currency for new transactions</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Base Currency</label>
+                                <select class="form-select" x-model="settings.general.baseCurrency">
+                                    <template x-for="currency in currencies" :key="currency.code">
+                                        <option :value="currency.code" x-text="`${currency.code} - ${currency.name}`"></option>
+                                    </template>
+                                </select>
+                                <small class="form-text text-muted">All exchange rates are calculated against this currency</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Currency Detection</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="autoDetectCurrency"
+                                           x-model="settings.general.autoDetectCurrency">
+                                    <label class="form-check-label" for="autoDetectCurrency">
+                                        Automatically detect customer's currency based on location
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Currency Conversion</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enableConversion"
+                                           x-model="settings.general.enableConversion">
+                                    <label class="form-check-label" for="enableConversion">
+                                        Enable automatic currency conversion
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Conversion Margin (%)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.general.conversionMargin"
+                                       :disabled="!settings.general.enableConversion"
+                                       min="0"
+                                       max="10"
+                                       step="0.1">
+                                <small class="form-text text-muted">Margin added to exchange rate for conversions</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Exchange Rate Settings -->
+        <div class="settings-panel" x-show="activeTab === 'rates'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-graph-up me-2"></i>
+                        Exchange Rate Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Primary Rate Provider</label>
+                                <select class="form-select" x-model="settings.rates.primaryProvider">
+                                    <option value="fixer">Fixer.io</option>
+                                    <option value="openexchangerates">Open Exchange Rates</option>
+                                    <option value="xe">XE.com</option>
+                                    <option value="ecb">European Central Bank</option>
+                                    <option value="manual">Manual Entry Only</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Backup Rate Provider</label>
+                                <select class="form-select" x-model="settings.rates.backupProvider">
+                                    <option value="none">No Backup</option>
+                                    <option value="fixer">Fixer.io</option>
+                                    <option value="openexchangerates">Open Exchange Rates</option>
+                                    <option value="xe">XE.com</option>
+                                    <option value="ecb">European Central Bank</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Auto Update Rates</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="autoUpdateRates"
+                                           x-model="settings.rates.autoUpdate">
+                                    <label class="form-check-label" for="autoUpdateRates">
+                                        Automatically update exchange rates
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Update Frequency</label>
+                                <select class="form-select" 
+                                        x-model="settings.rates.updateFrequency"
+                                        :disabled="!settings.rates.autoUpdate">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Update Time</label>
+                                <input type="time" 
+                                       class="form-control" 
+                                       x-model="settings.rates.updateTime"
+                                       :disabled="!settings.rates.autoUpdate">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Rate Tolerance (%)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.rates.rateTolerance"
+                                       min="0.1"
+                                       max="10"
+                                       step="0.1">
+                                <small class="form-text text-muted">Alert if rate changes by more than this percentage</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Rate Caching</label>
+                                <div class="rate-caching">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableCaching"
+                                               x-model="settings.rates.enableCaching">
+                                        <label class="form-check-label" for="enableCaching">
+                                            Enable exchange rate caching
+                                        </label>
+                                    </div>
+                                    <div class="row mt-3" x-show="settings.rates.enableCaching">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Cache Duration (minutes)</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="settings.rates.cacheDuration"
+                                                   min="5"
+                                                   max="1440">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Max Cache Size (MB)</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="settings.rates.maxCacheSize"
+                                                   min="1"
+                                                   max="100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Display Settings -->
+        <div class="settings-panel" x-show="activeTab === 'display'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-display me-2"></i>
+                        Display Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Currency Display Format</label>
+                                <select class="form-select" x-model="settings.display.currencyFormat">
+                                    <option value="symbol_code">Symbol + Code ($ USD)</option>
+                                    <option value="symbol_only">Symbol Only ($)</option>
+                                    <option value="code_only">Code Only (USD)</option>
+                                    <option value="code_symbol">Code + Symbol (USD $)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Decimal Separator</label>
+                                <select class="form-select" x-model="settings.display.decimalSeparator">
+                                    <option value=".">Period (.)</option>
+                                    <option value=",">Comma (,)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Thousands Separator</label>
+                                <select class="form-select" x-model="settings.display.thousandsSeparator">
+                                    <option value=",">Comma (,)</option>
+                                    <option value=".">Period (.)</option>
+                                    <option value="space">Space ( )</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Symbol Position</label>
+                                <select class="form-select" x-model="settings.display.symbolPosition">
+                                    <option value="before">Before amount ($100)</option>
+                                    <option value="after">After amount (100$)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Show Currency Converter</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="showConverter"
+                                           x-model="settings.display.showConverter">
+                                    <label class="form-check-label" for="showConverter">
+                                        Show currency converter on POS screen
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Show Exchange Rates</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="showExchangeRates"
+                                           x-model="settings.display.showExchangeRates">
+                                    <label class="form-check-label" for="showExchangeRates">
+                                        Show exchange rates on receipts
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Multi-Currency Display</label>
+                                <div class="multi-currency-display">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="showMultipleCurrencies"
+                                               x-model="settings.display.showMultipleCurrencies">
+                                        <label class="form-check-label" for="showMultipleCurrencies">
+                                            Show prices in multiple currencies
+                                        </label>
+                                    </div>
+                                    <div class="row mt-3" x-show="settings.display.showMultipleCurrencies">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Additional Currencies</label>
+                                            <div class="currency-selection">
+                                                <template x-for="currency in currencies" :key="currency.code">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" 
+                                                               type="checkbox" 
+                                                               :id="`display_${currency.code}`"
+                                                               :value="currency.code"
+                                                               x-model="settings.display.additionalCurrencies">
+                                                        <label class="form-check-label" :for="`display_${currency.code}`" x-text="`${currency.code} - ${currency.name}`"></label>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Display Order</label>
+                                            <div class="display-order">
+                                                <template x-for="(currency, index) in settings.display.additionalCurrencies" :key="currency">
+                                                    <div class="order-item">
+                                                        <span x-text="currency"></span>
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-secondary"
+                                                                @click="moveCurrencyUp(index)"
+                                                                :disabled="index === 0">
+                                                            <i class="bi bi-arrow-up"></i>
+                                                        </button>
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-secondary"
+                                                                @click="moveCurrencyDown(index)"
+                                                                :disabled="index === settings.display.additionalCurrencies.length - 1">
+                                                            <i class="bi bi-arrow-down"></i>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transaction Settings -->
+        <div class="settings-panel" x-show="activeTab === 'transactions'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-cash-stack me-2"></i>
+                        Transaction Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Allow Multi-Currency Transactions</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="allowMultiCurrencyTransactions"
+                                           x-model="settings.transactions.allowMultiCurrencyTransactions">
+                                    <label class="form-check-label" for="allowMultiCurrencyTransactions">
+                                        Allow transactions in multiple currencies
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Currency Selection</label>
+                                <select class="form-select" x-model="settings.transactions.currencySelection">
+                                    <option value="customer">Customer Choice</option>
+                                    <option value="fixed">Fixed Currency</option>
+                                    <option value="auto">Auto-detect</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Rounding Method</label>
+                                <select class="form-select" x-model="settings.transactions.roundingMethod">
+                                    <option value="standard">Standard (0.5 rounds up)</option>
+                                    <option value="always_up">Always round up</option>
+                                    <option value="always_down">Always round down</option>
+                                    <option value="bankers">Banker's rounding</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Exchange Rate Lock</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="lockExchangeRate"
+                                           x-model="settings.transactions.lockExchangeRate">
+                                    <label class="form-check-label" for="lockExchangeRate">
+                                        Lock exchange rate at time of transaction
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Refund Currency</label>
+                                <select class="form-select" x-model="settings.transactions.refundCurrency">
+                                    <option value="original">Original Currency</option>
+                                    <option value="base">Base Currency</option>
+                                    <option value="customer">Customer's Choice</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Price Display</label>
+                                <select class="form-select" x-model="settings.transactions.priceDisplay">
+                                    <option value="converted">Show converted price</option>
+                                    <option value="original">Show original price</option>
+                                    <option value="both">Show both prices</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Transaction Limits</label>
+                                <div class="transaction-limits">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Minimum Transaction Amount</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="settings.transactions.minTransactionAmount"
+                                                   step="0.01"
+                                                   min="0">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Maximum Transaction Amount</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="settings.transactions.maxTransactionAmount"
+                                                   step="0.01"
+                                                   min="0">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Daily Transaction Limit</label>
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   x-model="settings.transactions.dailyTransactionLimit"
+                                                   step="0.01"
+                                                   min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reporting Settings -->
+        <div class="settings-panel" x-show="activeTab === 'reporting'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-file-text me-2"></i>
+                        Reporting Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Report Currency</label>
+                                <select class="form-select" x-model="settings.reporting.reportCurrency">
+                                    <option value="base">Base Currency</option>
+                                    <option value="transaction">Transaction Currency</option>
+                                    <option value="both">Both Currencies</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Currency Breakdown</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="showCurrencyBreakdown"
+                                           x-model="settings.reporting.showCurrencyBreakdown">
+                                    <label class="form-check-label" for="showCurrencyBreakdown">
+                                        Show currency breakdown in reports
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Exchange Rate Impact</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="showRateImpact"
+                                           x-model="settings.reporting.showRateImpact">
+                                    <label class="form-check-label" for="showRateImpact">
+                                        Show exchange rate impact analysis
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Gain/Loss Tracking</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="trackGainLoss"
+                                           x-model="settings.reporting.trackGainLoss">
+                                    <label class="form-check-label" for="trackGainLoss">
+                                        Track currency conversion gains and losses
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Custom Reports</label>
+                                <div class="custom-reports">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableCustomReports"
+                                               x-model="settings.reporting.enableCustomReports">
+                                        <label class="form-check-label" for="enableCustomReports">
+                                            Enable custom currency reports
+                                        </label>
+                                    </div>
+                                    <div class="row mt-3" x-show="settings.reporting.enableCustomReports">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Default Report Period</label>
+                                            <select class="form-select" x-model="settings.reporting.defaultReportPeriod">
+                                                <option value="daily">Daily</option>
+                                                <option value="weekly">Weekly</option>
+                                                <option value="monthly">Monthly</option>
+                                                <option value="quarterly">Quarterly</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Report Delivery</label>
+                                            <select class="form-select" x-model="settings.reporting.reportDelivery">
+                                                <option value="email">Email</option>
+                                                <option value="dashboard">Dashboard Only</option>
+                                                <option value="both">Both</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Compliance Settings -->
+        <div class="settings-panel" x-show="activeTab === 'compliance'" x-transition>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-shield-check me-2"></i>
+                        Compliance Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Audit Trail</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enableAuditTrail"
+                                           x-model="settings.compliance.enableAuditTrail">
+                                    <label class="form-check-label" for="enableAuditTrail">
+                                        Enable audit trail for currency operations
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Rate Change Logging</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="logRateChanges"
+                                           x-model="settings.compliance.logRateChanges">
+                                    <label class="form-check-label" for="logRateChanges">
+                                        Log all exchange rate changes
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Data Retention</label>
+                                <select class="form-select" x-model="settings.compliance.dataRetention">
+                                    <option value="90">90 Days</option>
+                                    <option value="180">180 Days</option>
+                                    <option value="365">1 Year</option>
+                                    <option value="1095">3 Years</option>
+                                    <option value="1825">5 Years</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Compliance Standard</label>
+                                <select class="form-select" x-model="settings.compliance.complianceStandard">
+                                    <option value="none">None</option>
+                                    <option value="pci">PCI DSS</option>
+                                    <option value="sox">SOX</option>
+                                    <option value="gdpr">GDPR</option>
+                                    <option value="all">All Standards</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Security Requirements</label>
+                                <div class="security-requirements">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="requireApprovalForRateChanges"
+                                               x-model="settings.compliance.requireApprovalForRateChanges">
+                                        <label class="form-check-label" for="requireApprovalForRateChanges">
+                                            Require approval for rate changes above threshold
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="encryptSensitiveData"
+                                               x-model="settings.compliance.encryptSensitiveData">
+                                        <label class="form-check-label" for="encryptSensitiveData">
+                                            Encrypt sensitive currency data
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="enableTwoFactorForCurrencyOps"
+                                               x-model="settings.compliance.enableTwoFactorForCurrencyOps">
+                                        <label class="form-check-label" for="enableTwoFactorForCurrencyOps">
+                                            Require two-factor authentication for currency operations
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Footer -->
+    <div class="settings-footer">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="last-saved">
+                    <span x-show="lastSaved">
+                        <i class="bi bi-check-circle text-success"></i>
+                        Last saved: <span x-text="formatDate(lastSaved)"></span>
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button type="button" class="btn btn-outline-secondary me-2" @click="testSettings()">
+                    <i class="bi bi-play-circle"></i> Test Settings
+                </button>
+                <button type="button" class="btn btn-primary" @click="saveAllSettings()" :disabled="isSaving">
+                    <i class="bi bi-check-circle"></i>
+                    <span x-text="isSaving ? 'Saving...' : 'Save All Settings'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/multi_currency_settings.js') }}"></script>
+<script>
+// Multi-Currency Settings App
+function multiCurrencySettingsApp() {
+    return {
+        // Data
+        activeTab: 'general',
+        isSaving: false,
+        lastSaved: null,
+        currencies: [],
+        
+        settings: {
+            general: {
+                enableMultiCurrency: true,
+                defaultCurrency: 'USD',
+                baseCurrency: 'USD',
+                autoDetectCurrency: false,
+                enableConversion: true,
+                conversionMargin: 2.0
+            },
+            rates: {
+                primaryProvider: 'fixer',
+                backupProvider: 'openexchangerates',
+                autoUpdate: true,
+                updateFrequency: 'daily',
+                updateTime: '09:00',
+                rateTolerance: 5.0,
+                enableCaching: true,
+                cacheDuration: 60,
+                maxCacheSize: 10
+            },
+            display: {
+                currencyFormat: 'symbol_code',
+                decimalSeparator: '.',
+                thousandsSeparator: ',',
+                symbolPosition: 'before',
+                showConverter: true,
+                showExchangeRates: true,
+                showMultipleCurrencies: false,
+                additionalCurrencies: []
+            },
+            transactions: {
+                allowMultiCurrencyTransactions: true,
+                currencySelection: 'customer',
+                roundingMethod: 'standard',
+                lockExchangeRate: true,
+                refundCurrency: 'original',
+                priceDisplay: 'converted',
+                minTransactionAmount: 0,
+                maxTransactionAmount: 10000,
+                dailyTransactionLimit: 50000
+            },
+            reporting: {
+                reportCurrency: 'base',
+                showCurrencyBreakdown: true,
+                showRateImpact: true,
+                trackGainLoss: true,
+                enableCustomReports: false,
+                defaultReportPeriod: 'monthly',
+                reportDelivery: 'email'
+            },
+            compliance: {
+                enableAuditTrail: true,
+                logRateChanges: true,
+                dataRetention: '365',
+                complianceStandard: 'none',
+                requireApprovalForRateChanges: false,
+                encryptSensitiveData: true,
+                enableTwoFactorForCurrencyOps: false
+            }
+        },
+        
+        defaultSettings: {},
+        
+        // Methods
+        async init() {
+            await this.loadCurrencies();
+            await this.loadSettings();
+            this.storeDefaultSettings();
+        },
+        
+        async loadCurrencies() {
+            try {
+                const response = await fetch('/api/multi-currency/currencies');
+                this.currencies = await response.json();
+            } catch (error) {
+                console.error('Error loading currencies:', error);
+                this.showError('Failed to load currencies');
+            }
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/multi-currency/settings');
+                const data = await response.json();
+                
+                if (data.settings) {
+                    this.settings = { ...this.settings, ...data.settings };
+                }
+                
+                if (data.lastSaved) {
+                    this.lastSaved = new Date(data.lastSaved);
+                }
+                
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                this.showError('Failed to load multi-currency settings');
+            }
+        },
+        
+        storeDefaultSettings() {
+            this.defaultSettings = JSON.parse(JSON.stringify(this.settings));
+        },
+        
+        async saveAllSettings() {
+            this.isSaving = true;
+            
+            try {
+                const response = await fetch('/api/multi-currency/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        settings: this.settings
+                    })
+                });
+                
+                if (response.ok) {
+                    this.lastSaved = new Date();
+                    this.showSuccess('Multi-currency settings saved successfully');
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError(error.message || 'Failed to save multi-currency settings');
+            } finally {
+                this.isSaving = false;
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to their default values? This action cannot be undone.')) {
+                this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
+                this.showSuccess('Settings reset to defaults');
+            }
+        },
+        
+        exportSettings() {
+            const dataStr = JSON.stringify(this.settings, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `multi-currency-settings-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        },
+        
+        async testSettings() {
+            try {
+                const response = await fetch('/api/multi-currency/settings/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        settings: this.settings
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Settings test completed successfully');
+                } else {
+                    this.showError(`Settings test failed: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error testing settings:', error);
+                this.showError('Failed to test multi-currency settings');
+            }
+        },
+        
+        // Display settings methods
+        moveCurrencyUp(index) {
+            if (index > 0) {
+                const currencies = [...this.settings.display.additionalCurrencies];
+                [currencies[index - 1], currencies[index]] = [currencies[index], currencies[index - 1]];
+                this.settings.display.additionalCurrencies = currencies;
+            }
+        },
+        
+        moveCurrencyDown(index) {
+            if (index < this.settings.display.additionalCurrencies.length - 1) {
+                const currencies = [...this.settings.display.additionalCurrencies];
+                [currencies[index], currencies[index + 1]] = [currencies[index + 1], currencies[index]];
+                this.settings.display.additionalCurrencies = currencies;
+            }
+        },
+        
+        // Utility methods
+        formatDate(date) {
+            return new Date(date).toLocaleString();
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

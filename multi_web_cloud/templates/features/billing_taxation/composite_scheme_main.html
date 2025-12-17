@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Composite Tax Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .composite-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #fd7e14;
+        }
+        .composite-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .status-active { color: #28a745; }
+        .status-pending { color: #ffc107; }
+        .status-overdue { color: #dc3545; }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            stroke: #fd7e14;
+            stroke-dasharray: 339.292;
+            stroke-dashoffset: 0;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #fd7e14 0%, #f59e0b 100%);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+        .metric-card h3 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .metric-card p {
+            margin: 0;
+            opacity: 0.8;
+        }
+        .scheme-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="compositeSchemeDashboard()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">Composite Tax Management</h1>
+                        <p class="text-muted mb-0">Manage composite tax scheme and compliance</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" @click="refreshData()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" @click="openSchemeModal()">
+                            <i class="bi bi-plus-circle"></i> New Scheme
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scheme Status Overview -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-md-3 mb-3">
+                <div class="composite-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Scheme Status</h6>
+                                <h4 class="mb-0 status-active" x-text="schemeStatus"></h4>
+                            </div>
+                            <div class="progress-ring" style="width: 50px; height: 50px;">
+                                <svg width="50" height="50">
+                                    <circle class="progress-ring-circle" 
+                                            stroke-width="4" 
+                                            fill="transparent" 
+                                            r="24" 
+                                            cx="25" 
+                                            cy="25"
+                                            :style="`stroke-dashoffset: ${339.292 - (339.292 * complianceScore) / 100}`"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <small class="text-muted">Compliance Score: <span x-text="complianceScore + '%'"></span></small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="composite-card h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Active Schemes</h6>
+                        <h4 class="mb-0" x-text="activeSchemes"></h4>
+                        <small class="text-muted">Currently Active</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="composite-card h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Tax Rate</h6>
+                        <h4 class="mb-0"><span x-text="currentTaxRate"></span>%</h4>
+                        <small class="text-muted">Composite Rate</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="composite-card h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-2">Total Tax Paid</h6>
+                        <h4 class="mb-0">₹<span x-text="totalTaxPaid.toLocaleString('en-IN')"></span></h4>
+                        <small class="text-muted">Current Financial Year</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-warning w-100" @click="navigateTo('list')">
+                                    <i class="bi bi-list-ul"></i> View Schemes
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-info w-100" @click="navigateTo('form')">
+                                    <i class="bi bi-file-earmark-plus"></i> Apply Scheme
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-primary w-100" @click="navigateTo('settings')">
+                                    <i class="bi bi-gear"></i> Scheme Rules
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-success w-100" @click="navigateTo('reports')">
+                                    <i class="bi bi-graph-up"></i> Analytics
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Savings Metrics -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3>₹<span x-text="taxSavings.toLocaleString('en-IN')"></span></h3>
+                    <p>Tax Savings (YTD)</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3>₹<span x-text="regularTaxSaved.toLocaleString('en-IN')"></span></h3>
+                    <p>Regular Tax Saved</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3>₹<span x-text="simplifiedCompliance.toLocaleString('en-IN')"></span></h3>
+                    <p>Simplified Compliance</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <h3><span x-text="efficiencyGain"></span>%</h3>
+                    <p>Efficiency Gain</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Schemes & Chart -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-lg-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Composite Schemes</h5>
+                        <button class="btn btn-sm btn-outline-secondary" @click="viewAllSchemes()">
+                            View All
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Scheme Name</th>
+                                        <th>Type</th>
+                                        <th>Tax Rate</th>
+                                        <th>Turnover Limit</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="scheme in recentSchemes" :key="scheme.id">
+                                        <tr>
+                                            <td x-text="scheme.name"></td>
+                                            <td>
+                                                <span class="badge scheme-badge" 
+                                                      :style="`background-color: ${scheme.typeColor}`"
+                                                      x-text="scheme.type"></span>
+                                            </td>
+                                            <td x-text="scheme.taxRate + '%'"></td>
+                                            <td>₹<span x-text="scheme.turnoverLimit.toLocaleString('en-IN')"></span></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="{
+                                                          'bg-success': scheme.status === 'Active',
+                                                          'bg-warning': scheme.status === 'Pending',
+                                                          'bg-danger': scheme.status === 'Suspended'
+                                                      }" 
+                                                      x-text="scheme.status"></span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @click="viewScheme(scheme)">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" 
+                                                            x-show="scheme.status === 'Pending'"
+                                                            @click="activateScheme(scheme)">
+                                                        <i class="bi bi-check"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Composite Tax Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="compositeChart" width="400" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scheme Categories -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Available Composite Schemes</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <template x-for="category in schemeCategories" :key="category.id">
+                                <div class="col-md-3 mb-3">
+                                    <div class="text-center">
+                                        <div class="mb-2">
+                                            <span class="badge" 
+                                                  :style="`background-color: ${category.color}; font-size: 1rem; padding: 0.5rem 1rem;`">
+                                                <span x-text="category.count"></span>
+                                            </span>
+                                        </div>
+                                        <h6 x-text="category.name"></h6>
+                                        <p class="text-muted mb-0" x-text="category.description"></p>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">Tax Rate:</small>
+                                                <strong x-text="category.taxRate + '%'"></strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">Turnover Limit:</small>
+                                                <strong>₹<span x-text="category.turnoverLimit.toLocaleString('en-IN')"></span></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Deadlines -->
+        <div class="row mb-4" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Upcoming Deadlines</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Scheme</th>
+                                        <th>Type</th>
+                                        <th>Filing Date</th>
+                                        <th>Due Date</th>
+                                        <th>Days Remaining</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="deadline in upcomingDeadlines" :key="deadline.id">
+                                        <tr>
+                                            <td x-text="deadline.scheme"></td>
+                                            <td x-text="deadline.type"></td>
+                                            <td x-text="deadline.filingDate"></td>
+                                            <td x-text="deadline.dueDate"></td>
+                                            <td>
+                                                <span class="badge" 
+                                                      :class="{
+                                                          'bg-danger': deadline.daysRemaining <= 7,
+                                                          'bg-warning': deadline.daysRemaining <= 14 && deadline.daysRemaining > 7,
+                                                          'bg-success': deadline.daysRemaining > 14
+                                                      }" 
+                                                      x-text="deadline.daysRemaining + ' days'"></span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @click="fileReturn(deadline)">
+                                                    <i class="bi bi-file-earmark-plus"></i> File Return
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Notifications -->
+        <div class="row" x-show="isFeatureEnabled('FEATURE_COMPOSITE_SCHEME')">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Notifications</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <template x-for="notification in recentNotifications" :key="notification.id">
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-bell text-warning me-3"></i>
+                                        <div>
+                                            <h6 class="mb-1" x-text="notification.title"></h6>
+                                            <p class="mb-0 text-muted small" x-text="notification.message"></p>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted" x-text="notification.time"></small>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scheme Modal -->
+    <div class="modal fade" id="schemeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Composite Scheme</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="submitScheme">
+                        <div class="mb-3">
+                            <label class="form-label">Scheme Name</label>
+                            <input type="text" class="form-control" x-model="schemeForm.name" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Scheme Type</label>
+                                    <select class="form-select" x-model="schemeForm.type" required>
+                                        <option value="">Select Type</option>
+                                        <option value="manufacturer">Manufacturer</option>
+                                        <option value="restaurant">Restaurant</option>
+                                        <option value="service">Service Provider</option>
+                                        <option value="retailer">Retailer</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tax Rate (%)</label>
+                                        <input type="number" class="form-control" x-model="schemeForm.taxRate" min="0" max="28" step="0.1" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Turnover Limit (₹)</label>
+                                        <input type="number" class="form-control" x-model="schemeForm.turnoverLimit" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Effective Date</label>
+                                        <input type="date" class="form-control" x-model="schemeForm.effectiveDate" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" rows="3" x-model="schemeForm.description" required></textarea>
+                            </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @click="submitScheme">Create Scheme</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function compositeSchemeDashboard() {
+            return {
+                complianceScore: 85,
+                schemeStatus: 'Active',
+                activeSchemes: 3,
+                currentTaxRate: 1.5,
+                totalTaxPaid: 45000,
+                taxSavings: 28000,
+                regularTaxSaved: 15000,
+                simplifiedCompliance: 12000,
+                efficiencyGain: 25,
+                recentSchemes: [
+                    { id: 1, name: 'Restaurant Composite', type: 'Restaurant', taxRate: 1.5, turnoverLimit: 7500000, status: 'Active', typeColor: '#fd7e14' },
+                    { id: 2, name: 'Retail Composite', type: 'Retailer', taxRate: 1.0, turnoverLimit: 1500000, status: 'Active', typeColor: '#0d6efd' },
+                    { id: 3, name: 'Service Provider', type: 'Service', taxRate: 6.0, turnoverLimit: 2000000, status: 'Pending', typeColor: '#6f42c1' }
+                ],
+                schemeCategories: [
+                    { id: 1, name: 'Restaurant', description: 'Food and beverage services', count: 8, taxRate: 1.5, turnoverLimit: 7500000, color: '#fd7e14' },
+                    { id: 2, name: 'Manufacturer', description: 'Manufacturing and production', count: 5, taxRate: 1.0, turnoverLimit: 15000000, color: '#0d6efd' },
+                    { id: 3, name: 'Service Provider', description: 'Service-based businesses', count: 6, taxRate: 6.0, turnoverLimit: 2000000, color: '#6f42c1' },
+                    { id: 4, name: 'Retailer', description: 'Retail and wholesale', count: 4, taxRate: 1.0, turnoverLimit: 1500000, color: '#198754' }
+                ],
+                upcomingDeadlines: [
+                    { id: 1, scheme: 'Restaurant Composite', type: 'Quarterly Return', filingDate: 'Jan 15, 2024', dueDate: 'Jan 20, 2024', daysRemaining: 5 },
+                    { id: 2, scheme: 'Retail Composite', type: 'Quarterly Return', filingDate: 'Jan 18, 2024', dueDate: 'Jan 25, 2024', daysRemaining: 10 },
+                    { id: 3, scheme: 'Service Provider', type: 'Annual Return', filingDate: 'Mar 31, 2024', dueDate: 'Apr 30, 2024', daysRemaining: 76 }
+                ],
+                recentNotifications: [
+                    { id: 1, title: 'Scheme Renewal Due', message: 'Restaurant Composite scheme expires in 30 days', time: '2 hours ago' },
+                    { id: 2, title: 'Tax Rate Update', message: 'New composite tax rates effective from April 2024', time: '1 day ago' },
+                    { id: 3, title: 'Filing Reminder', message: 'Quarterly return filing due in 5 days', time: '3 days ago' }
+                ],
+                schemeForm: {
+                    name: '',
+                    type: '',
+                    taxRate: '',
+                    turnoverLimit: '',
+                    effectiveDate: '',
+                    description: ''
+                },
+                
+                init() {
+                    this.initChart();
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                initChart() {
+                    const ctx = document.getElementById('compositeChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Tax Savings', 'Regular Tax', 'Simplified Compliance'],
+                            datasets: [{
+                                data: [28000, 15000, 12000],
+                                backgroundColor: ['#fd7e14', '#0d6efd', '#6f42c1'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                refreshData() {
+                    console.log('Refreshing composite scheme data...');
+                },
+                
+                openSchemeModal() {
+                    const modal = new bootstrap.Modal(document.getElementById('schemeModal'));
+                    modal.show();
+                },
+                
+                submitScheme() {
+                    console.log('Submitting composite scheme:', this.schemeForm);
+                    bootstrap.Modal.getInstance(document.getElementById('schemeModal')).hide();
+                },
+                
+                viewScheme(scheme) {
+                    console.log('Viewing scheme:', scheme);
+                },
+                
+                activateScheme(scheme) {
+                    console.log('Activating scheme:', scheme);
+                },
+                
+                fileReturn(deadline) {
+                    console.log('Filing return for:', deadline);
+                },
+                
+                navigateTo(page) {
+                    window.location.href = `/features/billing_taxation/composite_scheme_${page}.html`;
+                },
+                
+                viewAllSchemes() {
+                    window.location.href = '/features/billing_taxation/composite_scheme_list.html';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

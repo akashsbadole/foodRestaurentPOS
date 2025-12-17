@@ -1,0 +1,800 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/sales_processing_reports.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Sales Processing Reports -->
+<div class="sales-reports-container" x-data="salesReportsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="reports-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="reports-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Sales Reports & Analytics
+                </h2>
+                <p class="reports-subtitle text-muted">Comprehensive sales performance analysis</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="reports-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportReport()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Selector -->
+    <div class="date-range-selector mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Date Range</label>
+                <select class="form-select" x-model="dateRange" @change="applyDateRange()">
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="this_week">This Week</option>
+                    <option value="last_week">Last Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="this_quarter">This Quarter</option>
+                    <option value="last_quarter">Last Quarter</option>
+                    <option value="this_year">This Year</option>
+                    <option value="last_year">Last Year</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">From Date</label>
+                <input type="date" 
+                       class="form-control" 
+                       x-model="customDateFrom"
+                       @change="applyCustomDateRange()"
+                       x-show="dateRange === 'custom'">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To Date</label>
+                <input type="date" 
+                       class="form-control" 
+                       x-model="customDateTo"
+                       @change="applyCustomDateRange()"
+                       x-show="dateRange === 'custom'">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Compare With</label>
+                <select class="form-select" x-model="compareWith" @change="updateComparison()">
+                    <option value="">No Comparison</option>
+                    <option value="previous_period">Previous Period</option>
+                    <option value="last_year">Last Year</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="metrics-cards mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-primary">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Total Revenue</h6>
+                        <p class="metric-value" x-text="formatCurrency(metrics.totalRevenue)"></p>
+                        <div class="metric-change" x-show="metrics.revenueChange !== 0">
+                            <i class="bi" :class="metrics.revenueChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="metrics.revenueChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(metrics.revenueChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-success">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Total Sales</h6>
+                        <p class="metric-value" x-text="metrics.totalSales"></p>
+                        <div class="metric-change" x-show="metrics.salesChange !== 0">
+                            <i class="bi" :class="metrics.salesChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="metrics.salesChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(metrics.salesChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-info">
+                        <i class="bi bi-cart3"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Average Sale</h6>
+                        <p class="metric-value" x-text="formatCurrency(metrics.averageSale)"></p>
+                        <div class="metric-change" x-show="metrics.averageChange !== 0">
+                            <i class="bi" :class="metrics.averageChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="metrics.averageChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(metrics.averageChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-icon bg-warning">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h6 class="metric-label">Customers</h6>
+                        <p class="metric-value" x-text="metrics.totalCustomers"></p>
+                        <div class="metric-change" x-show="metrics.customersChange !== 0">
+                            <i class="bi" :class="metrics.customersChange > 0 ? 'bi-arrow-up text-success' : 'bi-arrow-down text-danger'"></i>
+                            <span :class="metrics.customersChange > 0 ? 'text-success' : 'text-danger'" 
+                                  x-text="`${Math.abs(metrics.customersChange).toFixed(1)}%`"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Tabs -->
+    <div class="reports-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#overview-tab" 
+                        type="button">
+                    <i class="bi bi-speedometer2 me-2"></i> Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#sales-trends-tab" 
+                        type="button">
+                    <i class="bi bi-graph-up me-2"></i> Sales Trends
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#top-products-tab" 
+                        type="button">
+                    <i class="bi bi-box me-2"></i> Top Products
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#payment-methods-tab" 
+                        type="button">
+                    <i class="bi bi-credit-card me-2"></i> Payment Methods
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#hourly-sales-tab" 
+                        type="button">
+                    <i class="bi bi-clock me-2"></i> Hourly Sales
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview-tab">
+            <div class="overview-content">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Revenue Trend</h5>
+                            <canvas id="revenueChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="summary-stats">
+                            <h5 class="stats-title">Quick Stats</h5>
+                            
+                            <div class="stat-item">
+                                <span class="stat-label">Best Day:</span>
+                                <span class="stat-value" x-text="overviewStats.bestDay"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Best Hour:</span>
+                                <span class="stat-value" x-text="overviewStats.bestHour"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Peak Hour Sales:</span>
+                                <span class="stat-value" x-text="formatCurrency(overviewStats.peakHourSales)"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Conversion Rate:</span>
+                                <span class="stat-value" x-text="`${overviewStats.conversionRate.toFixed(1)}%`"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Trends Tab -->
+        <div class="tab-pane fade" id="sales-trends-tab">
+            <div class="trends-content">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="trend-controls mb-3">
+                            <div class="btn-group" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-primary"
+                                        :class="{'active': trendPeriod === 'daily'}"
+                                        @click="changeTrendPeriod('daily')">
+                                    Daily
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-primary"
+                                        :class="{'active': trendPeriod === 'weekly'}"
+                                        @click="changeTrendPeriod('weekly')">
+                                    Weekly
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-primary"
+                                        :class="{'active': trendPeriod === 'monthly'}"
+                                        @click="changeTrendPeriod('monthly')">
+                                    Monthly
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Sales Trends</h5>
+                            <canvas id="trendsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="trend-summary">
+                            <h5 class="summary-title">Trend Analysis</h5>
+                            
+                            <div class="trend-item">
+                                <span class="trend-label">Growth Rate:</span>
+                                <span class="trend-value" 
+                                      :class="trendAnalysis.growthRate > 0 ? 'text-success' : 'text-danger'"
+                                      x-text="`${trendAnalysis.growthRate.toFixed(1)}%`"></span>
+                            </div>
+                            <div class="trend-item">
+                                <span class="trend-label">Seasonality:</span>
+                                <span class="trend-value" x-text="trendAnalysis.seasonality"></span>
+                            </div>
+                            <div class="trend-item">
+                                <span class="trend-label">Volatility:</span>
+                                <span class="trend-value" x-text="trendAnalysis.volatility"></span>
+                            </div>
+                            <div class="trend-item">
+                                <span class="trend-label">Forecast:</span>
+                                <span class="trend-value" x-text="trendAnalysis.forecast"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products Tab -->
+        <div class="tab-pane fade" id="top-products-tab">
+            <div class="top-products-content">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="product-filters mb-3">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <select class="form-select" x-model="productSortBy" @change="updateTopProducts()">
+                                        <option value="revenue">Sort by Revenue</option>
+                                        <option value="quantity">Sort by Quantity</option>
+                                        <option value="profit">Sort by Profit</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" x-model="productCategory" @change="updateTopProducts()">
+                                        <option value="">All Categories</option>
+                                        <template x-for="category in categories" :key="category.id">
+                                            <option :value="category.id" x-text="category.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" 
+                                           class="form-control" 
+                                           x-model="productLimit"
+                                           @change="updateTopProducts()"
+                                           min="5"
+                                           max="50"
+                                           placeholder="Show top...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="table-responsive">
+                            <table class="table table-hover top-products-table">
+                                <thead>
+                                    <tr>
+                                        <th @click="sortProducts('name')" class="sortable">
+                                            Product Name
+                                            <i class="bi bi-arrow-down-up" x-show="productSortField === 'name'"></i>
+                                        </th>
+                                        <th @click="sortProducts('category')" class="sortable">
+                                            Category
+                                            <i class="bi bi-arrow-down-up" x-show="productSortField === 'category'"></i>
+                                        </th>
+                                        <th @click="sortProducts('quantity')" class="sortable">
+                                            Quantity Sold
+                                            <i class="bi bi-arrow-down-up" x-show="productSortField === 'quantity'"></i>
+                                        </th>
+                                        <th @click="sortProducts('revenue')" class="sortable">
+                                            Revenue
+                                            <i class="bi bi-arrow-down-up" x-show="productSortField === 'revenue'"></i>
+                                        </th>
+                                        <th @click="sortProducts('profit')" class="sortable">
+                                            Profit
+                                            <i class="bi bi-arrow-down-up" x-show="productSortField === 'profit'"></i>
+                                        </th>
+                                        <th>Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="product in sortedTopProducts" :key="product.id">
+                                        <tr class="product-row">
+                                            <td>
+                                                <div class="product-info">
+                                                    <strong x-text="product.name"></strong>
+                                                    <br>
+                                                    <small class="text-muted" x-text="product.sku"></small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="category-badge" x-text="product.category"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="product.quantity"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="formatCurrency(product.revenue)"></span>
+                                            </td>
+                                            <td>
+                                                <span x-text="formatCurrency(product.profit)"></span>
+                                            </td>
+                                            <td>
+                                                <div class="trend-indicator">
+                                                    <i class="bi" 
+                                                       :class="getTrendIcon(product.trend)"
+                                                       :title="getTrendText(product.trend)"></i>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Methods Tab -->
+        <div class="tab-pane fade" id="payment-methods-tab">
+            <div class="payment-methods-content">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Payment Methods Distribution</h5>
+                            <canvas id="paymentMethodsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="payment-summary">
+                            <h5 class="summary-title">Payment Breakdown</h5>
+                            
+                            <template x-for="method in paymentMethodsData" :key="method.name">
+                                <div class="payment-item">
+                                    <div class="payment-info">
+                                        <span class="payment-name" x-text="method.name"></span>
+                                        <span class="payment-percentage" x-text="`${method.percentage.toFixed(1)}%`"></span>
+                                    </div>
+                                    <div class="payment-amount">
+                                        <span x-text="formatCurrency(method.amount)"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hourly Sales Tab -->
+        <div class="tab-pane fade" id="hourly-sales-tab">
+            <div class="hourly-sales-content">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="hourly-controls mb-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Select Day</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           x-model="selectedDay"
+                                           @change="updateHourlyData()">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">View Type</label>
+                                    <select class="form-select" x-model="hourlyViewType" @change="updateHourlyData()">
+                                        <option value="sales">Sales Amount</option>
+                                        <option value="transactions">Transaction Count</option>
+                                        <option value="average">Average Sale</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="chart-container">
+                            <h5 class="chart-title">Hourly Sales Distribution</h5>
+                            <canvas id="hourlySalesChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="hourly-stats">
+                            <h5 class="stats-title">Hourly Statistics</h5>
+                            
+                            <div class="row">
+                                <template x-for="stat in hourlyStats" :key="stat.hour">
+                                    <div class="col-md-3">
+                                        <div class="hour-stat-item">
+                                            <div class="hour-label" x-text="stat.hour"></div>
+                                            <div class="hour-value" x-text="formatHourlyValue(stat.value)"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/features/sales_processing_reports.js') }}"></script>
+<script>
+// Sales Reports App
+function salesReportsApp() {
+    return {
+        // Data
+        dateRange: 'this_month',
+        customDateFrom: '',
+        customDateTo: '',
+        compareWith: '',
+        
+        metrics: {
+            totalRevenue: 0,
+            totalSales: 0,
+            averageSale: 0,
+            totalCustomers: 0,
+            revenueChange: 0,
+            salesChange: 0,
+            averageChange: 0,
+            customersChange: 0
+        },
+        
+        overviewStats: {
+            bestDay: '',
+            bestHour: '',
+            peakHourSales: 0,
+            conversionRate: 0
+        },
+        
+        trendPeriod: 'daily',
+        trendAnalysis: {
+            growthRate: 0,
+            seasonality: '',
+            volatility: '',
+            forecast: ''
+        },
+        
+        topProducts: [],
+        productSortBy: 'revenue',
+        productSortField: 'revenue',
+        productSortDirection: 'desc',
+        productCategory: '',
+        productLimit: 10,
+        categories: [],
+        
+        paymentMethodsData: [],
+        
+        selectedDay: new Date().toISOString().split('T')[0],
+        hourlyViewType: 'sales',
+        hourlyStats: [],
+        
+        // Charts
+        revenueChart: null,
+        trendsChart: null,
+        paymentMethodsChart: null,
+        hourlySalesChart: null,
+        
+        // Methods
+        init() {
+            this.loadData();
+            this.initializeCharts();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadData() {
+            try {
+                const response = await fetch('/api/reports/sales');
+                const data = await response.json();
+                
+                this.metrics = data.metrics;
+                this.overviewStats = data.overviewStats;
+                this.topProducts = data.topProducts;
+                this.categories = data.categories;
+                this.paymentMethodsData = data.paymentMethods;
+                this.hourlyStats = data.hourlyStats;
+                
+                this.updateCharts();
+            } catch (error) {
+                console.error('Error loading report data:', error);
+                this.showError('Failed to load report data');
+            }
+        },
+        
+        initializeCharts() {
+            // Initialize Revenue Chart
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            this.revenueChart = new Chart(revenueCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Revenue',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // Initialize other charts similarly...
+        },
+        
+        updateCharts() {
+            // Update all charts with loaded data
+            this.updateRevenueChart();
+            this.updateTrendsChart();
+            this.updatePaymentMethodsChart();
+            this.updateHourlySalesChart();
+        },
+        
+        updateRevenueChart() {
+            // Update revenue chart with comparison data if available
+        },
+        
+        updateTrendsChart() {
+            // Update trends chart based on selected period
+        },
+        
+        updatePaymentMethodsChart() {
+            // Update payment methods pie chart
+            const ctx = document.getElementById('paymentMethodsChart').getContext('2d');
+            this.paymentMethodsChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: this.paymentMethodsData.map(m => m.name),
+                    datasets: [{
+                        data: this.paymentMethodsData.map(m => m.amount),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        },
+        
+        updateHourlySalesChart() {
+            // Update hourly sales chart
+        },
+        
+        applyDateRange() {
+            if (this.dateRange !== 'custom') {
+                this.customDateFrom = '';
+                this.customDateTo = '';
+                this.loadData();
+            }
+        },
+        
+        applyCustomDateRange() {
+            if (this.customDateFrom && this.customDateTo) {
+                this.loadData();
+            }
+        },
+        
+        updateComparison() {
+            this.loadData();
+        },
+        
+        changeTrendPeriod(period) {
+            this.trendPeriod = period;
+            this.updateTrendsChart();
+        },
+        
+        updateTopProducts() {
+            // Re-sort and filter top products
+        },
+        
+        sortProducts(field) {
+            if (this.productSortField === field) {
+                this.productSortDirection = this.productSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.productSortField = field;
+                this.productSortDirection = 'desc';
+            }
+        },
+        
+        get sortedTopProducts() {
+            return [...this.topProducts].sort((a, b) => {
+                let aVal = a[this.productSortField];
+                let bVal = b[this.productSortField];
+                
+                if (aVal < bVal) return this.productSortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.productSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        updateHourlyData() {
+            // Update hourly data based on selected day and view type
+        },
+        
+        getTrendIcon(trend) {
+            const icons = {
+                up: 'bi-arrow-up text-success',
+                down: 'bi-arrow-down text-danger',
+                stable: 'bi-dash text-warning'
+            };
+            return icons[trend] || 'bi-dash text-muted';
+        },
+        
+        getTrendText(trend) {
+            const texts = {
+                up: 'Increasing sales',
+                down: 'Decreasing sales',
+                stable: 'Stable sales'
+            };
+            return texts[trend] || 'No trend data';
+        },
+        
+        formatHourlyValue(value) {
+            if (this.hourlyViewType === 'sales') {
+                return this.formatCurrency(value);
+            } else if (this.hourlyViewType === 'transactions') {
+                return value.toString();
+            } else {
+                return this.formatCurrency(value);
+            }
+        },
+        
+        async exportReport() {
+            try {
+                const params = new URLSearchParams({
+                    dateRange: this.dateRange,
+                    customDateFrom: this.customDateFrom,
+                    customDateTo: this.customDateTo,
+                    compareWith: this.compareWith
+                });
+                
+                const response = await fetch(`/api/reports/sales/export?${params}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `sales_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Report exported successfully');
+                } else {
+                    throw new Error('Failed to export report');
+                }
+            } catch (error) {
+                console.error('Error exporting report:', error);
+                this.showError('Failed to export report');
+            }
+        },
+        
+        refreshData() {
+            this.loadData();
+            this.showSuccess('Data refreshed successfully');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + E: Export report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportReport();
+                }
+                
+                // Ctrl/Cmd + R: Refresh data
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.refreshData();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

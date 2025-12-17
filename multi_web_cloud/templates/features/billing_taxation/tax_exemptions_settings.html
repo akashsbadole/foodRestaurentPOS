@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemption Rules Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .settings-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #198754;
+        }
+        .settings-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .rule-item {
+            border-left: 3px solid #198754;
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+        }
+        .nav-pills .nav-link {
+            border-radius: 0.5rem;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #198754;
+        }
+        .setting-group {
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #198754;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .rule-card {
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        .rule-card:hover {
+            border-color: #198754;
+            box-shadow: 0 4px 8px rgba(25, 135, 84, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-light" x-data="taxExemptionsSettings()">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">Exemption Rules Configuration</h1>
+                        <p class="text-muted mb-0">Configure tax exemption rules and approval workflows</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @click="resetToDefaults()">
+                            <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                        </button>
+                        <button class="btn btn-primary" @click="saveAllSettings()">
+                            <i class="bi bi-save"></i> Save All Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" x-show="isFeatureEnabled('FEATURE_TAX_EXEMPTIONS')">
+            <!-- Settings Navigation -->
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <nav class="nav nav-pills flex-column">
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'general'}"
+                               href="#" @click.prevent="activeTab = 'general'">
+                                <i class="bi bi-gear me-2"></i> General Settings
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'categories'}"
+                               href="#" @click.prevent="activeTab = 'categories'">
+                                <i class="bi bi-tags me-2"></i> Exemption Categories
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'rules'}"
+                               href="#" @click.prevent="activeTab = 'rules'">
+                                <i class="bi bi-shield-check me-2"></i> Exemption Rules
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'approval'}"
+                               href="#" @click.prevent="activeTab = 'approval'">
+                                <i class="bi bi-clipboard-check me-2"></i> Approval Workflow
+                            </a>
+                            <a class="nav-link" 
+                               :class="{'active': activeTab === 'notifications'}"
+                               href="#" @click.prevent="activeTab = 'notifications'">
+                                <i class="bi bi-bell me-2"></i> Notifications
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Content -->
+            <div class="col-md-9">
+                <!-- General Settings -->
+                <div class="card settings-card" x-show="activeTab === 'general'">
+                    <div class="card-header">
+                        <h5 class="mb-0">General Exemption Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Default Configuration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Default Certificate Validity (Days)</label>
+                                        <input type="number" class="form-control" x-model="settings.general.defaultValidity" min="1" max="3650">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Auto-Renewal Period (Days)</label>
+                                        <input type="number" class="form-control" x-model="settings.general.autoRenewalPeriod" min="1" max="365">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Maximum Tax Savings (₹)</label>
+                                        <input type="number" class="form-control" x-model="settings.general.maxTaxSavings" min="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Required Documents Count</label>
+                                        <input type="number" class="form-control" x-model="settings.general.requiredDocuments" min="1" max="10">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">Application Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.general.autoApproveLowValue">
+                                        <label class="form-check-label">Auto-approve low value exemptions</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.general.requireDigitalSignature">
+                                        <label class="form-check-label">Require digital signature</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.general.enableAuditTrail">
+                                        <label class="form-check-label">Enable audit trail</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.general.allowSelfCertification">
+                                        <label class="form-check-label">Allow self-certification</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exemption Categories -->
+                <div class="card settings-card" x-show="activeTab === 'categories'">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Exemption Categories</h5>
+                        <button class="btn btn-sm btn-primary" @click="addCategory()">
+                            <i class="bi bi-plus"></i> Add Category
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <template x-for="category in settings.categories" :key="category.id">
+                            <div class="rule-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 x-text="category.name"></h6>
+                                        <p class="text-muted mb-2" x-text="category.description"></p>
+                                        <div class="d-flex gap-2">
+                                            <span class="badge bg-primary" x-text="category.taxType"></span>
+                                            <span class="badge" 
+                                                  :class="{'bg-success': category.enabled, 'bg-secondary': !category.enabled}"
+                                                  x-text="category.enabled ? 'Active' : 'Inactive'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" x-model="category.enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <button class="btn btn-sm btn-outline-primary" @click="editCategory(category)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @click="deleteCategory(category.id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                    </div>
+                </div>
+
+                <!-- Exemption Rules -->
+                <div class="card settings-card" x-show="activeTab === 'rules'">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Exemption Rules</h5>
+                        <button class="btn btn-sm btn-primary" @click="addRule()">
+                            <i class="bi bi-plus"></i> Add Rule
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <template x-for="rule in settings.rules" :key="rule.id">
+                            <div class="rule-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 x-text="rule.name"></h6>
+                                        <p class="text-muted mb-2" x-text="rule.description"></p>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Condition:</small>
+                                                <strong x-text="rule.condition"></strong>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Action:</small>
+                                                <strong x-text="rule.action"></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" x-model="rule.enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <button class="btn btn-sm btn-outline-primary" @click="editRule(rule)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @click="deleteRule(rule.id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                    </div>
+                </div>
+
+                <!-- Approval Workflow -->
+                <div class="card settings-card" x-show="activeTab === 'approval'">
+                    <div class="card-header">
+                        <h5 class="mb-0">Approval Workflow Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Approval Levels</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Minimum Approval Level</label>
+                                        <select class="form-select" x-model="settings.approval.minLevel">
+                                            <option value="1">Level 1 (Manager)</option>
+                                            <option value="2">Level 2 (Senior Manager)</option>
+                                            <option value="3">Level 3 (Director)</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Escalation Threshold (₹)</label>
+                                        <input type="number" class="form-control" x-model="settings.approval.escalationThreshold" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Auto-approve Threshold (₹)</label>
+                                        <input type="number" class="form-control" x-model="settings.approval.autoApproveThreshold" min="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Review Period (Days)</label>
+                                        <input type="number" class="form-control" x-model="settings.approval.reviewPeriod" min="1" max="30">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">Approvers</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Role</th>
+                                            <th>Level</th>
+                                            <th>Active</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="approver in settings.approval.approvers" :key="approver.id">
+                                            <tr>
+                                                <td x-text="approver.name"></td>
+                                                <td x-text="approver.role"></td>
+                                                <td x-text="approver.level"></td>
+                                                <td>
+                                                    <label class="toggle-switch">
+                                                        <input type="checkbox" x-model="approver.active">
+                                                        <span class="slider"></span>
+                                                    </label>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" @click="editApprover(approver)">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" @click="deleteApprover(approver.id)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div class="card settings-card" x-show="activeTab === 'notifications'">
+                    <div class="card-header">
+                        <h5 class="mb-0">Notification Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="setting-group">
+                            <h6 class="mb-3">Alert Preferences</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.notifications.expiryAlerts">
+                                        <label class="form-check-label">Certificate expiry alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.notifications.approvalAlerts">
+                                        <label class="form-check-label">Approval status alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" x-model="settings.notifications.renewalAlerts">
+                                        <label class="form-check-label">Renewal reminders</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Expiry Alert Days</label>
+                                        <input type="number" class="form-control" x-model="settings.notifications.expiryDays" min="1" max="180">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Renewal Alert Days</label>
+                                        <input type="number" class="form-control" x-model="settings.notifications.renewalDays" min="1" max="180">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Notification Email</label>
+                                        <input type="email" class="form-control" x-model="settings.notifications.email">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h6 class="mb-3">Email Templates</h6>
+                            <div class="row">
+                                <template x-for="template in settings.notifications.templates" :key="template.id">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="rule-card">
+                                            <h6 x-text="template.name"></h6>
+                                            <p class="text-muted mb-2" x-text="template.description"></p>
+                                            <button class="btn btn-sm btn-outline-primary" @click="editTemplate(template)">
+                                                <i class="bi bi-pencil"></i> Edit Template
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function taxExemptionsSettings() {
+            return {
+                activeTab: 'general',
+                settings: {
+                    general: {
+                        defaultValidity: 365,
+                        autoRenewalPeriod: 30,
+                        maxTaxSavings: 1000000,
+                        requiredDocuments: 3,
+                        autoApproveLowValue: true,
+                        requireDigitalSignature: false,
+                        enableAuditTrail: true,
+                        allowSelfCertification: false
+                    },
+                    categories: [
+                        { id: 1, name: 'Healthcare', description: 'Medical and healthcare services', taxType: 'GST/VAT', enabled: true },
+                        { id: 2, name: 'Education', description: 'Educational institutions and services', taxType: 'GST/VAT', enabled: true },
+                        { id: 3, name: 'Charitable', description: 'Charitable organizations', taxType: 'GST/VAT', enabled: true },
+                        { id: 4, name: 'Agriculture', description: 'Agricultural products and services', taxType: 'GST/VAT', enabled: true },
+                        { id: 5, name: 'Exports', description: 'Export-oriented businesses', taxType: 'Customs', enabled: true }
+                    ],
+                    rules: [
+                        { id: 1, name: 'Low Value Exemption', description: 'Auto-approve exemptions below threshold', condition: 'Tax Savings < ₹50,000', action: 'Auto-approve', enabled: true },
+                        { id: 2, name: 'Healthcare Provider', description: 'Healthcare service providers', condition: 'Entity Type = Healthcare', action: 'Fast-track approval', enabled: true },
+                        { id: 3, name: 'Educational Institution', description: 'Educational institutions', condition: 'Entity Type = Education', action: 'Require additional documents', enabled: true }
+                    ],
+                    approval: {
+                        minLevel: 2,
+                        escalationThreshold: 500000,
+                        autoApproveThreshold: 50000,
+                        reviewPeriod: 7,
+                        approvers: [
+                            { id: 1, name: 'John Smith', role: 'Finance Manager', level: 1, active: true },
+                            { id: 2, name: 'Jane Doe', role: 'Senior Manager', level: 2, active: true },
+                            { id: 3, name: 'Robert Johnson', role: 'Director', level: 3, active: false }
+                        ]
+                    },
+                    notifications: {
+                        expiryAlerts: true,
+                        approvalAlerts: true,
+                        renewalAlerts: true,
+                        expiryDays: 30,
+                        renewalDays: 60,
+                        email: 'exemptions@company.com',
+                        templates: [
+                            { id: 1, name: 'Expiry Alert', description: 'Certificate expiry notification' },
+                            { id: 2, name: 'Approval Notification', description: 'Application approval status' },
+                            { id: 3, name: 'Renewal Reminder', description: 'Certificate renewal reminder' }
+                        ]
+                    }
+                },
+                
+                isFeatureEnabled(feature) {
+                    return true;
+                },
+                
+                addCategory() {
+                    console.log('Adding new exemption category');
+                },
+                
+                editCategory(category) {
+                    console.log('Editing category:', category);
+                },
+                
+                deleteCategory(id) {
+                    if (confirm('Are you sure you want to delete this category?')) {
+                        this.settings.categories = this.settings.categories.filter(cat => cat.id !== id);
+                    }
+                },
+                
+                addRule() {
+                    console.log('Adding new exemption rule');
+                },
+                
+                editRule(rule) {
+                    console.log('Editing rule:', rule);
+                },
+                
+                deleteRule(id) {
+                    if (confirm('Are you sure you want to delete this rule?')) {
+                        this.settings.rules = this.settings.rules.filter(rule => rule.id !== id);
+                    }
+                },
+                
+                editApprover(approver) {
+                    console.log('Editing approver:', approver);
+                },
+                
+                deleteApprover(id) {
+                    if (confirm('Are you sure you want to remove this approver?')) {
+                        this.settings.approval.approvers = this.settings.approval.approvers.filter(app => app.id !== id);
+                    }
+                },
+                
+                editTemplate(template) {
+                    console.log('Editing template:', template);
+                },
+                
+                resetToDefaults() {
+                    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                        console.log('Resetting to defaults');
+                    }
+                },
+                
+                saveAllSettings() {
+                    console.log('Saving all settings:', this.settings);
+                    alert('Settings saved successfully!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

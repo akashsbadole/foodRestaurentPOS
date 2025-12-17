@@ -1,0 +1,695 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/sales_processing_list.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Sales List Interface -->
+<div class="sales-list-container" x-data="salesListApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="sales-list-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="sales-title">
+                    <i class="bi bi-receipt me-2"></i>
+                    Sales History
+                </h2>
+                <p class="sales-subtitle text-muted">View and manage all sales transactions</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="sales-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSales()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="createNewSale()">
+                        <i class="bi bi-plus-circle"></i> New Sale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="sales-filters">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" 
+                           class="form-control" 
+                           x-model="filters.search"
+                           @input="applyFilters()"
+                           placeholder="Search by ID, customer, or items...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date From</label>
+                <input type="date" 
+                       class="form-control" 
+                       x-model="filters.dateFrom"
+                       @change="applyFilters()">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date To</label>
+                <input type="date" 
+                       class="form-control" 
+                       x-model="filters.dateTo"
+                       @change="applyFilters()">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select class="form-select" x-model="filters.status" @change="applyFilters()">
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="refunded">Refunded</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Payment Method</label>
+                <select class="form-select" x-model="filters.paymentMethod" @change="applyFilters()">
+                    <option value="">All Methods</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="upi" x-show="isFeatureEnabled('FEATURE_UPI_PAYMENT')">UPI</option>
+                    <option value="wallet" x-show="isFeatureEnabled('FEATURE_WALLET_PAYMENT')">Wallet</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-outline-secondary w-100" @click="resetFilters()">
+                    <i class="bi bi-arrow-clockwise"></i> Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="sales-summary mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="summary-icon bg-primary">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Total Revenue</h6>
+                        <p class="summary-value" x-text="formatCurrency(summary.totalRevenue)"></p>
+                        <small class="summary-change text-success" x-show="summary.revenueChange > 0">
+                            <i class="bi bi-arrow-up"></i> +<span x-text="summary.revenueChange.toFixed(1)"></span>%
+                        </small>
+                        <small class="summary-change text-danger" x-show="summary.revenueChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="summary.revenueChange.toFixed(1)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="summary-icon bg-success">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Total Sales</h6>
+                        <p class="summary-value" x-text="summary.totalSales"></p>
+                        <small class="summary-change text-success" x-show="summary.salesChange > 0">
+                            <i class="bi bi-arrow-up"></i> +<span x-text="summary.salesChange.toFixed(1)"></span>%
+                        </small>
+                        <small class="summary-change text-danger" x-show="summary.salesChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="summary.salesChange.toFixed(1)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="summary-icon bg-info">
+                        <i class="bi bi-cart3"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Average Sale</h6>
+                        <p class="summary-value" x-text="formatCurrency(summary.averageSale)"></p>
+                        <small class="summary-change text-success" x-show="summary.averageChange > 0">
+                            <i class="bi bi-arrow-up"></i> +<span x-text="summary.averageChange.toFixed(1)"></span>%
+                        </small>
+                        <small class="summary-change text-danger" x-show="summary.averageChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="summary.averageChange.toFixed(1)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <div class="summary-icon bg-warning">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h6 class="summary-label">Customers</h6>
+                        <p class="summary-value" x-text="summary.totalCustomers"></p>
+                        <small class="summary-change text-success" x-show="summary.customersChange > 0">
+                            <i class="bi bi-arrow-up"></i> +<span x-text="summary.customersChange.toFixed(1)"></span>%
+                        </small>
+                        <small class="summary-change text-danger" x-show="summary.customersChange < 0">
+                            <i class="bi bi-arrow-down"></i> <span x-text="summary.customersChange.toFixed(1)"></span>%
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales Table -->
+    <div class="sales-table-container">
+        <div class="table-responsive">
+            <table class="table table-hover sales-table">
+                <thead>
+                    <tr>
+                        <th @click="sortBy('id')" class="sortable">
+                            Sale ID
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'id'"></i>
+                        </th>
+                        <th @click="sortBy('date')" class="sortable">
+                            Date & Time
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'date'"></i>
+                        </th>
+                        <th @click="sortBy('customer')" class="sortable">
+                            Customer
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'customer'"></i>
+                        </th>
+                        <th>Items</th>
+                        <th @click="sortBy('total')" class="sortable">
+                            Total
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'total'"></i>
+                        </th>
+                        <th>Payment Method</th>
+                        <th @click="sortBy('status')" class="sortable">
+                            Status
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'status'"></i>
+                        </th>
+                        <th>Staff</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="sale in paginatedSales" :key="sale.id">
+                        <tr class="sale-row" @click="viewSaleDetails(sale.id)">
+                            <td>
+                                <span class="sale-id" x-text="sale.id"></span>
+                            </td>
+                            <td>
+                                <div class="sale-date">
+                                    <span x-text="formatDate(sale.date)"></span>
+                                    <small class="text-muted" x-text="formatTime(sale.date)"></small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="customer-info" x-show="sale.customer">
+                                    <strong x-text="sale.customer.name"></strong>
+                                    <br>
+                                    <small class="text-muted" x-text="sale.customer.phone || sale.customer.email"></small>
+                                </div>
+                                <span class="text-muted" x-show="!sale.customer">Walk-in Customer</span>
+                            </td>
+                            <td>
+                                <div class="items-preview">
+                                    <span x-text="sale.items.length"></span> items
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link p-0 ms-1"
+                                            @click.stop="toggleItems(sale.id)">
+                                        <i class="bi bi-chevron-down" 
+                                           x-show="!expandedItems.includes(sale.id)"></i>
+                                        <i class="bi bi-chevron-up" 
+                                           x-show="expandedItems.includes(sale.id)"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="sale-total" x-text="formatCurrency(sale.total)"></span>
+                            </td>
+                            <td>
+                                <span class="payment-method" 
+                                      :class="`payment-${sale.payment_method}`"
+                                      x-text="formatPaymentMethod(sale.payment_method)"></span>
+                            </td>
+                            <td>
+                                <span class="status-badge" 
+                                      :class="`status-${sale.status}`"
+                                      x-text="formatStatus(sale.status)"></span>
+                            </td>
+                            <td>
+                                <div class="staff-info">
+                                    <span x-text="sale.staff?.name || 'System'"></span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary me-1"
+                                            @click.stop="viewSaleDetails(sale.id)"
+                                            title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success me-1"
+                                            @click.stop="printReceipt(sale.id)"
+                                            title="Print Receipt"
+                                            x-show="isFeatureEnabled('FEATURE_RECEIPT_PRINTING')">
+                                        <i class="bi bi-printer"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-warning me-1"
+                                            @click.stop="processReturn(sale.id)"
+                                            title="Process Return"
+                                            x-show="sale.status === 'completed' && isFeatureEnabled('FEATURE_SALES_RETURN')">
+                                        <i class="bi bi-arrow-return-left"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            @click.stop="cancelSale(sale.id)"
+                                            title="Cancel Sale"
+                                            x-show="sale.status === 'pending'">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Expanded Items Row -->
+                        <tr x-show="expandedItems.includes(sale.id)" class="items-expanded-row">
+                            <td colspan="9">
+                                <div class="expanded-items">
+                                    <h6 class="items-title">Sale Items</h6>
+                                    <div class="items-list">
+                                        <template x-for="item in sale.items" :key="item.id">
+                                            <div class="item-row">
+                                                <div class="item-details">
+                                                    <strong x-text="item.name"></strong>
+                                                    <span class="text-muted ms-2" x-show="item.sku">
+                                                        SKU: <span x-text="item.sku"></span>
+                                                    </span>
+                                                    <span class="text-muted ms-2" x-show="item.variant">
+                                                        Variant: <span x-text="item.variant"></span>
+                                                    </span>
+                                                </div>
+                                                <div class="item-quantity-price">
+                                                    <span class="quantity" x-text="`${item.quantity}x`"></span>
+                                                    <span class="price" x-text="formatCurrency(item.price)"></span>
+                                                    <span class="total" x-text="formatCurrency(item.price * item.quantity)"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="sale-summary" x-show="sale.discount > 0 || sale.tax > 0">
+                                        <div class="summary-row">
+                                            <span>Subtotal:</span>
+                                            <span x-text="formatCurrency(sale.subtotal)"></span>
+                                        </div>
+                                        <div class="summary-row" x-show="sale.discount > 0">
+                                            <span>Discount:</span>
+                                            <span class="text-success">-<span x-text="formatCurrency(sale.discount)"></span></span>
+                                        </div>
+                                        <div class="summary-row" x-show="sale.tax > 0">
+                                            <span>Tax:</span>
+                                            <span x-text="formatCurrency(sale.tax)"></span>
+                                        </div>
+                                        <div class="summary-row total">
+                                            <span>Total:</span>
+                                            <span x-text="formatCurrency(sale.total)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="filteredSales.length === 0">
+                        <td colspan="9" class="text-center py-4">
+                            <div class="no-results">
+                                <i class="bi bi-search display-4 text-muted"></i>
+                                <p class="mt-3 text-muted">No sales found matching your criteria</p>
+                                <button type="button" class="btn btn-outline-primary" @click="resetFilters()">
+                                    Clear Filters
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="sales-pagination" x-show="totalPages > 1">
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item" :class="{'disabled': currentPage === 1}">
+                    <button class="page-link" @click="goToPage(currentPage - 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </li>
+                <template x-for="page in visiblePages" :key="page">
+                    <li class="page-item" :class="{'active': page === currentPage}">
+                        <button class="page-link" @click="goToPage(page)" x-text="page"></button>
+                    </li>
+                </template>
+                <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                    <button class="page-link" @click="goToPage(currentPage + 1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/sales_processing_list.js') }}"></script>
+<script>
+// Sales List App
+function salesListApp() {
+    return {
+        // Data
+        sales: [],
+        filters: {
+            search: '',
+            dateFrom: '',
+            dateTo: '',
+            status: '',
+            paymentMethod: ''
+        },
+        sortField: 'date',
+        sortDirection: 'desc',
+        currentPage: 1,
+        itemsPerPage: 25,
+        expandedItems: [],
+        summary: {
+            totalRevenue: 0,
+            totalSales: 0,
+            averageSale: 0,
+            totalCustomers: 0,
+            revenueChange: 0,
+            salesChange: 0,
+            averageChange: 0,
+            customersChange: 0
+        },
+        
+        // Computed properties
+        get filteredSales() {
+            let filtered = this.sales;
+            
+            // Apply search filter
+            if (this.filters.search) {
+                const search = this.filters.search.toLowerCase();
+                filtered = filtered.filter(sale => 
+                    sale.id.toLowerCase().includes(search) ||
+                    (sale.customer && sale.customer.name.toLowerCase().includes(search)) ||
+                    sale.items.some(item => item.name.toLowerCase().includes(search))
+                );
+            }
+            
+            // Apply date filters
+            if (this.filters.dateFrom) {
+                filtered = filtered.filter(sale => sale.date >= this.filters.dateFrom);
+            }
+            if (this.filters.dateTo) {
+                filtered = filtered.filter(sale => sale.date <= this.filters.dateTo);
+            }
+            
+            // Apply status filter
+            if (this.filters.status) {
+                filtered = filtered.filter(sale => sale.status === this.filters.status);
+            }
+            
+            // Apply payment method filter
+            if (this.filters.paymentMethod) {
+                filtered = filtered.filter(sale => sale.payment_method === this.filters.paymentMethod);
+            }
+            
+            return filtered;
+        },
+        
+        get sortedSales() {
+            return [...this.filteredSales].sort((a, b) => {
+                let aVal = a[this.sortField];
+                let bVal = b[this.sortField];
+                
+                if (this.sortField === 'customer') {
+                    aVal = a.customer?.name || '';
+                    bVal = b.customer?.name || '';
+                }
+                
+                if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        get paginatedSales() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.sortedSales.slice(start, end);
+        },
+        
+        get totalPages() {
+            return Math.ceil(this.filteredSales.length / this.itemsPerPage);
+        },
+        
+        get visiblePages() {
+            const pages = [];
+            const start = Math.max(1, this.currentPage - 2);
+            const end = Math.min(this.totalPages, this.currentPage + 2);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            return pages;
+        },
+        
+        // Methods
+        init() {
+            this.loadSales();
+            this.loadSummary();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSales() {
+            try {
+                const response = await fetch('/api/sales');
+                this.sales = await response.json();
+            } catch (error) {
+                console.error('Error loading sales:', error);
+                this.showError('Failed to load sales data');
+            }
+        },
+        
+        async loadSummary() {
+            try {
+                const response = await fetch('/api/sales/summary');
+                this.summary = await response.json();
+            } catch (error) {
+                console.error('Error loading summary:', error);
+            }
+        },
+        
+        applyFilters() {
+            this.currentPage = 1;
+        },
+        
+        resetFilters() {
+            this.filters = {
+                search: '',
+                dateFrom: '',
+                dateTo: '',
+                status: '',
+                paymentMethod: ''
+            };
+            this.currentPage = 1;
+        },
+        
+        sortBy(field) {
+            if (this.sortField === field) {
+                this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortDirection = 'asc';
+            }
+        },
+        
+        goToPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+            }
+        },
+        
+        toggleItems(saleId) {
+            const index = this.expandedItems.indexOf(saleId);
+            if (index > -1) {
+                this.expandedItems.splice(index, 1);
+            } else {
+                this.expandedItems.push(saleId);
+            }
+        },
+        
+        viewSaleDetails(saleId) {
+            window.location.href = `/sales/${saleId}`;
+        },
+        
+        createNewSale() {
+            window.location.href = '/sales/new';
+        },
+        
+        async printReceipt(saleId) {
+            try {
+                const response = await fetch(`/api/sales/${saleId}/print`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Receipt printed successfully');
+                } else {
+                    throw new Error('Failed to print receipt');
+                }
+            } catch (error) {
+                console.error('Error printing receipt:', error);
+                this.showError('Failed to print receipt');
+            }
+        },
+        
+        processReturn(saleId) {
+            window.location.href = `/returns/new?sale_id=${saleId}`;
+        },
+        
+        async cancelSale(saleId) {
+            if (!confirm('Are you sure you want to cancel this sale?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/sales/${saleId}/cancel`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Sale cancelled successfully');
+                    this.loadSales();
+                } else {
+                    throw new Error('Failed to cancel sale');
+                }
+            } catch (error) {
+                console.error('Error cancelling sale:', error);
+                this.showError('Failed to cancel sale');
+            }
+        },
+        
+        async exportSales() {
+            try {
+                const params = new URLSearchParams(this.filters);
+                const response = await fetch(`/api/sales/export?${params}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `sales_export_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Sales exported successfully');
+                } else {
+                    throw new Error('Failed to export sales');
+                }
+            } catch (error) {
+                console.error('Error exporting sales:', error);
+                this.showError('Failed to export sales');
+            }
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + N: New sale
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.createNewSale();
+                }
+                
+                // Ctrl/Cmd + E: Export
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSales();
+                }
+                
+                // Ctrl/Cmd + R: Reset filters
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetFilters();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        formatTime(dateString) {
+            return new Date(dateString).toLocaleTimeString();
+        },
+        
+        formatPaymentMethod(method) {
+            const methods = {
+                cash: 'Cash',
+                card: 'Card',
+                upi: 'UPI',
+                wallet: 'Wallet'
+            };
+            return methods[method] || method;
+        },
+        
+        formatStatus(status) {
+            const statuses = {
+                completed: 'Completed',
+                pending: 'Pending',
+                cancelled: 'Cancelled',
+                refunded: 'Refunded'
+            };
+            return statuses[status] || status;
+        },
+        
+        isFeatureEnabled(feature) {
+            return window.RETAIL_CONFIG.features[feature] || false;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

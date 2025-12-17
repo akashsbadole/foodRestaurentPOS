@@ -1,0 +1,921 @@
+<!-- Feature-Aware Dashboard Component -->
+<div class="feature-dashboard-container" x-data="featureDashboard()" x-init="init()">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h1 class="dashboard-title" x-text="dashboardTitle"></h1>
+                <p class="dashboard-subtitle text-muted" x-text="dashboardSubtitle"></p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="dashboard-controls">
+                    <!-- Date Range Selector -->
+                    <div class="date-range-selector d-inline-block me-2">
+                        <select class="form-select form-select-sm" x-model="dateRange" @change="refreshData()">
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="year">This Year</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Custom Date Range (shown when custom is selected) -->
+                    <div class="custom-date-range d-inline-block me-2" x-show="dateRange === 'custom'">
+                        <input type="date" class="form-control form-control-sm d-inline-block" 
+                               x-model="customStartDate" @change="refreshData()">
+                        <span class="mx-1">to</span>
+                        <input type="date" class="form-control form-control-sm d-inline-block" 
+                               x-model="customEndDate" @change="refreshData()">
+                    </div>
+                    
+                    <!-- Refresh Button -->
+                    <button class="btn btn-sm btn-outline-primary" @click="refreshData()" :disabled="loading">
+                        <i class="bi bi-arrow-clockwise" :class="{'spin': loading}"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Key Metrics Cards -->
+    <div class="metrics-row mb-4">
+        <div class="row">
+            <template x-for="metric in visibleMetrics" :key="metric.id">
+                <div class="col-md-3 col-sm-6 mb-3" x-show="isMetricVisible(metric)">
+                    <div class="metric-card" :class="`metric-${metric.type}`">
+                        <div class="metric-header">
+                            <div class="metric-icon">
+                                <i :class="metric.icon"></i>
+                            </div>
+                            <div class="metric-title" x-text="metric.title"></div>
+                        </div>
+                        <div class="metric-value" x-text="formatMetricValue(metric)"></div>
+                        <div class="metric-change" :class="getChangeClass(metric.change)">
+                            <i :class="getChangeIcon(metric.change)"></i>
+                            <span x-text="formatChange(metric.change)"></span>
+                            <small class="text-muted" x-text="metric.changePeriod"></small>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    
+    <!-- Charts Row -->
+    <div class="charts-row mb-4">
+        <div class="row">
+            <!-- Main Chart -->
+            <div class="col-lg-8 mb-3">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h5 class="chart-title" x-text="mainChart.title"></h5>
+                        <div class="chart-controls">
+                            <select class="form-select form-select-sm" x-model="mainChart.type" @change="updateMainChart()">
+                                <option value="line">Line</option>
+                                <option value="bar">Bar</option>
+                                <option value="area">Area</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-body">
+                        <canvas :id="mainChart.id" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Secondary Charts -->
+            <div class="col-lg-4 mb-3">
+                <template x-for="chart in visibleSecondaryCharts" :key="chart.id">
+                    <div class="chart-card mb-3" x-show="isChartVisible(chart)">
+                        <div class="chart-header">
+                            <h6 class="chart-title" x-text="chart.title"></h6>
+                        </div>
+                        <div class="chart-body">
+                            <canvas :id="chart.id" width="200" height="150"></canvas>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Tables Row -->
+    <div class="tables-row mb-4">
+        <div class="row">
+            <template x-for="table in visibleTables" :key="table.id">
+                <div class="col-lg-6 mb-3" x-show="isTableVisible(table)">
+                    <div class="table-card">
+                        <div class="table-header">
+                            <h5 class="table-title" x-text="table.title"></h5>
+                            <a :href="table.viewAllLink" class="btn btn-sm btn-outline-primary" x-show="table.viewAllLink">
+                                View All
+                            </a>
+                        </div>
+                        <div class="table-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <template x-for="column in table.columns" :key="column.key">
+                                                <th x-text="column.title"></th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="row in table.data" :key="row.id">
+                                            <tr>
+                                                <template x-for="column in table.columns" :key="column.key">
+                                                    <td :class="column.class">
+                                                        <template x-if="column.type === 'status'">
+                                                            <span class="badge" :class="getStatusClass(row[column.key])" x-text="row[column.key]"></span>
+                                                        </template>
+                                                        <template x-if="column.type === 'price'">
+                                                            <span x-text="formatCurrency(row[column.key])"></span>
+                                                        </template>
+                                                        <template x-if="column.type === 'date'">
+                                                            <span x-text="formatDate(row[column.key])"></span>
+                                                        </template>
+                                                        <template x-if="!column.type || column.type === 'text'">
+                                                            <span x-text="row[column.key]"></span>
+                                                        </template>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    
+    <!-- Quick Actions Panel -->
+    <div class="quick-actions-panel mb-4" x-show="quickActions.length > 0">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <template x-for="action in quickActions" :key="action.id">
+                        <div class="col-md-3 col-sm-6 mb-3" x-show="isActionVisible(action)">
+                            <button class="btn btn-outline-primary w-100 quick-action-btn" @click="executeAction(action)">
+                                <i :class="action.icon"></i>
+                                <div x-text="action.title"></div>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Activity Feed -->
+    <div class="activity-feed mb-4" x-show="hasActivityFeature">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Activity</h5>
+                <button class="btn btn-sm btn-outline-secondary" @click="loadMoreActivity()">
+                    Load More
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="activity-list">
+                    <template x-for="activity in activities" :key="activity.id">
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i :class="activity.icon"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title" x-text="activity.title"></div>
+                                <div class="activity-description" x-text="activity.description"></div>
+                                <div class="activity-time" x-text="formatActivityTime(activity.timestamp)"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function featureDashboard() {
+    return {
+        // Dashboard data
+        loading: false,
+        dateRange: 'today',
+        customStartDate: '',
+        customEndDate: '',
+        metrics: [],
+        charts: {},
+        tables: [],
+        activities: [],
+        quickActions: [],
+        
+        // Configuration
+        retailType: window.RETAIL_CONFIG.retailType,
+        features: window.RETAIL_CONFIG.features,
+        permissions: window.RETAIL_CONFIG.permissions,
+        
+        // Dashboard configuration
+        dashboardConfig: {},
+        
+        init() {
+            this.loadDashboardConfig();
+            this.initializeDateRange();
+            this.loadDashboardData();
+            this.setupRealtimeUpdates();
+        },
+        
+        loadDashboardConfig() {
+            // Load dashboard configuration based on retail type
+            const configs = {
+                restaurant: {
+                    title: 'Restaurant Dashboard',
+                    subtitle: 'Real-time restaurant operations overview',
+                    metrics: [
+                        { id: 'total_orders', title: 'Total Orders', icon: 'bi-receipt', type: 'primary', feature: 'FEATURE_ORDER_MANAGEMENT' },
+                        { id: 'revenue', title: 'Revenue', icon: 'bi-currency-dollar', type: 'success', feature: 'FEATURE_PAYMENT_PROCESSING' },
+                        { id: 'active_tables', title: 'Active Tables', icon: 'bi-grid-3x3-gap', type: 'info', feature: 'FEATURE_RESTAURANT_TABLES' },
+                        { id: 'avg_order_value', title: 'Avg Order Value', icon: 'bi-graph-up', type: 'warning' },
+                        { id: 'reservations', title: 'Reservations', icon: 'bi-calendar-check', type: 'primary', feature: 'FEATURE_TABLE_RESERVATIONS' },
+                        { id: 'kitchen_queue', title: 'Kitchen Queue', icon: 'bi-clock-history', type: 'danger', feature: 'FEATURE_KITCHEN_DISPLAY' }
+                    ],
+                    mainChart: {
+                        id: 'revenue-chart',
+                        title: 'Revenue Trend',
+                        type: 'line',
+                        feature: 'FEATURE_ANALYTICS'
+                    },
+                    secondaryCharts: [
+                        { id: 'order-status-chart', title: 'Order Status', type: 'doughnut', feature: 'FEATURE_ORDER_MANAGEMENT' },
+                        { id: 'peak-hours-chart', title: 'Peak Hours', type: 'bar', feature: 'FEATURE_ANALYTICS' }
+                    ],
+                    tables: [
+                        { 
+                            id: 'recent-orders', 
+                            title: 'Recent Orders', 
+                            feature: 'FEATURE_ORDER_MANAGEMENT',
+                            viewAllLink: '/restaurant/orders',
+                            columns: [
+                                { key: 'order_number', title: 'Order #' },
+                                { key: 'table_number', title: 'Table' },
+                                { key: 'customer_name', title: 'Customer' },
+                                { key: 'status', title: 'Status', type: 'status' },
+                                { key: 'total_amount', title: 'Total', type: 'price' }
+                            ]
+                        },
+                        { 
+                            id: 'table-status', 
+                            title: 'Table Status', 
+                            feature: 'FEATURE_RESTAURANT_TABLES',
+                            viewAllLink: '/restaurant/tables',
+                            columns: [
+                                { key: 'table_number', title: 'Table' },
+                                { key: 'status', title: 'Status', type: 'status' },
+                                { key: 'capacity', title: 'Capacity' },
+                                { key: 'current_occupancy', title: 'Occupied' },
+                                { key: 'server', title: 'Server' }
+                            ]
+                        }
+                    ],
+                    quickActions: [
+                        { id: 'new_order', title: 'New Order', icon: 'bi-plus-circle', feature: 'FEATURE_ORDER_MANAGEMENT', permission: 'ORDER_CREATE' },
+                        { id: 'table_management', title: 'Table Management', icon: 'bi-grid-3x3-gap', feature: 'FEATURE_RESTAURANT_TABLES', permission: 'TABLE_MANAGE' },
+                        { id: 'reservations', title: 'Reservations', icon: 'bi-calendar-check', feature: 'FEATURE_TABLE_RESERVATIONS', permission: 'RESERVATION_MANAGE' },
+                        { id: 'kitchen_display', title: 'Kitchen Display', icon: 'bi-clipboard-check', feature: 'FEATURE_KITCHEN_DISPLAY', permission: 'KITCHEN_VIEW' }
+                    ]
+                },
+                apparel: {
+                    title: 'Apparel Dashboard',
+                    subtitle: 'Sales and inventory overview for apparel store',
+                    metrics: [
+                        { id: 'total_sales', title: 'Total Sales', icon: 'bi-currency-dollar', type: 'success', feature: 'FEATURE_SALES_TRACKING' },
+                        { id: 'products_sold', title: 'Products Sold', icon: 'bi-bag', type: 'primary', feature: 'FEATURE_PRODUCT_MANAGEMENT' },
+                        { id: 'low_stock_items', title: 'Low Stock Items', icon: 'bi-exclamation-triangle', type: 'warning', feature: 'FEATURE_INVENTORY_MANAGEMENT' },
+                        { id: 'returns', title: 'Returns', icon: 'bi-arrow-return-left', type: 'danger', feature: 'FEATURE_RETURN_MANAGEMENT' },
+                        { id: 'avg_transaction', title: 'Avg Transaction', icon: 'bi-graph-up', type: 'info' },
+                        { id: 'top_category', title: 'Top Category', icon: 'bi-star', type: 'primary' }
+                    ],
+                    mainChart: {
+                        id: 'sales-chart',
+                        title: 'Sales Trend',
+                        type: 'line',
+                        feature: 'FEATURE_ANALYTICS'
+                    },
+                    secondaryCharts: [
+                        { id: 'category-sales-chart', title: 'Sales by Category', type: 'doughnut', feature: 'FEATURE_ANALYTICS' },
+                        { id: 'size-distribution-chart', title: 'Size Distribution', type: 'bar', feature: 'FEATURE_SIZE_VARIANTS' }
+                    ],
+                    tables: [
+                        { 
+                            id: 'top-products', 
+                            title: 'Top Selling Products', 
+                            feature: 'FEATURE_PRODUCT_MANAGEMENT',
+                            viewAllLink: '/apparel/products',
+                            columns: [
+                                { key: 'name', title: 'Product' },
+                                { key: 'category', title: 'Category' },
+                                { key: 'units_sold', title: 'Units Sold' },
+                                { key: 'revenue', title: 'Revenue', type: 'price' }
+                            ]
+                        },
+                        { 
+                            id: 'low-stock', 
+                            title: 'Low Stock Items', 
+                            feature: 'FEATURE_INVENTORY_MANAGEMENT',
+                            viewAllLink: '/apparel/inventory',
+                            columns: [
+                                { key: 'name', title: 'Product' },
+                                { key: 'sku', title: 'SKU' },
+                                { key: 'current_stock', title: 'Current Stock' },
+                                { key: 'reorder_level', title: 'Reorder Level' },
+                                { key: 'status', title: 'Status', type: 'status' }
+                            ]
+                        }
+                    ],
+                    quickActions: [
+                        { id: 'new_product', title: 'New Product', icon: 'bi-plus-circle', feature: 'FEATURE_PRODUCT_MANAGEMENT', permission: 'PRODUCT_CREATE' },
+                        { id: 'manage_inventory', title: 'Manage Inventory', icon: 'bi-box', feature: 'FEATURE_INVENTORY_MANAGEMENT', permission: 'INVENTORY_MANAGE' },
+                        { id: 'process_return', title: 'Process Return', icon: 'bi-arrow-return-left', feature: 'FEATURE_RETURN_MANAGEMENT', permission: 'RETURN_PROCESS' },
+                        { id: 'manage_variants', title: 'Manage Variants', icon: 'bi-layers', feature: 'FEATURE_SIZE_VARIANTS', permission: 'VARIANT_MANAGE' }
+                    ]
+                }
+            };
+            
+            this.dashboardConfig = configs[this.retailType] || configs.restaurant;
+        },
+        
+        initializeDateRange() {
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            this.customStartDate = yesterday.toISOString().split('T')[0];
+            this.customEndDate = today.toISOString().split('T')[0];
+        },
+        
+        async loadDashboardData() {
+            this.loading = true;
+            try {
+                await Promise.all([
+                    this.loadMetrics(),
+                    this.loadCharts(),
+                    this.loadTables(),
+                    this.loadActivities(),
+                    this.loadQuickActions()
+                ]);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                this.showError('Failed to load dashboard data');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async loadMetrics() {
+            try {
+                const response = await fetch(`/api/${this.retailType}/dashboard/metrics?date_range=${this.dateRange}`);
+                const data = await response.json();
+                
+                this.metrics = this.dashboardConfig.metrics.map(metric => ({
+                    ...metric,
+                    value: data[metric.id]?.value || 0,
+                    change: data[metric.id]?.change || 0,
+                    changePeriod: data[metric.id]?.change_period || 'vs last period'
+                }));
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        },
+        
+        async loadCharts() {
+            try {
+                // Load main chart
+                if (this.isChartVisible(this.dashboardConfig.mainChart)) {
+                    const response = await fetch(`/api/${this.retailType}/dashboard/charts/${this.dashboardConfig.mainChart.id}?date_range=${this.dateRange}`);
+                    const data = await response.json();
+                    
+                    this.mainChart = { ...this.dashboardConfig.mainChart, data };
+                    this.renderChart(this.mainChart);
+                }
+                
+                // Load secondary charts
+                this.secondaryCharts = await Promise.all(
+                    this.dashboardConfig.secondaryCharts
+                        .filter(chart => this.isChartVisible(chart))
+                        .map(async chart => {
+                            try {
+                                const response = await fetch(`/api/${this.retailType}/dashboard/charts/${chart.id}?date_range=${this.dateRange}`);
+                                const data = await response.json();
+                                return { ...chart, data };
+                            } catch (error) {
+                                console.error(`Error loading chart ${chart.id}:`, error);
+                                return null;
+                            }
+                        })
+                );
+                
+                this.secondaryCharts.forEach(chart => {
+                    if (chart) this.renderChart(chart);
+                });
+            } catch (error) {
+                console.error('Error loading charts:', error);
+            }
+        },
+        
+        async loadTables() {
+            try {
+                this.tables = await Promise.all(
+                    this.dashboardConfig.tables
+                        .filter(table => this.isTableVisible(table))
+                        .map(async table => {
+                            try {
+                                const response = await fetch(`/api/${this.retailType}/dashboard/tables/${table.id}?limit=5`);
+                                const data = await response.json();
+                                return { ...table, data: data.data || [] };
+                            } catch (error) {
+                                console.error(`Error loading table ${table.id}:`, error);
+                                return { ...table, data: [] };
+                            }
+                        })
+                );
+            } catch (error) {
+                console.error('Error loading tables:', error);
+            }
+        },
+        
+        async loadActivities() {
+            if (!this.hasActivityFeature) return;
+            
+            try {
+                const response = await fetch(`/api/${this.retailType}/dashboard/activities?limit=10`);
+                const data = await response.json();
+                this.activities = data.data || [];
+            } catch (error) {
+                console.error('Error loading activities:', error);
+            }
+        },
+        
+        loadQuickActions() {
+            this.quickActions = this.dashboardConfig.quickActions.filter(action => 
+                this.isActionVisible(action)
+            );
+        },
+        
+        get visibleMetrics() {
+            return this.metrics.filter(metric => this.isMetricVisible(metric));
+        },
+        
+        get visibleSecondaryCharts() {
+            return this.secondaryCharts.filter(chart => chart && this.isChartVisible(chart));
+        },
+        
+        get visibleTables() {
+            return this.tables.filter(table => this.isTableVisible(table));
+        },
+        
+        get dashboardTitle() {
+            return this.dashboardConfig.title;
+        },
+        
+        get dashboardSubtitle() {
+            return this.dashboardConfig.subtitle;
+        },
+        
+        get mainChart() {
+            return this.charts[this.dashboardConfig.mainChart.id];
+        },
+        
+        get hasActivityFeature() {
+            return this.isFeatureEnabled('FEATURE_ACTIVITY_FEED');
+        },
+        
+        isMetricVisible(metric) {
+            return !metric.feature || this.isFeatureEnabled(metric.feature);
+        },
+        
+        isChartVisible(chart) {
+            return !chart.feature || this.isFeatureEnabled(chart.feature);
+        },
+        
+        isTableVisible(table) {
+            return !table.feature || this.isFeatureEnabled(table.feature);
+        },
+        
+        isActionVisible(action) {
+            const featureEnabled = !action.feature || this.isFeatureEnabled(action.feature);
+            const hasPermission = !action.permission || this.hasPermission(action.permission);
+            return featureEnabled && hasPermission;
+        },
+        
+        renderChart(chart) {
+            const ctx = document.getElementById(chart.id);
+            if (!ctx) return;
+            
+            // Simplified chart rendering - in production, use Chart.js or similar
+            ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+            
+            // Add placeholder text
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${chart.title} Chart`, ctx.width / 2, ctx.height / 2);
+        },
+        
+        updateMainChart() {
+            this.renderChart(this.mainChart);
+        },
+        
+        refreshData() {
+            this.loadDashboardData();
+        },
+        
+        executeAction(action) {
+            // Handle quick action execution
+            switch (action.id) {
+                case 'new_order':
+                    window.location.href = '/orders/new';
+                    break;
+                case 'new_product':
+                    window.location.href = '/products/new';
+                    break;
+                case 'table_management':
+                    window.location.href = '/restaurant/tables';
+                    break;
+                case 'manage_inventory':
+                    window.location.href = '/apparel/inventory';
+                    break;
+                default:
+                    console.log('Unknown action:', action.id);
+            }
+        },
+        
+        loadMoreActivity() {
+            // Load more activity items
+            this.loadActivities();
+        },
+        
+        setupRealtimeUpdates() {
+            // Setup WebSocket or polling for real-time updates
+            if (this.isFeatureEnabled('FEATURE_REALTIME_UPDATES')) {
+                setInterval(() => {
+                    this.refreshData();
+                }, 30000); // Refresh every 30 seconds
+            }
+        },
+        
+        // Utility methods
+        isFeatureEnabled(feature) {
+            return this.features[feature] || false;
+        },
+        
+        hasPermission(permission) {
+            return this.permissions.includes(permission) || false;
+        },
+        
+        formatMetricValue(metric) {
+            if (metric.id.includes('revenue') || metric.id.includes('sales')) {
+                return this.formatCurrency(metric.value);
+            }
+            if (metric.id.includes('rate') || metric.id.includes('percentage')) {
+                return `${metric.value}%`;
+            }
+            return this.formatNumber(metric.value);
+        },
+        
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatNumber(number) {
+            return new Intl.NumberFormat().format(number);
+        },
+        
+        formatChange(change) {
+            const sign = change >= 0 ? '+' : '';
+            return `${sign}${change}%`;
+        },
+        
+        getChangeClass(change) {
+            if (change > 0) return 'text-success';
+            if (change < 0) return 'text-danger';
+            return 'text-muted';
+        },
+        
+        getChangeIcon(change) {
+            if (change > 0) return 'bi-arrow-up';
+            if (change < 0) return 'bi-arrow-down';
+            return 'bi-dash';
+        },
+        
+        getStatusClass(status) {
+            const classes = {
+                pending: 'bg-warning',
+                confirmed: 'bg-info',
+                preparing: 'bg-primary',
+                ready: 'bg-success',
+                completed: 'bg-secondary',
+                cancelled: 'bg-danger',
+                low_stock: 'bg-warning',
+                out_of_stock: 'bg-danger'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleString();
+        },
+        
+        formatActivityTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)} minutes ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)} hours ago`;
+            return date.toLocaleDateString();
+        },
+        
+        showError(message) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: 'error',
+                    title: 'Error',
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+
+<style>
+.feature-dashboard-container {
+    background: #f8f9fa;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+.dashboard-header {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dashboard-title {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-subtitle {
+    margin-bottom: 0;
+}
+
+.dashboard-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.date-range-selector {
+    width: 150px;
+}
+
+.custom-date-range {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Metric Cards */
+.metric-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.metric-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.metric-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.25rem;
+    color: white;
+}
+
+.metric-primary .metric-icon { background: #0d6efd; }
+.metric-success .metric-icon { background: #198754; }
+.metric-info .metric-icon { background: #0dcaf0; }
+.metric-warning .metric-icon { background: #ffc107; }
+.metric-danger .metric-icon { background: #dc3545; }
+
+.metric-title {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.metric-change {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Chart Cards */
+.chart-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.chart-title {
+    margin-bottom: 0;
+    color: #2c3e50;
+}
+
+.chart-controls {
+    width: 100px;
+}
+
+.chart-body {
+    position: relative;
+}
+
+/* Table Cards */
+.table-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.table-title {
+    margin-bottom: 0;
+    color: #2c3e50;
+}
+
+/* Quick Actions */
+.quick-action-btn {
+    padding: 1rem;
+    text-align: center;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.quick-action-btn i {
+    font-size: 1.5rem;
+}
+
+/* Activity Feed */
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    color: #6c757d;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.activity-description {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.activity-time {
+    color: #adb5bd;
+    font-size: 0.75rem;
+}
+
+/* Animations */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Retail type specific styles */
+.feature-dashboard-container.restaurant {
+    border-left: 4px solid #ff6b6b;
+}
+
+.feature-dashboard-container.apparel {
+    border-left: 4px solid #4ecdc4;
+}
+
+.feature-dashboard-container.books {
+    border-left: 4px solid #45b7d1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dashboard-header .row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .dashboard-controls {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .metrics-row .col-md-3 {
+        width: 50%;
+    }
+    
+    .charts-row .col-lg-8,
+    .charts-row .col-lg-4 {
+        width: 100%;
+    }
+    
+    .tables-row .col-lg-6 {
+        width: 100%;
+    }
+    
+    .quick-actions-panel .col-md-3 {
+        width: 50%;
+    }
+}
+</style>

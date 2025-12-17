@@ -1,0 +1,1101 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<style>
+/* Mobile-First Base Styles */
+.mobile-container {
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.mobile-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.mobile-header .navbar-brand {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white !important;
+}
+
+.mobile-header .navbar-toggler {
+    border: none;
+    padding: 0.25rem 0.5rem;
+}
+
+.mobile-header .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+.mobile-nav {
+    background: white;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.5rem 0;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem;
+    color: #495057;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    margin: 0 0.25rem;
+}
+
+.mobile-nav-item:hover {
+    background: #f8f9fa;
+    color: #007bff;
+    text-decoration: none;
+}
+
+.mobile-nav-item.active {
+    background: #007bff;
+    color: white;
+}
+
+.mobile-nav-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.mobile-nav-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.mobile-content {
+    padding: 1rem;
+    padding-bottom: 80px; /* Space for bottom navigation */
+}
+
+.mobile-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.mobile-card-header {
+    padding: 1rem;
+    border-bottom: 1px solid #f8f9fa;
+    background: #fafafa;
+}
+
+.mobile-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    color: #2c3e50;
+}
+
+.mobile-card-body {
+    padding: 1rem;
+}
+
+.mobile-list-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f8f9fa;
+    transition: background 0.2s ease;
+}
+
+.mobile-list-item:last-child {
+    border-bottom: none;
+}
+
+.mobile-list-item:hover {
+    background: #f8f9fa;
+}
+
+.mobile-list-item-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.25rem;
+    color: white;
+}
+
+.mobile-list-item-content {
+    flex: 1;
+}
+
+.mobile-list-item-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #2c3e50;
+}
+
+.mobile-list-item-subtitle {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.mobile-list-item-action {
+    color: #6c757d;
+}
+
+.mobile-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.mobile-btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.mobile-btn-primary:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+.mobile-btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.mobile-btn-success:hover {
+    background: #1e7e34;
+    transform: translateY(-1px);
+}
+
+.mobile-btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.mobile-btn-warning:hover {
+    background: #e0a800;
+    transform: translateY(-1px);
+}
+
+.mobile-btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.mobile-btn-danger:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.mobile-btn-outline {
+    background: transparent;
+    border: 2px solid #007bff;
+    color: #007bff;
+}
+
+.mobile-btn-outline:hover {
+    background: #007bff;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.mobile-form-group {
+    margin-bottom: 1rem;
+}
+
+.mobile-form-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+}
+
+.mobile-form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.mobile-form-control:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.mobile-search {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.mobile-search-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    font-size: 1rem;
+}
+
+.mobile-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #dee2e6;
+    padding: 0.5rem 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-around;
+}
+
+.mobile-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem;
+    color: #6c757d;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    min-width: 60px;
+}
+
+.mobile-bottom-nav-item:hover {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.mobile-bottom-nav-item.active {
+    color: #007bff;
+}
+
+.mobile-bottom-nav-icon {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.mobile-bottom-nav-label {
+    font-size: 0.625rem;
+    font-weight: 500;
+}
+
+.mobile-fab {
+    position: fixed;
+    bottom: 80px;
+    right: 1rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #007bff;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    z-index: 999;
+    transition: all 0.3s ease;
+}
+
+.mobile-fab:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+}
+
+.mobile-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.mobile-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.mobile-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.mobile-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.mobile-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.mobile-stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.mobile-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.mobile-skeleton-text {
+    height: 1rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.mobile-skeleton-title {
+    height: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    width: 60%;
+}
+
+/* Touch-friendly interactions */
+.mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Swipe gestures */
+.swipe-container {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.swipe-item {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+}
+
+/* Retail type specific mobile themes */
+.mobile-theme-restaurant {
+    --primary-color: #ff6b6b;
+    --primary-gradient: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+}
+
+.mobile-theme-apparel {
+    --primary-color: #4ecdc4;
+    --primary-gradient: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+}
+
+.mobile-theme-books {
+    --primary-color: #45b7d1;
+    --primary-gradient: linear-gradient(135deg, #45b7d1 0%, #2196f3 100%);
+}
+
+.mobile-theme-food {
+    --primary-color: #f9ca24;
+    --primary-gradient: linear-gradient(135deg, #f9ca24 0%, #f0932b 100%);
+}
+
+.mobile-theme-supermarket {
+    --primary-color: #6ab04c;
+    --primary-gradient: linear-gradient(135deg, #6ab04c 0%, #44bd32 100%);
+}
+
+.mobile-theme-hypermarket {
+    --primary-color: #130f40;
+    --primary-gradient: linear-gradient(135deg, #130f40 0%, #30336b 100%);
+}
+
+.mobile-theme-specialized {
+    --primary-color: #e056fd;
+    --primary-gradient: linear-gradient(135deg, #e056fd 0%, #686de0 100%);
+}
+
+.mobile-theme-multi_store {
+    --primary-color: #00d2d3;
+    --primary-gradient: linear-gradient(135deg, #00d2d3 0%, #01a3a4 100%);
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+    .mobile-container {
+        max-width: 768px;
+        margin: 0 auto;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+    
+    .mobile-bottom-nav {
+        display: none;
+    }
+    
+    .mobile-content {
+        padding-bottom: 1rem;
+    }
+    
+    .mobile-fab {
+        bottom: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .mobile-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .mobile-grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .mobile-nav {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .mobile-nav-item {
+        min-width: 80px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .mobile-container {
+        background: #1a1a1a;
+    }
+    
+    .mobile-card {
+        background: #2d2d2d;
+        color: white;
+    }
+    
+    .mobile-card-header {
+        background: #3d3d3d;
+        border-bottom-color: #4d4d4d;
+    }
+    
+    .mobile-card-title {
+        color: white;
+    }
+    
+    .mobile-list-item {
+        border-bottom-color: #3d3d3d;
+    }
+    
+    .mobile-list-item-title {
+        color: white;
+    }
+    
+    .mobile-list-item-subtitle {
+        color: #aaa;
+    }
+    
+    .mobile-form-control {
+        background: #2d2d2d;
+        border-color: #4d4d4d;
+        color: white;
+    }
+    
+    .mobile-bottom-nav {
+        background: #2d2d2d;
+        border-top-color: #4d4d4d;
+    }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="mobile-container mobile-theme-{{ retail_type | default('general') }}">
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">
+                    <i class="bi bi-shop me-2"></i>
+                    {{ site_name | default('POS System') }}
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNavbar">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="mobileNavbar">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/profile">
+                                <i class="bi bi-person-circle"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/settings">
+                                <i class="bi bi-gear"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    
+    <!-- Mobile Navigation -->
+    {% block mobile_navigation %}
+    <nav class="mobile-nav">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-around">
+                {% if retail_type == 'restaurant' %}
+                    <a href="/restaurant/dashboard" class="mobile-nav-item">
+                        <i class="bi bi-house mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Dashboard</span>
+                    </a>
+                    <a href="/restaurant/orders" class="mobile-nav-item">
+                        <i class="bi bi-receipt mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Orders</span>
+                    </a>
+                    <a href="/restaurant/menu" class="mobile-nav-item">
+                        <i class="bi bi-menu-button-wide mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Menu</span>
+                    </a>
+                    <a href="/restaurant/tables" class="mobile-nav-item">
+                        <i class="bi bi-grid-3x3-gap mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Tables</span>
+                    </a>
+                {% elif retail_type == 'apparel' %}
+                    <a href="/apparel/dashboard" class="mobile-nav-item">
+                        <i class="bi bi-house mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Dashboard</span>
+                    </a>
+                    <a href="/apparel/products" class="mobile-nav-item">
+                        <i class="bi bi-tag mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Products</span>
+                    </a>
+                    <a href="/apparel/inventory" class="mobile-nav-item">
+                        <i class="bi bi-box mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Inventory</span>
+                    </a>
+                    <a href="/apparel/sales" class="mobile-nav-item">
+                        <i class="bi bi-currency-dollar mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Sales</span>
+                    </a>
+                {% else %}
+                    <a href="/dashboard" class="mobile-nav-item">
+                        <i class="bi bi-house mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Dashboard</span>
+                    </a>
+                    <a href="/products" class="mobile-nav-item">
+                        <i class="bi bi-tag mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Products</span>
+                    </a>
+                    <a href="/orders" class="mobile-nav-item">
+                        <i class="bi bi-receipt mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Orders</span>
+                    </a>
+                    <a href="/reports" class="mobile-nav-item">
+                        <i class="bi bi-graph-up mobile-nav-icon"></i>
+                        <span class="mobile-nav-label">Reports</span>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    {% endblock %}
+    
+    <!-- Mobile Content -->
+    <main class="mobile-content">
+        {% block mobile_content %}
+        <!-- Content will be inserted here by child templates -->
+        {% endblock %}
+    </main>
+    
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+        {% if retail_type == 'restaurant' %}
+            <a href="/restaurant/dashboard" class="mobile-bottom-nav-item">
+                <i class="bi bi-house mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Home</span>
+            </a>
+            <a href="/restaurant/pos" class="mobile-bottom-nav-item">
+                <i class="bi bi-cash-coin mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">POS</span>
+            </a>
+            <a href="/restaurant/orders" class="mobile-bottom-nav-item">
+                <i class="bi bi-receipt mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Orders</span>
+            </a>
+            <a href="/restaurant/menu" class="mobile-bottom-nav-item">
+                <i class="bi bi-menu-button-wide mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Menu</span>
+            </a>
+        {% elif retail_type == 'apparel' %}
+            <a href="/apparel/dashboard" class="mobile-bottom-nav-item">
+                <i class="bi bi-house mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Home</span>
+            </a>
+            <a href="/apparel/pos" class="mobile-bottom-nav-item">
+                <i class="bi bi-cash-coin mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">POS</span>
+            </a>
+            <a href="/apparel/products" class="mobile-bottom-nav-item">
+                <i class="bi bi-tag mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Products</span>
+            </a>
+            <a href="/apparel/inventory" class="mobile-bottom-nav-item">
+                <i class="bi bi-box mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Stock</span>
+            </a>
+        {% else %}
+            <a href="/dashboard" class="mobile-bottom-nav-item">
+                <i class="bi bi-house mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Home</span>
+            </a>
+            <a href="/pos" class="mobile-bottom-nav-item">
+                <i class="bi bi-cash-coin mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">POS</span>
+            </a>
+            <a href="/products" class="mobile-bottom-nav-item">
+                <i class="bi bi-tag mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Items</span>
+            </a>
+            <a href="/orders" class="mobile-bottom-nav-item">
+                <i class="bi bi-receipt mobile-bottom-nav-icon"></i>
+                <span class="mobile-bottom-nav-label">Orders</span>
+            </a>
+        {% endif %}
+    </nav>
+    
+    <!-- Floating Action Button -->
+    {% block mobile_fab %}
+    {% if retail_type == 'restaurant' %}
+        <button class="mobile-fab" onclick="window.location.href='/restaurant/pos'">
+            <i class="bi bi-plus"></i>
+        </button>
+    {% elif retail_type == 'apparel' %}
+        <button class="mobile-fab" onclick="window.location.href='/apparel/pos'">
+            <i class="bi bi-plus"></i>
+        </button>
+    {% else %}
+        <button class="mobile-fab" onclick="window.location.href='/pos'">
+            <i class="bi bi-plus"></i>
+        </button>
+    {% endif %}
+    {% endblock %}
+</div>
+
+<!-- Mobile-specific JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initMobileFeatures();
+    setupTouchGestures();
+    optimizeForMobile();
+});
+
+function initMobileFeatures() {
+    // Set mobile viewport
+    setViewportHeight();
+    
+    // Setup pull-to-refresh
+    setupPullToRefresh();
+    
+    // Setup offline support
+    setupOfflineSupport();
+    
+    // Initialize mobile components
+    initMobileComponents();
+}
+
+function setViewportHeight() {
+    // Fix viewport height on mobile browsers
+    const setVH = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+}
+
+function setupPullToRefresh() {
+    let startY = 0;
+    let isPulling = false;
+    
+    document.addEventListener('touchstart', (e) => {
+        if (window.scrollY === 0) {
+            startY = e.touches[0].clientY;
+            isPulling = true;
+        }
+    });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (!isPulling) return;
+        
+        const currentY = e.touches[0].clientY;
+        const diff = currentY - startY;
+        
+        if (diff > 0 && diff < 150) {
+            document.body.style.transform = `translateY(${diff}px)`;
+        }
+    });
+    
+    document.addEventListener('touchend', () => {
+        if (isPulling) {
+            document.body.style.transform = '';
+            isPulling = false;
+            
+            // Trigger refresh if pulled enough
+            if (diff > 100) {
+                triggerRefresh();
+            }
+        }
+    });
+}
+
+function setupOfflineSupport() {
+    // Setup service worker for offline support
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/js/mobile-service-worker.js')
+            .then(registration => {
+                console.log('ServiceWorker registered:', registration);
+            })
+            .catch(error => {
+                console.log('ServiceWorker registration failed:', error);
+            });
+    }
+    
+    // Setup online/offline detection
+    window.addEventListener('online', () => {
+        showNotification('Back online!', 'success');
+        document.body.classList.remove('offline');
+    });
+    
+    window.addEventListener('offline', () => {
+        showNotification('You are offline', 'warning');
+        document.body.classList.add('offline');
+    });
+}
+
+function setupTouchGestures() {
+    // Setup swipe gestures for navigation
+    let touchStartX = 0;
+    let touchEndX = 0;
+    
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+    
+    document.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    });
+    
+    function handleSwipe() {
+        const swipeThreshold = 50;
+        const diff = touchEndX - touchStartX;
+        
+        if (Math.abs(diff) > swipeThreshold) {
+            if (diff > 0) {
+                // Swipe right - go back
+                if (window.history.length > 1) {
+                    window.history.back();
+                }
+            } else {
+                // Swipe left - next action (context dependent)
+                handleSwipeLeft();
+            }
+        }
+    }
+}
+
+function handleSwipeLeft() {
+    // Context-dependent swipe left action
+    const currentPath = window.location.pathname;
+    
+    if (currentPath.includes('/dashboard')) {
+        // On dashboard, swipe to go to POS
+        const posPath = currentPath.replace('/dashboard', '/pos');
+        window.location.href = posPath;
+    } else if (currentPath.includes('/products')) {
+        // On products, swipe to add new product
+        window.location.href = currentPath + '/new';
+    }
+}
+
+function initMobileComponents() {
+    // Initialize mobile-specific components
+    initMobileSearch();
+    initMobileModals();
+    initMobileForms();
+}
+
+function initMobileSearch() {
+    const searchInputs = document.querySelectorAll('.mobile-search-input');
+    
+    searchInputs.forEach(input => {
+        input.addEventListener('focus', () => {
+            // Expand search on focus
+            input.parentElement.classList.add('search-expanded');
+        });
+        
+        input.addEventListener('blur', () => {
+            if (!input.value) {
+                input.parentElement.classList.remove('search-expanded');
+            }
+        });
+    });
+}
+
+function initMobileModals() {
+    // Setup mobile-optimized modals
+    const modals = document.querySelectorAll('.modal');
+    
+    modals.forEach(modal => {
+        modal.classList.add('mobile-modal');
+        
+        // Close modal on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                bootstrap.Modal.getInstance(modal)?.hide();
+            }
+        });
+    });
+}
+
+function initMobileForms() {
+    // Setup mobile-optimized forms
+    const forms = document.querySelectorAll('form');
+    
+    forms.forEach(form => {
+        // Add mobile form class
+        form.classList.add('mobile-form');
+        
+        // Handle form submission
+        form.addEventListener('submit', (e) => {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
+                
+                // Re-enable after 5 seconds (fallback)
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Submit';
+                }, 5000);
+            }
+        });
+    });
+}
+
+function optimizeForMobile() {
+    // Optimize images for mobile
+    const images = document.querySelectorAll('img');
+    
+    images.forEach(img => {
+        img.loading = 'lazy';
+        
+        // Add error handling
+        img.addEventListener('error', () => {
+            img.style.display = 'none';
+            const placeholder = document.createElement('div');
+            placeholder.className = 'mobile-image-placeholder';
+            placeholder.innerHTML = '<i class="bi bi-image" style="font-size: 2rem; color: #dee2e6;"></i>';
+            img.parentNode.insertBefore(placeholder, img);
+        });
+    });
+    
+    // Optimize scrolling
+    document.body.style.webkitOverflowScrolling = 'touch';
+    
+    // Prevent zoom on input focus
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        input.addEventListener('focus', () => {
+            document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width,initial-scale=1,maximum-scale=1');
+        });
+        
+        input.addEventListener('blur', () => {
+            document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width,initial-scale=1');
+        });
+    });
+}
+
+function triggerRefresh() {
+    // Trigger page refresh
+    window.location.reload();
+}
+
+function showNotification(message, type = 'info') {
+    // Show mobile-optimized notification
+    const notification = document.createElement('div');
+    notification.className = `mobile-notification mobile-notification-${type}`;
+    notification.innerHTML = `
+        <div class="mobile-notification-content">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('mobile-notification-hide');
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+
+// Handle back button
+document.addEventListener('backbutton', (e) => {
+    // Custom back button handling for mobile apps
+    if (window.history.length <= 1) {
+        e.preventDefault();
+        // Show exit confirmation
+        if (confirm('Are you sure you want to exit?')) {
+            navigator.app.exitApp();
+        }
+    }
+});
+</script>
+
+<style>
+/* Mobile notification styles */
+.mobile-notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 1rem;
+    min-width: 250px;
+    max-width: 90%;
+    transition: all 0.3s ease;
+}
+
+.mobile-notification-success {
+    border-left: 4px solid #28a745;
+}
+
+.mobile-notification-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.mobile-notification-info {
+    border-left: 4px solid #17a2b8;
+}
+
+.mobile-notification-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.mobile-notification-hide {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+}
+
+/* Mobile modal styles */
+.mobile-modal .modal-dialog {
+    margin: 0;
+    max-width: 100%;
+    height: 100vh;
+}
+
+.mobile-modal .modal-content {
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+}
+
+.mobile-modal .modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile form styles */
+.mobile-form .form-control {
+    font-size: 16px; /* Prevent zoom on iOS */
+}
+
+.mobile-form .btn {
+    min-height: 44px; /* Touch-friendly */
+}
+
+/* Offline indicator */
+.offline .mobile-header {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+}
+
+.offline::before {
+    content: 'OFFLINE';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #dc3545;
+    color: white;
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    z-index: 10000;
+}
+
+/* Search expanded state */
+.search-expanded {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Mobile image placeholder */
+.mobile-image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 200px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Mobile-specific JavaScript libraries -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

@@ -1,0 +1,1059 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/quick_sale_list.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Quick Sale List Interface -->
+<div class="quick-sale-list-container" x-data="quickSaleListApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="list-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="list-title">
+                    <i class="bi bi-list-ul me-2"></i>
+                    Quick Sale History
+                </h2>
+                <p class="list-subtitle text-muted">View and manage quick sale transactions</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="list-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSales()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="printReport()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="newQuickSale()">
+                        <i class="bi bi-plus-circle"></i> New Sale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="search-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-funnel me-2"></i>
+                    Search & Filters
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetFilters()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Search Sales</label>
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       placeholder="Sale #, customer, or product..."
+                                       x-model="filters.search"
+                                       @keyup.enter="applyFilters()">
+                                <button class="btn btn-outline-secondary" type="button" @click="applyFilters()">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="filters.dateRange" @change="applyFilters()">
+                                <option value="">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="week">This Week</option>
+                                <option value="lastWeek">Last Week</option>
+                                <option value="month">This Month</option>
+                                <option value="lastMonth">Last Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="year">This Year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" x-model="filters.status" @change="applyFilters()">
+                                <option value="">All Status</option>
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="refunded">Refunded</option>
+                                <option value="voided">Voided</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">Payment Method</label>
+                            <select class="form-select" x-model="filters.paymentMethod" @change="applyFilters()">
+                                <option value="">All Methods</option>
+                                <option value="cash">Cash</option>
+                                <option value="card">Credit Card</option>
+                                <option value="mobile">Mobile Payment</option>
+                                <option value="gift">Gift Card</option>
+                                <option value="mixed">Mixed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Cashier</label>
+                            <select class="form-select" x-model="filters.cashier" @change="applyFilters()">
+                                <option value="">All Cashiers</option>
+                                <template x-for="cashier in cashiers" :key="cashier.id">
+                                    <option :value="cashier.id" x-text="cashier.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="filter-tags">
+                            <template x-for="(value, key) in activeFilters" :key="key">
+                                <span class="badge bg-light text-dark me-2 mb-2">
+                                    <span x-text="getFilterLabel(key, value)"></span>
+                                    <button type="button" 
+                                            class="btn-close btn-close-sm ms-1"
+                                            @click="removeFilter(key)">
+                                    </button>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales List -->
+    <div class="sales-list">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="card-title">
+                            <i class="bi bi-list-ul me-2"></i>
+                            Sales List
+                        </h5>
+                        <p class="text-muted mb-0" x-text="`${sales.length} sales found`"></p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="list-controls">
+                            <div class="btn-group btn-group-sm me-2" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'list'}"
+                                        @click="viewMode = 'list'">
+                                    <i class="bi bi-list"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'grid'}"
+                                        @click="viewMode = 'grid'">
+                                    <i class="bi bi-grid"></i>
+                                </button>
+                            </div>
+                            
+                            <select class="form-select form-select-sm" x-model="sortBy" @change="applySorting()">
+                                <option value="date">Date</option>
+                                <option value="saleNumber">Sale #</option>
+                                <option value="amount">Amount</option>
+                                <option value="customer">Customer</option>
+                                <option value="cashier">Cashier</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- List View -->
+                <div class="list-view" x-show="viewMode === 'list'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="40">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               @change="toggleSelectAll($event)">
+                                    </th>
+                                    <th>Sale #</th>
+                                    <th>Date & Time</th>
+                                    <th>Customer</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Payment</th>
+                                    <th>Status</th>
+                                    <th>Cashier</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="sale in sales" :key="sale.id">
+                                    <tr class="sale-row" :class="getStatusRowClass(sale.status)">
+                                        <td>
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   :checked="selectedSales.includes(sale.id)"
+                                                   @change="toggleSaleSelection(sale.id, $event)">
+                                        </td>
+                                        <td>
+                                            <div class="sale-number">
+                                                <span x-text="sale.saleNumber"></span>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-link p-0 ms-1"
+                                                        @click="copySaleNumber(sale.saleNumber)"
+                                                        title="Copy">
+                                                    <i class="bi bi-clipboard"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="date-info">
+                                                <span x-text="formatDate(sale.timestamp)"></span>
+                                                <small class="text-muted" x-text="formatTime(sale.timestamp)"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="customer-info">
+                                                <div class="customer-name" x-text="sale.customer?.name || 'Walk-in'"></div>
+                                                <small class="text-muted" x-show="sale.customer?.phone" x-text="sale.customer.phone"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="items-info">
+                                                <span x-text="sale.itemCount"></span>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-secondary ms-1"
+                                                        @click="viewSaleItems(sale.id)"
+                                                        title="View Items">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="amount-info">
+                                                <span class="amount" x-text="formatCurrency(sale.total)"></span>
+                                                <small class="text-muted" x-show="sale.discount > 0" x-text="`-${formatCurrency(sale.discount)}`"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="payment-method" :class="getPaymentClass(sale.paymentMethod)">
+                                                <i :class="getPaymentIcon(sale.paymentMethod)"></i>
+                                                <span x-text="getPaymentText(sale.paymentMethod)"></span>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge" :class="getStatusBadgeClass(sale.status)" x-text="sale.status"></span>
+                                        </td>
+                                        <td>
+                                            <div class="cashier-info">
+                                                <div class="cashier-name" x-text="sale.cashier?.name || 'Unknown'"></div>
+                                                <small class="text-muted" x-text="sale.terminal"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        @click="viewSaleDetails(sale.id)"
+                                                        title="View Details">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-success"
+                                                        @click="printReceipt(sale.id)"
+                                                        title="Print Receipt">
+                                                    <i class="bi bi-printer"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        @click="duplicateSale(sale.id)"
+                                                        title="Duplicate Sale">
+                                                    <i class="bi bi-files"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-warning"
+                                                        @click="returnSale(sale.id)"
+                                                        title="Process Return"
+                                                        x-show="sale.status === 'completed'">
+                                                    <i class="bi bi-arrow-return-left"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        @click="voidSale(sale.id)"
+                                                        title="Void Sale"
+                                                        x-show="['completed', 'pending'].includes(sale.status)">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Grid View -->
+                <div class="grid-view" x-show="viewMode === 'grid'">
+                    <div class="row">
+                        <template x-for="sale in sales" :key="sale.id">
+                            <div class="col-md-4 mb-3">
+                                <div class="sale-card" :class="getStatusCardClass(sale.status)">
+                                    <div class="card-header">
+                                        <div class="sale-number">
+                                            <span x-text="sale.saleNumber"></span>
+                                            <span class="badge ms-2" :class="getStatusBadgeClass(sale.status)" x-text="sale.status"></span>
+                                        </div>
+                                        <div class="sale-actions">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    @click="viewSaleDetails(sale.id)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="sale-info">
+                                            <div class="info-row">
+                                                <div class="info-label">Date:</div>
+                                                <div class="info-value" x-text="formatDate(sale.timestamp)"></div>
+                                            </div>
+                                            <div class="info-row">
+                                                <div class="info-label">Time:</div>
+                                                <div class="info-value" x-text="formatTime(sale.timestamp)"></div>
+                                            </div>
+                                            <div class="info-row">
+                                                <div class="info-label">Customer:</div>
+                                                <div class="info-value" x-text="sale.customer?.name || 'Walk-in'"></div>
+                                            </div>
+                                            <div class="info-row">
+                                                <div class="info-label">Items:</div>
+                                                <div class="info-value" x-text="sale.itemCount"></div>
+                                            </div>
+                                            <div class="info-row">
+                                                <div class="info-label">Total:</div>
+                                                <div class="info-value amount" x-text="formatCurrency(sale.total)"></div>
+                                            </div>
+                                            <div class="info-row">
+                                                <div class="info-label">Payment:</div>
+                                                <div class="info-value">
+                                                    <i :class="getPaymentIcon(sale.paymentMethod)"></i>
+                                                    <span x-text="getPaymentText(sale.paymentMethod)"></span>
+                                                </div>
+                                            </div>
+                                            <div class="info-row">
+                                                <div class="info-label">Cashier:</div>
+                                                <div class="info-value" x-text="sale.cashier?.name || 'Unknown'"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <div class="footer-actions">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-success"
+                                                    @click="printReceipt(sale.id)">
+                                                <i class="bi bi-printer"></i> Receipt
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @click="duplicateSale(sale.id)">
+                                                <i class="bi bi-files"></i> Duplicate
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-warning"
+                                                    @click="returnSale(sale.id)"
+                                                    x-show="sale.status === 'completed'">
+                                                <i class="bi bi-arrow-return-left"></i> Return
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-state" x-show="sales.length === 0">
+                    <div class="text-center py-5">
+                        <i class="bi bi-receipt display-1 text-muted"></i>
+                        <h5>No Sales Found</h5>
+                        <p class="text-muted">Try adjusting your search or filters</p>
+                        <button type="button" class="btn btn-primary" @click="newQuickSale()">
+                            <i class="bi bi-plus-circle"></i> Start New Sale
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="card-footer" x-show="sales.length > 0">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="pagination-info">
+                            <span x-text="`Showing ${pagination.start} to ${pagination.end} of ${pagination.total} sales`"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <nav>
+                            <ul class="pagination justify-content-end mb-0">
+                                <li class="page-item" :class="{'disabled': pagination.current_page === 1}">
+                                    <a class="page-link" href="#" @click.prevent="changePage(pagination.current_page - 1)">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                <template x-for="page in pagination.pages" :key="page">
+                                    <li class="page-item" :class="{'active': page === pagination.current_page}">
+                                        <a class="page-link" href="#" @click.prevent="changePage(page)" x-text="page"></a>
+                                    </li>
+                                </template>
+                                <li class="page-item" :class="{'disabled': pagination.current_page === pagination.total_pages}">
+                                    <a class="page-link" href="#" @click.prevent="changePage(pagination.current_page + 1)">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Operations Panel -->
+    <div class="bulk-operations-panel" x-show="selectedSales.length > 0" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-check-square me-2"></i>
+                    Bulk Operations
+                </h5>
+                <button type="button" class="btn-close" @click="clearSelection()"></button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <p class="mb-0">
+                            <strong x-text="`${selectedSales.length} sales selected`"></strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="bulk-actions">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-2" @click="bulkPrint()">
+                                <i class="bi bi-printer"></i> Print Receipts
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary me-2" @click="bulkExport()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @click="bulkVoid()">
+                                <i class="bi bi-x-circle"></i> Void Sales
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sale Details Modal -->
+    <div class="modal fade" id="saleDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sale Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Sale Information</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>Sale #:</td>
+                                    <td x-text="selectedSaleDetails.saleNumber"></td>
+                                </tr>
+                                <tr>
+                                    <td>Date:</td>
+                                    <td x-text="formatDate(selectedSaleDetails.timestamp)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Time:</td>
+                                    <td x-text="formatTime(selectedSaleDetails.timestamp)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Status:</td>
+                                    <td>
+                                        <span class="badge" :class="getStatusBadgeClass(selectedSaleDetails.status)" x-text="selectedSaleDetails.status"></span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Cashier:</td>
+                                    <td x-text="selectedSaleDetails.cashier?.name"></td>
+                                </tr>
+                                <tr>
+                                    <td>Terminal:</td>
+                                    <td x-text="selectedSaleDetails.terminal"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Customer Information</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>Name:</td>
+                                    <td x-text="selectedSaleDetails.customer?.name || 'Walk-in'"></td>
+                                </tr>
+                                <tr x-show="selectedSaleDetails.customer?.phone">
+                                    <td>Phone:</td>
+                                    <td x-text="selectedSaleDetails.customer?.phone"></td>
+                                </tr>
+                                <tr x-show="selectedSaleDetails.customer?.email">
+                                    <td>Email:</td>
+                                    <td x-text="selectedSaleDetails.customer?.email"></td>
+                                </tr>
+                                <tr x-show="selectedSaleDetails.tableNumber">
+                                    <td>Table:</td>
+                                    <td x-text="selectedSaleDetails.tableNumber"></td>
+                                </tr>
+                                <tr>
+                                    <td>Order Type:</td>
+                                    <td x-text="selectedSaleDetails.orderType"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <h6>Order Items</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>SKU</th>
+                                            <th>Price</th>
+                                            <th>Quantity</th>
+                                            <th>Discount</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="item in selectedSaleDetails.items" :key="item.id">
+                                            <tr>
+                                                <td x-text="item.name"></td>
+                                                <td x-text="item.sku"></td>
+                                                <td x-text="formatCurrency(item.price)"></td>
+                                                <td x-text="item.quantity"></td>
+                                                <td x-text="formatCurrency(item.discount)"></td>
+                                                <td x-text="formatCurrency(item.total)"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Payment Summary</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>Subtotal:</td>
+                                    <td x-text="formatCurrency(selectedSaleDetails.subtotal)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Tax:</td>
+                                    <td x-text="formatCurrency(selectedSaleDetails.tax)"></td>
+                                </tr>
+                                <tr>
+                                    <td>Discount:</td>
+                                    <td x-text="formatCurrency(selectedSaleDetails.discount)"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total:</strong></td>
+                                    <td><strong x-text="formatCurrency(selectedSaleDetails.total)"></strong></td>
+                                </tr>
+                                <tr>
+                                    <td>Payment Method:</td>
+                                    <td>
+                                        <i :class="getPaymentIcon(selectedSaleDetails.paymentMethod)"></i>
+                                        <span x-text="getPaymentText(selectedSaleDetails.paymentMethod)"></span>
+                                    </td>
+                                </tr>
+                                <tr x-show="selectedSaleDetails.change > 0">
+                                    <td>Change:</td>
+                                    <td x-text="formatCurrency(selectedSaleDetails.change)"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Actions</h6>
+                            <div class="action-buttons">
+                                <button type="button" 
+                                        class="btn btn-outline-primary me-2 mb-2"
+                                        @click="printReceipt(selectedSaleDetails.id)">
+                                    <i class="bi bi-printer"></i> Print Receipt
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary me-2 mb-2"
+                                        @click="duplicateSale(selectedSaleDetails.id)">
+                                    <i class="bi bi-files"></i> Duplicate Sale
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-warning me-2 mb-2"
+                                        @click="returnSale(selectedSaleDetails.id)"
+                                        x-show="selectedSaleDetails.status === 'completed'">
+                                    <i class="bi bi-arrow-return-left"></i> Process Return
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-danger mb-2"
+                                        @click="voidSale(selectedSaleDetails.id)"
+                                        x-show="['completed', 'pending'].includes(selectedSaleDetails.status)">
+                                    <i class="bi bi-x-circle"></i> Void Sale
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/quick_sale_list.js') }}"></script>
+<script>
+// Quick Sale List App
+function quickSaleListApp() {
+    return {
+        // Data
+        viewMode: 'list',
+        sales: [],
+        selectedSales: [],
+        selectedSaleDetails: {},
+        cashiers: [],
+        
+        filters: {
+            search: '',
+            dateRange: '',
+            status: '',
+            paymentMethod: '',
+            cashier: ''
+        },
+        
+        sortBy: 'date',
+        pagination: {
+            current_page: 1,
+            total_pages: 1,
+            total: 0,
+            start: 0,
+            end: 0,
+            pages: []
+        },
+        
+        // Computed properties
+        get activeFilters() {
+            const active = {};
+            for (const [key, value] of Object.entries(this.filters)) {
+                if (value) {
+                    active[key] = value;
+                }
+            }
+            return active;
+        },
+        
+        // Methods
+        init() {
+            this.loadSales();
+            this.loadCashiers();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSales() {
+            try {
+                const params = new URLSearchParams({
+                    page: this.pagination.current_page,
+                    ...this.filters,
+                    sort: this.sortBy
+                });
+                
+                const response = await fetch(`/api/quick-sales?${params}`);
+                const data = await response.json();
+                
+                this.sales = data.sales;
+                this.pagination = data.pagination;
+                
+            } catch (error) {
+                console.error('Error loading sales:', error);
+                this.showError('Failed to load sales');
+            }
+        },
+        
+        async loadCashiers() {
+            try {
+                const response = await fetch('/api/cashiers');
+                this.cashiers = await response.json();
+            } catch (error) {
+                console.error('Error loading cashiers:', error);
+            }
+        },
+        
+        applyFilters() {
+            this.pagination.current_page = 1;
+            this.loadSales();
+        },
+        
+        applySorting() {
+            this.loadSales();
+        },
+        
+        resetFilters() {
+            this.filters = {
+                search: '',
+                dateRange: '',
+                status: '',
+                paymentMethod: '',
+                cashier: ''
+            };
+            this.applyFilters();
+        },
+        
+        removeFilter(key) {
+            this.filters[key] = '';
+            this.applyFilters();
+        },
+        
+        getFilterLabel(key, value) {
+            const labels = {
+                search: `Search: ${value}`,
+                dateRange: `Date: ${value}`,
+                status: `Status: ${value}`,
+                paymentMethod: `Payment: ${value}`,
+                cashier: `Cashier: ${this.cashiers.find(c => c.id === value)?.name || value}`
+            };
+            return labels[key] || `${key}: ${value}`;
+        },
+        
+        // Selection methods
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedSales = this.sales.map(s => s.id);
+            } else {
+                this.selectedSales = [];
+            }
+        },
+        
+        toggleSaleSelection(saleId, event) {
+            if (event.target.checked) {
+                if (!this.selectedSales.includes(saleId)) {
+                    this.selectedSales.push(saleId);
+                }
+            } else {
+                this.selectedSales = this.selectedSales.filter(id => id !== saleId);
+            }
+        },
+        
+        clearSelection() {
+            this.selectedSales = [];
+        },
+        
+        // Pagination
+        changePage(page) {
+            if (page >= 1 && page <= this.pagination.total_pages) {
+                this.pagination.current_page = page;
+                this.loadSales();
+            }
+        },
+        
+        // Sale actions
+        newQuickSale() {
+            window.location.href = '/quick-sale';
+        },
+        
+        async viewSaleDetails(saleId) {
+            try {
+                const response = await fetch(`/api/quick-sales/${saleId}`);
+                this.selectedSaleDetails = await response.json();
+                
+                const modal = new bootstrap.Modal(document.getElementById('saleDetailsModal'));
+                modal.show();
+            } catch (error) {
+                console.error('Error loading sale details:', error);
+                this.showError('Failed to load sale details');
+            }
+        },
+        
+        async viewSaleItems(saleId) {
+            try {
+                const response = await fetch(`/api/quick-sales/${saleId}/items`);
+                const items = await response.json();
+                
+                // Show items in a modal or tooltip
+                console.log('Sale items:', items);
+            } catch (error) {
+                console.error('Error loading sale items:', error);
+            }
+        },
+        
+        printReceipt(saleId) {
+            window.open(`/api/quick-sales/${saleId}/receipt`);
+        },
+        
+        duplicateSale(saleId) {
+            window.location.href = `/quick-sale/duplicate/${saleId}`;
+        },
+        
+        returnSale(saleId) {
+            window.location.href = `/returns/new?sale=${saleId}`;
+        },
+        
+        async voidSale(saleId) {
+            if (!confirm('Are you sure you want to void this sale? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/quick-sales/${saleId}/void`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Sale voided successfully');
+                    this.loadSales();
+                } else {
+                    throw new Error('Void failed');
+                }
+            } catch (error) {
+                console.error('Error voiding sale:', error);
+                this.showError('Failed to void sale');
+            }
+        },
+        
+        // Bulk operations
+        bulkPrint() {
+            if (this.selectedSales.length === 0) return;
+            
+            const params = new URLSearchParams({
+                sales: this.selectedSales.join(',')
+            });
+            window.open(`/api/quick-sales/bulk-print?${params}`);
+        },
+        
+        bulkExport() {
+            if (this.selectedSales.length === 0) return;
+            
+            const params = new URLSearchParams({
+                sales: this.selectedSales.join(','),
+                format: 'csv'
+            });
+            window.open(`/api/quick-sales/export?${params}`);
+        },
+        
+        async bulkVoid() {
+            if (this.selectedSales.length === 0) return;
+            
+            if (!confirm(`Are you sure you want to void ${this.selectedSales.length} sales? This action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/quick-sales/bulk-void', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sales: this.selectedSales })
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Sales voided successfully');
+                    this.clearSelection();
+                    this.loadSales();
+                } else {
+                    throw new Error('Bulk void failed');
+                }
+            } catch (error) {
+                console.error('Error bulk voiding sales:', error);
+                this.showError('Failed to void sales');
+            }
+        },
+        
+        exportSales() {
+            const params = new URLSearchParams({
+                ...this.filters,
+                sort: this.sortBy,
+                format: 'csv'
+            });
+            window.open(`/api/quick-sales/export?${params}`);
+        },
+        
+        printReport() {
+            const params = new URLSearchParams({
+                ...this.filters,
+                sort: this.sortBy
+            });
+            window.open(`/api/quick-sales/print-report?${params}`);
+        },
+        
+        // Utility methods
+        copySaleNumber(saleNumber) {
+            navigator.clipboard.writeText(saleNumber);
+            this.showSuccess('Sale number copied to clipboard');
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        formatTime(dateString) {
+            return new Date(dateString).toLocaleTimeString();
+        },
+        
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        getStatusBadgeClass(status) {
+            const classes = {
+                'completed': 'bg-success',
+                'pending': 'bg-warning',
+                'cancelled': 'bg-danger',
+                'refunded': 'bg-info',
+                'voided': 'bg-secondary'
+            };
+            return classes[status] || 'bg-secondary';
+        },
+        
+        getStatusRowClass(status) {
+            const classes = {
+                'completed': 'table-success',
+                'pending': 'table-warning',
+                'cancelled': 'table-danger',
+                'refunded': 'table-info',
+                'voided': 'table-secondary'
+            };
+            return classes[status] || '';
+        },
+        
+        getStatusCardClass(status) {
+            const classes = {
+                'completed': 'border-success',
+                'pending': 'border-warning',
+                'cancelled': 'border-danger',
+                'refunded': 'border-info',
+                'voided': 'border-secondary'
+            };
+            return classes[status] || '';
+        },
+        
+        getPaymentClass(method) {
+            const classes = {
+                'cash': 'text-success',
+                'card': 'text-primary',
+                'mobile': 'text-info',
+                'gift': 'text-warning',
+                'mixed': 'text-secondary'
+            };
+            return classes[method] || 'text-secondary';
+        },
+        
+        getPaymentIcon(method) {
+            const icons = {
+                'cash': 'bi-cash',
+                'card': 'bi-credit-card',
+                'mobile': 'bi-phone',
+                'gift': 'bi-gift',
+                'mixed': 'bi-wallet2'
+            };
+            return icons[method] || 'bi-wallet2';
+        },
+        
+        getPaymentText(method) {
+            const texts = {
+                'cash': 'Cash',
+                'card': 'Credit Card',
+                'mobile': 'Mobile',
+                'gift': 'Gift Card',
+                'mixed': 'Mixed'
+            };
+            return texts[method] || method;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + N: New sale
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.newQuickSale();
+                }
+                
+                // Ctrl/Cmd + E: Export sales
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSales();
+                }
+                
+                // Ctrl/Cmd + P: Print report
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    this.printReport();
+                }
+                
+                // Ctrl/Cmd + A: Select all
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    this.selectedSales = this.sales.map(s => s.id);
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

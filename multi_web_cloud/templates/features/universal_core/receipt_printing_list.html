@@ -1,0 +1,1018 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/receipt_printing_list.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Receipt Printing List Interface -->
+<div class="receipt-list-container" x-data="receiptListApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="list-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="list-title">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Receipt History & Reprints
+                </h2>
+                <p class="list-subtitle text-muted">View and manage printed receipts</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="list-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportHistory()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="batchReprint()">
+                        <i class="bi bi-printer"></i> Batch Reprint
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="printNewReceipt()">
+                        <i class="bi bi-plus-circle"></i> Print Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Statistics -->
+    <div class="print-stats">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-bar-chart me-2"></i>
+                    Print Statistics
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="refreshStats()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-primary">
+                                <i class="bi bi-printer"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h6>Today's Prints</h6>
+                                <p class="stat-value" x-text="printStats.todayPrints"></p>
+                                <small class="stat-change text-success" x-show="printStats.printsChange > 0">
+                                    <i class="bi bi-arrow-up"></i> <span x-text="printStats.printsChange"></span>%
+                                </small>
+                                <small class="stat-change text-danger" x-show="printStats.printsChange < 0">
+                                    <i class="bi bi-arrow-down"></i> <span x-text="Math.abs(printStats.printsChange)"></span>%
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h6>Successful Prints</h6>
+                                <p class="stat-value" x-text="printStats.successfulPrints"></p>
+                                <small class="stat-change" x-text="`${printStats.successRate}% success rate`"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-warning">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h6>Reprints</h6>
+                                <p class="stat-value" x-text="printStats.reprints"></p>
+                                <small class="stat-change" x-text="`${printStats.reprintRate}% of total`"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-info">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h6>Failed Prints</h6>
+                                <p class="stat-value" x-text="printStats.failedPrints"></p>
+                                <small class="stat-change" x-text="`Requires attention`"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="advanced-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-funnel me-2"></i>
+                    Advanced Filters
+                </h5>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @click="toggleFilters()">
+                    <i class="bi bi-chevron-up" x-show="showFilters"></i>
+                    <i class="bi bi-chevron-down" x-show="!showFilters"></i>
+                </button>
+            </div>
+            <div class="card-body" x-show="showFilters" x-transition>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Receipt ID</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="filters.receiptId"
+                                   @input="applyFilters()"
+                                   placeholder="Search by ID">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Order ID</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="filters.orderId"
+                                   @input="applyFilters()"
+                                   placeholder="Search by order ID">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Customer</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="filters.customer"
+                                   @input="applyFilters()"
+                                   placeholder="Search customer">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Template</label>
+                            <select class="form-select" x-model="filters.template" @change="applyFilters()">
+                                <option value="">All Templates</option>
+                                <template x-for="template in templates" :key="template.id">
+                                    <option :value="template.id" x-text="template.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Print Status</label>
+                            <select class="form-select" x-model="filters.printStatus" @change="applyFilters()">
+                                <option value="">All Status</option>
+                                <option value="success">Success</option>
+                                <option value="failed">Failed</option>
+                                <option value="pending">Pending</option>
+                                <option value="reprint">Reprint</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Printer</label>
+                            <select class="form-select" x-model="filters.printer" @change="applyFilters()">
+                                <option value="">All Printers</option>
+                                <template x-for="printer in printers" :key="printer.id">
+                                    <option :value="printer.id" x-text="printer.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" x-model="filters.dateRange" @change="applyFilters()">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="this_week">This Week</option>
+                                <option value="this_month">This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Amount Range</label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="filters.minAmount"
+                                       @input="applyFilters()"
+                                       placeholder="Min">
+                                <span class="input-group-text">-</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="filters.maxAmount"
+                                       @input="applyFilters()"
+                                       placeholder="Max">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3" x-show="filters.dateRange === 'custom'">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.startDate"
+                                   @change="applyFilters()">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   x-model="filters.endDate"
+                                   @change="applyFilters()">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="filter-actions">
+                            <button type="button" class="btn btn-outline-secondary me-2" @click="clearFilters()">
+                                <i class="bi bi-x"></i> Clear Filters
+                            </button>
+                            <button type="button" class="btn btn-primary" @click="saveFilterPreset()">
+                                <i class="bi bi-save"></i> Save Preset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Bar -->
+    <div class="quick-stats-bar">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="stat-item">
+                    <span class="stat-label">Total Receipts</span>
+                    <span class="stat-value" x-text="summaryStats.totalReceipts.toLocaleString()"></span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stat-item">
+                    <span class="stat-label">Total Amount</span>
+                    <span class="stat-value" x-text="formatCurrency(summaryStats.totalAmount)"></span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stat-item">
+                    <span class="stat-label">Avg Amount</span>
+                    <span class="stat-value" x-text="formatCurrency(summaryStats.averageAmount)"></span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stat-item">
+                    <span class="stat-label">Reprints</span>
+                    <span class="stat-value" x-text="summaryStats.reprints"></span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stat-item">
+                    <span class="stat-label">Failed</span>
+                    <span class="stat-value" x-text="summaryStats.failedPrints"></span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stat-item">
+                    <span class="stat-label">Success Rate</span>
+                    <span class="stat-value" x-text="summaryStats.successRate + '%'"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" x-show="selectedReceipts.length > 0" x-transition>
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <span class="selected-count">
+                            <i class="bi bi-check-square me-2"></i>
+                            <span x-text="selectedReceipts.length"></span> receipts selected
+                        </span>
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkReprint()">
+                            <i class="bi bi-printer"></i> Reprint
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary me-2" @click="bulkExport()">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                        <button type="button" class="btn btn-outline-warning me-2" @click="bulkEmail()">
+                            <i class="bi bi-envelope"></i> Email
+                        </button>
+                        <button type="button" class="btn btn-outline-danger me-2" @click="bulkDelete()">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @click="clearSelection()">
+                            <i class="bi bi-x"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt History Table -->
+    <div class="receipt-history-table">
+        <div class="table-responsive">
+            <table class="table table-hover receipt-table">
+                <thead class="table-header">
+                    <tr>
+                        <th class="column-checkbox">
+                            <input type="checkbox" 
+                                   class="form-check-input"
+                                   @change="toggleSelectAll($event)">
+                        </th>
+                        <th class="column-id sortable" @click="sortByField('receiptId')">
+                            Receipt ID
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'receiptId'"></i>
+                        </th>
+                        <th class="column-order sortable" @click="sortByField('orderId')">
+                            Order ID
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'orderId'"></i>
+                        </th>
+                        <th class="column-date sortable" @click="sortByField('printedAt')">
+                            Date & Time
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'printedAt'"></i>
+                        </th>
+                        <th class="column-customer sortable" @click="sortByField('customer')">
+                            Customer
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'customer'"></i>
+                        </th>
+                        <th class="column-amount sortable" @click="sortByField('amount')">
+                            Amount
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'amount'"></i>
+                        </th>
+                        <th class="column-template sortable" @click="sortByField('template')">
+                            Template
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'template'"></i>
+                        </th>
+                        <th class="column-printer sortable" @click="sortByField('printer')">
+                            Printer
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'printer'"></i>
+                        </th>
+                        <th class="column-status sortable" @click="sortByField('status')">
+                            Status
+                            <i class="bi bi-arrow-down-up" x-show="sortField === 'status'"></i>
+                        </th>
+                        <th class="column-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="receipt in paginatedReceipts" :key="receipt.id">
+                        <tr class="receipt-row" 
+                            :class="{'selected': selectedReceipts.includes(receipt.id)}"
+                            @click="toggleReceiptSelection(receipt.id)">
+                            <td class="column-checkbox">
+                                <input type="checkbox" 
+                                       class="form-check-input"
+                                       :checked="selectedReceipts.includes(receipt.id)"
+                                       @click.stop="toggleReceiptSelection(receipt.id)">
+                            </td>
+                            <td class="column-id">
+                                <div class="receipt-id">
+                                    <span x-text="receipt.receiptId"></span>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link p-0 ms-1"
+                                            @click.stop="copyReceiptId(receipt.receiptId)"
+                                            title="Copy ID">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="column-order">
+                                <div class="order-id">
+                                    <span x-text="receipt.orderId"></span>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link p-0 ms-1"
+                                            @click.stop="viewOrder(receipt.orderId)"
+                                            title="View Order">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="column-date">
+                                <div>
+                                    <span x-text="formatDate(receipt.printedAt)"></span>
+                                    <br>
+                                    <small class="text-muted" x-text="formatTime(receipt.printedAt)"></small>
+                                </div>
+                            </td>
+                            <td class="column-customer">
+                                <div class="customer-info">
+                                    <div class="customer-name" x-text="receipt.customer?.name || 'Guest'"></div>
+                                    <small class="text-muted" x-text="receipt.customer?.email || ''"></small>
+                                </div>
+                            </td>
+                            <td class="column-amount">
+                                <div class="amount-info">
+                                    <span class="amount" x-text="formatCurrency(receipt.amount)"></span>
+                                    <small class="currency" x-text="receipt.currency"></small>
+                                    <div class="reprint-info" x-show="receipt.reprintCount > 0">
+                                        <small class="text-warning">
+                                            <i class="bi bi-arrow-repeat"></i> 
+                                            Reprinted <span x-text="receipt.reprintCount"></span>x
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-template">
+                                <div class="template-info">
+                                    <span class="template-name" x-text="receipt.template?.name || 'Default'"></span>
+                                    <div class="template-type" x-show="receipt.template?.type">
+                                        <small class="text-muted" x-text="receipt.template.type"></small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-printer">
+                                <div class="printer-info">
+                                    <span class="printer-name" x-text="receipt.printer?.name || 'Default'"></span>
+                                    <div class="printer-status" x-show="receipt.printer?.status">
+                                        <small class="text-muted" x-text="receipt.printer.status"></small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-status">
+                                <div class="status-info">
+                                    <span class="status-badge" 
+                                          :class="`status-${receipt.status}`"
+                                          x-text="receipt.status"></span>
+                                    <div class="status-details" x-show="receipt.error">
+                                        <small class="text-danger" x-text="receipt.error"></small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="column-actions">
+                                <div class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            @click.stop="viewReceipt(receipt.id)"
+                                            title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary"
+                                            @click.stop="reprintReceipt(receipt.id)"
+                                            title="Reprint">
+                                        <i class="bi bi-printer"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-info"
+                                            @click.stop="emailReceipt(receipt.id)"
+                                            title="Email Receipt">
+                                        <i class="bi bi-envelope"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-warning"
+                                            @click.stop="downloadReceipt(receipt.id)"
+                                            title="Download PDF">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            @click.stop="deleteReceipt(receipt.id)"
+                                            title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" x-show="filteredReceipts.length === 0">
+        <div class="text-center py-5">
+            <i class="bi bi-printer display-1 text-muted"></i>
+            <h3 class="mt-3">No Receipt History Found</h3>
+            <p class="text-muted">
+                <span x-show="hasActiveFilters">
+                    No receipts match your current filters. 
+                    <button type="button" class="btn btn-link p-0" @click="clearFilters()">Clear filters</button>
+                </span>
+                <span x-show="!hasActiveFilters">
+                    No receipt history found yet. 
+                    <button type="button" class="btn btn-link p-0" @click="printNewReceipt()">Print your first receipt</button>
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" x-show="totalPages > 1">
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item" :class="{'disabled': currentPage === 1}">
+                    <button class="page-link" @click="goToPage(currentPage - 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </li>
+                <template x-for="page in visiblePages" :key="page">
+                    <li class="page-item" :class="{'active': page === currentPage}">
+                        <button class="page-link" @click="goToPage(page)" x-text="page"></button>
+                    </li>
+                </template>
+                <li class="page-item" :class="{'disabled': currentPage === totalPages}">
+                    <button class="page-link" @click="goToPage(currentPage + 1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div class="pagination-info text-center">
+            <span x-text="`Showing ${startItem}-${endItem} of ${filteredReceipts.length} receipts`"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/receipt_printing_list.js') }}"></script>
+<script>
+// Receipt List App
+function receiptListApp() {
+    return {
+        // Data
+        showFilters: true,
+        searchQuery: '',
+        sortField: 'printedAt',
+        sortOrder: 'desc',
+        currentPage: 1,
+        itemsPerPage: 25,
+        
+        receipts: [],
+        templates: [],
+        printers: [],
+        filteredReceipts: [],
+        selectedReceipts: [],
+        
+        filters: {
+            receiptId: '',
+            orderId: '',
+            customer: '',
+            template: '',
+            printStatus: '',
+            printer: '',
+            dateRange: 'today',
+            startDate: '',
+            endDate: '',
+            minAmount: '',
+            maxAmount: ''
+        },
+        
+        printStats: {
+            todayPrints: 0,
+            printsChange: 0,
+            successfulPrints: 0,
+            successRate: 0,
+            reprints: 0,
+            reprintRate: 0,
+            failedPrints: 0
+        },
+        
+        summaryStats: {
+            totalReceipts: 0,
+            totalAmount: 0,
+            averageAmount: 0,
+            reprints: 0,
+            failedPrints: 0,
+            successRate: 0
+        },
+        
+        // Computed properties
+        get hasActiveFilters() {
+            return Object.values(this.filters).some(value => value !== '') || this.searchQuery !== '';
+        },
+        
+        get paginatedReceipts() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.filteredReceipts.slice(start, end);
+        },
+        
+        get totalPages() {
+            return Math.ceil(this.filteredReceipts.length / this.itemsPerPage);
+        },
+        
+        get visiblePages() {
+            const pages = [];
+            const start = Math.max(1, this.currentPage - 2);
+            const end = Math.min(this.totalPages, this.currentPage + 2);
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            return pages;
+        },
+        
+        get startItem() {
+            return (this.currentPage - 1) * this.itemsPerPage + 1;
+        },
+        
+        get endItem() {
+            return Math.min(this.currentPage * this.itemsPerPage, this.filteredReceipts.length);
+        },
+        
+        // Methods
+        init() {
+            this.loadReceipts();
+            this.loadTemplates();
+            this.loadPrinters();
+            this.loadPrintStats();
+            this.loadSummaryStats();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadReceipts() {
+            try {
+                const response = await fetch('/api/receipts/history');
+                this.receipts = await response.json();
+                this.filteredReceipts = [...this.receipts];
+            } catch (error) {
+                console.error('Error loading receipts:', error);
+                this.showError('Failed to load receipts');
+            }
+        },
+        
+        async loadTemplates() {
+            try {
+                const response = await fetch('/api/receipts/templates');
+                this.templates = await response.json();
+            } catch (error) {
+                console.error('Error loading templates:', error);
+            }
+        },
+        
+        async loadPrinters() {
+            try {
+                const response = await fetch('/api/receipts/printers');
+                this.printers = await response.json();
+            } catch (error) {
+                console.error('Error loading printers:', error);
+            }
+        },
+        
+        async loadPrintStats() {
+            try {
+                const response = await fetch('/api/receipts/print-stats');
+                this.printStats = await response.json();
+            } catch (error) {
+                console.error('Error loading print stats:', error);
+            }
+        },
+        
+        async loadSummaryStats() {
+            try {
+                const response = await fetch('/api/receipts/summary');
+                this.summaryStats = await response.json();
+            } catch (error) {
+                console.error('Error loading summary stats:', error);
+            }
+        },
+        
+        async refreshStats() {
+            await Promise.all([
+                this.loadPrintStats(),
+                this.loadSummaryStats()
+            ]);
+            this.showSuccess('Statistics refreshed');
+        },
+        
+        applyFilters() {
+            this.filteredReceipts = this.receipts.filter(receipt => {
+                // Receipt ID filter
+                if (this.filters.receiptId && !receipt.receiptId.toLowerCase().includes(this.filters.receiptId.toLowerCase())) {
+                    return false;
+                }
+                
+                // Order ID filter
+                if (this.filters.orderId && !receipt.orderId.toLowerCase().includes(this.filters.orderId.toLowerCase())) {
+                    return false;
+                }
+                
+                // Customer filter
+                if (this.filters.customer && !receipt.customer?.name?.toLowerCase().includes(this.filters.customer.toLowerCase())) {
+                    return false;
+                }
+                
+                // Template filter
+                if (this.filters.template && receipt.template?.id !== this.filters.template) {
+                    return false;
+                }
+                
+                // Print status filter
+                if (this.filters.printStatus && receipt.status !== this.filters.printStatus) {
+                    return false;
+                }
+                
+                // Printer filter
+                if (this.filters.printer && receipt.printer?.id !== this.filters.printer) {
+                    return false;
+                }
+                
+                // Date range filter
+                if (this.filters.dateRange) {
+                    const receiptDate = new Date(receipt.printedAt);
+                    const now = new Date();
+                    
+                    switch (this.filters.dateRange) {
+                        case 'today':
+                            if (receiptDate.toDateString() !== now.toDateString()) return false;
+                            break;
+                        case 'yesterday':
+                            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                            if (receiptDate.toDateString() !== yesterday.toDateString()) return false;
+                            break;
+                        case 'this_week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (receiptDate < weekAgo) return false;
+                            break;
+                        case 'this_month':
+                            if (receiptDate.getMonth() !== now.getMonth() || 
+                                receiptDate.getFullYear() !== now.getFullYear()) return false;
+                            break;
+                        case 'last_month':
+                            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                            const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                            if (receiptDate < lastMonth || receiptDate >= thisMonth) return false;
+                            break;
+                        case 'custom':
+                            if (this.filters.startDate && receiptDate < new Date(this.filters.startDate)) return false;
+                            if (this.filters.endDate && receiptDate > new Date(this.filters.endDate)) return false;
+                            break;
+                    }
+                }
+                
+                // Amount range filter
+                if (this.filters.minAmount && receipt.amount < parseFloat(this.filters.minAmount)) {
+                    return false;
+                }
+                if (this.filters.maxAmount && receipt.amount > parseFloat(this.filters.maxAmount)) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            this.sortReceipts();
+            this.currentPage = 1;
+        },
+        
+        clearFilters() {
+            this.filters = {
+                receiptId: '',
+                orderId: '',
+                customer: '',
+                template: '',
+                printStatus: '',
+                printer: '',
+                dateRange: 'today',
+                startDate: '',
+                endDate: '',
+                minAmount: '',
+                maxAmount: ''
+            };
+            this.searchQuery = '';
+            this.applyFilters();
+        },
+        
+        toggleFilters() {
+            this.showFilters = !this.showFilters;
+        },
+        
+        sortByField(field) {
+            if (this.sortField === field) {
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortOrder = 'desc';
+            }
+            this.sortReceipts();
+        },
+        
+        sortReceipts() {
+            this.filteredReceipts.sort((a, b) => {
+                let aVal = a[this.sortField];
+                let bVal = b[this.sortField];
+                
+                // Handle date fields
+                if (this.sortField === 'printedAt') {
+                    aVal = new Date(aVal);
+                    bVal = new Date(bVal);
+                }
+                
+                // Handle customer name
+                if (this.sortField === 'customer') {
+                    aVal = a.customer?.name || '';
+                    bVal = b.customer?.name || '';
+                }
+                
+                // Handle template name
+                if (this.sortField === 'template') {
+                    aVal = a.template?.name || '';
+                    bVal = b.template?.name || '';
+                }
+                
+                // Handle printer name
+                if (this.sortField === 'printer') {
+                    aVal = a.printer?.name || '';
+                    bVal = b.printer?.name || '';
+                }
+                
+                if (aVal < bVal) return this.sortOrder === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+        },
+        
+        toggleReceiptSelection(receiptId) {
+            const index = this.selectedReceipts.indexOf(receiptId);
+            if (index > -1) {
+                this.selectedReceipts.splice(index, 1);
+            } else {
+                this.selectedReceipts.push(receiptId);
+            }
+        },
+        
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedReceipts = this.paginatedReceipts.map(receipt => receipt.id);
+            } else {
+                this.selectedReceipts = [];
+            }
+        },
+        
+        clearSelection() {
+            this.selectedReceipts = [];
+        },
+        
+        goToPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+                this.clearSelection();
+            }
+        },
+        
+        // Navigation methods
+        printNewReceipt() {
+            window.location.href = '/receipts/print';
+        },
+        
+        viewReceipt(receiptId) {
+            window.location.href = `/receipts/view/${receiptId}`;
+        },
+        
+        reprintReceipt(receiptId) {
+            window.location.href = `/receipts/reprint/${receiptId}`;
+        },
+        
+        emailReceipt(receiptId) {
+            window.location.href = `/receipts/email/${receiptId}`;
+        },
+        
+        downloadReceipt(receiptId) {
+            window.open(`/api/receipts/download/${receiptId}`, '_blank');
+        },
+        
+        deleteReceipt(receiptId) {
+            if (confirm('Are you sure you want to delete this receipt? This action cannot be undone.')) {
+                window.location.href = `/receipts/delete/${receiptId}`;
+            }
+        },
+        
+        viewOrder(orderId) {
+            window.location.href = `/orders/view/${orderId}`;
+        },
+        
+        copyReceiptId(receiptId) {
+            navigator.clipboard.writeText(receiptId);
+            this.showSuccess('Receipt ID copied to clipboard');
+        },
+        
+        // Bulk operations
+        bulkReprint() {
+            const ids = this.selectedReceipts.join(',');
+            window.location.href = `/receipts/bulk/reprint?ids=${ids}`;
+        },
+        
+        bulkExport() {
+            const ids = this.selectedReceipts.join(',');
+            window.location.href = `/receipts/bulk/export?ids=${ids}`;
+        },
+        
+        bulkEmail() {
+            const ids = this.selectedReceipts.join(',');
+            window.location.href = `/receipts/bulk/email?ids=${ids}`;
+        },
+        
+        bulkDelete() {
+            if (confirm(`Are you sure you want to delete ${this.selectedReceipts.length} receipts? This action cannot be undone.`)) {
+                const ids = this.selectedReceipts.join(',');
+                window.location.href = `/receipts/bulk/delete?ids=${ids}`;
+            }
+        },
+        
+        // Other operations
+        exportHistory() {
+            window.location.href = '/receipts/export/history';
+        },
+        
+        batchReprint() {
+            window.location.href = '/receipts/batch/reprint';
+        },
+        
+        saveFilterPreset() {
+            // Implement filter preset saving logic
+            this.showSuccess('Filter preset saved successfully');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + P: Print new receipt
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                    e.preventDefault();
+                    this.printNewReceipt();
+                }
+                
+                // Ctrl/Cmd + E: Export history
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportHistory();
+                }
+                
+                // Ctrl/Cmd + R: Batch reprint
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.batchReprint();
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        },
+        
+        formatTime(dateString) {
+            return new Date(dateString).toLocaleTimeString();
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

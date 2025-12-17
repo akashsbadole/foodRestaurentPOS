@@ -1,0 +1,1003 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_search_list.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Search List Interface -->
+<div class="product-search-list-container" x-data="productSearchListApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="list-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="list-title">
+                    <i class="bi bi-list-ul me-2"></i>
+                    Product Search Results
+                </h2>
+                <p class="list-subtitle text-muted">Browse and manage search results with advanced filtering</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="list-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportResults()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="bulkActions()">
+                        <i class="bi bi-check-square"></i> Bulk Actions
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="newSearch()">
+                        <i class="bi bi-plus-circle"></i> New Search
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Summary -->
+    <div class="search-summary">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-search me-2"></i>
+                    Search Summary
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="modifySearch()">
+                        <i class="bi bi-pencil"></i> Modify
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-icon bg-primary">
+                                <i class="bi bi-box"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h6>Results Found</h6>
+                                <p class="summary-value" x-text="searchSummary.totalResults.toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-icon bg-success">
+                                <i class="bi bi-check-circle"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h6>In Stock</h6>
+                                <p class="summary-value" x-text="searchSummary.inStock.toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-icon bg-warning">
+                                <i class="bi bi-tag"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h6>On Sale</h6>
+                                <p class="summary-value" x-text="searchSummary.onSale.toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-icon bg-info">
+                                <i class="bi bi-clock"></i>
+                            </div>
+                            <div class="summary-info">
+                                <h6>Search Time</h6>
+                                <p class="summary-value" x-text="`${searchSummary.searchTime}s`"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="search-query">
+                            <strong>Search Query:</strong>
+                            <code x-text="searchSummary.query"></code>
+                            <small class="text-muted ms-2" x-text="`Performed ${formatTime(searchSummary.timestamp)}`"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="advanced-filters">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-funnel me-2"></i>
+                    Advanced Filters
+                </h5>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="resetFilters()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Price Range</label>
+                            <div class="price-range">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="filters.minPrice"
+                                       placeholder="Min"
+                                       @input="applyFilters()">
+                                <span class="range-separator">-</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="filters.maxPrice"
+                                       placeholder="Max"
+                                       @input="applyFilters()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Stock Level</label>
+                            <select class="form-select" x-model="filters.stockLevel" @change="applyFilters()">
+                                <option value="">All Levels</option>
+                                <option value="instock">In Stock</option>
+                                <option value="lowstock">Low Stock</option>
+                                <option value="outofstock">Out of Stock</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Rating</label>
+                            <select class="form-select" x-model="filters.rating" @change="applyFilters()">
+                                <option value="">All Ratings</option>
+                                <option value="4">4+ Stars</option>
+                                <option value="3">3+ Stars</option>
+                                <option value="2">2+ Stars</option>
+                                <option value="1">1+ Stars</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Sort By</label>
+                            <select class="form-select" x-model="filters.sortBy" @change="applyFilters()">
+                                <option value="relevance">Relevance</option>
+                                <option value="name">Name</option>
+                                <option value="price_low">Price: Low to High</option>
+                                <option value="price_high">Price: High to Low</option>
+                                <option value="rating">Rating</option>
+                                <option value="newest">Newest</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="filter-tags">
+                            <template x-for="(value, key) in activeFilters" :key="key">
+                                <span class="badge bg-light text-dark me-2 mb-2">
+                                    <span x-text="getFilterLabel(key, value)"></span>
+                                    <button type="button" 
+                                            class="btn-close btn-close-sm ms-1"
+                                            @click="removeFilter(key)">
+                                    </button>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product List -->
+    <div class="product-list">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="card-title">
+                            <i class="bi bi-list-ul me-2"></i>
+                            Product List
+                        </h5>
+                        <p class="text-muted mb-0" x-text="`${filteredProducts.length} products showing`"></p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="list-controls">
+                            <div class="btn-group btn-group-sm me-2" role="group">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'grid'}"
+                                        @click="viewMode = 'grid'">
+                                    <i class="bi bi-grid"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'list'}"
+                                        @click="viewMode = 'list'">
+                                    <i class="bi bi-list"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        :class="{'active': viewMode === 'compact'}"
+                                        @click="viewMode = 'compact'">
+                                    <i class="bi bi-list-ul"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="items-per-page">
+                                <select class="form-select form-select-sm" x-model="itemsPerPage" @change="applyPagination()">
+                                    <option value="20">20 per page</option>
+                                    <option value="50">50 per page</option>
+                                    <option value="100">100 per page</option>
+                                    <option value="200">200 per page</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Grid View -->
+                <div class="grid-view" x-show="viewMode === 'grid'">
+                    <div class="row">
+                        <template x-for="product in paginatedProducts" :key="product.id">
+                            <div class="col-md-3 mb-3">
+                                <div class="product-card">
+                                    <div class="product-header">
+                                        <div class="form-check">
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   :checked="selectedProducts.includes(product.id)"
+                                                   @change="toggleProductSelection(product.id, $event)">
+                                        </div>
+                                        <div class="product-actions">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @click="quickView(product.id)"
+                                                    title="Quick View">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="product-image">
+                                        <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                             :alt="product.name"
+                                             class="img-fluid">
+                                        <div class="product-badges">
+                                            <span class="badge bg-danger" x-show="product.stock === 0">Out of Stock</span>
+                                            <span class="badge bg-warning" x-show="product.stock < 10">Low Stock</span>
+                                            <span class="badge bg-success" x-show="product.onSale">On Sale</span>
+                                            <span class="badge bg-info" x-show="product.isNew">New</span>
+                                        </div>
+                                    </div>
+                                    <div class="product-info">
+                                        <h6 class="product-name" x-text="product.name"></h6>
+                                        <p class="product-sku">SKU: <span x-text="product.sku"></span></p>
+                                        <p class="product-category" x-text="product.category"></p>
+                                        <div class="product-price">
+                                            <span class="current-price" x-text="formatCurrency(product.price)"></span>
+                                            <span class="original-price" x-show="product.originalPrice" x-text="formatCurrency(product.originalPrice)"></span>
+                                            <span class="discount" x-show="product.discount" x-text="`${product.discount}% OFF`"></span>
+                                        </div>
+                                        <div class="product-rating">
+                                            <div class="rating-stars">
+                                                <template x-for="star in 5" :key="star">
+                                                    <i class="bi" 
+                                                       :class="star <= product.rating ? 'bi-star-fill' : 'bi-star'"></i>
+                                                </template>
+                                            </div>
+                                            <span class="rating-count" x-text="`(${product.reviews})`"></span>
+                                        </div>
+                                        <div class="product-stock">
+                                            <span :class="{'text-danger': product.stock === 0, 'text-warning': product.stock < 10}" 
+                                                  x-text="`${product.stock} in stock`"></span>
+                                        </div>
+                                    </div>
+                                    <div class="product-footer">
+                                        <div class="action-buttons">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    @click="viewProduct(product.id)">
+                                                <i class="bi bi-eye"></i> View
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-success"
+                                                    @click="addToCart(product.id)"
+                                                    :disabled="product.stock === 0">
+                                                <i class="bi bi-cart-plus"></i> Add
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @click="compareProduct(product.id)">
+                                                <i class="bi bi-arrows-angle-expand"></i> Compare
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- List View -->
+                <div class="list-view" x-show="viewMode === 'list'">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="40">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               @change="toggleSelectAll($event)">
+                                    </th>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                    <th>Rating</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="product in paginatedProducts" :key="product.id">
+                                    <tr class="product-row">
+                                        <td>
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   :checked="selectedProducts.includes(product.id)"
+                                                   @change="toggleProductSelection(product.id, $event)">
+                                        </td>
+                                        <td>
+                                            <div class="product-info">
+                                                <div class="product-image">
+                                                    <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                                         :alt="product.name"
+                                                         class="img-thumbnail">
+                                                </div>
+                                                <div class="product-details">
+                                                    <div class="product-name" x-text="product.name"></div>
+                                                    <small class="text-muted" x-text="product.description"></small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td x-text="product.sku"></td>
+                                        <td x-text="product.category"></td>
+                                        <td>
+                                            <div class="price-info">
+                                                <span class="current-price" x-text="formatCurrency(product.price)"></span>
+                                                <small class="text-muted" x-show="product.originalPrice" x-text="formatCurrency(product.originalPrice)"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span :class="{'text-danger': product.stock === 0, 'text-warning': product.stock < 10}" 
+                                                  x-text="product.stock"></span>
+                                        </td>
+                                        <td>
+                                            <div class="rating-display">
+                                                <div class="rating-stars">
+                                                    <template x-for="star in 5" :key="star">
+                                                        <i class="bi" 
+                                                           :class="star <= product.rating ? 'bi-star-fill' : 'bi-star'"></i>
+                                                    </template>
+                                                </div>
+                                                <small class="text-muted" x-text="`(${product.reviews})`"></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge" 
+                                                  :class="getStockStatusClass(product.stock)"
+                                                  x-text="getStockStatusText(product.stock)">
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        @click="viewProduct(product.id)"
+                                                        title="View">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-success"
+                                                        @click="addToCart(product.id)"
+                                                        title="Add to Cart"
+                                                        :disabled="product.stock === 0">
+                                                    <i class="bi bi-cart-plus"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        @click="compareProduct(product.id)"
+                                                        title="Compare">
+                                                    <i class="bi bi-arrows-angle-expand"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Compact View -->
+                <div class="compact-view" x-show="viewMode === 'compact'">
+                    <div class="compact-list">
+                        <template x-for="product in paginatedProducts" :key="product.id">
+                            <div class="compact-item">
+                                <div class="compact-checkbox">
+                                    <input type="checkbox" 
+                                           class="form-check-input" 
+                                           :checked="selectedProducts.includes(product.id)"
+                                           @change="toggleProductSelection(product.id, $event)">
+                                </div>
+                                <div class="compact-image">
+                                    <img :src="product.image || '/static/images/product-placeholder.png'" 
+                                         :alt="product.name"
+                                         class="img-thumbnail">
+                                </div>
+                                <div class="compact-info">
+                                    <div class="compact-name" x-text="product.name"></div>
+                                    <div class="compact-meta">
+                                        <span class="sku" x-text="product.sku"></span>
+                                        <span class="category" x-text="product.category"></span>
+                                        <span class="price" x-text="formatCurrency(product.price)"></span>
+                                    </div>
+                                </div>
+                                <div class="compact-status">
+                                    <span class="badge" 
+                                          :class="getStockStatusClass(product.stock)"
+                                          x-text="getStockStatusText(product.stock)">
+                                    </span>
+                                </div>
+                                <div class="compact-actions">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            @click="viewProduct(product.id)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success"
+                                            @click="addToCart(product.id)"
+                                            :disabled="product.stock === 0">
+                                        <i class="bi bi-cart-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-state" x-show="filteredProducts.length === 0">
+                    <div class="text-center py-5">
+                        <i class="bi bi-search display-1 text-muted"></i>
+                        <h5>No Products Found</h5>
+                        <p class="text-muted">Try adjusting your filters or search criteria</p>
+                        <button type="button" class="btn btn-primary" @click="resetFilters()">
+                            <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="card-footer" x-show="filteredProducts.length > 0">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="pagination-info">
+                            <span x-text="`Showing ${pagination.start} to ${pagination.end} of ${pagination.total} products`"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <nav>
+                            <ul class="pagination justify-content-end mb-0">
+                                <li class="page-item" :class="{'disabled': pagination.current_page === 1}">
+                                    <a class="page-link" href="#" @click.prevent="changePage(pagination.current_page - 1)">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                <template x-for="page in pagination.pages" :key="page">
+                                    <li class="page-item" :class="{'active': page === pagination.current_page}">
+                                        <a class="page-link" href="#" @click.prevent="changePage(page)" x-text="page"></a>
+                                    </li>
+                                </template>
+                                <li class="page-item" :class="{'disabled': pagination.current_page === pagination.total_pages}">
+                                    <a class="page-link" href="#" @click.prevent="changePage(pagination.current_page + 1)">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Panel -->
+    <div class="bulk-actions-panel" x-show="selectedProducts.length > 0" x-transition>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-check-square me-2"></i>
+                    Bulk Actions
+                </h5>
+                <button type="button" class="btn-close" @click="clearSelection()"></button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <p class="mb-0">
+                            <strong x-text="`${selectedProducts.length} products selected`"></strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="bulk-actions">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-2" @click="bulkAddToCart()">
+                                <i class="bi bi-cart-plus"></i> Add to Cart
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success me-2" @click="bulkAddToWishlist()">
+                                <i class="bi bi-heart"></i> Add to Wishlist
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary me-2" @click="bulkCompare()">
+                                <i class="bi bi-arrows-angle-expand"></i> Compare
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @click="bulkExport()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick View Modal -->
+    <div class="modal fade" id="quickViewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Quick View</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="quick-view-image">
+                                <img :src="quickViewProduct.image || '/static/images/product-placeholder.png'" 
+                                     :alt="quickViewProduct.name"
+                                     class="img-fluid">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="quick-view-details">
+                                <h4 x-text="quickViewProduct.name"></h4>
+                                <p class="sku">SKU: <span x-text="quickViewProduct.sku"></span></p>
+                                <p class="category">Category: <span x-text="quickViewProduct.category"></span></p>
+                                <div class="price-info">
+                                    <span class="current-price" x-text="formatCurrency(quickViewProduct.price)"></span>
+                                    <span class="original-price" x-show="quickViewProduct.originalPrice" x-text="formatCurrency(quickViewProduct.originalPrice)"></span>
+                                </div>
+                                <div class="rating-info">
+                                    <div class="rating-stars">
+                                        <template x-for="star in 5" :key="star">
+                                            <i class="bi" 
+                                               :class="star <= quickViewProduct.rating ? 'bi-star-fill' : 'bi-star'"></i>
+                                        </template>
+                                    </div>
+                                    <span x-text="`(${quickViewProduct.reviews} reviews)`"></span>
+                                </div>
+                                <p class="stock-info">
+                                    Stock: <span :class="{'text-danger': quickViewProduct.stock === 0, 'text-warning': quickViewProduct.stock < 10}" 
+                                              x-text="quickViewProduct.stock"></span>
+                                </p>
+                                <p class="description" x-text="quickViewProduct.description"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" @click="viewProduct(quickViewProduct.id)">View Details</button>
+                    <button type="button" 
+                            class="btn btn-success" 
+                            @click="addToCart(quickViewProduct.id)"
+                            :disabled="quickViewProduct.stock === 0">
+                        <i class="bi bi-cart-plus"></i> Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/product_search_list.js') }}"></script>
+<script>
+// Product Search List App
+function productSearchListApp() {
+    return {
+        // Data
+        viewMode: 'grid',
+        itemsPerPage: 20,
+        currentPage: 1,
+        
+        searchSummary: {
+            query: '',
+            totalResults: 0,
+            inStock: 0,
+            onSale: 0,
+            searchTime: 0,
+            timestamp: null
+        },
+        
+        filters: {
+            minPrice: '',
+            maxPrice: '',
+            stockLevel: '',
+            rating: '',
+            sortBy: 'relevance'
+        },
+        
+        products: [],
+        filteredProducts: [],
+        selectedProducts: [],
+        quickViewProduct: {},
+        
+        pagination: {
+            current_page: 1,
+            total_pages: 1,
+            total: 0,
+            start: 0,
+            end: 0,
+            pages: []
+        },
+        
+        // Computed properties
+        get paginatedProducts() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.filteredProducts.slice(start, end);
+        },
+        
+        get activeFilters() {
+            const active = {};
+            for (const [key, value] of Object.entries(this.filters)) {
+                if (value) {
+                    active[key] = value;
+                }
+            }
+            return active;
+        },
+        
+        // Methods
+        init() {
+            this.loadSearchResults();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSearchResults() {
+            try {
+                // Get search parameters from URL or session
+                const urlParams = new URLSearchParams(window.location.search);
+                const searchId = urlParams.get('search_id');
+                
+                if (searchId) {
+                    const response = await fetch(`/api/search/results/${searchId}`);
+                    const data = await response.json();
+                    
+                    this.searchSummary = data.summary;
+                    this.products = data.products;
+                    this.filteredProducts = this.products;
+                    this.updatePagination();
+                }
+            } catch (error) {
+                console.error('Error loading search results:', error);
+                this.showError('Failed to load search results');
+            }
+        },
+        
+        applyFilters() {
+            this.filteredProducts = this.products.filter(product => {
+                // Price filter
+                if (this.filters.minPrice && product.price < parseFloat(this.filters.minPrice)) {
+                    return false;
+                }
+                if (this.filters.maxPrice && product.price > parseFloat(this.filters.maxPrice)) {
+                    return false;
+                }
+                
+                // Stock level filter
+                if (this.filters.stockLevel) {
+                    switch (this.filters.stockLevel) {
+                        case 'instock':
+                            if (product.stock === 0) return false;
+                            break;
+                        case 'lowstock':
+                            if (product.stock >= 10 || product.stock === 0) return false;
+                            break;
+                        case 'outofstock':
+                            if (product.stock > 0) return false;
+                            break;
+                    }
+                }
+                
+                // Rating filter
+                if (this.filters.rating && product.rating < parseInt(this.filters.rating)) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            this.sortProducts();
+            this.updatePagination();
+        },
+        
+        sortProducts() {
+            switch (this.filters.sortBy) {
+                case 'name':
+                    this.filteredProducts.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'price_low':
+                    this.filteredProducts.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price_high':
+                    this.filteredProducts.sort((a, b) => b.price - a.price);
+                    break;
+                case 'rating':
+                    this.filteredProducts.sort((a, b) => b.rating - a.rating);
+                    break;
+                case 'newest':
+                    this.filteredProducts.sort((a, b) => new Date(b.created) - new Date(a.created));
+                    break;
+                // 'relevance' is default order from search results
+            }
+        },
+        
+        resetFilters() {
+            this.filters = {
+                minPrice: '',
+                maxPrice: '',
+                stockLevel: '',
+                rating: '',
+                sortBy: 'relevance'
+            };
+            this.applyFilters();
+        },
+        
+        removeFilter(key) {
+            this.filters[key] = '';
+            this.applyFilters();
+        },
+        
+        getFilterLabel(key, value) {
+            const labels = {
+                minPrice: `Min Price: $${value}`,
+                maxPrice: `Max Price: $${value}`,
+                stockLevel: `Stock: ${value}`,
+                rating: `Rating: ${value}+`,
+                sortBy: `Sort: ${value}`
+            };
+            return labels[key] || `${key}: ${value}`;
+        },
+        
+        // Selection methods
+        toggleSelectAll(event) {
+            if (event.target.checked) {
+                this.selectedProducts = this.paginatedProducts.map(p => p.id);
+            } else {
+                this.selectedProducts = [];
+            }
+        },
+        
+        toggleProductSelection(productId, event) {
+            if (event.target.checked) {
+                if (!this.selectedProducts.includes(productId)) {
+                    this.selectedProducts.push(productId);
+                }
+            } else {
+                this.selectedProducts = this.selectedProducts.filter(id => id !== productId);
+            }
+        },
+        
+        clearSelection() {
+            this.selectedProducts = [];
+        },
+        
+        // Pagination
+        updatePagination() {
+            const total = this.filteredProducts.length;
+            const totalPages = Math.ceil(total / this.itemsPerPage);
+            const start = total === 0 ? 0 : (this.currentPage - 1) * this.itemsPerPage + 1;
+            const end = Math.min(this.currentPage * this.itemsPerPage, total);
+            
+            this.pagination = {
+                current_page: this.currentPage,
+                total_pages: totalPages,
+                total: total,
+                start: start,
+                end: end,
+                pages: this.generatePageNumbers(totalPages)
+            };
+        },
+        
+        generatePageNumbers(totalPages) {
+            const pages = [];
+            const current = this.currentPage;
+            const delta = 2;
+            
+            for (let i = Math.max(1, current - delta); i <= Math.min(totalPages, current + delta); i++) {
+                pages.push(i);
+            }
+            
+            return pages;
+        },
+        
+        changePage(page) {
+            if (page >= 1 && page <= this.pagination.total_pages) {
+                this.currentPage = page;
+                this.updatePagination();
+            }
+        },
+        
+        applyPagination() {
+            this.currentPage = 1;
+            this.updatePagination();
+        },
+        
+        // Product actions
+        viewProduct(productId) {
+            window.location.href = `/products/view/${productId}`;
+        },
+        
+        addToCart(productId) {
+            window.location.href = `/cart/add?product=${productId}`;
+        },
+        
+        addToWishlist(productId) {
+            window.location.href = `/wishlist/add?product=${productId}`;
+        },
+        
+        compareProduct(productId) {
+            window.location.href = `/compare/add?product=${productId}`;
+        },
+        
+        quickView(productId) {
+            const product = this.products.find(p => p.id === productId);
+            if (product) {
+                this.quickViewProduct = product;
+                const modal = new bootstrap.Modal(document.getElementById('quickViewModal'));
+                modal.show();
+            }
+        },
+        
+        // Bulk actions
+        bulkAddToCart() {
+            if (this.selectedProducts.length === 0) return;
+            window.location.href = `/cart/bulk-add?products=${this.selectedProducts.join(',')}`;
+        },
+        
+        bulkAddToWishlist() {
+            if (this.selectedProducts.length === 0) return;
+            window.location.href = `/wishlist/bulk-add?products=${this.selectedProducts.join(',')}`;
+        },
+        
+        bulkCompare() {
+            if (this.selectedProducts.length === 0) return;
+            window.location.href = `/compare?products=${this.selectedProducts.join(',')}`;
+        },
+        
+        bulkExport() {
+            if (this.selectedProducts.length === 0) return;
+            window.location.href = `/products/export?products=${this.selectedProducts.join(',')}`;
+        },
+        
+        bulkActions() {
+            // Show bulk actions panel
+            if (this.selectedProducts.length === 0) {
+                this.showError('Please select products first');
+            }
+        },
+        
+        // Navigation methods
+        newSearch() {
+            window.location.href = '/search';
+        },
+        
+        modifySearch() {
+            window.location.href = '/search?modify=' + this.searchSummary.query;
+        },
+        
+        exportResults() {
+            const params = new URLSearchParams({
+                products: this.filteredProducts.map(p => p.id).join(',')
+            });
+            window.open(`/products/export?${params}`);
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatTime(timestamp) {
+            return new Date(timestamp).toLocaleString();
+        },
+        
+        getStockStatusClass(stock) {
+            if (stock === 0) return 'bg-danger';
+            if (stock < 10) return 'bg-warning';
+            return 'bg-success';
+        },
+        
+        getStockStatusText(stock) {
+            if (stock === 0) return 'Out of Stock';
+            if (stock < 10) return 'Low Stock';
+            return 'In Stock';
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + A: Select all
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    this.selectedProducts = this.paginatedProducts.map(p => p.id);
+                }
+                
+                // Escape: Clear selection
+                if (e.key === 'Escape') {
+                    this.clearSelection();
+                }
+                
+                // Ctrl/Cmd + E: Export
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportResults();
+                }
+                
+                // Ctrl/Cmd + N: New search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                    e.preventDefault();
+                    this.newSearch();
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

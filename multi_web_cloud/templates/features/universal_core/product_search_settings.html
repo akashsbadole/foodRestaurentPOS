@@ -1,0 +1,1380 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_search_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Search Settings -->
+<div class="product-search-settings-container" x-data="productSearchSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear-fill me-2"></i>
+                    Search Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure search behavior and indexing options</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveSettings()" :disabled="!hasChanges">
+                        <i class="bi bi-check-lg"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tabs -->
+    <div class="settings-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'general'}"
+                        @click="activeTab = 'general'">
+                    <i class="bi bi-gear me-1"></i> General
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'indexing'}"
+                        @click="activeTab = 'indexing'">
+                    <i class="bi bi-database me-1"></i> Indexing
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'performance'}"
+                        @click="activeTab = 'performance'">
+                    <i class="bi bi-speedometer2 me-1"></i> Performance
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'analytics'}"
+                        @click="activeTab = 'analytics'">
+                    <i class="bi bi-graph-up me-1"></i> Analytics
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'security'}"
+                        @click="activeTab = 'security'">
+                    <i class="bi bi-shield-check me-1"></i> Security
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" 
+                        :class="{'active': activeTab === 'advanced'}"
+                        @click="activeTab = 'advanced'">
+                    <i class="bi bi-tools me-1"></i> Advanced
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        
+        <!-- General Settings -->
+        <div class="tab-content" x-show="activeTab === 'general'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        General Search Settings
+                    </h5>
+                    <p class="text-muted mb-0">Basic search configuration and behavior</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Default Search Mode</label>
+                                <select class="form-select" x-model="settings.general.defaultMode">
+                                    <option value="all">Match All Words</option>
+                                    <option value="any">Match Any Word</option>
+                                    <option value="exact">Exact Phrase</option>
+                                    <option value="fuzzy">Fuzzy Matching</option>
+                                </select>
+                                <small class="form-text text-muted">Default search behavior</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Results Per Page</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.general.resultsPerPage"
+                                       min="10"
+                                       max="100"
+                                       step="10">
+                                <small class="form-text text-muted">Number of results to show per page</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Search Features</label>
+                                <div class="feature-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="autoSuggest" 
+                                               x-model="settings.general.autoSuggest">
+                                        <label class="form-check-label" for="autoSuggest">
+                                            Enable auto-suggestions
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="spellCheck" 
+                                               x-model="settings.general.spellCheck">
+                                        <label class="form-check-label" for="spellCheck">
+                                            Enable spell checking
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="synonyms" 
+                                               x-model="settings.general.synonyms">
+                                        <label class="form-check-label" for="synonyms">
+                                            Enable synonym matching
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="stemming" 
+                                               x-model="settings.general.stemming">
+                                        <label class="form-check-label" for="stemming">
+                                            Enable word stemming
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Search UI</label>
+                                <div class="ui-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showFacets" 
+                                               x-model="settings.general.showFacets">
+                                        <label class="form-check-label" for="showFacets">
+                                            Show search facets
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showSuggestions" 
+                                               x-model="settings.general.showSuggestions">
+                                        <label class="form-check-label" for="showSuggestions">
+                                            Show search suggestions
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="showHistory" 
+                                               x-model="settings.general.showHistory">
+                                        <label class="form-check-label" for="showHistory">
+                                            Show search history
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="highlightResults" 
+                                               x-model="settings.general.highlightResults">
+                                        <label class="form-check-label" for="highlightResults">
+                                            Highlight search terms
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indexing Settings -->
+        <div class="tab-content" x-show="activeTab === 'indexing'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-database me-2"></i>
+                        Indexing Configuration
+                    </h5>
+                    <p class="text-muted mb-0">Search indexing and synchronization settings</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Indexing Strategy</label>
+                                <select class="form-select" x-model="settings.indexing.strategy">
+                                    <option value="realtime">Real-time</option>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="manual">Manual</option>
+                                    <option value="hybrid">Hybrid</option>
+                                </select>
+                                <small class="form-text text-muted">How often to update search index</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Update Frequency</label>
+                                <select class="form-select" x-model="settings.indexing.frequency">
+                                    <option value="immediate">Immediate</option>
+                                    <option value="1min">Every 1 minute</option>
+                                    <option value="5min">Every 5 minutes</option>
+                                    <option value="15min">Every 15 minutes</option>
+                                    <option value="30min">Every 30 minutes</option>
+                                    <option value="1hour">Every hour</option>
+                                    <option value="6hours">Every 6 hours</option>
+                                    <option value="daily">Daily</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Index Size Limit</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.indexing.sizeLimit"
+                                       placeholder="Number of documents">
+                                <small class="form-text text-muted">Maximum number of documents to index</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Batch Size</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.indexing.batchSize"
+                                       min="100"
+                                       max="10000"
+                                       step="100">
+                                <small class="form-text text-muted">Documents per indexing batch</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">Index Status</label>
+                                <div class="index-status">
+                                    <div class="status-indicator" :class="indexStatus.status">
+                                        <i :class="indexStatus.icon"></i>
+                                    </div>
+                                    <div class="status-info">
+                                        <p class="status-text" x-text="indexStatus.text"></p>
+                                        <small class="status-detail" x-text="indexStatus.detail"></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Indexing Options</label>
+                                <div class="indexing-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="incrementalIndex" 
+                                               x-model="settings.indexing.incremental">
+                                        <label class="form-check-label" for="incrementalIndex">
+                                            Use incremental indexing
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="partialUpdates" 
+                                               x-model="settings.indexing.partialUpdates">
+                                        <label class="form-check-label" for="partialUpdates">
+                                            Allow partial updates
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="asyncIndexing" 
+                                               x-model="settings.indexing.async">
+                                        <label class="form-check-label" for="asyncIndexing">
+                                            Use asynchronous indexing
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="indexBackups" 
+                                               x-model="settings.indexing.backups">
+                                        <label class="form-check-label" for="indexBackups">
+                                            Create index backups
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="index-actions">
+                                <button type="button" class="btn btn-outline-primary me-2" @click="rebuildIndex()">
+                                    <i class="bi bi-arrow-clockwise"></i> Rebuild Index
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary me-2" @click="optimizeIndex()">
+                                    <i class="bi bi-lightning"></i> Optimize Index
+                                </button>
+                                <button type="button" class="btn btn-outline-info" @click="viewIndexStats()">
+                                    <i class="bi bi-bar-chart"></i> View Statistics
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Settings -->
+        <div class="tab-content" x-show="activeTab === 'performance'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        Performance Optimization
+                    </h5>
+                    <p class="text-muted mb-0">Caching and performance tuning settings</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Cache Strategy</label>
+                                <select class="form-select" x-model="settings.performance.cacheStrategy">
+                                    <option value="none">No Caching</option>
+                                    <option value="memory">Memory Cache</option>
+                                    <option value="redis">Redis Cache</option>
+                                    <option value="memcached">Memcached</option>
+                                    <option value="hybrid">Hybrid Cache</option>
+                                </select>
+                                <small class="form-text text-muted">Caching mechanism for search results</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Cache TTL (minutes)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.performance.cacheTTL"
+                                       min="1"
+                                       max="1440"
+                                       step="1">
+                                <small class="form-text text-muted">Time to live for cached results</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Query Optimization</label>
+                                <div class="query-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="queryCaching" 
+                                               x-model="settings.performance.queryCaching">
+                                        <label class="form-check-label" for="queryCaching">
+                                            Enable query caching
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="resultCaching" 
+                                               x-model="settings.performance.resultCaching">
+                                        <label class="form-check-label" for="resultCaching">
+                                            Enable result caching
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="compression" 
+                                               x-model="settings.performance.compression">
+                                        <label class="form-check-label" for="compression">
+                                            Enable result compression
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Resource Limits</label>
+                                <div class="resource-limits">
+                                    <div class="limit-item">
+                                        <label class="form-label small">Max Concurrent Queries</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="settings.performance.maxConcurrentQueries"
+                                               min="1"
+                                               max="1000">
+                                    </div>
+                                    <div class="limit-item">
+                                        <label class="form-label small">Query Timeout (ms)</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="settings.performance.queryTimeout"
+                                               min="100"
+                                               max="30000"
+                                               step="100">
+                                    </div>
+                                    <div class="limit-item">
+                                        <label class="form-label small">Memory Limit (MB)</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="settings.performance.memoryLimit"
+                                               min="64"
+                                               max="8192"
+                                               step="64">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="performance-metrics">
+                                <h6>Current Performance Metrics</h6>
+                                <div class="metrics-grid">
+                                    <div class="metric-item">
+                                        <div class="metric-label">Average Query Time</div>
+                                        <div class="metric-value" x-text="`${performanceMetrics.avgQueryTime}ms`"></div>
+                                    </div>
+                                    <div class="metric-item">
+                                        <div class="metric-label">Cache Hit Rate</div>
+                                        <div class="metric-value" x-text="`${performanceMetrics.cacheHitRate}%`"></div>
+                                    </div>
+                                    <div class="metric-item">
+                                        <div class="metric-label">Queries per Second</div>
+                                        <div class="metric-value" x-text="performanceMetrics.queriesPerSecond"></div>
+                                    </div>
+                                    <div class="metric-item">
+                                        <div class="metric-label">Memory Usage</div>
+                                        <div class="metric-value" x-text="`${performanceMetrics.memoryUsage}MB`"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Settings -->
+        <div class="tab-content" x-show="activeTab === 'analytics'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-graph-up me-2"></i>
+                        Search Analytics
+                    </h5>
+                    <p class="text-muted mb-0">Configure search analytics and tracking</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Tracking Options</label>
+                                <div class="tracking-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="trackQueries" 
+                                               x-model="settings.analytics.trackQueries">
+                                        <label class="form-check-label" for="trackQueries">
+                                            Track search queries
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="trackClicks" 
+                                               x-model="settings.analytics.trackClicks">
+                                        <label class="form-check-label" for="trackClicks">
+                                            Track result clicks
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="trackConversions" 
+                                               x-model="settings.analytics.trackConversions">
+                                        <label class="form-check-label" for="trackConversions">
+                                            Track conversions
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="trackSessions" 
+                                               x-model="settings.analytics.trackSessions">
+                                        <label class="form-check-label" for="trackSessions">
+                                            Track user sessions
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Data Retention</label>
+                                <div class="retention-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="retentionQueries" 
+                                               x-model="settings.analytics.retentionQueries">
+                                        <label class="form-check-label" for="retentionQueries">
+                                            Retain query history
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="retentionClicks" 
+                                               x-model="settings.analytics.retentionClicks">
+                                        <label class="form-check-label" for="retentionClicks">
+                                            Retain click data
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="retentionSessions" 
+                                               x-model="settings.analytics.retentionSessions">
+                                        <label class="form-check-label" for="retentionSessions">
+                                            Retain session data
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Data Retention Period (days)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="settings.analytics.retentionPeriod"
+                                       min="7"
+                                       max="365"
+                                       step="1">
+                                <small class="form-text text-muted">How long to retain analytics data</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Privacy Settings</label>
+                                <div class="privacy-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="anonymizeIP" 
+                                               x-model="settings.analytics.anonymizeIP">
+                                        <label class="form-check-label" for="anonymizeIP">
+                                            Anonymize IP addresses
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="excludeInternal" 
+                                               x-model="settings.analytics.excludeInternal">
+                                        <label class="form-check-label" for="excludeInternal">
+                                            Exclude internal users
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="analytics-actions">
+                                <button type="button" class="btn btn-outline-primary me-2" @click="viewAnalytics()">
+                                    <i class="bi bi-graph-up"></i> View Analytics
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary me-2" @click="exportAnalytics()">
+                                    <i class="bi bi-download"></i> Export Data
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" @click="clearAnalytics()">
+                                    <i class="bi bi-trash"></i> Clear Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Settings -->
+        <div class="tab-content" x-show="activeTab === 'security'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-shield-check me-2"></i>
+                        Security & Access Control
+                    </h5>
+                    <p class="text-muted mb-0">Configure security and access control settings</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Access Control</label>
+                                <div class="access-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="rateLimiting" 
+                                               x-model="settings.security.rateLimiting">
+                                        <label class="form-check-label" for="rateLimiting">
+                                            Enable rate limiting
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="queryValidation" 
+                                               x-model="settings.security.queryValidation">
+                                        <label class="form-check-label" for="queryValidation">
+                                            Enable query validation
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="ipWhitelist" 
+                                               x-model="settings.security.ipWhitelist">
+                                        <label class="form-check-label" for="ipWhitelist">
+                                            Enable IP whitelist
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="apiKeys" 
+                                               x-model="settings.security.apiKeys">
+                                        <label class="form-check-label" for="apiKeys">
+                                            Require API keys
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Rate Limiting</label>
+                                <div class="rate-limiting-config">
+                                    <div class="limit-item">
+                                        <label class="form-label small">Requests per Minute</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="settings.security.requestsPerMinute"
+                                               min="1"
+                                               max="1000">
+                                    </div>
+                                    <div class="limit-item">
+                                        <label class="form-label small">Requests per Hour</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="settings.security.requestsPerHour"
+                                               min="1"
+                                               max="10000">
+                                    </div>
+                                    <div class="limit-item">
+                                        <label class="form-label small">Requests per Day</label>
+                                        <input type="number" 
+                                               class="form-control form-control-sm" 
+                                               x-model="settings.security.requestsPerDay"
+                                               min="1"
+                                               max="100000">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Allowed IP Addresses</label>
+                                <textarea class="form-control" 
+                                          x-model="settings.security.allowedIPs"
+                                          rows="4"
+                                          placeholder="Enter IP addresses, one per line..."></textarea>
+                                <small class="form-text text-muted">IP addresses allowed to access search API</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Security Headers</label>
+                                <div class="security-headers">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="corsEnabled" 
+                                               x-model="settings.security.corsEnabled">
+                                        <label class="form-check-label" for="corsEnabled">
+                                            Enable CORS
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="csrfProtection" 
+                                               x-model="settings.security.csrfProtection">
+                                        <label class="form-check-label" for="csrfProtection">
+                                            Enable CSRF protection
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="contentSecurityPolicy" 
+                                               x-model="settings.security.contentSecurityPolicy">
+                                        <label class="form-check-label" for="contentSecurityPolicy">
+                                            Enable Content Security Policy
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="tab-content" x-show="activeTab === 'advanced'">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="bi bi-tools me-2"></i>
+                        Advanced Configuration
+                    </h5>
+                    <p class="text-muted mb-0">Advanced search configuration and customization</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Debug Mode</label>
+                                <div class="debug-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="debugMode" 
+                                               x-model="settings.advanced.debugMode">
+                                        <label class="form-check-label" for="debugMode">
+                                            Enable debug mode
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="logQueries" 
+                                               x-model="settings.advanced.logQueries">
+                                        <label class="form-check-label" for="logQueries">
+                                            Log all queries
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="logPerformance" 
+                                               x-model="settings.advanced.logPerformance">
+                                        <label class="form-check-label" for="logPerformance">
+                                            Log performance metrics
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Experimental Features</label>
+                                <div class="experimental-options">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="aiSearch" 
+                                               x-model="settings.advanced.aiSearch">
+                                        <label class="form-check-label" for="aiSearch">
+                                            Enable AI-powered search
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="voiceSearch" 
+                                               x-model="settings.advanced.voiceSearch">
+                                        <label class="form-check-label" for="voiceSearch">
+                                            Enable voice search
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="imageSearch" 
+                                               x-model="settings.advanced.imageSearch">
+                                        <label class="form-check-label" for="imageSearch">
+                                            Enable image search
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">Custom Configuration</label>
+                                <div class="custom-config">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Custom Query DSL</label>
+                                            <textarea class="form-control" 
+                                                      x-model="settings.advanced.customDSL"
+                                                      rows="4"
+                                                      placeholder="Enter custom query DSL..."></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Custom Filters</label>
+                                            <textarea class="form-control" 
+                                                      x-model="settings.advanced.customFilters"
+                                                      rows="4"
+                                                      placeholder="Enter custom filters..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="form-label">API Configuration</label>
+                                <div class="api-config">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label class="form-label small">API Version</label>
+                                            <select class="form-select" x-model="settings.advanced.apiVersion">
+                                                <option value="v1">v1</option>
+                                                <option value="v2">v2</option>
+                                                <option value="latest">Latest</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Response Format</label>
+                                            <select class="form-select" x-model="settings.advanced.responseFormat">
+                                                <option value="json">JSON</option>
+                                                <option value="xml">XML</option>
+                                                <option value="csv">CSV</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Compression</label>
+                                            <select class="form-select" x-model="settings.advanced.compression">
+                                                <option value="none">None</option>
+                                                <option value="gzip">Gzip</option>
+                                                <option value="deflate">Deflate</option>
+                                                <option value="brotli">Brotli</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Status -->
+    <div class="settings-status">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Settings Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="status-item">
+                            <div class="status-label">Last Saved:</div>
+                            <div class="status-value" x-text="settingsStatus.lastSaved || 'Never'"></div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Version:</div>
+                            <div class="status-value" x-text="settingsStatus.version"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="status-item">
+                            <div class="status-label">Changes:</div>
+                            <div class="status-value" :class="{'text-warning': hasChanges, 'text-success': !hasChanges}">
+                                <span x-text="hasChanges ? 'Unsaved changes' : 'All saved'"></span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Configuration:</div>
+                            <div class="status-value" x-text="settingsStatus.configurationStatus"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/product_search_settings.js') }}"></script>
+<script>
+// Product Search Settings App
+function productSearchSettingsApp() {
+    return {
+        // Data
+        activeTab: 'general',
+        originalSettings: null,
+        
+        settings: {
+            general: {
+                defaultMode: 'all',
+                resultsPerPage: 20,
+                autoSuggest: true,
+                spellCheck: true,
+                synonyms: false,
+                stemming: true,
+                showFacets: true,
+                showSuggestions: true,
+                showHistory: true,
+                highlightResults: true
+            },
+            indexing: {
+                strategy: 'realtime',
+                frequency: 'immediate',
+                sizeLimit: 100000,
+                batchSize: 1000,
+                incremental: true,
+                partialUpdates: false,
+                async: true,
+                backups: true
+            },
+            performance: {
+                cacheStrategy: 'memory',
+                cacheTTL: 15,
+                queryCaching: true,
+                resultCaching: true,
+                compression: false,
+                maxConcurrentQueries: 100,
+                queryTimeout: 5000,
+                memoryLimit: 512
+            },
+            analytics: {
+                trackQueries: true,
+                trackClicks: true,
+                trackConversions: false,
+                trackSessions: true,
+                retentionQueries: true,
+                retentionClicks: true,
+                retentionSessions: false,
+                retentionPeriod: 30,
+                anonymizeIP: true,
+                excludeInternal: true
+            },
+            security: {
+                rateLimiting: true,
+                queryValidation: true,
+                ipWhitelist: false,
+                apiKeys: false,
+                requestsPerMinute: 60,
+                requestsPerHour: 1000,
+                requestsPerDay: 10000,
+                allowedIPs: '',
+                corsEnabled: true,
+                csrfProtection: true,
+                contentSecurityPolicy: false
+            },
+            advanced: {
+                debugMode: false,
+                logQueries: false,
+                logPerformance: false,
+                aiSearch: false,
+                voiceSearch: false,
+                imageSearch: false,
+                customDSL: '',
+                customFilters: '',
+                apiVersion: 'v2',
+                responseFormat: 'json',
+                compression: 'gzip'
+            }
+        },
+        
+        indexStatus: {
+            status: 'healthy',
+            text: 'Index is healthy',
+            detail: 'Last updated 2 minutes ago',
+            icon: 'bi-check-circle'
+        },
+        
+        performanceMetrics: {
+            avgQueryTime: 45,
+            cacheHitRate: 78,
+            queriesPerSecond: 125,
+            memoryUsage: 256
+        },
+        
+        settingsStatus: {
+            lastSaved: null,
+            version: '1.0.0',
+            configurationStatus: 'Valid'
+        },
+        
+        // Computed properties
+        get hasChanges() {
+            return JSON.stringify(this.settings) !== JSON.stringify(this.originalSettings);
+        },
+        
+        // Methods
+        init() {
+            this.loadSettings();
+            this.loadIndexStatus();
+            this.loadPerformanceMetrics();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/search/settings');
+                const data = await response.json();
+                
+                if (data.settings) {
+                    this.settings = { ...this.settings, ...data.settings };
+                    this.originalSettings = JSON.parse(JSON.stringify(this.settings));
+                }
+                
+                if (data.status) {
+                    this.settingsStatus = { ...this.settingsStatus, ...data.status };
+                }
+                
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                this.showError('Failed to load settings');
+            }
+        },
+        
+        async loadIndexStatus() {
+            try {
+                const response = await fetch('/api/search/index-status');
+                const data = await response.json();
+                this.indexStatus = data;
+            } catch (error) {
+                console.error('Error loading index status:', error);
+            }
+        },
+        
+        async loadPerformanceMetrics() {
+            try {
+                const response = await fetch('/api/search/performance-metrics');
+                const data = await response.json();
+                this.performanceMetrics = data;
+            } catch (error) {
+                console.error('Error loading performance metrics:', error);
+            }
+        },
+        
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/search/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                if (response.ok) {
+                    this.originalSettings = JSON.parse(JSON.stringify(this.settings));
+                    this.settingsStatus.lastSaved = new Date().toLocaleString();
+                    this.showSuccess('Settings saved successfully');
+                } else {
+                    throw new Error('Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            }
+        },
+        
+        resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+                // Reset to default values
+                this.settings = {
+                    general: {
+                        defaultMode: 'all',
+                        resultsPerPage: 20,
+                        autoSuggest: true,
+                        spellCheck: true,
+                        synonyms: false,
+                        stemming: true,
+                        showFacets: true,
+                        showSuggestions: true,
+                        showHistory: true,
+                        highlightResults: true
+                    },
+                    indexing: {
+                        strategy: 'realtime',
+                        frequency: 'immediate',
+                        sizeLimit: 100000,
+                        batchSize: 1000,
+                        incremental: true,
+                        partialUpdates: false,
+                        async: true,
+                        backups: true
+                    },
+                    performance: {
+                        cacheStrategy: 'memory',
+                        cacheTTL: 15,
+                        queryCaching: true,
+                        resultCaching: true,
+                        compression: false,
+                        maxConcurrentQueries: 100,
+                        queryTimeout: 5000,
+                        memoryLimit: 512
+                    },
+                    analytics: {
+                        trackQueries: true,
+                        trackClicks: true,
+                        trackConversions: false,
+                        trackSessions: true,
+                        retentionQueries: true,
+                        retentionClicks: true,
+                        retentionSessions: false,
+                        retentionPeriod: 30,
+                        anonymizeIP: true,
+                        excludeInternal: true
+                    },
+                    security: {
+                        rateLimiting: true,
+                        queryValidation: true,
+                        ipWhitelist: false,
+                        apiKeys: false,
+                        requestsPerMinute: 60,
+                        requestsPerHour: 1000,
+                        requestsPerDay: 10000,
+                        allowedIPs: '',
+                        corsEnabled: true,
+                        csrfProtection: true,
+                        contentSecurityPolicy: false
+                    },
+                    advanced: {
+                        debugMode: false,
+                        logQueries: false,
+                        logPerformance: false,
+                        aiSearch: false,
+                        voiceSearch: false,
+                        imageSearch: false,
+                        customDSL: '',
+                        customFilters: '',
+                        apiVersion: 'v2',
+                        responseFormat: 'json',
+                        compression: 'gzip'
+                    }
+                };
+                
+                this.showSuccess('Settings reset to defaults');
+            }
+        },
+        
+        exportSettings() {
+            const dataStr = JSON.stringify(this.settings, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `search-settings-${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        },
+        
+        // Indexing actions
+        async rebuildIndex() {
+            if (!confirm('Are you sure you want to rebuild the search index? This may take some time.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/search/rebuild-index', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Index rebuild started successfully');
+                    this.loadIndexStatus();
+                } else {
+                    this.showError('Failed to rebuild index: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error rebuilding index:', error);
+                this.showError('Failed to rebuild index');
+            }
+        },
+        
+        async optimizeIndex() {
+            try {
+                const response = await fetch('/api/search/optimize-index', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.showSuccess('Index optimization completed successfully');
+                } else {
+                    this.showError('Failed to optimize index: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error optimizing index:', error);
+                this.showError('Failed to optimize index');
+            }
+        },
+        
+        viewIndexStats() {
+            window.location.href = '/search/index-stats';
+        },
+        
+        // Analytics actions
+        viewAnalytics() {
+            window.location.href = '/search/analytics';
+        },
+        
+        exportAnalytics() {
+            window.open('/api/search/analytics/export');
+        },
+        
+        clearAnalytics() {
+            if (!confirm('Are you sure you want to clear all analytics data? This cannot be undone.')) {
+                return;
+            }
+            
+            fetch('/api/search/analytics/clear', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    this.showSuccess('Analytics data cleared successfully');
+                } else {
+                    this.showError('Failed to clear analytics data');
+                }
+            }).catch(error => {
+                console.error('Error clearing analytics:', error);
+                this.showError('Failed to clear analytics data');
+            });
+        },
+        
+        // Utility methods
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    if (this.hasChanges) {
+                        this.saveSettings();
+                    }
+                }
+                
+                // Ctrl/Cmd + E: Export settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSettings();
+                }
+                
+                // Ctrl/Cmd + R: Reset to defaults
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetToDefaults();
+                }
+                
+                // Tab numbers: Switch tabs
+                if (e.key >= '1' && e.key <= '6') {
+                    const tabNumber = parseInt(e.key);
+                    const tabs = ['general', 'indexing', 'performance', 'analytics', 'security', 'advanced'];
+                    if (tabNumber <= tabs.length) {
+                        this.activeTab = tabs[tabNumber - 1];
+                    }
+                }
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

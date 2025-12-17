@@ -1,0 +1,1090 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/customer_management_settings.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Customer Management Settings -->
+<div class="customer-settings-container" x-data="customerSettingsApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="settings-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Customer Management Settings
+                </h2>
+                <p class="settings-subtitle text-muted">Configure customer management preferences and behaviors</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="settings-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="resetToDefaults()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                    </button>
+                    <button type="button" class="btn btn-outline-primary me-2" @click="exportSettings()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="saveAllSettings()" :disabled="isSaving">
+                        <i class="bi bi-check-circle"></i> 
+                        <span x-show="!isSaving">Save Settings</span>
+                        <span x-show="isSaving">Saving...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <div class="nav nav-pills" role="tablist">
+            <button class="nav-link active" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#general-settings"
+                    type="button">
+                <i class="bi bi-sliders me-2"></i>General
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#loyalty-settings"
+                    type="button">
+                <i class="bi bi-star me-2"></i>Loyalty
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#communication-settings"
+                    type="button">
+                <i class="bi bi-envelope me-2"></i>Communication
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#privacy-settings"
+                    type="button">
+                <i class="bi bi-shield-check me-2"></i>Privacy
+            </button>
+            <button class="nav-link" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#integration-settings"
+                    type="button">
+                <i class="bi bi-link-45deg me-2"></i>Integrations
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        <div class="tab-content">
+            
+            <!-- General Settings -->
+            <div class="tab-pane fade show active" id="general-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-sliders me-2"></i>
+                            General Customer Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Default Settings -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Default Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Customer Type</label>
+                                        <select class="form-select" x-model="settings.defaultCustomerType">
+                                            <option value="regular">Regular</option>
+                                            <option value="loyalty">Loyalty Member</option>
+                                            <option value="vip">VIP</option>
+                                            <option value="wholesale">Wholesale</option>
+                                            <option value="corporate">Corporate</option>
+                                        </select>
+                                        <small class="form-text text-muted">Default type for new customers</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Status</label>
+                                        <select class="form-select" x-model="settings.defaultStatus">
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                            <option value="pending">Pending</option>
+                                        </select>
+                                        <small class="form-text text-muted">Default status for new customers</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Language</label>
+                                        <select class="form-select" x-model="settings.defaultLanguage">
+                                            <option value="en">English</option>
+                                            <option value="es">Spanish</option>
+                                            <option value="fr">French</option>
+                                            <option value="de">German</option>
+                                            <option value="it">Italian</option>
+                                            <option value="pt">Portuguese</option>
+                                            <option value="zh">Chinese</option>
+                                            <option value="ja">Japanese</option>
+                                            <option value="hi">Hindi</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Time Zone</label>
+                                        <select class="form-select" x-model="settings.defaultTimeZone">
+                                            <option value="UTC">UTC</option>
+                                            <option value="America/New_York">Eastern Time</option>
+                                            <option value="America/Chicago">Central Time</option>
+                                            <option value="America/Denver">Mountain Time</option>
+                                            <option value="America/Los_Angeles">Pacific Time</option>
+                                            <option value="Europe/London">London</option>
+                                            <option value="Europe/Paris">Paris</option>
+                                            <option value="Asia/Tokyo">Tokyo</option>
+                                            <option value="Asia/Shanghai">Shanghai</option>
+                                            <option value="Asia/Kolkata">Kolkata</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Display -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Customer Display</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Items Per Page</label>
+                                        <select class="form-select" x-model="settings.itemsPerPage">
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                            <option value="200">200</option>
+                                        </select>
+                                        <small class="form-text text-muted">Number of customers to display per page</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default View</label>
+                                        <select class="form-select" x-model="settings.defaultView">
+                                            <option value="grid">Grid View</option>
+                                            <option value="list">List View</option>
+                                        </select>
+                                        <small class="form-text text-muted">Default view for customer listing</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="showAvatars"
+                                                   x-model="settings.showAvatars">
+                                            <label class="form-check-label" for="showAvatars">
+                                                Show customer avatars in customer list
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="showCompanyInfo"
+                                                   x-model="settings.showCompanyInfo">
+                                            <label class="form-check-label" for="showCompanyInfo">
+                                                Show company information for corporate customers
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="showPurchaseHistory"
+                                                   x-model="settings.showPurchaseHistory">
+                                            <label class="form-check-label" for="showPurchaseHistory">
+                                                Show purchase history in customer list
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Groups -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Customer Groups</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableCustomerGroups"
+                                                   x-model="settings.enableCustomerGroups">
+                                            <label class="form-check-label" for="enableCustomerGroups">
+                                                Enable customer groups
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Default Group</label>
+                                        <select class="form-select" x-model="settings.defaultGroup">
+                                            <option value="">No Default Group</option>
+                                            <template x-for="group in customerGroups" :key="group.id">
+                                                <option :value="group.id" x-text="group.name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="autoAssignGroups"
+                                                   x-model="settings.autoAssignGroups">
+                                            <label class="form-check-label" for="autoAssignGroups">
+                                                Auto-assign groups based on customer behavior
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loyalty Settings -->
+            <div class="tab-pane fade" id="loyalty-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-star me-2"></i>
+                            Loyalty Program Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Loyalty Program -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Loyalty Program</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableLoyaltyProgram"
+                                                   x-model="settings.enableLoyaltyProgram">
+                                            <label class="form-check-label" for="enableLoyaltyProgram">
+                                                Enable loyalty program
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Points per Dollar</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.pointsPerDollar"
+                                               min="0"
+                                               step="0.1">
+                                        <small class="form-text text-muted">Points earned for each dollar spent</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Points Expiry (days)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.pointsExpiryDays"
+                                               min="0">
+                                        <small class="form-text text-muted">Days before points expire (0 = never expire)</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Loyalty Tiers -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Loyalty Tiers</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="loyalty-tiers">
+                                        <template x-for="(tier, index) in loyaltyTiers" :key="index">
+                                            <div class="tier-card">
+                                                <div class="tier-header">
+                                                    <h6 x-text="tier.name"></h6>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-danger"
+                                                            @click="removeLoyaltyTier(index)"
+                                                            x-show="loyaltyTiers.length > 1">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="tier-body">
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Minimum Points</label>
+                                                                <input type="number" 
+                                                                       class="form-control" 
+                                                                       x-model="tier.minPoints"
+                                                                       min="0">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Points Multiplier</label>
+                                                                <input type="number" 
+                                                                       class="form-control" 
+                                                                       x-model="tier.pointsMultiplier"
+                                                                       min="1"
+                                                                       step="0.1">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-md-12">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Benefits</label>
+                                                                <textarea class="form-control" 
+                                                                          x-model="tier.benefits"
+                                                                          rows="2"
+                                                                          placeholder="Enter tier benefits..."></textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <button type="button" 
+                                            class="btn btn-outline-primary btn-sm"
+                                            @click="addLoyaltyTier()">
+                                        <i class="bi bi-plus"></i> Add Tier
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rewards -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Reward Settings</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Birthday Bonus Points</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.birthdayBonusPoints"
+                                               min="0">
+                                        <small class="form-text text-muted">Bonus points awarded on customer birthday</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Referral Bonus Points</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.referralBonusPoints"
+                                               min="0">
+                                        <small class="form-text text-muted">Points awarded for successful referrals</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Communication Settings -->
+            <div class="tab-pane fade" id="communication-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-envelope me-2"></i>
+                            Communication Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Email Settings -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Email Communication</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableEmailNotifications"
+                                                   x-model="settings.enableEmailNotifications">
+                                            <label class="form-check-label" for="enableEmailNotifications">
+                                                Enable email notifications
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Welcome Email Template</label>
+                                        <select class="form-select" x-model="settings.welcomeEmailTemplate">
+                                            <option value="default">Default Template</option>
+                                            <option value="minimal">Minimal Template</option>
+                                            <option value="detailed">Detailed Template</option>
+                                            <option value="custom">Custom Template</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Birthday Email Template</label>
+                                        <select class="form-select" x-model="settings.birthdayEmailTemplate">
+                                            <option value="default">Default Template</option>
+                                            <option value="celebration">Celebration Template</option>
+                                            <option value="special-offer">Special Offer Template</option>
+                                            <option value="custom">Custom Template</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SMS Settings -->
+                        <div class="settings-section">
+                            <h6 class="section-title">SMS Communication</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableSMSNotifications"
+                                                   x-model="settings.enableSMSNotifications">
+                                            <label class="form-check-label" for="enableSMSNotifications">
+                                                Enable SMS notifications
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">SMS Provider</label>
+                                        <select class="form-select" x-model="settings.smsProvider">
+                                            <option value="twilio">Twilio</option>
+                                            <option value="nexmo">Nexmo</option>
+                                            <option value="plivo">Plivo</option>
+                                            <option value="messagebird">MessageBird</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">SMS Limit per Day</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.smsLimitPerDay"
+                                               min="0">
+                                        <small class="form-text text-muted">Maximum SMS messages per customer per day</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Automated Messages -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Automated Messages</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableWelcomeMessages"
+                                                   x-model="settings.enableWelcomeMessages">
+                                            <label class="form-check-label" for="enableWelcomeMessages">
+                                                Send welcome messages to new customers
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableBirthdayMessages"
+                                                   x-model="settings.enableBirthdayMessages">
+                                            <label class="form-check-label" for="enableBirthdayMessages">
+                                                Send birthday wishes and offers
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableReactivationMessages"
+                                                   x-model="settings.enableReactivationMessages">
+                                            <label class="form-check-label" for="enableReactivationMessages">
+                                                Send reactivation messages to inactive customers
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Inactive Period (days)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.inactivePeriodDays"
+                                               min="30">
+                                        <small class="form-text text-muted">Days of inactivity before sending reactivation message</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Settings -->
+            <div class="tab-pane fade" id="privacy-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-shield-check me-2"></i>
+                            Privacy & Security Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Data Protection -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Data Protection</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableGDPR"
+                                                   x-model="settings.enableGDPR">
+                                            <label class="form-check-label" for="enableGDPR">
+                                                Enable GDPR compliance
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableDataEncryption"
+                                                   x-model="settings.enableDataEncryption">
+                                            <label class="form-check-label" for="enableDataEncryption">
+                                                Enable data encryption for customer information
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableAuditLog"
+                                                   x-model="settings.enableAuditLog">
+                                            <label class="form-check-label" for="enableAuditLog">
+                                                Enable audit logging for customer data access
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Retention -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Data Retention</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Inactive Customer Retention (days)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.inactiveCustomerRetentionDays"
+                                               min="0">
+                                        <small class="form-text text-muted">Days to retain inactive customer data (0 = keep forever)</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Deleted Customer Retention (days)</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               x-model="settings.deletedCustomerRetentionDays"
+                                               min="0">
+                                        <small class="form-text text-muted">Days to keep deleted customer data before permanent deletion</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Access Control -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Access Control</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Default Access Level</label>
+                                        <select class="form-select" x-model="settings.defaultAccessLevel">
+                                            <option value="full">Full Access</option>
+                                            <option value="limited">Limited Access</option>
+                                            <option value="read-only">Read Only</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="requireTwoFactor"
+                                                   x-model="settings.requireTwoFactor">
+                                            <label class="form-check-label" for="requireTwoFactor">
+                                                Require two-factor authentication for customer data access
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Integration Settings -->
+            <div class="tab-pane fade" id="integration-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="bi bi-link-45deg me-2"></i>
+                            Integration Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- CRM Integration -->
+                        <div class="settings-section">
+                            <h6 class="section-title">CRM Integration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableCRMIntegration"
+                                                   x-model="settings.enableCRMIntegration">
+                                            <label class="form-check-label" for="enableCRMIntegration">
+                                                Enable CRM integration
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">CRM System</label>
+                                        <select class="form-select" x-model="settings.crmSystem">
+                                            <option value="">None</option>
+                                            <option value="salesforce">Salesforce</option>
+                                            <option value="hubspot">HubSpot</option>
+                                            <option value="zoho">Zoho CRM</option>
+                                            <option value="pipedrive">Pipedrive</option>
+                                            <option value="freshsales">Freshsales</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="autoSyncCRM"
+                                                   x-model="settings.autoSyncCRM">
+                                            <label class="form-check-label" for="autoSyncCRM">
+                                                Auto-sync customer data with CRM
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Sync Frequency</label>
+                                        <select class="form-select" x-model="settings.crmSyncFrequency">
+                                            <option value="realtime">Real-time</option>
+                                            <option value="5min">Every 5 minutes</option>
+                                            <option value="15min">Every 15 minutes</option>
+                                            <option value="30min">Every 30 minutes</option>
+                                            <option value="hourly">Hourly</option>
+                                            <option value="daily">Daily</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Marketing -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Email Marketing Integration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableEmailMarketing"
+                                                   x-model="settings.enableEmailMarketing">
+                                            <label class="form-check-label" for="enableEmailMarketing">
+                                                Enable email marketing integration
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Email Marketing Platform</label>
+                                        <select class="form-select" x-model="settings.emailMarketingPlatform">
+                                            <option value="">None</option>
+                                            <option value="mailchimp">Mailchimp</option>
+                                            <option value="constantcontact">Constant Contact</option>
+                                            <option value="campaignmonitor">Campaign Monitor</option>
+                                            <option value="sendinblue">Sendinblue</option>
+                                            <option value="klaviyo">Klaviyo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="autoSyncEmailLists"
+                                                   x-model="settings.autoSyncEmailLists">
+                                            <label class="form-check-label" for="autoSyncEmailLists">
+                                                Auto-sync customers to email lists
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analytics -->
+                        <div class="settings-section">
+                            <h6 class="section-title">Analytics Integration</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="enableAnalytics"
+                                                   x-model="settings.enableAnalytics">
+                                            <label class="form-check-label" for="enableAnalytics">
+                                                Enable customer analytics
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Analytics Platform</label>
+                                        <select class="form-select" x-model="settings.analyticsPlatform">
+                                            <option value="">None</option>
+                                            <option value="google-analytics">Google Analytics</option>
+                                            <option value="mixpanel">Mixpanel</option>
+                                            <option value="segment">Segment</option>
+                                            <option value="amplitude">Amplitude</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="trackCustomerBehavior"
+                                                   x-model="settings.trackCustomerBehavior">
+                                            <label class="form-check-label" for="trackCustomerBehavior">
+                                                Track customer behavior and preferences
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Settings Saved</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="bi bi-check-circle text-success display-1"></i>
+                        <h4 class="mt-3">Settings Updated Successfully</h4>
+                        <p>Your customer management settings have been saved and will take effect immediately.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/customer_management_settings.js') }}"></script>
+<script>
+// Customer Settings App
+function customerSettingsApp() {
+    return {
+        // Data
+        isSaving: false,
+        customerGroups: [],
+        
+        settings: {
+            // General Settings
+            defaultCustomerType: 'regular',
+            defaultStatus: 'active',
+            defaultLanguage: 'en',
+            defaultTimeZone: 'UTC',
+            itemsPerPage: 25,
+            defaultView: 'grid',
+            showAvatars: true,
+            showCompanyInfo: true,
+            showPurchaseHistory: false,
+            enableCustomerGroups: true,
+            defaultGroup: '',
+            autoAssignGroups: false,
+            
+            // Loyalty Settings
+            enableLoyaltyProgram: false,
+            pointsPerDollar: 1,
+            pointsExpiryDays: 365,
+            birthdayBonusPoints: 100,
+            referralBonusPoints: 500,
+            
+            // Communication Settings
+            enableEmailNotifications: true,
+            enableSMSNotifications: false,
+            welcomeEmailTemplate: 'default',
+            birthdayEmailTemplate: 'default',
+            smsProvider: 'twilio',
+            smsLimitPerDay: 5,
+            enableWelcomeMessages: true,
+            enableBirthdayMessages: true,
+            enableReactivationMessages: true,
+            inactivePeriodDays: 90,
+            
+            // Privacy Settings
+            enableGDPR: false,
+            enableDataEncryption: false,
+            enableAuditLog: true,
+            inactiveCustomerRetentionDays: 1095,
+            deletedCustomerRetentionDays: 30,
+            defaultAccessLevel: 'full',
+            requireTwoFactor: false,
+            
+            // Integration Settings
+            enableCRMIntegration: false,
+            crmSystem: '',
+            autoSyncCRM: false,
+            crmSyncFrequency: 'hourly',
+            enableEmailMarketing: false,
+            emailMarketingPlatform: '',
+            autoSyncEmailLists: false,
+            enableAnalytics: false,
+            analyticsPlatform: '',
+            trackCustomerBehavior: true
+        },
+        
+        loyaltyTiers: [
+            {
+                name: 'Bronze',
+                minPoints: 0,
+                pointsMultiplier: 1,
+                benefits: 'Basic rewards and discounts'
+            },
+            {
+                name: 'Silver',
+                minPoints: 1000,
+                pointsMultiplier: 1.2,
+                benefits: 'Enhanced rewards and exclusive offers'
+            },
+            {
+                name: 'Gold',
+                minPoints: 5000,
+                pointsMultiplier: 1.5,
+                benefits: 'Premium rewards and VIP treatment'
+            }
+        ],
+        
+        // Methods
+        init() {
+            this.loadCustomerGroups();
+            this.loadSettings();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadCustomerGroups() {
+            try {
+                const response = await fetch('/api/customer-groups');
+                this.customerGroups = await response.json();
+            } catch (error) {
+                console.error('Error loading customer groups:', error);
+            }
+        },
+        
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/customers/settings');
+                if (response.ok) {
+                    const settings = await response.json();
+                    this.settings = { ...this.settings, ...settings };
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        },
+        
+        async saveAllSettings() {
+            this.isSaving = true;
+            
+            try {
+                const response = await fetch('/api/customers/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        settings: this.settings,
+                        loyaltyTiers: this.loyaltyTiers
+                    })
+                });
+                
+                if (response.ok) {
+                    this.showSuccessModal();
+                } else {
+                    throw new Error('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.showError('Failed to save settings');
+            } finally {
+                this.isSaving = false;
+            }
+        },
+        
+        async resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to default values? This action cannot be undone.')) {
+                try {
+                    const response = await fetch('/api/customers/settings/reset', {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        await this.loadSettings();
+                        this.showSuccess('Settings reset to defaults');
+                    } else {
+                        throw new Error('Failed to reset settings');
+                    }
+                } catch (error) {
+                    console.error('Error resetting settings:', error);
+                    this.showError('Failed to reset settings');
+                }
+            }
+        },
+        
+        async exportSettings() {
+            try {
+                const response = await fetch('/api/customers/settings/export');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `customer_settings_${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.showSuccess('Settings exported successfully');
+                } else {
+                    throw new Error('Failed to export settings');
+                }
+            } catch (error) {
+                console.error('Error exporting settings:', error);
+                this.showError('Failed to export settings');
+            }
+        },
+        
+        addLoyaltyTier() {
+            this.loyaltyTiers.push({
+                name: 'New Tier',
+                minPoints: 0,
+                pointsMultiplier: 1,
+                benefits: ''
+            });
+        },
+        
+        removeLoyaltyTier(index) {
+            this.loyaltyTiers.splice(index, 1);
+        },
+        
+        showSuccessModal() {
+            const modal = new bootstrap.Modal(document.getElementById('successModal'));
+            modal.show();
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveAllSettings();
+                }
+                
+                // Ctrl/Cmd + R: Reset to defaults
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    this.resetToDefaults();
+                }
+                
+                // Ctrl/Cmd + E: Export settings
+                if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                    e.preventDefault();
+                    this.exportSettings();
+                }
+            });
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}

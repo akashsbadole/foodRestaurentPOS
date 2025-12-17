@@ -1,0 +1,933 @@
+{% extends "retail/base/feature_aware_base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/features/product_catalog_form.css') }}">
+{% endblock %}
+
+{% block retail_content %}
+<!-- Product Catalog Form -->
+<div class="product-form-container" x-data="productFormApp()" x-init="init()">
+    
+    <!-- Header Section -->
+    <div class="form-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="form-title">
+                    <i class="bi bi-box-seam me-2"></i>
+                    <span x-text="isEditing ? 'Edit Product' : 'Add New Product'"></span>
+                </h2>
+                <p class="form-subtitle text-muted" x-text="isEditing ? 'Modify existing product details' : 'Create a new product in your catalog'"></p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline-secondary me-2" @click="saveDraft()">
+                        <i class="bi bi-file-earmark"></i> Save Draft
+                    </button>
+                    <button type="button" class="btn btn-outline-danger me-2" @click="cancelForm()">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-success" @click="saveProduct()" :disabled="!isFormValid">
+                        <i class="bi bi-check-circle"></i> <span x-text="isEditing ? 'Update' : 'Save'">Save</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Progress -->
+    <div class="form-progress mb-4">
+        <div class="progress">
+            <div class="progress-bar" :style="`width: ${progressPercentage}%`"></div>
+        </div>
+        <div class="progress-steps">
+            <template x-for="(step, index) in formSteps" :key="index">
+                <div class="step" :class="getStepClass(index)" @click="goToStep(index)">
+                    <div class="step-number" x-text="index + 1"></div>
+                    <div class="step-title" x-text="step.title"></div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Form Content -->
+    <form @submit.prevent="saveProduct()" class="product-form">
+        
+        <!-- Step 1: Basic Information -->
+        <div class="form-step" x-show="currentStep === 0" x-transition>
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Basic Information
+                </h4>
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <label class="form-label">Product Name *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="product.name"
+                                   placeholder="Enter product name"
+                                   required>
+                            <small class="form-text">The name of your product as it will appear to customers</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">SKU *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="product.sku"
+                                   placeholder="Enter SKU"
+                                   required>
+                            <small class="form-text">Unique product identifier</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Barcode</label>
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       x-model="product.barcode"
+                                       placeholder="Enter barcode">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary"
+                                        @click="scanBarcode()"
+                                        x-show="isFeatureEnabled('FEATURE_BARCODE_SCANNING')">
+                                    <i class="bi bi-upc-scan"></i> Scan
+                                </button>
+                            </div>
+                            <small class="form-text">Product barcode for scanning</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Brand</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="product.brand"
+                                   placeholder="Enter brand name">
+                            <small class="form-text">Product brand or manufacturer</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" 
+                                      x-model="product.description"
+                                      rows="4"
+                                      placeholder="Enter product description"></textarea>
+                            <small class="form-text">Detailed description of your product</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Category *</label>
+                            <select class="form-select" x-model="product.category_id" required>
+                                <option value="">Select Category</option>
+                                <template x-for="category in categories" :key="category.id">
+                                    <option :value="category.id" x-text="category.name"></option>
+                                </template>
+                            </select>
+                            <small class="form-text">Product category for organization</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Tags</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   x-model="tagsInput"
+                                   @keyup.enter="addTag()"
+                                   placeholder="Add tags and press Enter">
+                            <div class="tags-list" x-show="product.tags && product.tags.length > 0">
+                                <template x-for="(tag, index) in product.tags" :key="index">
+                                    <span class="badge bg-light text-dark me-1 mb-1">
+                                        <span x-text="tag"></span>
+                                        <button type="button" class="btn-close btn-close-sm ms-1" @click="removeTag(index)"></button>
+                                    </span>
+                                </template>
+                            </div>
+                            <small class="form-text">Tags for better searchability</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Pricing & Inventory -->
+        <div class="form-step" x-show="currentStep === 1" x-transition>
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="bi bi-currency-dollar me-2"></i>
+                    Pricing & Inventory
+                </h4>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Sale Price *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="product.price"
+                                       step="0.01"
+                                       min="0"
+                                       required>
+                            </div>
+                            <small class="form-text">Customer-facing price</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Cost Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="product.cost"
+                                       step="0.01"
+                                       min="0">
+                            </div>
+                            <small class="form-text">Your purchase cost</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Stock Quantity *</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="product.stock"
+                                   min="0"
+                                   required>
+                            <small class="form-text">Current inventory level</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Low Stock Alert</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="product.low_stock_alert"
+                                   min="0"
+                                   placeholder="10">
+                            <small class="form-text">Alert when stock falls below this level</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Tax Rate (%)</label>
+                            <select class="form-select" x-model="product.tax_rate">
+                                <option value="0">No Tax</option>
+                                <option value="5">5%</option>
+                                <option value="10">10%</option>
+                                <option value="15">15%</option>
+                                <option value="20">20%</option>
+                                <option value="custom">Custom Rate</option>
+                            </select>
+                            <small class="form-text">Tax rate for this product</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4" x-show="product.tax_rate === 'custom'">
+                        <div class="form-group">
+                            <label class="form-label">Custom Tax Rate</label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="product.custom_tax_rate"
+                                       step="0.01"
+                                       min="0"
+                                       max="100">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Track Inventory</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="track_inventory"
+                                       x-model="product.track_inventory">
+                                <label class="form-check-label" for="track_inventory">
+                                    Enable inventory tracking
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Weight (kg)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   x-model="product.weight"
+                                   step="0.01"
+                                   min="0"
+                                   placeholder="0.00">
+                            <small class="form-text">Product weight for shipping calculations</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Dimensions (L×W×H cm)</label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="product.length"
+                                       step="0.01"
+                                       min="0"
+                                       placeholder="Length">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="product.width"
+                                       step="0.01"
+                                       min="0"
+                                       placeholder="Width">
+                                <input type="number" 
+                                       class="form-control" 
+                                       x-model="product.height"
+                                       step="0.01"
+                                       min="0"
+                                       placeholder="Height">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Images & Media -->
+        <div class="form-step" x-show="currentStep === 2" x-transition>
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="bi bi-image me-2"></i>
+                    Images & Media
+                </h4>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Product Images</label>
+                            <div class="image-upload-area" @click="triggerImageUpload()" @drop="handleImageDrop($event)" @dragover.prevent @dragenter.prevent>
+                                <div class="upload-content" x-show="product.images.length === 0">
+                                    <i class="bi bi-cloud-upload display-4 text-muted"></i>
+                                    <p class="mt-3">Click to upload or drag and drop images</p>
+                                    <p class="text-muted small">PNG, JPG, GIF up to 5MB each</p>
+                                </div>
+                                <div class="image-preview-grid" x-show="product.images.length > 0">
+                                    <template x-for="(image, index) in product.images" :key="index">
+                                        <div class="image-preview-container">
+                                            <img :src="image.url" :alt="`Product image ${index + 1}`" class="image-preview">
+                                            <div class="image-overlay">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-danger"
+                                                        @click.stop="removeImage(index)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-primary"
+                                                        @click.stop="setPrimaryImage(index)"
+                                                        x-show="index !== 0">
+                                                    <i class="bi bi-star"></i>
+                                                </button>
+                                                <span class="primary-badge" x-show="index === 0">Primary</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <div class="add-more-images" @click.stop="triggerImageUpload()">
+                                        <i class="bi bi-plus-circle display-4 text-muted"></i>
+                                        <p>Add More</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="file" 
+                                   class="d-none" 
+                                   id="imageUpload"
+                                   multiple
+                                   accept="image/*"
+                                   @change="handleImageUpload($event)">
+                            <small class="form-text">Upload high-quality images to showcase your product</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Product Video (Optional)</label>
+                            <div class="video-upload-area">
+                                <input type="url" 
+                                       class="form-control" 
+                                       x-model="product.video_url"
+                                       placeholder="Enter video URL (YouTube, Vimeo)">
+                                <small class="form-text">Product demonstration video URL</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Additional Details -->
+        <div class="form-step" x-show="currentStep === 3" x-transition>
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="bi bi-gear me-2"></i>
+                    Additional Details
+                </h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" x-model="product.status">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="discontinued">Discontinued</option>
+                            </select>
+                            <small class="form-text">Product visibility and availability</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Supplier</label>
+                            <select class="form-select" x-model="product.supplier_id">
+                                <option value="">No Supplier</option>
+                                <template x-for="supplier in suppliers" :key="supplier.id">
+                                    <option :value="supplier.id" x-text="supplier.name"></option>
+                                </template>
+                            </select>
+                            <small class="form-text">Primary supplier for this product</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">Product Attributes</label>
+                            <div class="attributes-container">
+                                <template x-for="(attribute, index) in product.attributes" :key="index">
+                                    <div class="attribute-row">
+                                        <input type="text" 
+                                               class="form-control" 
+                                               x-model="attribute.name"
+                                               placeholder="Attribute name">
+                                        <input type="text" 
+                                               class="form-control" 
+                                               x-model="attribute.value"
+                                               placeholder="Attribute value">
+                                        <button type="button" 
+                                                class="btn btn-outline-danger"
+                                                @click="removeAttribute(index)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                                <button type="button" class="btn btn-outline-secondary" @click="addAttribute()">
+                                    <i class="bi bi-plus-circle"></i> Add Attribute
+                                </button>
+                            </div>
+                            <small class="form-text">Custom attributes like color, size, material, etc.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="form-label">SEO Settings</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="product.seo_title"
+                                           placeholder="SEO Title">
+                                    <small class="form-text">Custom SEO title (optional)</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           x-model="product.seo_keywords"
+                                           placeholder="SEO Keywords">
+                                    <small class="form-text">Comma-separated keywords</small>
+                                </div>
+                            </div>
+                            <textarea class="form-control mt-2" 
+                                      x-model="product.seo_description"
+                                      rows="2"
+                                      placeholder="SEO Description"></textarea>
+                            <small class="form-text">SEO meta description</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Navigation -->
+        <div class="form-navigation">
+            <div class="row">
+                <div class="col-md-6">
+                    <button type="button" 
+                            class="btn btn-secondary"
+                            @click="previousStep()"
+                            x-show="currentStep > 0">
+                        <i class="bi bi-arrow-left"></i> Previous
+                    </button>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button type="button" 
+                            class="btn btn-primary me-2"
+                            @click="nextStep()"
+                            x-show="currentStep < formSteps.length - 1"
+                            :disabled="!isStepValid()">
+                        Next <i class="bi bi-arrow-right"></i>
+                    </button>
+                    <button type="submit" 
+                            class="btn btn-success"
+                            x-show="currentStep === formSteps.length - 1"
+                            :disabled="!isFormValid">
+                        <i class="bi bi-check-circle"></i> <span x-text="isEditing ? 'Update' : 'Save'">Save</span> Product
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Product Preview Sidebar -->
+    <div class="product-preview-sidebar" x-show="currentStep > 0">
+        <div class="preview-card">
+            <h5 class="preview-title">Product Preview</h5>
+            
+            <div class="preview-image">
+                <img :src="product.images[0]?.url || '/static/images/placeholder-product.png'" 
+                     :alt="product.name || 'Product preview'">
+            </div>
+            
+            <div class="preview-info">
+                <h6 class="preview-name" x-text="product.name || 'Product Name'"></h6>
+                <p class="preview-sku text-muted" x-text="`SKU: ${product.sku || 'N/A'}`"></p>
+                <div class="preview-price">
+                    <span class="current-price" x-text="formatCurrency(product.price || 0)"></span>
+                    <span class="cost-price text-muted" x-show="product.cost">
+                        Cost: <span x-text="formatCurrency(product.cost)"></span>
+                    </span>
+                </div>
+                <div class="preview-stock">
+                    <span class="stock-indicator" 
+                          :class="getStockClass(product.stock || 0)">
+                        Stock: <span x-text="product.stock || 0"></span>
+                    </span>
+                </div>
+                <div class="preview-category" x-show="product.category_id">
+                    <span class="category-badge" x-text="getCategoryName(product.category_id)"></span>
+                </div>
+                <div class="preview-status">
+                    <span class="status-badge" 
+                          :class="`status-${product.status || 'active'}`"
+                          x-text="formatStatus(product.status || 'active')"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/features/product_catalog_form.js') }}"></script>
+<script>
+// Product Form App
+function productFormApp() {
+    return {
+        // Data
+        isEditing: false,
+        currentStep: 0,
+        formSteps: [
+            { title: 'Basic Information' },
+            { title: 'Pricing & Inventory' },
+            { title: 'Images & Media' },
+            { title: 'Additional Details' }
+        ],
+        
+        product: {
+            name: '',
+            sku: '',
+            barcode: '',
+            brand: '',
+            description: '',
+            category_id: '',
+            tags: [],
+            price: '',
+            cost: '',
+            stock: '',
+            low_stock_alert: 10,
+            tax_rate: '0',
+            custom_tax_rate: '',
+            track_inventory: true,
+            weight: '',
+            length: '',
+            width: '',
+            height: '',
+            images: [],
+            video_url: '',
+            status: 'active',
+            supplier_id: '',
+            attributes: [],
+            seo_title: '',
+            seo_keywords: '',
+            seo_description: ''
+        },
+        
+        categories: [],
+        suppliers: [],
+        tagsInput: '',
+        
+        // Computed properties
+        get progressPercentage() {
+            return ((this.currentStep + 1) / this.formSteps.length) * 100;
+        },
+        
+        get isFormValid() {
+            return this.product.name && 
+                   this.product.sku && 
+                   this.product.category_id && 
+                   this.product.price !== '' && 
+                   this.product.stock !== '';
+        },
+        
+        // Methods
+        init() {
+            this.loadCategories();
+            this.loadSuppliers();
+            this.checkEditMode();
+            this.setupKeyboardShortcuts();
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadSuppliers() {
+            try {
+                const response = await fetch('/api/suppliers');
+                this.suppliers = await response.json();
+            } catch (error) {
+                console.error('Error loading suppliers:', error);
+            }
+        },
+        
+        checkEditMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId) {
+                this.isEditing = true;
+                this.loadProduct(editId);
+            }
+        },
+        
+        async loadProduct(productId) {
+            try {
+                const response = await fetch(`/api/products/${productId}`);
+                const product = await response.json();
+                this.product = { ...this.product, ...product };
+            } catch (error) {
+                console.error('Error loading product:', error);
+                this.showError('Failed to load product');
+            }
+        },
+        
+        getStepClass(index) {
+            if (index < this.currentStep) return 'completed';
+            if (index === this.currentStep) return 'active';
+            return 'pending';
+        },
+        
+        goToStep(index) {
+            if (index >= 0 && index < this.formSteps.length) {
+                this.currentStep = index;
+            }
+        },
+        
+        nextStep() {
+            if (this.currentStep < this.formSteps.length - 1 && this.isStepValid()) {
+                this.currentStep++;
+            }
+        },
+        
+        previousStep() {
+            if (this.currentStep > 0) {
+                this.currentStep--;
+            }
+        },
+        
+        isStepValid() {
+            switch (this.currentStep) {
+                case 0:
+                    return this.product.name && this.product.sku && this.product.category_id;
+                case 1:
+                    return this.product.price !== '' && this.product.stock !== '';
+                case 2:
+                    return true; // Images are optional
+                case 3:
+                    return true; // Additional details are optional
+                default:
+                    return false;
+            }
+        },
+        
+        addTag() {
+            if (this.tagsInput.trim()) {
+                this.product.tags.push(this.tagsInput.trim());
+                this.tagsInput = '';
+            }
+        },
+        
+        removeTag(index) {
+            this.product.tags.splice(index, 1);
+        },
+        
+        addAttribute() {
+            this.product.attributes.push({ name: '', value: '' });
+        },
+        
+        removeAttribute(index) {
+            this.product.attributes.splice(index, 1);
+        },
+        
+        triggerImageUpload() {
+            document.getElementById('imageUpload').click();
+        },
+        
+        handleImageUpload(event) {
+            const files = Array.from(event.target.files);
+            this.processImages(files);
+        },
+        
+        handleImageDrop(event) {
+            event.preventDefault();
+            const files = Array.from(event.dataTransfer.files);
+            this.processImages(files);
+        },
+        
+        async processImages(files) {
+            const imageFiles = files.filter(file => file.type.startsWith('image/'));
+            
+            for (const file of imageFiles) {
+                if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                    this.showError(`File ${file.name} is too large. Maximum size is 5MB.`);
+                    continue;
+                }
+                
+                try {
+                    const imageUrl = await this.uploadImage(file);
+                    this.product.images.push({
+                        url: imageUrl,
+                        filename: file.name,
+                        size: file.size
+                    });
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                    this.showError(`Failed to upload ${file.name}`);
+                }
+            }
+        },
+        
+        async uploadImage(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            const response = await fetch('/api/upload/image', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('Image upload failed');
+            }
+            
+            const result = await response.json();
+            return result.url;
+        },
+        
+        removeImage(index) {
+            this.product.images.splice(index, 1);
+        },
+        
+        setPrimaryImage(index) {
+            const image = this.product.images.splice(index, 1)[0];
+            this.product.images.unshift(image);
+        },
+        
+        scanBarcode() {
+            // Implement barcode scanning
+            this.showInfo('Barcode scanner feature coming soon');
+        },
+        
+        async saveProduct() {
+            if (!this.isFormValid) {
+                this.showError('Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                const url = this.isEditing ? `/api/products/${this.getProductId()}` : '/api/products';
+                const method = this.isEditing ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.product)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess(`Product ${this.isEditing ? 'updated' : 'created'} successfully`);
+                    window.location.href = '/products';
+                } else {
+                    throw new Error(`Failed to ${this.isEditing ? 'update' : 'create'} product`);
+                }
+            } catch (error) {
+                console.error('Error saving product:', error);
+                this.showError(`Failed to ${this.isEditing ? 'update' : 'create'} product`);
+            }
+        },
+        
+        async saveDraft() {
+            try {
+                const response = await fetch('/api/products/drafts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.product)
+                });
+                
+                if (response.ok) {
+                    this.showSuccess('Draft saved successfully');
+                } else {
+                    throw new Error('Failed to save draft');
+                }
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                this.showError('Failed to save draft');
+            }
+        },
+        
+        cancelForm() {
+            if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
+                window.history.back();
+            }
+        },
+        
+        getProductId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('edit');
+        },
+        
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + S: Save product
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.saveProduct();
+                }
+                
+                // Ctrl/Cmd + D: Save draft
+                if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                    e.preventDefault();
+                    this.saveDraft();
+                }
+                
+                // Arrow keys: Navigate steps
+                if (e.key === 'ArrowRight' && this.currentStep < this.formSteps.length - 1) {
+                    e.preventDefault();
+                    this.nextStep();
+                }
+                if (e.key === 'ArrowLeft' && this.currentStep > 0) {
+                    e.preventDefault();
+                    this.previousStep();
+                }
+            });
+        },
+        
+        // Utility methods
+        formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        },
+        
+        formatStatus(status) {
+            const statuses = {
+                active: 'Active',
+                inactive: 'Inactive',
+                discontinued: 'Discontinued'
+            };
+            return statuses[status] || status;
+        },
+        
+        getCategoryName(categoryId) {
+            const category = this.categories.find(c => c.id === categoryId);
+            return category ? category.name : 'Uncategorized';
+        },
+        
+        getStockClass(stock) {
+            if (stock === 0) return 'out-of-stock';
+            if (stock <= 10) return 'low-stock';
+            return 'in-stock';
+        },
+        
+        isFeatureEnabled(feature) {
+            return window.RETAIL_CONFIG.features[feature] || false;
+        },
+        
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        },
+        
+        showError(message) {
+            this.showNotification(message, 'error');
+        },
+        
+        showInfo(message) {
+            this.showNotification(message, 'info');
+        },
+        
+        showNotification(message, type) {
+            document.dispatchEvent(new CustomEvent('showNotification', {
+                detail: {
+                    type: type,
+                    message: message
+                }
+            }));
+        }
+    };
+}
+</script>
+{% endblock %}
